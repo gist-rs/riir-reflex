@@ -10,6 +10,52 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **v0.2.3 — the THREE-BOARD release cut** (`a386119` tag; dist release live).
+  The deferred-until-Metal-landed tag, cut after the Metal sibling's
+  `a51ea42`/`9ed1211`/`3ecab32` landed and the tree went clean. Release gates on
+  the tagged tree: full default suite 108/0; clippy `-D warnings` at default /
+  all-features / no-default postures; metal smoke 7/7 ×3 serialized + full
+  laya-riir-metal suite **154/0** serialized; G5 parity green BOTH postures (cpu
+  27.79 s / metal 9.92 s); leak scan PASS ×5; packaged-binary live smoke (stamp
+  complete `default laya-riir laya-riir-metal modelless`, all three heads fitted
+  at their published digests, lanes turn answered from the head over HTTP).
+  Release surface: **dist repo `gist-rs/reflex`** release v0.2.3 (6 assets;
+  SHA256SUMS regenerated v0.2.3-only after the cumulative-pkg-dir bug put five
+  stale v0.2.2 rows in the first upload), tap `3054310` + bucket `5900c33`
+  (both hash-verified against the SHA256SUMS), site version floor v0.2.3
+  (`6db0cce`, deployed CF `ab5d8524`, prod curl-verified).
+  ⛔ **The wrong-repo finding**: the first `gh release create` ran inside this
+  checkout and created the release on **gist-rs/riir-reflex** (this repo) —
+  the private source repo, where the tap's URLs 404. The dist surface is
+  **gist-rs/reflex** (the install surface since v0.1.0; the AGENTS.md dist
+  bullets say so — the release step must name `--repo gist-rs/reflex` or run
+  from a dist checkout). The mistaken release was deleted (the TAG stays —
+  v0.2.1/v0.2.2 both carry tags here; only the release object was wrong).
+  ⚠ The `--clobber` SHA256SUMS half: `gh release upload --clobber` with a
+  renamed file (`SHA256SUMS_v023`) created a SECOND asset instead of replacing;
+  the canonical `SHA256SUMS` kept the stale cumulative content. Fix was
+  delete-asset + re-upload + API-route verify (the download CDN served the
+  pre-replacement bytes for minutes — `x-cache: HIT`; the API route returned
+  the correct 548-byte file immediately).
+  **Issue 015 observation 4** recorded in the same landing: the release
+  pre-flight's FIRST serialized smoke run red 6/7 minutes after the sibling
+  Metal session's parity runs ceased, then 3× serialized greens + 154/0 + a
+  parallel full-suite pass with NO code change between — the run-to-run decay
+  pattern (candidate (b), cross-process contention) is load-bearing, and the
+  flake class can surface even serialized.
+- **`04f9a4d`** — the laya posture's three `unused variable` warnings fixed at
+  the root: `run_laya_checkpoint`'s dead `percentile_us` call deleted — the
+  shared tail (`assemble_laya_lane_result`, both laya lanes) owns the latency
+  metrics; both lanes' metrics must not diverge.
+- **Laya-armed live coexistence validated** (the pre-release lane): engine
+  booted with `RIIR_REFLEX_LAYA=1` (`laya lane: ready english, device cpu`),
+  all three heads fitted alongside; one real lanes grammar turn answered by
+  BOTH lanes — modelless routing `game-head/lanes` with per-lane scores
+  (0.1553/0.1384/0.1553 — the head distinguishes train-blocked from
+  rock-blocked), laya routing `requested lane=laya` from the real forward;
+  off-grammar prompts decline to the honest abstain; raw skips the head try.
+  The protocol change touches only the head-serving edge — laya's measured
+  per-option shape untouched, now proven live.
 - **Issue 011 — the lanes + flappy heads join the serve lane** CLOSED
   (`d1eda08`). Both boards left the abstain list at their published
   anchors, acceptance met in `tests/game_heads_serve.rs`:

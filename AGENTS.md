@@ -124,6 +124,24 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   `367766c`+`932a2a3` + tap `d60e40d` + bucket `75d2878` + dist `ba750f4`)** — the v0.2.2
   archives carry `reflex`; the installers accept BOTH spellings (pre-v0.2.2 pins keep
   installing `riir-reflex`), both paths live-verified.
+- **v0.2.3 live (2026-09-24)** — the THREE-BOARD release (issue 011 closed): lanes serve
+  at Bench 880's lossless decoded arm (λ 0.01, in-corpus 84/100, head digest prefix
+  `7d3f1d8e` — Bench 880 published only the prefix; the decoded arm is digest-identical
+  to the structured arm per Bench 881) and flappy at Bench 882's v3 decoded arm (λ 1,
+  in-corpus 96/100, FULL digest `c93d36dc…e3c5`) beside the v0.2.2 Tetris head. Joined-state
+  protocol: the sentence sequence rides the `state` field one per line (`noul` questions
+  carry no options by wire law); request shapes in README. Release surface: GitHub release
+  v0.2.3 on the DIST repo (6 assets, leak-scan PASS ×5, SHA256SUMS v0.2.3-only), tap
+  `3054310` + bucket `5900c33` (both hash-verified), site version floor bumped + deployed
+  (`6db0cce`, CF `ab5d8524`); G5 parity green BOTH postures on the tagged tree (cpu 27.8 s,
+  metal 9.9 s), metal smoke green ×3 serialized + full laya-riir-metal suite 154/0;
+  packaged-binary live smoke PASS (stamp complete, all three heads fitted, lanes turn
+  answered from the head). Carries the Metal BK64+xwide lane (`a51ea42`: ag_news 34→29 ms
+  beats the python oracle, xwide n-floor + cold-GPU-sequencing traps recorded in the
+  landing) and issue 015 (the parallel-Metal smoke flake — observation 4 is this
+  release's own pre-flight: one serialized red minutes after sibling GPU work, then
+  stable greens; kernel changes exonerated, G5 never flagged, serving is single-instance
+  serialized by construction).
 - **v0.2.2 live (2026-09-23)** — the fitted game head + Metal-default laya (Plan 001,
   `.plans/001_game_head_serving.md`): the modelless lane answers Plan 607's Tetris spot
   question from the decoded Bench-881 head (λ=1, 44/120 in+LOO anchors pinned in
@@ -132,14 +150,8 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   the cosine engine's abstain (grammar-invalid / foreign question / non-noul all fall
   through — `src/game_heads.rs` `respond`). ~~Lanes + flappy stay honest abstains with
   recorded unblock paths (`.issues/011`)~~ — SUPERSEDED post-v0.2.2 (issue 011 CLOSED,
-  `514d34a`; serving landed `d1eda08`): all three boards now serve from the engine —
-  lanes at Bench 880's lossless decoded arm (λ 0.01, in-corpus 84/100, head digest
-  prefix `7d3f1d8e` — Bench 880 published only the prefix; the decoded arm is
-  digest-identical to the structured arm per Bench 881) and flappy at Bench 882's v3
-  decoded arm (λ 1, in-corpus 96/100, FULL digest `c93d36dc…e3c5`). Joined-state
-  protocol: the sentence sequence rides the `state` field one per line (`noul`
-  questions carry no options by wire law); request shapes in README. Ships in
-  v0.2.3. Darwin release artifacts carry `laya-riir-metal`
+  `514d34a`; serving landed `d1eda08`; ships in v0.2.3 — see the row above). Darwin
+  release artifacts carry `laya-riir-metal`
   and the laya lane defaults to Metal on those builds (`LAYA_DEVICE=cpu` opts out; G5
   parity green at BOTH postures — 29 s metal vs 219 s cpu on this box; fresh interleaved
   row p50 78.1 vs 176.8 ms = 2.26×). Release surface: GitHub release v0.2.2 (6 assets,
