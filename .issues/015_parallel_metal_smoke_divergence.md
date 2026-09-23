@@ -1,4 +1,4 @@
-# Issue 015 — parallel-Metal-instance smoke divergence (3 observations, root cause unproven)
+# Issue 015 — parallel-Metal-instance smoke divergence (6 observations, root cause unproven)
 
 **Status:** OPEN — reproduction + containment recorded, root cause NOT diagnosed.
 
@@ -31,6 +31,20 @@ kernel under test.
    (cross-process GPU contention decaying), NOT with a code regression
    (nothing changed between the red and the greens; the version-bump-only
    tree is otherwise identical to a51ea42).
+5. 2026-09-24 ~04:4x (the flash_attn session, HEAD `a386119` + the fused
+   kernel in the tree): 4/6 PARALLEL full-suite runs red on
+   `metal_ops_match_cpu_op_by_op` (diverging arm not re-printed per run),
+   while a single-test run of that test alone passed every arm. Read as
+   load at first — see observation 6, which supersedes the amplification
+   reading.
+6. 2026-09-24 ~04:5x, the attribution run that matters: the BASE tree
+   (`git worktree` at `a386119`, NO flash kernel) flaked **serialized**
+   at 1/8 — same class, no new kernel in the library. So the class is
+   PRE-EXISTING and not amplified by the flash_attn work; the 4/6 rate
+   in observation 5 was concurrent-compile load, not the kernel. Also
+   the flash session's own first full-suite parallel run red on
+   `matmul_heads seq300` (max 2.8e1), which then passed unchanged in
+   every later run — same decay shape as observation 4.
 
 Serialized `-- --test-threads=1` after both failures: all 7 tests green,
 bit-identical. The G5 parity gate (single Metal instance) has never
@@ -64,4 +78,6 @@ pattern is the load-bearing signal, not the test-thread count.)
 Session: m3, 2026-09-24, commits `a51ea42`/`9ed1211` (the observations
 were collected during that work; the kernel changes themselves are
 exonerated — the diverging ops were untouched by them and everything
-passes serialized).
+passes serialized). Observations 5–6: m3, 2026-09-24, the flash_attn
+session — observation 6's base-tree worktree run (`a386119`, no flash
+kernel) is the one that exonerates the new kernel explicitly.

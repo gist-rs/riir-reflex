@@ -96,16 +96,53 @@ pub trait Backend {
     /// and k thirds in place (q additionally takes the `1/√hd` scale AFTER
     /// the rotate, the encoder's rope-then-scale order), score every head,
     /// mask, softmax, mix the values, merge heads into `out` `[seq, d]` —
-    /// is implemented HERE for the CPU lane as the exact op sequence below;
-    /// device backends override it with their fused form. The allowed-set
-    /// contract: `mask` (the `[seq, seq]` additive tensor, `Some` only when
-    /// `window < seq − 1` and `seq > 1`) and `window` (the sliding radius,
-    /// `usize::MAX` = full attention) describe the SAME set — 0/allowed
-    /// inside `|q − k| ≤ window`, `f32::MIN`/masked outside — so a device
-    /// lane may use either representation. `scratch` is the caller's
-    /// per-forward buffer set, resized in place (device lanes ignore it).
+    /// is implemented HERE for the CPU lane as the exact op sequence in
+    /// [`Backend::attention_forward_default`]; device backends override
+    /// `attention_forward` with their fused form (the Metal lane's
+    /// `flash_attn`), whose kill-switch falls back to that same reference
+    /// sequence — the G5 + smoke equivalence gates hold the two together.
+    /// The allowed-set contract: `mask` (the `[seq, seq]` additive tensor,
+    /// `Some` only when `window < seq − 1` and `seq > 1`) and `window`
+    /// (the sliding radius, `usize::MAX` = full attention) describe the
+    /// SAME set — 0/allowed inside `|q − k| ≤ window`, `f32::MIN`/masked
+    /// outside — so a device lane may use either representation.
+    /// `scratch` is the caller's per-forward buffer set, resized in place
+    /// (device lanes ignore it).
     #[allow(clippy::too_many_arguments)]
     fn attention_forward(
+        &self,
+        qkv: &[f32],
+        rope_cos: &[f32],
+        rope_sin: &[f32],
+        scale: f32,
+        seq: usize,
+        heads: usize,
+        hd: usize,
+        window: usize,
+        mask: Option<&[f32]>,
+        scratch: &mut AttnScratch,
+        out: &mut [f32],
+    ) {
+        self.attention_forward_default(
+            qkv,
+            rope_cos,
+            rope_sin,
+            scale,
+            seq,
+            heads,
+            hd,
+            window,
+            mask,
+            scratch,
+            out,
+        )
+    }
+
+    /// The reference attention op sequence (split → rope → scale → scores →
+    /// mask → softmax → value mix → merge). Concrete on the trait so a
+    /// device override can reach it without re-stating the ops.
+    #[allow(clippy::too_many_arguments)]
+    fn attention_forward_default(
         &self,
         qkv: &[f32],
         rope_cos: &[f32],

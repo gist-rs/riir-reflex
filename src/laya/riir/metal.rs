@@ -43,10 +43,15 @@
 //!   kernel was a naive 16×16 one-thread-per-element tile (the recorded
 //!   honest baseline, ~3.5% of peak); this is the recorded optimization
 //!   ladder climbed.
-//! - **attention is ONE dispatch per op over ALL heads** —
-//!   `matmul_kt_heads` / `matmul_heads` / `add_mask_broadcast` replaced
-//!   the per-head host loops (heads× dispatches of tiny GEMMs per layer).
-//!   The CPU lane keeps the identical per-head op order, so its numerics
+//! - **attention is ONE fused dispatch per layer** — `flash_attn` consumes
+//!   the packed qkv directly (split, rope, q-scale, scores, sliding window,
+//!   softmax, value mix, head merge in-kernel) and materializes NO seq²
+//!   scores parent; sliding-window layers walk only their windowed key
+//!   slice, which is where the long-sequence win lives (window 64 vs seq
+//!   317 ≈ 2.4× less attention FLOPs). The two-pass form normalizes
+//!   without rescaling the accumulator. `LAYA_METAL_FLASH=0` falls back to
+//!   the reference op sequence ([`Backend::attention_forward_default`]);
+//!   the CPU lane keeps the identical per-head op order, so its numerics
 //!   are bit-unchanged.
 //! - **softmax / LN are row-parallel** — one threadgroup (one simdgroup,
 //!   32 lanes) per row with `simd_max`/`simd_sum` reductions; the v1
@@ -69,7 +74,7 @@ use metal::{Buffer, CommandBuffer, CommandQueue, ComputePipelineState, Device, M
 use objc2::rc::autoreleasepool;
 
 use super::super::{LayaError, Result};
-use super::backend::Backend;
+use super::backend::{AttnScratch, Backend};
 
 /// Shared storage with EXPLICIT tracked hazard tracking: the pipeline
 /// flush commits a full command buffer mid-pass, and Metal only inserts
@@ -135,6 +140,20 @@ const XWIDE_THREADS: u64 = 1024;
 /// buffers join the committed list and are waited at the next sync.
 const MAX_ENCODERS_PER_CB: u32 = 1024;
 
+/// flash_attn staging (Q tile [32][65] + Kᵀ tile [64][33] + V tile
+/// [32][65] + scores/probs [32][33] + 64 row-stats floats) and dispatch.
+/// BQ = 32 query rows per threadgroup; the accumulator [32][64] lives as
+/// one 8×8 frag per simdgroup (1024 threads = 32 simdgroups).
+const FLASH_STAGING_BYTES: u64 =
+    ((32 * 65 + 64 * 33 + 32 * 65 + 32 * 33 + 64) * std::mem::size_of::<f32>()) as u64;
+const FLASH_THREADS: u64 = 1024;
+/// Query-block rows of the fused attention kernel; hd is pinned to 64
+/// (both shipped checkpoints — the kernel's rope pairing and tile mapping
+/// assert it host-side).
+const FLASH_HD: usize = 64;
+/// Query rows per fused-attention threadgroup (mirrors the MSL `FBQ`).
+const FLASH_BQ: u64 = 32;
+
 /// The edge staging must fit inside the carved buffer's front half (the
 /// k-loop's A/B tiles are dead by then; the barrier orders the reuse) and
 /// the whole allocation must fit Metal's 32 KB threadgroup memory limit —
@@ -150,6 +169,7 @@ const _: () = {
     assert!(NARROW_STAGING_BYTES <= 32768);
     assert!(WIDE_STAGING_BYTES <= 32768);
     assert!(XWIDE_STAGING_BYTES <= 32768);
+    assert!(FLASH_STAGING_BYTES <= 32768);
 };
 
 /// Debug trace flag (`LAYA_METAL_TRACE=1`): log every chain-cache miss.
@@ -169,6 +189,7 @@ const KERNELS: &[&str] = &[
     "sgemm",
     "sgemm_wide",
     "sgemm_xwide",
+    "flash_attn",
     "add",
     "copy",
     "add_bias_row",
@@ -302,16 +323,10 @@ kernel void sgemm_wide(
             const uint bc = t + kk;
             if (b_cs == 1u) {
                 // Row-major B [k][n]: contiguous along n → n-fastest lanes.
-                const uint kk = idx >> 6u;
-                const uint col = idx & 63u;
-                const uint bc = t + kk;
-                tb[kk * TBS + col] =
+                tb[kk * WTBS + col] =
                     (bc < k && n0 + col < n) ? B[bc * b_rs + n0 + col] : 0.0f;
             } else {
-                const uint kk = idx >> 6u;
-                const uint col = idx & 63u;
-                const uint bc = t + kk;
-                tb[kk * TBS + col] =
+                tb[kk * WTBS + col] =
                     (bc < k && n0 + col < n) ? B[bc * b_rs + (n0 + col) * b_cs] : 0.0f;
             }
         }
@@ -602,6 +617,243 @@ kernel void sgemm(
 }
 "#;
 
+/// The fused attention kernel (the Metal lane's flash form): ONE dispatch
+/// per layer over the packed qkv — split, rope, q-scale, scores, sliding
+/// window, softmax and value mix, and the head merge all in-kernel; the
+/// seq² scores parent the reference sequence materializes (and its mask
+/// add + multi-pass softmax + context re-read) never exist. The accumulator
+/// is normalized with the TWO-PASS form: pass 1 walks the key tiles for the
+/// row max only, pass 2 recomputes each tile's scores against the FINAL max
+/// and accumulates exp(s−m)·V — no running-max rescale of the accumulator,
+/// at the cost of a second score MMA and a second K read (the rope partner
+/// reads hit the same cache lines). Sliding-window layers predicate on
+/// `window` — each query block reads only its [q₀−w, q_end+w] key slice —
+/// which is also where the FLOP win lives at seq ≫ window (the english
+/// geometry: window 64, ~2/3 sliding layers); `window == seq` (the host
+/// clamps) means full attention. The additive mask tensor the reference
+/// sequence consumes describes the same allowed set and is never read
+/// here.
+const MSL_FLASH: &str = r#"
+// Self-contained geometry (no sgemm instance constants referenced).
+constant uint FBQ = 32u;   // query rows per threadgroup
+constant uint FHD = 64u;   // head dim (asserted host-side)
+constant uint FTAS = 65u;  // row stride over a 64-wide tile
+constant uint FTKS = 33u;  // row stride over the Kᵀ tile's 32-wide kt rows
+
+kernel void flash_attn(
+    device const float* qkv [[buffer(0)]],
+    device const float* cos [[buffer(1)]],
+    device const float* sin [[buffer(2)]],
+    device float* out [[buffer(3)]],
+    constant uint& seq [[buffer(4)]],
+    constant uint& heads [[buffer(5)]],
+    constant uint& hd [[buffer(6)]],
+    constant uint& window [[buffer(7)]],
+    constant float& scale [[buffer(8)]],
+    threadgroup float* raw [[threadgroup(9)]],
+    uint2 gtp [[threadgroup_position_in_grid]],
+    uint lid [[thread_index_in_threadgroup]])
+{
+    // Carved staging: ta Q tile [32][65] (rope+scale applied), tk Kᵀ tile
+    // [64][33] ([kt][key], rope applied — both halves of each rope pair
+    // live in the tile), tv V tile [32][65] ([key][hd] natural), ts
+    // scores/probs [32][33], st row stats (m in st[0..32], l in
+    // st[32..64]). ta is reused for the accumulator after the key loop;
+    // the barriers order every reuse.
+    threadgroup float* ta = raw;
+    threadgroup float* tk = raw + 32u * FTAS;
+    threadgroup float* tv = tk + 64u * FTKS;
+    threadgroup float* ts = tv + 32u * FTAS;
+    threadgroup float* st = ts + 32u * FTKS;
+
+    const uint q0 = gtp.x * FBQ;
+    const uint h = gtp.y;
+    const uint d = heads * FHD;
+    device const float* Q = qkv + h * FHD;
+    device const float* K = qkv + d + h * FHD;
+    device const float* V = qkv + 2u * d + h * FHD;
+
+    const uint sg = lid >> 5u;   // simdgroup id 0..31
+    const uint sgr = sg >> 3u;   // accumulator row group 0..3
+    const uint sgc = sg & 7u;    // accumulator col group 0..7
+
+    // Key range [lo, hi): every (q, k) pair with |q − k| ≤ window for
+    // every live row q of this block, clamped to the sequence. window
+    // arrives clamped to seq (full attention ⇒ lo 0, hi seq).
+    const uint last_row = min(q0 + FBQ - 1u, seq - 1u);
+    const uint lo = (q0 > window) ? (q0 - window) : 0u;
+    const uint hi = min(last_row + window + 1u, seq);
+
+    // Stage the Q block once — one rope pair per thread, (r, j) and
+    // (r, j + 32): rotate-half RoPE, then the 1/√hd scale (the reference
+    // sequence's rope-then-scale order). Rows past seq stage zeros (the
+    // ragged block tail; their outputs are never stored).
+    {
+        const uint r = lid >> 5u;
+        const uint j = lid & 31u;
+        const uint row = q0 + r;
+        float qa = 0.0f, qb = 0.0f;
+        float c = 0.0f, s = 0.0f;
+        if (row < seq) {
+            qa = Q[row * (3u * d) + j];
+            qb = Q[row * (3u * d) + 32u + j];
+            c = cos[row * FHD + j];
+            s = sin[row * FHD + j];
+        }
+        ta[r * FTAS + j] = (qa * c - qb * s) * scale;
+        ta[r * FTAS + 32u + j] = (qb * c + qa * s) * scale;
+    }
+
+    // Pass 1 — running row max only.
+    if (lid < 32u) { st[lid] = -3.402823466e+38f; }
+    for (uint t = lo; t < hi; t += FBQ) {
+        const uint wk = min(FBQ, hi - t);   // live keys in this tile
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        // Stage Kᵀ: one rope pair per thread — (kt j, j+32) × key. Reads
+        // both pair elements (the partner is outside the staged kt half
+        // but the same cache row); rotates, then writes both kt rows.
+        {
+            const uint j = lid >> 5u;    // rope pair index 0..31
+            const uint key = lid & 31u;  // tile key 0..31
+            const uint krow = t + key;
+            float ka = 0.0f, kb = 0.0f;
+            float c = 0.0f, s = 0.0f;
+            if (krow < hi) {
+                ka = K[krow * (3u * d) + j];
+                kb = K[krow * (3u * d) + 32u + j];
+                c = cos[krow * FHD + j];
+                s = sin[krow * FHD + j];
+            }
+            tk[j * FTKS + key] = ka * c - kb * s;
+            tk[(j + 32u) * FTKS + key] = kb * c + ka * s;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        // scores frag = Q tile × Kᵀ over the full hd contraction. The
+        // scores tile is [32 rows][32 keys] — only the four key-col groups
+        // (sgc < 4) hold live frags; sgc ≥ 4 must neither compute nor
+        // store (their store would run past the 32-key row into the next
+        // row of the [32][33] buffer).
+        if (sgc < 4u) {
+            simdgroup_float8x8 sf = simdgroup_float8x8(0.0f);
+            for (uint kk = 0u; kk < FHD; kk += 8u) {
+                simdgroup_float8x8 fa, fb;
+                simdgroup_load(fa, ta + sgr * 8u * FTAS + kk, FTAS);
+                simdgroup_load(fb, tk + kk * FTKS + sgc * 8u, FTKS);
+                simdgroup_multiply_accumulate(sf, fa, fb, sf);
+            }
+            simdgroup_store(sf, ts + sgr * 8u * FTKS + sgc * 8u, FTKS);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        // Per-row window predicate: the block key range is only a bounds
+        // optimization — within a tile a key is live for a row only when
+        // |q − k| ≤ window (the reference's mask row; out-of-window keys
+        // are exp(f32::MIN − m) = 0 there, so skipping them is exact).
+        if (lid < 32u) {
+            const uint q = q0 + lid;
+            float m = st[lid];
+            for (uint c = 0u; c < wk; ++c) {
+                const uint k = t + c;
+                const uint dk = (k > q) ? (k - q) : (q - k);
+                if (dk <= window) { m = max(m, ts[lid * FTKS + c]); }
+            }
+            st[lid] = m;
+        }
+    }
+    if (lid < 32u) { st[32u + lid] = 0.0f; }
+
+    // Pass 2 — recompute each tile against the final max, accumulate
+    // exp(s − m)·V and the per-row l in registers (the same lane owns row
+    // `lane` every tile). ONE accumulator frag per simdgroup: 32 sg as 4
+    // row groups × 8 col groups cover the [32][64] output exactly.
+    float l_reg = 0.0f;
+    simdgroup_float8x8 acc = simdgroup_float8x8(0.0f);
+    for (uint t = lo; t < hi; t += FBQ) {
+        const uint wk = min(FBQ, hi - t);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        {
+            const uint j = lid >> 5u;
+            const uint key = lid & 31u;
+            const uint krow = t + key;
+            float ka = 0.0f, kb = 0.0f;
+            float c = 0.0f, s = 0.0f;
+            if (krow < hi) {
+                ka = K[krow * (3u * d) + j];
+                kb = K[krow * (3u * d) + 32u + j];
+                c = cos[krow * FHD + j];
+                s = sin[krow * FHD + j];
+            }
+            tk[j * FTKS + key] = ka * c - kb * s;
+            tk[(j + 32u) * FTKS + key] = kb * c + ka * s;
+        }
+        for (uint q = 0u; q < 2u; ++q) {
+            // V tile [32 key][64 hd]: two elements per thread, natural
+            // layout (no rope).
+            const uint idx = lid + q * 1024u;
+            const uint key = idx >> 6u;
+            const uint col = idx & 63u;
+            const uint krow = t + key;
+            tv[key * FTAS + col] =
+                (krow < hi) ? V[krow * (3u * d) + col] : 0.0f;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (sgc < 4u) {
+            simdgroup_float8x8 sf = simdgroup_float8x8(0.0f);
+            for (uint kk = 0u; kk < FHD; kk += 8u) {
+                simdgroup_float8x8 fa, fb;
+                simdgroup_load(fa, ta + sgr * 8u * FTAS + kk, FTAS);
+                simdgroup_load(fb, tk + kk * FTKS + sgc * 8u, FTKS);
+                simdgroup_multiply_accumulate(sf, fa, fb, sf);
+            }
+            simdgroup_store(sf, ts + sgr * 8u * FTKS + sgc * 8u, FTKS);
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (lid < 32u) {
+            const float m = st[lid];
+            const uint q = q0 + lid;
+            float acc = 0.0f;
+            for (uint c = 0u; c < wk; ++c) {
+                const uint k = t + c;
+                const uint dk = (k > q) ? (k - q) : (q - k);
+                float p = 0.0f;
+                if (dk <= window) { p = precise::exp(ts[lid * FTKS + c] - m); }
+                ts[lid * FTKS + c] = p;
+                acc += p;
+            }
+            l_reg += acc;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        // acc += P × V over this tile's 32 keys (padding columns hold
+        // exp(0 − m) against V rows staged zero — contributes exactly 0;
+        // l skips them, so the normalization stays exact).
+        for (uint kk = 0u; kk < FBQ; kk += 8u) {
+            simdgroup_float8x8 fa, fb;
+            simdgroup_load(fa, ts + sgr * 8u * FTKS + kk, FTKS);
+            simdgroup_load(fb, tv + kk * FTAS + sgc * 8u, FTAS);
+            simdgroup_multiply_accumulate(acc, fa, fb, acc);
+        }
+    }
+    // Publish the per-row l (each lane < 32 owns row `lid`'s register).
+    if (lid < 32u) { st[32u + lid] = l_reg; }
+
+    // Drain: the accumulator frag → the ta front (Q is dead), then the
+    // per-row 1/l normalize + the merged-heads store [seq, d].
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    simdgroup_store(acc, ta + (sgr * 8u) * 64u + sgc * 8u, 64u);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    {
+        const uint r = lid >> 5u;
+        const uint j = lid & 31u;
+        const uint row = q0 + r;
+        if (row < seq) {
+            const float inv = 1.0f / st[32u + r];
+            const uint ob = row * d + h * FHD;
+            out[ob + j] = ta[r * 64u + j] * inv;
+            out[ob + 32u + j] = ta[r * 64u + 32u + j] * inv;
+        }
+    }
+}
+"#;
+
 /// The kernels after the two sgemm instances.
 const MSL_TAIL: &str = r#"
 
@@ -833,6 +1085,10 @@ pub struct Metal {
     /// every result back to its host slice after each op (the slow flow);
     /// `2` = sync only (no writeback — bisects barrier vs host-freshness).
     per_op_sync: u8,
+    /// Kill-switch (`LAYA_METAL_FLASH=0`): route `attention_forward` back
+    /// through the reference op sequence instead of the fused kernel — the
+    /// A/B and bisect posture, never a silent default.
+    flash_disabled: bool,
     /// Debug-trace instance id.
     trace_id: usize,
 }
@@ -846,7 +1102,7 @@ impl Metal {
             return Err(rt("LAYA_DEVICE=metal: no Metal device on this host"));
         };
         let queue = device.new_command_queue();
-        let msl = format!("{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_SGEMM_XWIDE}{MSL_TAIL}");
+        let msl = format!("{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_SGEMM_XWIDE}{MSL_FLASH}{MSL_TAIL}");
         let lib = device
             .new_library_with_source(&msl, &metal::CompileOptions::new())
             .map_err(|e| rt(format!("MSL compile failed: {e}")))?;
@@ -872,6 +1128,7 @@ impl Metal {
                 .ok()
                 .and_then(|v| v.parse().ok())
                 .unwrap_or(0),
+            flash_disabled: std::env::var("LAYA_METAL_FLASH").as_deref() == Ok("0"),
             trace_id: next_trace_instance(),
         })
     }
@@ -1364,6 +1621,70 @@ impl Backend for Metal {
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, dst);
+    }
+
+    /// The fused attention block: ONE dispatch per layer over the packed
+    /// qkv (see [`MSL_FLASH`]) — the split/rope/scale/scores/mask/softmax/
+    /// value-mix/merge sequence and its seq² scores parent collapse into a
+    /// single kernel that walks only each query block's windowed key slice.
+    /// `LAYA_METAL_FLASH=0` falls back to the reference sequence (the
+    /// kill-switch; also the bisect posture for a kernel-shaped divergence).
+    #[allow(clippy::too_many_arguments)]
+    fn attention_forward(
+        &self,
+        qkv: &[f32],
+        rope_cos: &[f32],
+        rope_sin: &[f32],
+        scale: f32,
+        seq: usize,
+        heads: usize,
+        hd: usize,
+        window: usize,
+        mask: Option<&[f32]>,
+        scratch: &mut AttnScratch,
+        out: &mut [f32],
+    ) {
+        if self.flash_disabled || hd != FLASH_HD {
+            // The reference sequence consumes the mask tensor; the fused
+            // kernel predicates on the window (the same allowed set). hd
+            // outside the pinned geometry takes the reference path too.
+            return self.attention_forward_default(
+                qkv, rope_cos, rope_sin, scale, seq, heads, hd, window, mask, scratch, out,
+            );
+        }
+        let _ = mask; // the window describes the same allowed set
+        let qb = self.chain_buf(qkv);
+        let cb = self.chain_buf(rope_cos);
+        let sb = self.chain_buf(rope_sin);
+        let ob = self.chain_slot_for(out);
+        // window clamped to seq: full attention ⇒ lo 0 / hi seq in-kernel
+        // (and no u32 overflow in the key-range arithmetic).
+        let w = window.min(seq) as u32;
+        let p = self
+            .pipelines
+            .get("flash_attn")
+            .ok_or_else(|| rt("kernel flash_attn missing"))
+            .unwrap_or_else(|e| panic!("{e}"));
+        self.encode(
+            p,
+            &[(&qb, 0), (&cb, 0), (&sb, 0), (&ob, 0)],
+            &[seq as u32, heads as u32, hd as u32, w],
+            &[scale],
+            MTLSize {
+                width: u64::from(seq as u32).div_ceil(FLASH_BQ),
+                height: u64::from(heads as u32),
+                depth: 1,
+            },
+            MTLSize {
+                width: FLASH_THREADS,
+                height: 1,
+                depth: 1,
+            },
+            Some(&[(9, FLASH_STAGING_BYTES)]),
+            true,
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
+        self.debug_writeback(&ob, out);
     }
 
     /// scores[h] ← q[h]·k[h]ᵀ for every head in ONE dispatch.

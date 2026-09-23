@@ -345,10 +345,42 @@ only pays when the grid still over-subscribes); (b) the first A/B round
 read banking77 95→80 (−16%) with base always in the cold-GPU first
 position — a sequencing artifact the position-balanced re-run collapsed
 to the honest −3%; never compare across positions, only within swapped
-pairs. Remaining vs python: banking77's in-kernel sgemm efficiency at
-seq ~317; recorded next rungs: the BQ≥32 fused-attention revival,
-BK=64 for the wide instance (does not fit 32 KB staging at 64×64 —
-needs the tile shrunk or half staging). A literal
+pairs. The FOURTH pass (the fused-attention revival, 2026-09-24, same
+day) LANDED the recorded BQ≥32 rung: `flash_attn` — ONE dispatch per
+layer over the packed qkv (split, rope, q-scale, scores, sliding window,
+softmax, value mix, head merge in-kernel; the seq² scores parent, its
+mask add, the multi-pass softmax and the context re-read all GONE, plus
+~280 dispatches/forward), BQ=32 query rows per threadgroup, ONE 8×8 acc
+frag per simdgroup (32 sg = 4 row × 8 col groups cover the [32][64]
+output), and the two-pass normalize (pass 1 walks the key tiles for the
+row max only; pass 2 recomputes each tile against the FINAL max and
+accumulates exp(s−m)·V — no running-max rescale of the accumulator; the
+price is a second score MMA and a second K read, the rope partner reads
+hit the same cache rows). The win the first attempt's ~3 ms reading
+missed: the kernel predicates on the WINDOW — sliding layers (window 64,
+~⅔ of the english geometry) walk only their [q₀−w, q_end+w] key slice
+(~2.4× less attention FLOPs at seq 317); `window == seq` (host-clamped)
+is full attention. Measured, position-balanced 4 rounds: banking77
+79–83 → 75–76 ms (python oracle 70 — the gap closed 1.2× → ~1.07×),
+ag_news −1..−2 ms, fixtures byte-identical p50; G5 parity green
+(metal posture), smoke 7/7 with every fused arm at ~2e-7 drift.
+THREE traps this pass paid for, all caught by the smoke arms before any
+timing: (a) the scores tile is [32 rows × 32 keys] — only sgc < 4 of the
+8 key-col groups hold live frags; an sgc ≥ 4 store runs past the 32-key
+row and corrupts the [32][33] scores buffer (full-attn arms passed while
+EVERY case was silently wrong-shaped — the sliding arm was what redd);
+(b) the per-block key range is only a BOUNDS optimization — the per-row
+window predicate (|q−k| ≤ w) lives in the row threads, else a
+block-range key leaks into a row that should mask it (full arms green,
+sliding red 0.51 — this trap and (a) produce opposite arm signatures,
+which is how they were told apart); (c) `l_reg` must be published to
+shared before the drain reads it — the compile-gated smoke caught the
+NaN class on the first run. Kill-switch `LAYA_METAL_FLASH=0` falls back
+to the reference op sequence (`Backend::attention_forward_default`).
+Remaining vs python: banking77's in-kernel sgemm efficiency at
+seq ~317 (~5 ms); recorded next rung: BK=48 for the wide instance (BK=64
+does not fit 32 KB staging at 64×64 — 48 fits at ~25 KB), or a
+double-buffer variant that fits. A literal
 per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
 shape on the gate corpus.
 

@@ -186,8 +186,11 @@ modelless soft_acc 0.3168 · brier_soft 0.2436 · MAE 0.7272 · within_1 0.724.
 
 Suite p50s (position-balanced interleaved A/B vs the pre-pass tree, 2026-09-24):
 ag_news 34→29 ms (−15%, **riir beats the python oracle's 36**), fixtures
-above, banking77 88/89 → 85/86 ms (−3%; the python oracle's 70 stays
-1.2× ahead — in-kernel sgemm efficiency at seq ~317 is the residual).
+above, banking77 88/89 → 85/86 ms (−3%) — and then the fused-attention
+revival (same day, below) took banking77 to **75–76 ms** (−6% more;
+the python oracle's 70 is now 1.07×, down from 1.2×) and ag_news to
+33–34 ms, with the short-seq fixtures byte-identical p50 (29/30 both
+sides — attention is a small share there, the neutral arm of the A/B).
 
 The fair compare the owner asked for — every lane on the same GPU
 (`.issues/005`). v1 (one 16×16-tiled GEMM + per-op command buffers) landed
@@ -204,8 +207,30 @@ A flash-attention-style fused kernel was BUILT, MEASURED, and REVERTED the
 same day: at the lane's real sequence lengths (fixture p50 ~100 tokens,
 banking77 p50 ~317) the materialized score parent costs only ~3 ms of an
 86 ms forward while the fused form's K/V re-reads (⌈seq/BQ⌉×) outweigh it
-below BQ=32 — the geometry worth reviving if a long-sequence workload ever
-makes attention the term that matters. The next rung (`a51ea42`, 2026-09-24):
+below BQ=32. **The revival LANDED later the same day** — and the geometry
+is worth more than the first attempt's ~3 ms reading, because the second
+design predicates on the WINDOW: BQ=32 (32 query rows/threadgroup, one 8×8
+acc frag per simdgroup, two passes over the key tiles — pass 1 row max,
+pass 2 exp(s−m)·V against the final max, no accumulator rescale), ONE
+dispatch per layer over the packed qkv (split, rope, q-scale, scores,
+window, softmax, value mix, head merge in-kernel — the seq² parent, its
+mask add, the multi-pass softmax and the context re-read all gone, plus
+~280 dispatches/forward), and — the real win at seq ≫ window — sliding
+layers (window 64, ~⅔ of the english geometry's layers) walk only their
+[q₀−w, q_end+w] key slice instead of the full row: ~2.4× less attention
+FLOPs at seq 317. Measured (position-balanced, 4 rounds): banking77
+79–83 → 75–76 ms, ag_news −1..−2 ms, fixtures byte-identical; G5 parity
+green, smoke 7/7 with every fused arm (full 1/9/37/64/129, sliding
+w8/w4/w16 ragged) at ~2e-7 drift. The recorded kernel-side traps, both
+caught by the smoke arms before any timing: the scores tile is [32 rows ×
+32 keys], so only 4 of the 8 key-col groups hold live frags — an sgc ≥ 4
+frags store would run past the 32-key row and corrupt the [32][33] scores
+buffer; and the per-block key range is only a bounds optimization — the
+per-row window predicate (|q−k| ≤ w) lives in the row threads, else a
+block-range key leaks into a row that should mask it. The next rungs:
+in-kernel sgemm efficiency at seq ~317 (the ~5 ms residual to the python
+oracle) — wide-BK=48 (fits staging where BK=64 does not) or a
+double-buffer variant that fits. The next rung (`a51ea42`, 2026-09-24):
 narrow BK 32→64 (halves the k-loop's barrier count; fixtures/ag_news
 −7..−15%) + a THIRD instance, xwide (64×128×32, four accumulators per
 simdgroup, staging-intensity axis 32→42.7 MAC/staged-element) picked at
@@ -243,8 +268,9 @@ column is the live one.
 Honest verdict: **torch MPS is ~1.2–1.5× faster than candle Metal; the
 riir Metal lane has now closed candle and sits at ~1.0–1.05× of torch on
 the fixture corpus, BEATS torch on multilingual (0.74×) and ag_news
-(0.81×), and trails only on banking77 (1.2×)** — the same function in
-all lanes (G5 parity green at every posture), the remaining gaps are
+(0.81× → ~0.94× after the fused-attention pass), and trails only on
+banking77 (~1.07×, was 1.2×)** — the same function in
+all lanes (G5 parity green at every posture), the remaining gap is
 in-kernel sgemm efficiency at seq ~317, and the wins are also deployment:
 no Python, no torch, no candle — one candle-free binary with its own MSL
 kernels.
