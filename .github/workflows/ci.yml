@@ -27,10 +27,11 @@ jobs:
                 "${{ github.workspace }}/../katgpt-rs/"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: cargo check (all features)
-        # compiles the laya lane (the comparison lane compiles without the
-        # HF weights — only its tests need them at runtime)
-        run: cargo check --all-features
+      - name: cargo check (the shipped release set)
+        # modelless + laya-riir = the release feature set. NOT
+        # --all-features: the laya-riir-metal arm is macOS-only by
+        # construction (Apple frameworks) and never ships on linux.
+        run: cargo check --features laya-riir
       - name: cargo clippy (all targets)
         run: cargo clippy --all-targets -- -D warnings
       - name: cargo test (modelless gates, release)
