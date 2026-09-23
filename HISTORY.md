@@ -10,6 +10,56 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 011 — the lanes + flappy heads join the serve lane** CLOSED
+  (`d1eda08`). Both boards left the abstain list at their published
+  anchors, acceptance met in `tests/game_heads_serve.rs`:
+  - **lanes** — Bench 880's lossless decoded arm served at λ 0.01,
+    in-corpus 84/100, head digest `7d3f1d8e…09d34` FULL (matches the
+    published pin; the decoded arm is exactly lossless so the digest IS
+    the structured arm's). Protocol: the JOINED-STATE path (011's option
+    1) — one `/decide` per turn, `state` = the three lane sentences one
+    per line (pinned left/middle/right), exactly three noul questions,
+    answer i = lane i's P(safe); the lane-name fill must equal the line's
+    position (a swapped turn refuses). Modelless lane only — the laya
+    lane's measured per-option shape is site-side and untouched.
+  - **flappy** — Bench 882's v3 decoded arm served at λ 1, in-corpus
+    96/100, FULL head digest `c93d36dc…e3c5` (the family's strongest
+    anchor, exact match). Protocol: state = the state context sentence +
+    the option sentence (two lines), one noul question, per-option
+    requests — the head row needs the state's pre-rel/v/h beside the
+    option's post band.
+  - **Wire shape** (the protocol discovery of the lane): `noul` questions
+    legally carry no options (`WireError::NoulCarriesOptions`), so the
+    sentence sequence rides in the `state` field ONE PER LINE
+    (closed-grammar sentences never contain newlines). 011's "joined with
+    ; " sketch was refined to lines for exactly this reason — no case
+    normalization, no punctuation surgery, one split rule for both games.
+  - **Measured en route**: the fixtures' `features` column carries the
+    STRUCTURED TRUE geometry; the reconstruction lawfully collapses the
+    documented tails (post_rel at ±(h+1); |pre_rel| ≥ 2 clamped) — which
+    is exactly why Bench 882 pins TWO digests (`dc6bcf73…` structured,
+    `c93d36dc…` decoded) at ONE 96/100 agreement. The lanes decoded ==
+    structured per-row cross-check (881's losslessness) is kept in the
+    parse; a flappy equality check would be wrong by design and is
+    replaced by the full-digest pin.
+  - **Site half** (reflex-site `edeb133`, deployed CF `a5f86875`): the
+    live path speaks both shapes (modelless lane only); with an OLDER
+    engine the new shapes fall through and abstain — the labelled random
+    fallback the boards already render, no version gate needed.
+    Verified live: arena_smoke PASS (flappy `flap 0.140 · coast 0.119`,
+    lanes `left 0.124 · middle 0.138 · right 0.138` — real head scores
+    over HTTP against the new engine); prod-page + local-engine smoke
+    PASS; demo smoke + demo check + goldens 7/7 PASS.
+  - `/healthz` now advertises `"heads":{"tetris":true,"lanes":true,
+    "flappy":true}` (compile-time surfaces); `engine_gates`' body pin
+    re-pinned.
+  - Drive-by gate repair riding the same session (`c08419d`):
+    `tests/harness_units.rs` carries its modelless gate now — the flag-OFF
+    posture was red at import resolution since 67470be (the file imports
+    the gated runner slice without the repo-birth pair); file-level
+    `#![cfg]` + the paired `[[test]] required-features` row, the
+    engine_gates shape.
+
 - **Issue 014 — the engine lane-override knob `X-Reflex-Lane: raw`** CLOSED.
   The serve edge accepts `raw` alongside `laya`/`modelless`: it SKIPS the
   game-head try and answers from the raw modelless engine (the abstain IS
