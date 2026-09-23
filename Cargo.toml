@@ -1,6 +1,6 @@
 [package]
 name = "riir-reflex"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2024"
 license = "MIT"
 description = "Decision-engine serving + comparison + contribution (Plan 603 / Proposal 014 Phase 1): the modelless lane over katgpt_core::decision_wire, the laya comparison lane, and the honest-metrics harness."

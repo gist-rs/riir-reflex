@@ -22,10 +22,22 @@ kernel under test.
    max 8.1324e1; the run finished in 0.05 s — impossibly fast for the
    GEMM set it contains, suggesting GPU work did not actually complete
    correctly.
+4. 2026-09-24 ~04:0x (the v0.2.3 release pre-flight, serialized posture
+   `-- --test-threads=1`): one failure (6/7, test name not captured — the
+   run was not tee'd), immediately followed by 3× serialized 7/7 greens,
+   the FULL laya-riir-metal suite serialized 154/0, and a parallel
+   full-suite pass 9 suites 0 FAILED. Timing: minutes after the sibling
+   Metal session's own parity runs ceased — consistent with candidate (b)
+   (cross-process GPU contention decaying), NOT with a code regression
+   (nothing changed between the red and the greens; the version-bump-only
+   tree is otherwise identical to a51ea42).
 
 Serialized `-- --test-threads=1` after both failures: all 7 tests green,
 bit-identical. The G5 parity gate (single Metal instance) has never
-flagged it.
+flagged it. (Observation 4 shows the flake class can surface EVEN
+serialized right after heavy sibling GPU work — the one red there was
+followed by stable greens with no code change, so the run-to-run decay
+pattern is the load-bearing signal, not the test-thread count.)
 
 ## What is NOT established
 
