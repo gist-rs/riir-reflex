@@ -34,13 +34,15 @@
 //!   `(ptr, len)` — stable for the agent's lifetime, uploaded once.
 //! - **one batched simdgroup GEMM** covers all matmul shapes — including
 //!   the all-heads attention batch — via explicit row/column strides plus
-//!   a batch count with per-batch strides. 32×32 output tiles, 16
-//!   simdgroups (512 threads) per threadgroup, `simdgroup_multiply_
-//!   accumulate` over 8×8 frags, threadgroup staging at a 33-float padded
-//!   stride (bank-conflict guard), and a guarded per-simdgroup store path
-//!   for ragged edge tiles. The v1 kernel was a naive 16×16
-//!   one-thread-per-element tile (the recorded honest baseline, ~3.5% of
-//!   peak); this is the recorded optimization ladder climbed.
+//!   a batch count with per-batch strides, in THREE tile geometries
+//!   picked per call (32×64×64 narrow / 64×64×32 wide / 64×128×32 xwide;
+//!   the geometry constants in this file document the pick),
+//!   `simdgroup_multiply_accumulate` over 8×8 frags, threadgroup staging
+//!   at padded odd strides (bank-conflict + overlap guards), and a
+//!   guarded per-simdgroup store path for ragged edge tiles. The v1
+//!   kernel was a naive 16×16 one-thread-per-element tile (the recorded
+//!   honest baseline, ~3.5% of peak); this is the recorded optimization
+//!   ladder climbed.
 //! - **attention is ONE dispatch per op over ALL heads** —
 //!   `matmul_kt_heads` / `matmul_heads` / `add_mask_broadcast` replaced
 //!   the per-head host loops (heads× dispatches of tiny GEMMs per layer).
@@ -82,28 +84,52 @@ use super::backend::Backend;
 const RESOURCE_OPTIONS: MTLResourceOptions = MTLResourceOptions::StorageModeShared
     .union(MTLResourceOptions::HazardTrackingModeTracked);
 
-/// sgemm tile geometry — MUST mirror the MSL constants in BOTH instances
+/// sgemm tile geometry — MUST mirror the MSL constants in the instances
 /// below; the `metal_ops_smoke` ragged-shape arms exercise every edge path
-/// this mirroring could get wrong. Both instances share BK = 32 (pinned in
-/// the MSL only), the A stride 33, the B stride 65; they differ in BM
-/// (32 vs 64).
-const TAS: usize = 33;
-/// B-tile staging row stride: 65 = 64 + 1 — a stride must EXCEED the
-/// tile's row width (33 over a 64-wide tile overlaps itself: column 63 of
-/// row kk collides with column 30 of row kk+1) and stays odd for banks.
-const TBS: usize = 65;
-/// The sgemm instance pick: `m ≥ WIDE_M_MIN` routes to the wide (64×64)
-/// kernel — its bigger tiles amortize staging only when several full
-/// 64-row tiles exist; below it the narrow instance's doubled threadgroup
-/// count and smaller padding waste win (measured: seq ~100–150 prefers
-/// narrow by ~15%, seq ~317 prefers wide by ~14%).
+/// this mirroring could get wrong. Shared staging law: a row stride must
+/// EXCEED the tile's row width (33 over a 64-wide tile overlaps itself:
+/// column 63 of row kk collides with column 30 of row kk+1) and stays odd
+/// for banks — hence strides 65 (over 64-wide rows) and 33 (over 32-wide
+/// rows) and 129 (over 128-wide rows).
+///
+/// Three instances picked per call (see `run_sgemm`):
+/// - narrow `sgemm` (32×64×64) for m < 256 — BK 64 halves the k-loop's
+///   barrier count at the short-sequence suites (its staging still fits:
+///   A [32][65] + B [64][65] = 6240 floats).
+/// - wide `sgemm_wide` (64×64×32) for m ≥ 256, n < 1024 — the attention
+///   scores/context shapes at long sequence (n = seq, n = 64).
+/// - xwide `sgemm_xwide` (64×128×32) for m ≥ 256, n ≥ 2048 — the QKV and
+///   gate/up projections. Staging arithmetic intensity BM·BN/(BM+BN) =
+///   42.7 MAC/staged-element (wide 32, narrow 21 — the axis the
+///   narrow→wide promotion was measured on); every n it serves (3072,
+///   5248, 4096) is an exact multiple of 128, so the bigger BN pads
+///   nothing, and the pick floor is measured: at n = 1024 the 64×128
+///   tiles yield only 40 threadgroups at seq ~317 — one per GPU core, no
+///   over-subscription — and the suite regressed (see [`XWIDE_N_MIN`]).
+///
+/// The ragged edge route reuses the staging front after the k-loop
+/// (barrier-ordered); every instance's staging fits Metal's 32 KB
+/// threadgroup limit (asserted below).
 const WIDE_M_MIN: usize = 256;
-/// Narrow instance staging (A [32][33] + B [32][65] floats) and dispatch.
-const NARROW_STAGING_BYTES: u64 = ((32 * TAS + 32 * TBS) * std::mem::size_of::<f32>()) as u64;
+/// The xwide pick: n ≥ this AND m ≥ [`WIDE_M_MIN`] routes to the 64×128
+/// instance. Measured floor, not a guess: at n = 1024 (O proj + down
+/// proj) the 64×128 tiles yield only ⌈317/64⌉×⌈1024/128⌉ = 40
+/// threadgroups at seq ~317 — exactly one per GPU core, no
+/// over-subscription to hide staging latency — and banking77 regressed;
+/// at n ≥ 2048 (QKV 3072, gate/up 5248) the tile count stays ≥ 120 and
+/// the bigger BN wins (~3% suite p50, position-balanced A/B). 2048 keeps
+/// the two largest projections (≈70% of the forward's GEMM FLOPs) on
+/// xwide and everything else on the 64×64 instance.
+const XWIDE_N_MIN: usize = 2048;
+/// Narrow instance staging (A [32][65] + B [64][65] floats) and dispatch.
+const NARROW_STAGING_BYTES: u64 = ((32 * 65 + 64 * 65) * std::mem::size_of::<f32>()) as u64;
 const NARROW_THREADS: u64 = 512;
 /// Wide instance staging (A [64][33] + B [32][65] floats) and dispatch.
-const WIDE_STAGING_BYTES: u64 = ((64 * TAS + 32 * TBS) * std::mem::size_of::<f32>()) as u64;
+const WIDE_STAGING_BYTES: u64 = ((64 * 33 + 32 * 65) * std::mem::size_of::<f32>()) as u64;
 const WIDE_THREADS: u64 = 1024;
+/// xwide instance staging (A [64][33] + B [32][129] floats) and dispatch.
+const XWIDE_STAGING_BYTES: u64 = ((64 * 33 + 32 * 129) * std::mem::size_of::<f32>()) as u64;
+const XWIDE_THREADS: u64 = 1024;
 /// Encoders per command buffer before a pipelined (no-wait) flush — keeps
 /// a pass under Metal's per-buffer encoder ceiling without stalling; the
 /// buffers join the committed list and are waited at the next sync.
@@ -113,11 +139,17 @@ const MAX_ENCODERS_PER_CB: u32 = 1024;
 /// k-loop's A/B tiles are dead by then; the barrier orders the reuse) and
 /// the whole allocation must fit Metal's 32 KB threadgroup memory limit —
 /// for BOTH instances.
+/// (The asserts are const-foldable by construction — the guard exists to
+/// fail the build the day a geometry edit outgrows its staging, so the
+/// clippy always-true lint is allowed, not silent.)
+#[allow(clippy::assertions_on_constants)]
 const _: () = {
-    assert!(16 * 128 <= 32 * TAS + 32 * TBS);
-    assert!(32 * 128 <= 64 * TAS + 32 * TBS);
+    assert!(16 * 128 <= 32 * 65 + 64 * 65);
+    assert!(32 * 128 <= 64 * 33 + 32 * 65);
+    assert!(32 * 128 <= 64 * 33 + 32 * 129);
     assert!(NARROW_STAGING_BYTES <= 32768);
     assert!(WIDE_STAGING_BYTES <= 32768);
+    assert!(XWIDE_STAGING_BYTES <= 32768);
 };
 
 /// Debug trace flag (`LAYA_METAL_TRACE=1`): log every chain-cache miss.
@@ -136,6 +168,7 @@ fn next_trace_instance() -> usize {
 const KERNELS: &[&str] = &[
     "sgemm",
     "sgemm_wide",
+    "sgemm_xwide",
     "add",
     "copy",
     "add_bias_row",
@@ -315,14 +348,153 @@ kernel void sgemm_wide(
 }
 "#;
 
+/// The xwide instance (the `m ≥ WIDE_M_MIN && n ≥ XWIDE_N_MIN` geometry):
+/// 64×128 output per threadgroup, 32 simdgroups (1024 threads), four
+/// accumulators per simdgroup — the row twins (sgr·8, (sgr+4)·8) × the
+/// column twins (sgc·8, sgc·8+64) — covering the 8×16 grid of 8×8 blocks.
+const MSL_SGEMM_XWIDE: &str = r#"
+constant uint XBM = 64u;
+constant uint XBN = 128u;
+constant uint XBK = 32u;
+constant uint XTAS = 33u;
+constant uint XTBS = 129u;
+
+kernel void sgemm_xwide(
+    device const float* a [[buffer(0)]],
+    device const float* b [[buffer(1)]],
+    device float* out [[buffer(2)]],
+    constant uint& m [[buffer(3)]],
+    constant uint& n [[buffer(4)]],
+    constant uint& k [[buffer(5)]],
+    constant uint& a_rs [[buffer(6)]],
+    constant uint& a_cs [[buffer(7)]],
+    constant uint& b_rs [[buffer(8)]],
+    constant uint& b_cs [[buffer(9)]],
+    constant uint& a_bs [[buffer(10)]],
+    constant uint& b_bs [[buffer(11)]],
+    constant uint& c_bs [[buffer(12)]],
+    threadgroup float* raw [[threadgroup(13)]],
+    uint3 gtp [[threadgroup_position_in_grid]],
+    uint lid [[thread_index_in_threadgroup]])
+{
+    // Carved staging (24 960 B): A tile [64][33] = 2112 floats, B tile
+    // [32][129] = 4128. The ragged-edge route reuses the front 4096
+    // floats, in TWO phases (four accumulators need 8192 floats at once,
+    // which the allocation does not hold — phase 1 drains the row-twin
+    // pair, the barrier orders the reads past the reuse, phase 2 the
+    // +32 row pair).
+    threadgroup float* ta = raw;
+    threadgroup float* tb = raw + 64u * XTAS;
+    threadgroup float* edge = raw;
+    const uint m0 = gtp.y * XBM;
+    const uint n0 = gtp.x * XBN;
+    device const float* A = a + gtp.z * a_bs;
+    device const float* B = b + gtp.z * b_bs;
+    device float* C = out + gtp.z * c_bs;
+
+    const uint sg = lid >> 5u;   // simdgroup id 0..31
+    const uint lane = lid & 31u;
+    const uint sgr = sg >> 3u;   // row block 0..3 (the +4 twin below)
+    const uint sgc = sg & 7u;    // column block 0..7 (the +8 twin below)
+
+    // Four accumulators: rows sgr·8 / sgr·8+32 × columns sgc·8 /
+    // sgc·8+64 — 32 simdgroups × 4 blocks cover the 64×128 tile.
+    simdgroup_float8x8 acc00 = simdgroup_float8x8(0.0f);
+    simdgroup_float8x8 acc01 = simdgroup_float8x8(0.0f);
+    simdgroup_float8x8 acc10 = simdgroup_float8x8(0.0f);
+    simdgroup_float8x8 acc11 = simdgroup_float8x8(0.0f);
+
+    for (uint t = 0u; t < k; t += XBK) {
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        // Stage A [64][32]: two elements per thread.
+        for (uint q = 0u; q < 2u; ++q) {
+            const uint idx = lid + q * 1024u;
+            const uint r = idx >> 5u;
+            const uint c = idx & 31u;
+            const uint gr = m0 + r;
+            const uint ac = t + c;
+            ta[r * XTAS + c] = (gr < m && ac < k) ? A[gr * a_rs + ac * a_cs] : 0.0f;
+        }
+        // Stage B [32][128]: four elements per thread; k ∈ 0..31 from the
+        // high bits, n ∈ 0..127 from the low (consecutive lanes →
+        // consecutive n, coalesced along B's rows; the staged tile is the
+        // SAME [K][N] layout for both B orientations).
+        for (uint q = 0u; q < 4u; ++q) {
+            const uint idx = lid + q * 1024u;
+            const uint kk = idx >> 7u;
+            const uint col = idx & 127u;
+            const uint bc = t + kk;
+            if (b_cs == 1u) {
+                tb[kk * XTBS + col] =
+                    (bc < k && n0 + col < n) ? B[bc * b_rs + n0 + col] : 0.0f;
+            } else {
+                tb[kk * XTBS + col] =
+                    (bc < k && n0 + col < n) ? B[bc * b_rs + (n0 + col) * b_cs] : 0.0f;
+            }
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        for (uint kk = 0u; kk < XBK; kk += 8u) {
+            simdgroup_float8x8 fa0, fa1, fb0, fb1;
+            simdgroup_load(fa0, ta + sgr * 8u * XTAS + kk, XTAS);
+            simdgroup_load(fa1, ta + (sgr + 4u) * 8u * XTAS + kk, XTAS);
+            simdgroup_load(fb0, tb + kk * XTBS + sgc * 8u, XTBS);
+            simdgroup_load(fb1, tb + kk * XTBS + sgc * 8u + 64u, XTBS);
+            simdgroup_multiply_accumulate(acc00, fa0, fb0, acc00);
+            simdgroup_multiply_accumulate(acc01, fa0, fb1, acc01);
+            simdgroup_multiply_accumulate(acc10, fa1, fb0, acc10);
+            simdgroup_multiply_accumulate(acc11, fa1, fb1, acc11);
+        }
+    }
+
+    if ((m0 + XBM <= m) && (n0 + XBN <= n)) {
+        simdgroup_store(acc00, C + (m0 + sgr * 8u) * n + (n0 + sgc * 8u), n);
+        simdgroup_store(acc01, C + (m0 + sgr * 8u) * n + (n0 + sgc * 8u + 64u), n);
+        simdgroup_store(acc10, C + (m0 + sgr * 8u + 32u) * n + (n0 + sgc * 8u), n);
+        simdgroup_store(acc11, C + (m0 + sgr * 8u + 32u) * n + (n0 + sgc * 8u + 64u), n);
+    } else {
+        // Ragged tile: drain the four accumulators through the shared
+        // front in two phases (a barrier after each store burst and after
+        // each scalar drain orders the reuse).
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        simdgroup_store(acc00, edge + sg * 128u, 8u);
+        simdgroup_store(acc01, edge + sg * 128u + 64u, 8u);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        for (uint q = 0u; q < 2u; ++q) {
+            const uint e = lane + q * 32u;
+            const uint er = e >> 3u;
+            const uint ec = e & 7u;
+            const uint gr0 = m0 + sgr * 8u + er;
+            const uint gc0 = n0 + sgc * 8u + ec;
+            const uint gc1 = gc0 + 64u;
+            if (gr0 < m && gc0 < n) { C[gr0 * n + gc0] = edge[sg * 128u + e]; }
+            if (gr0 < m && gc1 < n) { C[gr0 * n + gc1] = edge[sg * 128u + 64u + e]; }
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        simdgroup_store(acc10, edge + sg * 128u, 8u);
+        simdgroup_store(acc11, edge + sg * 128u + 64u, 8u);
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        for (uint q = 0u; q < 2u; ++q) {
+            const uint e = lane + q * 32u;
+            const uint er = e >> 3u;
+            const uint ec = e & 7u;
+            const uint gr0 = m0 + sgr * 8u + 32u + er;
+            const uint gc0 = n0 + sgc * 8u + ec;
+            const uint gc1 = gc0 + 64u;
+            if (gr0 < m && gc0 < n) { C[gr0 * n + gc0] = edge[sg * 128u + e]; }
+            if (gr0 < m && gc1 < n) { C[gr0 * n + gc1] = edge[sg * 128u + 64u + e]; }
+        }
+    }
+}
+"#;
+
 /// The narrow instance: 32×64 output per threadgroup, 16 simdgroups (512
 /// threads), two column-twin accumulators per simdgroup (columns sgc·8 and
 /// (sgc+4)·8 of its row block). Same staging laws as the wide instance.
 const MSL_SGEMM_NARROW: &str = r#"
 constant uint BM = 32u;
 constant uint BN = 64u;
-constant uint BK = 32u;
-constant uint TAS = 33u;
+constant uint BK = 64u;
+constant uint TAS = 65u;
 constant uint TBS = 65u;
 
 // out[b][m×n] = A[b][m×k] @ B[b][k×n]; element (i, j) of X at
@@ -348,9 +520,10 @@ kernel void sgemm(
     uint3 gtp [[threadgroup_position_in_grid]],
     uint lid [[thread_index_in_threadgroup]])
 {
-    // Carved staging (12 544 B): A tile [32][33] = 1056 floats, B tile
-    // [32][65] = 2080; the ragged-edge route reuses the front 2048 floats
-    // after the k-loop.
+    // Carved staging (24 960 B): A tile [32][65] = 2080 floats, B tile
+    // [64][65] = 4160; BK 64 halves the k-loop's two barriers per unit of
+    // work against the BK 32 geometry. The ragged-edge route reuses the
+    // front 2048 floats after the k-loop.
     threadgroup float* ta = raw;
     threadgroup float* tb = raw + 32u * TAS;
     threadgroup float* edge = raw;
@@ -370,17 +543,17 @@ kernel void sgemm(
 
     for (uint t = 0u; t < k; t += BK) {
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        for (uint q = 0u; q < 2u; ++q) {
-            // A tile [BM][BK] = [32][32]: two elements per thread.
+        for (uint q = 0u; q < 4u; ++q) {
+            // A tile [BM][BK] = [32][64]: four elements per thread.
             const uint idx = lid + q * 512u;
-            const uint r = idx >> 5u;
-            const uint c = idx & 31u;
+            const uint r = idx >> 6u;
+            const uint c = idx & 63u;
             const uint gr = m0 + r;
             const uint ac = t + c;
             ta[r * TAS + c] = (gr < m && ac < k) ? A[gr * a_rs + ac * a_cs] : 0.0f;
         }
-        for (uint q = 0u; q < 4u; ++q) {
-            // B tile [BK][BN] = [32][64]: k ∈ 0..31 from the high bits,
+        for (uint q = 0u; q < 8u; ++q) {
+            // B tile [BK][BN] = [64][64]: k ∈ 0..63 from the high bits,
             // n ∈ 0..63 from the low (consecutive lanes → consecutive n,
             // coalesced along B's rows); the staged tile is the SAME [K][N]
             // layout for both B orientations.
@@ -389,16 +562,9 @@ kernel void sgemm(
             const uint col = idx & 63u;
             const uint bc = t + kk;
             if (b_cs == 1u) {
-                // Row-major B [k][n]: contiguous along n → n-fastest lanes.
-                const uint kk = idx >> 6u;
-                const uint col = idx & 63u;
-                const uint bc = t + kk;
                 tb[kk * TBS + col] =
                     (bc < k && n0 + col < n) ? B[bc * b_rs + n0 + col] : 0.0f;
             } else {
-                const uint kk = idx >> 6u;
-                const uint col = idx & 63u;
-                const uint bc = t + kk;
                 tb[kk * TBS + col] =
                     (bc < k && n0 + col < n) ? B[bc * b_rs + (n0 + col) * b_cs] : 0.0f;
             }
@@ -680,7 +846,7 @@ impl Metal {
             return Err(rt("LAYA_DEVICE=metal: no Metal device on this host"));
         };
         let queue = device.new_command_queue();
-        let msl = format!("{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_TAIL}");
+        let msl = format!("{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_SGEMM_XWIDE}{MSL_TAIL}");
         let lib = device
             .new_library_with_source(&msl, &metal::CompileOptions::new())
             .map_err(|e| rt(format!("MSL compile failed: {e}")))?;
@@ -1011,7 +1177,8 @@ impl Metal {
     }
 
     /// The batched simdgroup GEMM dispatch: grid = (⌈n/BN⌉, ⌈m/BM⌉, batch),
-    /// the instance picked per `m` (see [`WIDE_M_MIN`]). `uargs` =
+    /// the instance picked per `m` and `n` (see [`WIDE_M_MIN`] /
+    /// [`XWIDE_N_MIN`]). `uargs` =
     /// [m, n, k, `a_rs`, `a_cs`, `b_rs`, `b_cs`, `a_bs`, `b_bs`, `c_bs`] — element
     /// strides, then per-batch element strides (batch-1 callers pass
     /// zeros).
@@ -1026,10 +1193,20 @@ impl Metal {
         n: u32,
         batch: u32,
     ) -> Result<()> {
-        let (name, bm, staging, threads) = if m as usize >= WIDE_M_MIN {
-            ("sgemm_wide", 64u64, WIDE_STAGING_BYTES, WIDE_THREADS)
+        let (name, bm, bn, staging, threads) = if m as usize >= WIDE_M_MIN {
+            if n as usize >= XWIDE_N_MIN {
+                (
+                    "sgemm_xwide",
+                    64u64,
+                    128u64,
+                    XWIDE_STAGING_BYTES,
+                    XWIDE_THREADS,
+                )
+            } else {
+                ("sgemm_wide", 64, 64, WIDE_STAGING_BYTES, WIDE_THREADS)
+            }
         } else {
-            ("sgemm", 32, NARROW_STAGING_BYTES, NARROW_THREADS)
+            ("sgemm", 32, 64, NARROW_STAGING_BYTES, NARROW_THREADS)
         };
         let p = self
             .pipelines
@@ -1041,7 +1218,7 @@ impl Metal {
             uargs,
             &[],
             MTLSize {
-                width: u64::from(n.div_ceil(64)),
+                width: u64::from(n.div_ceil(bn as u32)),
                 height: u64::from(m).div_ceil(bm),
                 depth: u64::from(batch),
             },

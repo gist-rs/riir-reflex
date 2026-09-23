@@ -51,7 +51,21 @@ fn metal_ops_match_cpu_op_by_op() {
     let c = Cpu;
 
     // GEMM — all three stride shapes at forward-like + ragged sizes.
-    for (mm, k, n) in [(25usize, 768usize, 2304usize), (7, 64, 33), (1, 257, 129)] {
+    // (25,768,2304) + (7,64,33) + (1,257,129) walk the NARROW instance
+    // (m < 256), including a k tail past BK 64 (257) and ragged m/n.
+    // (300,100,700) walks the WIDE instance ragged on both m and n; the
+    // batched arms below add its batched shape. (300,100,1500) walks the
+    // XWIDE instance (m ≥ 256, n ≥ 1024) ragged on m (300 = 4·64+44), n
+    // (1500 = 11·128+92 — both edge phases) and the k tail (100 past BK
+    // 32); (512,64,1024) is its exact-tile shape.
+    for (mm, k, n) in [
+        (25usize, 768usize, 2304usize),
+        (7, 64, 33),
+        (1, 257, 129),
+        (300, 100, 700),
+        (300, 100, 1500),
+        (512, 64, 1024),
+    ] {
         let a = vec_of(mm * k);
         let b = vec_of(k * n);
         let mut dc = vec![0f32; mm * n];
@@ -89,7 +103,27 @@ fn metal_ops_match_cpu_op_by_op() {
     }
 
     // The batched-head attention ops (the forward's ONE-dispatch-per-op
-    // path). Ragged seq on purpose: 37 walks every sgemm edge tile.
+    // path). Ragged seq on purpose: 37 walks every narrow sgemm edge tile;
+    // 300 walks the WIDE instance's batched path (m ≥ 256, n = 300 < 1024)
+    // with a ragged n tail.
+    {
+        let (seq, heads, hd) = (300usize, 2usize, 64usize);
+        let q = vec_of(heads * seq * hd);
+        let k = vec_of(heads * seq * hd);
+        let mut sc = vec![0f32; heads * seq * seq];
+        let mut sm = vec![0f32; heads * seq * seq];
+        c.matmul_kt_heads(&q, &k, heads, seq, hd, &mut sc);
+        m.matmul_kt_heads(&q, &k, heads, seq, hd, &mut sm);
+        report("matmul_kt_heads seq300", &sc, &sync_out(&m, &sm), 1e-3);
+
+        let v = vec_of(heads * seq * hd);
+        let probs = vec_of(heads * seq * seq);
+        let mut cc = vec![0f32; heads * seq * hd];
+        let mut cm = vec![0f32; heads * seq * hd];
+        c.matmul_heads(&probs, &v, heads, seq, seq, hd, &mut cc);
+        m.matmul_heads(&probs, &v, heads, seq, seq, hd, &mut cm);
+        report("matmul_heads seq300", &cc, &sync_out(&m, &cm), 1e-3);
+    }
     {
         let (seq, heads, hd) = (37usize, 4usize, 64usize);
         let q = vec_of(heads * seq * hd);
