@@ -1,7 +1,9 @@
 # Issue 012 — the laya-python reference lane on the bench tables
 
-**Status:** CLOSED — landed with the harness lane + the site regeneration;
-the reference answers byte-identically to the riir lane on the smoke suite.
+**Status:** CLOSED at `67470be` — landed with the harness lane + the site
+regeneration; the reference answers byte-identically to the riir lane on
+every suite and checkpoint (accuracy + macro-F1; ECE/Brier differ only at
+the reference's own 4-dp rounding). Durable record: `HISTORY.md`.
 
 ## Ask
 
