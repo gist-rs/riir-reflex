@@ -151,8 +151,9 @@ Protocol + divergences: [`laya_bench_protocols.md`](.docs/laya_bench_protocols.m
 Headline (accuracy per suite; modelless vs the BEST laya checkpoint;
 accuracy is bit-identical across the 09-23 runs — deterministic lanes —
 and the latency rows are the committed 18:09Z refresh run `83173e5`;
-BOTH same-day readings predate the sibling's riir-Metal kernel ladder
-`374d9af`, so the laya latency columns are stale-by-progress):
+the laya latency columns are stale-by-progress — the riir Metal lane has
+since climbed the kernel ladder (`374d9af` → `4ef290c` → `a51ea42`), see
+the three-way table below for the current rows):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
@@ -175,13 +176,18 @@ typed-decisions extras (the specialist's own axis, calibrated probs): laya·type
 soft_acc 0.4668 · brier_soft 0.0677 · score MAE 0.2424 · within_1 0.995 — vs
 modelless soft_acc 0.3168 · brier_soft 0.2436 · MAE 0.7272 · within_1 0.724.
 
-**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the kernel-ladder pass `374d9af` + the two-instance sgemm `4ef290c`):**
+**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the narrow-BK64 + xwide pass `a51ea42`):**
 
 | checkpoint | python torch MPS (row p50) | rust candle Metal (row p50) | rust riir Metal (row p50, candle-free) |
 |---|---|---|---|
-| english | **25.7 ms** | 31.1 ms | 28.3 ms |
-| typed | **25.5 ms** | 31.2 ms | 28.3 ms |
-| multilingual | 16.2 ms | 18.7 ms | **12.2 ms** |
+| english | 25.7 ms | 31.1 ms | **26.9–27.4 ms** (~parity, 1.05×) |
+| typed | 25.5 ms | 31.2 ms | 26.2–27.1 ms (~parity, 1.05×) |
+| multilingual | 16.2 ms | 18.7 ms | **11.9–12.2 ms** (riir wins) |
+
+Suite p50s (position-balanced interleaved A/B vs the pre-pass tree, 2026-09-24):
+ag_news 34→29 ms (−15%, **riir beats the python oracle's 36**), fixtures
+above, banking77 88/89 → 85/86 ms (−3%; the python oracle's 70 stays
+1.2× ahead — in-kernel sgemm efficiency at seq ~317 is the residual).
 
 The fair compare the owner asked for — every lane on the same GPU
 (`.issues/005`). v1 (one 16×16-tiled GEMM + per-op command buffers) landed
@@ -199,14 +205,18 @@ same day: at the lane's real sequence lengths (fixture p50 ~100 tokens,
 banking77 p50 ~317) the materialized score parent costs only ~3 ms of an
 86 ms forward while the fused form's K/V re-reads (⌈seq/BQ⌉×) outweigh it
 below BQ=32 — the geometry worth reviving if a long-sequence workload ever
-makes attention the term that matters. What DID move the long-sequence
-suites is the wide sgemm instance: interleaved same-box A/B, banking77
-(seq ~317) 95→80 ms (−16%), ag_news (seq ~106) 38→36 ms (python oracle:
-36/70 ms — ag_news now TIED, banking77 1.14× behind, the residual is
-in-kernel sgemm efficiency; the recorded next rungs are BK=64 staging and
-the BQ≥32 fused-attention revival). G5 parity green at BOTH postures
-throughout (prob drift 2.2e-6, top-1 1.000000; the CPU lane is
-bit-identical).
+makes attention the term that matters. The next rung (`a51ea42`, 2026-09-24):
+narrow BK 32→64 (halves the k-loop's barrier count; fixtures/ag_news
+−7..−15%) + a THIRD instance, xwide (64×128×32, four accumulators per
+simdgroup, staging-intensity axis 32→42.7 MAC/staged-element) picked at
+`m ≥ 256 && n ≥ 2048` — the n floor is MEASURED: at n = 1024 the 64×128
+tiles yield only 40 threadgroups at seq ~317 (one per GPU core, no
+over-subscription) and banking77 regressed before the floor went in.
+Measurement trap recorded: the first banking77 A/B read 95→80 ms (−16%)
+but base ran first in every round — a cold-GPU artifact; position-balanced
+pairs put the true xwide gain at −3% (88/89 → 85/86) and the deepest-quiet
+window reads both at 80.0 (integer-ms resolution). G5 parity green at BOTH
+postures throughout (the CPU lane is bit-identical).
 
 ```mermaid
 xychart-beta
@@ -215,13 +225,14 @@ xychart-beta
     y-axis "ms" 0 --> 90
     bar [25.7, 25.5, 16.2]
     line [31.1, 31.2, 18.7]
-    line [28.3, 28.3, 12.2]
+    line [27.1, 26.6, 12.0]
 ```
 
 (bar = torch MPS · dashed line 1 = candle Metal · dashed line 2 = riir
-Metal. The earlier CPU-v1 column — 188.7/201.0/91.8 ms against two GPU
-lanes — was a device-mismatched chart; retracted in Bench 001 addendum 3,
-the CPU numbers stay on record as the v1 baseline.)
+Metal at `a51ea42` — the fixture-corpus p50 midpoints of the 09-24
+re-measurement. The earlier CPU-v1 column — 188.7/201.0/91.8 ms against
+two GPU lanes — was a device-mismatched chart; retracted in Bench 001
+addendum 3, the CPU numbers stay on record as the v1 baseline.)
 
 **The candle column is FROZEN HISTORY** (`.issues/006` T6, 2026-09-22):
 the candle lane was removed from this repo the day after this chart was
@@ -229,12 +240,14 @@ taken — its column can never be re-measured here and stays as the recorded
 baseline the riir Metal optimization ladder measures against. The riir
 column is the live one.
 
-Honest verdict: **torch MPS is ~1.2–1.5× faster than candle Metal, and
-~3–5× faster than the riir Metal v1** — the same function in all three
-(G5 parity green at every posture), and the gaps are kernel maturity
-(MPSGraph vs candle's MLX kernels vs our naive v1 tiling), not our
-forward code. The riir lane's wins remain deployment: no Python, no
-torch, no candle — one candle-free binary with its own MSL kernels.
+Honest verdict: **torch MPS is ~1.2–1.5× faster than candle Metal; the
+riir Metal lane has now closed candle and sits at ~1.0–1.05× of torch on
+the fixture corpus, BEATS torch on multilingual (0.74×) and ag_news
+(0.81×), and trails only on banking77 (1.2×)** — the same function in
+all lanes (G5 parity green at every posture), the remaining gaps are
+in-kernel sgemm efficiency at seq ~317, and the wins are also deployment:
+no Python, no torch, no candle — one candle-free binary with its own MSL
+kernels.
 (A first version of this section claimed the port faster — a cross-session
 artifact where the python side ran under box load; the interleaved A/B
 above is the verdict, and the retraction is recorded in Bench 001.)

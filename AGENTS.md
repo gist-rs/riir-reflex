@@ -314,10 +314,26 @@ tokens, banking77 p50 ~317, measured, not guessed) the materialized score
 parent costs ~3 ms of an 86 ms forward while K/V re-reads (⌈seq/BQ⌉×)
 outweigh it below BQ=32; the `Backend::attention_forward` seam it needed
 STAYS (default body = the exact CPU op sequence through the trait's own op
-methods — the one op-order home). Remaining vs the python subprocess
-oracle (their full-table run): fixtures 28.3 vs 25.7 ms · banking77 80 vs
-70 ms — the residual is in-kernel sgemm efficiency; recorded next rungs:
-BK=64 staging, the BQ≥32 fused-attention revival. A literal
+methods — the one op-order home). The third pass (`a51ea42`, 2026-09-24)
+raised narrow BK 32→64 (halves the k-loop's barrier count) and added a
+THIRD instance — xwide `sgemm_xwide` (64×128×32 · 1024 threads · four
+accs per simdgroup: row twins × column twins · two-phase ragged-edge
+drain) picked at `m ≥ 256 && n ≥ 2048`. Position-balanced A/B: ag_news
+34→29 ms (−15%, now BEATS the python oracle's 36), fixtures −7..−11%
+(26.9/26.2/11.9 ms vs torch 25.7/25.5/16.2 — english/typed at ~1.05×,
+multilingual 0.74×), banking77 88/89 → 85/86 ms (−3%; torch's 70 stays
+1.2× ahead). TWO traps this pass paid for, both recorded: (a) the xwide
+n-floor is MEASURED — at n = 1024 the 64×128 tiles yield only 40
+threadgroups at seq ~317, one per GPU core, no over-subscription, and
+banking77 regressed until the floor went in (the staging-intensity axis
+only pays when the grid still over-subscribes); (b) the first A/B round
+read banking77 95→80 (−16%) with base always in the cold-GPU first
+position — a sequencing artifact the position-balanced re-run collapsed
+to the honest −3%; never compare across positions, only within swapped
+pairs. Remaining vs python: banking77's in-kernel sgemm efficiency at
+seq ~317; recorded next rungs: the BQ≥32 fused-attention revival,
+BK=64 for the wide instance (does not fit 32 KB staging at 64×64 —
+needs the tile shrunk or half staging). A literal
 per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
 shape on the gate corpus.
 
