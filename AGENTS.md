@@ -386,7 +386,10 @@ position-balanced rounds (O k=1024 ≈145–148 µs both sides steady-state,
 down k=2624 dead flat ~399 µs; xwide/narrow controls flat — the probe
 discriminates). Mechanism: the ~34% fewer staging barriers are offset by
 +50% uncoalesced Wᵀ staging per iteration — barriers are not the wide
-instance's binding constraint. Constants REVERTED; the kernel code is
+instance's binding constraint (which also WEAKENS the recorded
+double-buffer rung's premise — overlap recovers staging-behind-barrier
+latency, and flat BK48 says that latency is not the binding cost).
+Constants REVERTED; the kernel code is
 byte-identical to the pre-rung state, only the docs carry the negative.
 **The transposed-B (Wᵀ) staging axis** — the gather reads stride-k apart
 (one float per 32-byte sector) and both repairs lost — (a) a thread per

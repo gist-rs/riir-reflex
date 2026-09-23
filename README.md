@@ -242,7 +242,11 @@ were offset by +50% uncoalesced Wᵀ staging per iteration; the constants
 were reverted and the negative recorded so the rung isn't re-tried blind.
 What remains on this axis: in-kernel sgemm efficiency at seq ~317 (the
 ~5 ms residual to the python oracle) — a double-buffer staging variant is
-the only recorded untried form. Measurement traps recorded: the first
+the only recorded untried form, though the BK48-flat result already
+WEAKENS its premise: double-buffering recovers staging-behind-barrier
+latency, and flat BK48 says that latency is not the wide instance's
+binding cost (what binds is either the uncoalesced gather work itself or
+the MMA — neither is fixed by overlap). Measurement traps recorded: the first
 banking77 A/B read 95→80 ms (−16%) but base ran first in every round — a
 cold-GPU artifact; position-balanced pairs put the true xwide gain at −3%
 (88/89 → 85/86) and the deepest-quiet window reads both at 80.0
