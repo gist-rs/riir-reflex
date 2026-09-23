@@ -14,7 +14,7 @@ per-task tables over BOTH lanes (T1.5).
 ## Quick start
 
 ```sh
-cargo run --release --bin riir-reflex          # the localhost decision engine
+cargo run --release --bin reflex                # the localhost decision engine
 cargo run --release --bin harness              # the benchmark tables (T1.5)
 cargo test                                     # the gates
 ```
@@ -56,10 +56,10 @@ scoop bucket add gist-rs https://github.com/gist-rs/scoop-bucket && scoop instal
 Run it (bare invocation = serve, loopback 7331):
 
 ```sh
-riir-reflex                       # closed posture — no browser page can reach it
-RIIR_REFLEX_ALLOWED_ORIGIN=https://reflex.gist.rs riir-reflex
+reflex                            # closed posture — no browser page can reach it
+RIIR_REFLEX_ALLOWED_ORIGIN=https://reflex.gist.rs reflex
                                   # opens the engine to exactly the arena playground
-riir-reflex --version             # build stamp: version + compiled feature set
+reflex --version                  # build stamp: version + compiled feature set
 ```
 
 CORS is CLOSED by default: no `Access-Control-Allow-Origin` header is ever
@@ -94,7 +94,7 @@ route through cargo-zigbuild):
 scripts/build-release.sh --licenses              # regenerate THIRD_PARTY_LICENSES.md
 scripts/build-release.sh aarch64-apple-darwin    # dist profile (strip + fat LTO)
 scripts/build-release.sh x86_64-pc-windows-gnu   # cross target → zip via cargo-zigbuild
-scripts/binary_leak_scan.sh target/aarch64-apple-darwin/dist/riir-reflex
+scripts/binary_leak_scan.sh target/aarch64-apple-darwin/dist/reflex
 ```
 
 ## The gates (Plan 603 GOAT)

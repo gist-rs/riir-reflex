@@ -113,6 +113,14 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   set (derived from cargo's own `CARGO_FEATURE_*`, never hand-typed) + `release set: STALE —
   missing …` + the rebuild command when incomplete. `RELEASE_FEATURES = modelless+laya-riir`
   since the candle-free cut (`.issues/006` T4; was `modelless+laya`).
+- **Bin name `reflex` (2026-09-23)**: the serve bin target renamed `riir-reflex` → `reflex`
+  (owner ask: easy to type) — package/crate name `riir-reflex` unchanged, so
+  `brew install riir-reflex` / `scoop install riir-reflex` keep naming the formula while the
+  installed COMMAND is `reflex`; `--version` stamps `reflex <ver>`. Ships with the NEXT
+  release — until the dist-side follow-ups land, existing archives still carry `riir-reflex`:
+  gist-rs/reflex `install.sh`/`install.ps1` (binary filename inside the archive), the tap
+  formula's `bin.install` target, the scoop manifest (`bucket/riir-reflex.json` → the exe
+  name), and reflex-site's launch-command copy.
 - **CORS seam** (`src/serve.rs`): `RIIR_REFLEX_ALLOWED_ORIGIN` allow-list gates OPTIONS
   preflight + ACAO echo; default CLOSED (no ACAO — drive-by posture). The arena site prints
   the exact launch command. 7 tcp-level tests both directions (`tests/serve_cors.rs`);

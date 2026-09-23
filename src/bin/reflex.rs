@@ -1,4 +1,6 @@
-//! `riir-reflex` — the localhost decision-engine binary (Plan 603 T1.3).
+//! `reflex` — the localhost decision-engine binary (Plan 603 T1.3; the
+//! `riir-reflex` crate's serve bin, renamed from `riir-reflex` 2026-09-23
+//! so users type the short name).
 //!
 //! Bare invocation = serve (the just-works posture). `--version`/`-V` prints
 //! the build stamp (`build_stamp`): version + compiled feature set + the
@@ -15,7 +17,7 @@ fn main() {
         None => {
             let bind = riir_reflex::serve::bind_addr();
             if let Err(e) = riir_reflex::serve::run() {
-                eprintln!("[riir-reflex] serve on {bind} failed: {e}");
+                eprintln!("[reflex] serve on {bind} failed: {e}");
                 std::process::exit(1);
             }
         }

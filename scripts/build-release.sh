@@ -43,7 +43,7 @@ fi
 mkdir -p "$PKG_DIR"
 RUSTFLAGS="--remap-path-prefix $HOME=/build"
 export RUSTFLAGS
-BIN_NAME="riir-reflex"
+BIN_NAME="reflex"
 HOST_TARGET="$(rustc -vV | awk '/^host:/{print $2}')"
 
 for target in "$@"; do

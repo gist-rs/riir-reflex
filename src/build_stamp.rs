@@ -34,7 +34,7 @@ pub fn rebuild_command() -> String {
 /// set is incomplete against the release set — a `STALE` line naming the
 /// gaps and the rebuild.
 pub fn stamp() -> String {
-    let mut s = format!("riir-reflex {}\n", crate::VERSION);
+    let mut s = format!("reflex {}\n", crate::VERSION);
     s.push_str(&format!(
         "compiled features: {}\n",
         COMPILED_FEATURES.join(" ")

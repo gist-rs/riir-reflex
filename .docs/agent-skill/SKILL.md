@@ -52,9 +52,9 @@ Then check the build stamp — it prints the compiled feature set and refuses to
 hide an incomplete one:
 
 ```console
-$ riir-reflex --version
-riir-reflex 0.1.1
-compiled features: default modelless laya
+$ reflex --version
+reflex 0.2.1
+compiled features: default laya-riir modelless
 ```
 
 A build missing the shipped release set prints a `release set: STALE — missing
@@ -66,8 +66,8 @@ binary" — re-install or rebuild before citing any measured number.
 Bare invocation serves; there is no daemon framework, no config file:
 
 ```sh
-riir-reflex            # serves http://127.0.0.1:7331
-RIIR_REFLEX_BIND=127.0.0.1:9400 riir-reflex   # override host:port
+reflex                 # serves http://127.0.0.1:7331
+RIIR_REFLEX_BIND=127.0.0.1:9400 reflex   # override host:port
 ```
 
 Three routes:

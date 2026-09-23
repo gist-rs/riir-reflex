@@ -92,8 +92,8 @@ laya-riir = ["dep:tokenizers", "dep:sha2", "dep:blake3", "dep:gemm", "dep:libm"]
 laya-riir-metal = ["laya-riir", "dep:metal", "dep:objc2"]
 
 [[bin]]
-name = "riir-reflex"
-path = "src/bin/riir-reflex.rs"
+name = "reflex"
+path = "src/bin/reflex.rs"
 required-features = ["modelless"]
 
 # The Plan 603 T1.5 harness runner — CI-regenerated tables live here.
