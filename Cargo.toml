@@ -1,6 +1,6 @@
 [package]
 name = "riir-reflex"
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 license = "MIT"
 description = "Decision-engine serving + comparison + contribution (Plan 603 / Proposal 014 Phase 1): the modelless lane over katgpt_core::decision_wire, the laya comparison lane, and the honest-metrics harness."
@@ -77,6 +77,9 @@ modelless = [
     "katgpt-core/compression_drafter",
     "katgpt-core/variable_rank_domain_expert",
     "katgpt-core/decision_wire",
+    "katgpt-core/state_option_scoring",
+    "katgpt-core/template_decode",
+    "dep:blake3",
 ]
 # The riir-OWNED forward — the ONE laya backend since the candle removal
 # (.issues/006, owner directive 2026-09-22 "no candle at all cost"): the
@@ -108,6 +111,10 @@ required-features = ["modelless"]
 # run would print `ok. 0 passed`, exit 0, byte-for-byte a real pass.
 [[test]]
 name = "engine_gates"
+required-features = ["modelless"]
+
+[[test]]
+name = "game_heads_serve"
 required-features = ["modelless"]
 
 # The riir-owned backend's G5 gate (twin of the deleted candle lane's

@@ -7,8 +7,7 @@
 //! and is the operator's own risk posture, not a feature). The engine's hot
 //! path never enters this module: cold-path JSON in, JSON out.
 
-use crate::embed::EMBED_DIM;
-use crate::engine::DecisionEngine;
+use crate::{embed::EMBED_DIM, engine::DecisionEngine, game_heads::GameHeads};
 use katgpt_core::decision_wire::{DecisionRequest, DecisionResponse};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -350,7 +349,18 @@ pub fn run() -> std::io::Result<()> {
         "[riir-reflex] laya lane: {} (set RIIR_REFLEX_LAYA=1 to enable the comparison lane)",
         laya.lock().unwrap().as_str()
     );
-    serve_listener_lanes(listener, engine, laya)
+    // The fitted game head (Plan 607's decoded Tetris head — boot-fitted
+    // from the digest-pinned oracle fixture). Failure here is a broken
+    // build, never a runtime condition: the fixture is compile-time and
+    // the tests pin the fit's determinism + agreement anchors.
+    let heads = Arc::new(GameHeads::build());
+    eprintln!(
+        "[riir-reflex] game head: tetris fitted ({} corpus options, λ {}, digest {})",
+        heads.n_options(),
+        heads.lambda(),
+        heads.digest_hex()
+    );
+    serve_listener_lanes(listener, engine, laya, heads)
 }
 
 /// Serve on an ALREADY-BOUND listener with an EXPLICIT CORS allow-list (the
@@ -361,6 +371,18 @@ pub fn serve_listener_with<const N: usize, const D: usize>(
     laya: Arc<Mutex<LayaLane>>,
     allow: Vec<String>,
 ) -> std::io::Result<()> {
+    serve_listener_heads(listener, engine, laya, allow, Arc::new(GameHeads::build()))
+}
+
+/// Serve on an ALREADY-BOUND listener with an EXPLICIT game-head lane (the
+/// `run()` seam — the boot-fit owns the head; the edge reads it).
+pub fn serve_listener_heads<const N: usize, const D: usize>(
+    listener: TcpListener,
+    engine: Arc<Mutex<DecisionEngine<N, D>>>,
+    laya: Arc<Mutex<LayaLane>>,
+    allow: Vec<String>,
+    heads: Arc<GameHeads>,
+) -> std::io::Result<()> {
     let allow: Arc<[String]> = allow.into();
     for stream in listener.incoming() {
         match stream {
@@ -368,8 +390,9 @@ pub fn serve_listener_with<const N: usize, const D: usize>(
                 let eng = Arc::clone(&engine);
                 let laya = Arc::clone(&laya);
                 let allow = Arc::clone(&allow);
+                let heads = Arc::clone(&heads);
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_conn(s, eng, laya, &allow) {
+                    if let Err(e) = handle_conn(s, eng, laya, &allow, &heads) {
                         eprintln!("[riir-reflex] conn error: {e}");
                     }
                 });
@@ -386,8 +409,9 @@ pub fn serve_listener_lanes<const N: usize, const D: usize>(
     listener: TcpListener,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
     laya: Arc<Mutex<LayaLane>>,
+    heads: Arc<GameHeads>,
 ) -> std::io::Result<()> {
-    serve_listener_with(listener, engine, laya, allowed_origins())
+    serve_listener_heads(listener, engine, laya, allowed_origins(), heads)
 }
 
 /// Serve on an ALREADY-BOUND listener (the production seam — the allow-list
@@ -396,11 +420,12 @@ pub fn serve_listener<const N: usize, const D: usize>(
     listener: TcpListener,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
 ) -> std::io::Result<()> {
-    serve_listener_with(
+    serve_listener_heads(
         listener,
         engine,
         Arc::new(Mutex::new(LayaLane::Off)),
         allowed_origins(),
+        Arc::new(GameHeads::build()),
     )
 }
 
@@ -491,6 +516,7 @@ fn handle_conn<const N: usize, const D: usize>(
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
     laya: Arc<Mutex<LayaLane>>,
     allow: &[String],
+    heads: &GameHeads,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut writer = stream.try_clone()?;
@@ -585,23 +611,40 @@ fn handle_conn<const N: usize, const D: usize>(
                 return Ok(());
             }
             match parsed {
-                Ok(req) => match engine.lock().unwrap().decide(&req) {
-                    Ok(resp) => json_response(
-                        &mut writer,
-                        "200 OK",
-                        &serde_json::to_string(&resp).unwrap_or_default(),
-                        cors.as_deref(),
-                    ),
-                    Err(e) => json_response(
-                        &mut writer,
-                        "422 Unprocessable Entity",
-                        &format!(
-                            "{{\"error\":{}}}",
-                            serde_json::to_string(&e.to_string()).unwrap_or_default()
+                Ok(req) => {
+                    // The fitted game head first (Plan 607's decoded
+                    // Tetris head): a well-formed spot question is
+                    // answered from the boot-fitted head. Everything
+                    // else — grammar-invalid state, foreign question —
+                    // falls through to the cosine engine, which abstains
+                    // off-corpus as before.
+                    if let Some(resp) = heads.respond(&req) {
+                        json_response(
+                            &mut writer,
+                            "200 OK",
+                            &serde_json::to_string(&resp).unwrap_or_default(),
+                            cors.as_deref(),
+                        );
+                        return Ok(());
+                    }
+                    match engine.lock().unwrap().decide(&req) {
+                        Ok(resp) => json_response(
+                            &mut writer,
+                            "200 OK",
+                            &serde_json::to_string(&resp).unwrap_or_default(),
+                            cors.as_deref(),
                         ),
-                        cors.as_deref(),
-                    ),
-                },
+                        Err(e) => json_response(
+                            &mut writer,
+                            "422 Unprocessable Entity",
+                            &format!(
+                                "{{\"error\":{}}}",
+                                serde_json::to_string(&e.to_string()).unwrap_or_default()
+                            ),
+                            cors.as_deref(),
+                        ),
+                    }
+                }
                 Err(e) => json_response(
                     &mut writer,
                     "400 Bad Request",

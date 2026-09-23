@@ -62,6 +62,12 @@ pub mod engine;
 #[cfg(feature = "modelless")]
 pub mod serve;
 
+/// The fitted game head over HTTP (Plan 607's decoded Tetris head served
+/// from the digest-pinned oracle fixture — the arena's modelless lane
+/// plays; `.plans/001_game_head_serving.md`).
+#[cfg(feature = "modelless")]
+pub mod game_heads;
+
 /// The laya native-Rust comparison lane (Plan 603 T1.4) — the riir-owned
 /// forward (opt-in `laya-riir`; the candle reference lane was removed by
 /// `.issues/006`, owner directive 2026-09-22). One tokenizer, one config
