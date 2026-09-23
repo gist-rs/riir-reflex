@@ -53,18 +53,21 @@ fn metal_ops_match_cpu_op_by_op() {
     // GEMM — all three stride shapes at forward-like + ragged sizes.
     // (25,768,2304) + (7,64,33) + (1,257,129) walk the NARROW instance
     // (m < 256), including a k tail past BK 64 (257) and ragged m/n.
-    // (300,100,700) walks the WIDE instance ragged on both m and n; the
-    // batched arms below add its batched shape. (300,100,1500) walks the
-    // XWIDE instance (m ≥ 256, n ≥ 1024) ragged on m (300 = 4·64+44), n
-    // (1500 = 11·128+92 — both edge phases) and the k tail (100 past BK
-    // 32); (512,64,1024) is its exact-tile shape.
+    // (300,100,700) walks the WIDE instance ragged on both m and n — k 100
+    // crosses BK 32's tail (32+32+32+4); the batched arms below add its
+    // batched shape. (300,100,2124) walks the XWIDE instance (m ≥ 256,
+    // n ≥ 2048) ragged on m (300 = 4·64+44), n (2124 = 16·128+92 — both
+    // edge phases) and the k tail (100 past BK 32); (512,64,2048) is its
+    // exact-tile shape. The two xwide arms MUST stay at n ≥ 2048 — the
+    // XWIDE_N_MIN floor moved 1024→2048 once and silently demoted these
+    // arms to the wide instance (the kernel nothing gated, 2026-09-24).
     for (mm, k, n) in [
         (25usize, 768usize, 2304usize),
         (7, 64, 33),
         (1, 257, 129),
         (300, 100, 700),
-        (300, 100, 1500),
-        (512, 64, 1024),
+        (300, 100, 2124),
+        (512, 64, 2048),
     ] {
         let a = vec_of(mm * k);
         let b = vec_of(k * n);
@@ -104,7 +107,7 @@ fn metal_ops_match_cpu_op_by_op() {
 
     // The batched-head attention ops (the forward's ONE-dispatch-per-op
     // path). Ragged seq on purpose: 37 walks every narrow sgemm edge tile;
-    // 300 walks the WIDE instance's batched path (m ≥ 256, n = 300 < 1024)
+    // 300 walks the WIDE instance's batched path (m ≥ 256, n = 300 < 2048)
     // with a ragged n tail.
     {
         let (seq, heads, hd) = (300usize, 2usize, 64usize);

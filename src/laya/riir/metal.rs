@@ -101,10 +101,18 @@ const RESOURCE_OPTIONS: MTLResourceOptions = MTLResourceOptions::StorageModeShar
 /// - narrow `sgemm` (32×64×64) for m < 256 — BK 64 halves the k-loop's
 ///   barrier count at the short-sequence suites (its staging still fits:
 ///   A [32][65] + B [64][65] = 6240 floats).
-/// - wide `sgemm_wide` (64×64×32) for m ≥ 256, n < 1024 — the attention
-///   scores/context shapes at long sequence (n = seq, n = 64).
+/// - wide `sgemm_wide` (64×64×32) for m ≥ 256, n < 2048 — the attention
+///   scores/context shapes at long sequence (n = seq, n = 64). BK 48 (the
+///   largest k-chunk fitting 32 KB at 64×64) was tried and measured FLAT
+///   on the forward's wide population (O k=1024, down k=2624 — the
+///   sgemm_shape_timing probe, 2026-09-24): the ~34% fewer staging
+///   barriers were offset by +50% uncoalesced Wᵀ staging per iteration —
+///   barriers are not the wide instance's binding constraint. Don't re-try
+///   bigger wide BK without a new mechanism.
 /// - xwide `sgemm_xwide` (64×128×32) for m ≥ 256, n ≥ 2048 — the QKV and
-///   gate/up projections. Staging arithmetic intensity BM·BN/(BM+BN) =
+///   gate/up projections. BK stays 32: at BN 128 a BK-48 B tile is
+///   [48][129] = 6192 floats and the pair outgrows 32 KB. Staging arithmetic
+///   intensity BM·BN/(BM+BN) =
 ///   42.7 MAC/staged-element (wide 32, narrow 21 — the axis the
 ///   narrow→wide promotion was measured on); every n it serves (3072,
 ///   5248, 4096) is an exact multiple of 128, so the bigger BN pads
@@ -214,13 +222,17 @@ const MSL_HEAD: &str = r#"
 #include <metal_simdgroup_matrix>
 using namespace metal;
 
-// ── sgemm geometry, TWO instantiations picked per-call by `m`:
+// ── sgemm geometry, THREE instantiations picked per-call by `m`/`n`:
 // narrow `sgemm` (BM=32, 512 threads) for short sequences — its 32-row
 // tiles pad little at m ≈ 100–200 and the doubled threadgroup count hides
 // latency; wide `sgemm_wide` (BM=64, 1024 threads) for m ≥ 256 — the
 // doubled staging arithmetic intensity (64 MAC/element vs 21) is worth
-// ~14% at the seq-317 suites. Shared laws: BK = 32; a staging stride must
-// EXCEED the tile's row width or the tile overlaps itself (33 over a
+// ~14% at the seq-317 suites. Shared laws: BK is per-instance (narrow 64
+// — A [32][65] + B [64][65]; wide 32 — BK 48 fits 32 KB at 64×64 but
+// measured FLAT, the barrier saving is offset by the bigger uncoalesced
+// staging gather; xwide 32 — a BK-48 B tile at BN 128 is [48][129] and
+// the pair outgrows the limit); a staging stride must EXCEED the tile's
+// row width or the tile overlaps itself (33 over a
 // 64-wide tile corrupts every row from row 1's column 30 on); the ragged
 // edge route reuses the staging front after the k-loop (barrier-ordered).
 
@@ -278,7 +290,9 @@ kernel void sgemm_wide(
     // One carved staging allocation (24 960 B): A tile [64][33] = 2112
     // floats, B tile [32][65] = 2080, and the ragged-edge store path
     // reuses the front 4096 floats AFTER the k-loop (the barrier below
-    // orders it past the last A/B loads).
+    // orders it past the last A/B loads). WBK 48 (the largest k-chunk
+    // fitting 32 KB here) measured FLAT vs 32 — the k-loop's barriers are
+    // not this instance's binding constraint.
     threadgroup float* ta = raw;
     threadgroup float* tb = raw + 64u * WTAS;
     threadgroup float* edge = raw;

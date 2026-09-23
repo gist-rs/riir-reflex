@@ -1,4 +1,4 @@
-# Issue 015 — parallel-Metal-instance smoke divergence (6 observations, root cause unproven)
+# Issue 015 — parallel-Metal-instance smoke divergence (7 observations, root cause unproven)
 
 **Status:** OPEN — reproduction + containment recorded, root cause NOT diagnosed.
 
@@ -45,6 +45,19 @@ kernel under test.
    the flash session's own first full-suite parallel run red on
    `matmul_heads seq300` (max 2.8e1), which then passed unchanged in
    every later run — same decay shape as observation 4.
+7. 2026-09-24 ~06:5x (the WBK=48 probe session), the SHARPEST
+   host-level evidence yet, and it KILLS the cold-shader-compile
+   hypothesis: an interleaved 12× loop alternating the BASE and NEW
+   binaries flaked BOTH SIDES SIMULTANEOUSLY on round 11 — base red on
+   `glu_gelu_gate` (not an sgemm op at all), new red on
+   `matmul_w 1x257x129` (a narrow shape the WBK edit does not touch).
+   Two different processes, two different ops, one instant. Shader
+   caches were warm by round 11 (10 prior green rounds each), so
+   "first-run MSL compile" cannot explain it; simultaneous cross-process
+   failure on UNRELATED kernels points at a HOST/DRIVER-level transient
+   (GPU scheduler or memory-state corruption shared across processes),
+   not a kernel defect and not a compile artifact. Both trees finished
+   ~10–11/12 green with rates in the same class.
 
 Serialized `-- --test-threads=1` after both failures: all 7 tests green,
 bit-identical. The G5 parity gate (single Metal instance) has never
@@ -81,3 +94,5 @@ exonerated — the diverging ops were untouched by them and everything
 passes serialized). Observations 5–6: m3, 2026-09-24, the flash_attn
 session — observation 6's base-tree worktree run (`a386119`, no flash
 kernel) is the one that exonerates the new kernel explicitly.
+Observation 7: m3, 2026-09-24, the WBK=48 probe session (uncommitted at
+write time) — the simultaneous cross-binary flake.

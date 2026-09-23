@@ -10,6 +10,33 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Wide-BK=48 rung measured NEGATIVE + the sgemm shape-timing probe**
+  (uncommitted at write time; session record). The recorded rung ("BK=48
+  for the wide instance — the largest k-chunk fitting 32 KB at 64×64")
+  was executed: kernel edited, G5 green, then the new
+  `examples/sgemm_shape_timing` probe (the forward's real `matmul_w`
+  geometries: O k=1024, down k=2624 = the wide population; QKV/gate-up
+  xwide + ag_news narrow controls) read the wide pair FLAT across 4
+  position-balanced rounds — O ≈145–148 µs steady-state both sides,
+  down dead flat ~399 µs, controls flat (the instrument discriminates).
+  Mechanism: ~34% fewer staging barriers offset by +50% uncoalesced Wᵀ
+  staging per iteration — barriers are not the wide instance's binding
+  constraint. Constants REVERTED; the kernel is byte-identical to the
+  pre-rung state; the negative is recorded in metal.rs docs + README +
+  AGENTS.md so the rung isn't re-tried blind. What landed for real:
+  the probe (with its three measured birth traps — the as_micros/1000
+  ms-as-µs unit bug, the begin_pass-less stale-chain-slot aliasing that
+  diverged shape 3 by exactly max|CPU − stale-b| on BOTH binaries, and
+  the pipelined-block posture because per-op commit+wait measures
+  submission overhead), the xwide smoke-arm re-aim in
+  `tests/metal_ops_smoke.rs` (the (300,100,1500)/(512,64,1024) arms
+  were orphaned by the XWIDE_N_MIN 1024→2048 floor — the kernel with
+  ~70% of forward GEMM FLOPs had no tolerance gate), and Issue 015
+  observation 7 (simultaneous cross-binary flake on unrelated ops with
+  warm caches — kills the cold-shader-compile hypothesis; host-level
+  transient). G5 parity green at the reverted state (2/2, 9.75 s);
+  smoke 7/7.
+
 - **v0.2.3 — the THREE-BOARD release cut** (`a386119` tag; dist release live).
   The deferred-until-Metal-landed tag, cut after the Metal sibling's
   `a51ea42`/`9ed1211`/`3ecab32` landed and the tree went clean. Release gates on

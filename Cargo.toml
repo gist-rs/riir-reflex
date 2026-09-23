@@ -173,6 +173,12 @@ required-features = ["modelless"]
 name = "route_scale_probe"
 required-features = ["modelless"]
 
+# The sgemm shape-timing probe (measurement only — never a gate): the
+# kernel-rung A/B instrument over the forward's real matmul_w geometries.
+[[example]]
+name = "sgemm_shape_timing"
+required-features = ["laya-riir-metal"]
+
 # The laya parity test is GEMM-bound inside the riir forward's `gemm` calls;
 # the local code is only orchestration. Optimizing DEPENDENCIES in the dev
 # profile keeps a plain `cargo test --features laya-riir` within minutes

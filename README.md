@@ -227,21 +227,27 @@ caught by the smoke arms before any timing: the scores tile is [32 rows ×
 frags store would run past the 32-key row and corrupt the [32][33] scores
 buffer; and the per-block key range is only a bounds optimization — the
 per-row window predicate (|q−k| ≤ w) lives in the row threads, else a
-block-range key leaks into a row that should mask it. The next rungs:
-in-kernel sgemm efficiency at seq ~317 (the ~5 ms residual to the python
-oracle) — wide-BK=48 (fits staging where BK=64 does not) or a
-double-buffer variant that fits. The next rung (`a51ea42`, 2026-09-24):
-narrow BK 32→64 (halves the k-loop's barrier count; fixtures/ag_news
-−7..−15%) + a THIRD instance, xwide (64×128×32, four accumulators per
-simdgroup, staging-intensity axis 32→42.7 MAC/staged-element) picked at
-`m ≥ 256 && n ≥ 2048` — the n floor is MEASURED: at n = 1024 the 64×128
-tiles yield only 40 threadgroups at seq ~317 (one per GPU core, no
-over-subscription) and banking77 regressed before the floor went in.
-Measurement trap recorded: the first banking77 A/B read 95→80 ms (−16%)
-but base ran first in every round — a cold-GPU artifact; position-balanced
-pairs put the true xwide gain at −3% (88/89 → 85/86) and the deepest-quiet
-window reads both at 80.0 (integer-ms resolution). G5 parity green at BOTH
-postures throughout (the CPU lane is bit-identical).
+block-range key leaks into a row that should mask it. The rungs landed so
+far: narrow BK 32→64 (`a51ea42`, 2026-09-24 — halves the k-loop's barrier
+count; fixtures/ag_news −7..−15%) + a THIRD instance, xwide (64×128×32,
+four accumulators per simdgroup, staging-intensity axis 32→42.7
+MAC/staged-element) picked at `m ≥ 256 && n ≥ 2048` — the n floor is
+MEASURED: at n = 1024 the 64×128 tiles yield only 40 threadgroups at
+seq ~317 (one per GPU core, no over-subscription) and banking77 regressed
+before the floor went in. MEASURED NEGATIVE, same day: **wide BK=48** (the
+largest k-chunk fitting 32 KB at 64×64) — the `sgemm_shape_timing` probe
+at the forward's real `matmul_w` geometries read the wide pair (O k=1024,
+down k=2624) FLAT across position-balanced rounds: fewer staging barriers
+were offset by +50% uncoalesced Wᵀ staging per iteration; the constants
+were reverted and the negative recorded so the rung isn't re-tried blind.
+What remains on this axis: in-kernel sgemm efficiency at seq ~317 (the
+~5 ms residual to the python oracle) — a double-buffer staging variant is
+the only recorded untried form. Measurement traps recorded: the first
+banking77 A/B read 95→80 ms (−16%) but base ran first in every round — a
+cold-GPU artifact; position-balanced pairs put the true xwide gain at −3%
+(88/89 → 85/86) and the deepest-quiet window reads both at 80.0
+(integer-ms resolution). G5 parity green at BOTH postures throughout (the
+CPU lane is bit-identical).
 
 ```mermaid
 xychart-beta

@@ -378,10 +378,17 @@ shared before the drain reads it — the compile-gated smoke caught the
 NaN class on the first run. Kill-switch `LAYA_METAL_FLASH=0` falls back
 to the reference op sequence (`Backend::attention_forward_default`).
 Remaining vs python: banking77's in-kernel sgemm efficiency at
-seq ~317 (~5 ms); recorded next rung: BK=48 for the wide instance (BK=64
-does not fit 32 KB staging at 64×64 — 48 fits at ~25 KB), or a
-double-buffer variant that fits. MEASURED NEGATIVE on the staging axis
-(same day): the transposed-B (Wᵀ) staging gather reads stride-k apart
+seq ~317 (~5 ms). MEASURED NEGATIVE rungs, both same-day: **wide BK=48**
+(the largest k-chunk fitting 32 KB at 64×64; BK=64 needs 33 280 B) — the
+`sgemm_shape_timing` probe (new, `examples/`, measurement-only) at the
+forward's real `matmul_w` geometries read the wide pair FLAT across 4
+position-balanced rounds (O k=1024 ≈145–148 µs both sides steady-state,
+down k=2624 dead flat ~399 µs; xwide/narrow controls flat — the probe
+discriminates). Mechanism: the ~34% fewer staging barriers are offset by
++50% uncoalesced Wᵀ staging per iteration — barriers are not the wide
+instance's binding constraint. Constants REVERTED; the kernel code is
+byte-identical to the pre-rung state, only the docs carry the negative.
+**The transposed-B (Wᵀ) staging axis** — the gather reads stride-k apart
 (one float per 32-byte sector) and both repairs lost — (a) a thread per
 n-column staging its whole k-chunk (the coalesced-line form) collapsed
 B staging onto 2–4 of the 32 warps and REGRESSED banking77
@@ -392,7 +399,17 @@ warp) measured DEAD EVEN (banking77 76/77, ag_news 34/34 quiet-box) —
 the sector waste was already absorbed by L2/MLP on these shapes, so the
 uncoalesced element form stays. A literal
 per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
-shape on the gate corpus.
+shape on the gate corpus. Probe-birth traps (all measured, all fixed
+in the same session): `as_micros()` divided by 1000 printed MILLISECONDS
+as "µs" (the first read of 0.4–1.1 µs was impossible by 500×); skipping
+`begin_pass()` between shapes let dropped Vecs at recycled heap addresses
+alias stale chain entries and `download_into`'s base-pointer lookup
+resolve the WRONG device buffer (shape 3 diverged by exactly
+max|CPU − stale-b| ≈ 1.38e2, IDENTICALLY on both A/B sides — deterministic
+pollution, not a kernel defect); the probe times a pipelined BLOCK
+(R ops encoded back-to-back, ONE sync, wall/R) because the forward never
+waits per op — per-op commit+wait measures submission overhead, not the
+kernel.
 
 The GLU trap worth remembering: the fused Wi output is `[rows, 2I]` — the
 activation MUST be written to its own contiguous buffer, or the next
