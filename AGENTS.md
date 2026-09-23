@@ -380,7 +380,17 @@ to the reference op sequence (`Backend::attention_forward_default`).
 Remaining vs python: banking77's in-kernel sgemm efficiency at
 seq ~317 (~5 ms); recorded next rung: BK=48 for the wide instance (BK=64
 does not fit 32 KB staging at 64×64 — 48 fits at ~25 KB), or a
-double-buffer variant that fits. A literal
+double-buffer variant that fits. MEASURED NEGATIVE on the staging axis
+(same day): the transposed-B (Wᵀ) staging gather reads stride-k apart
+(one float per 32-byte sector) and both repairs lost — (a) a thread per
+n-column staging its whole k-chunk (the coalesced-line form) collapsed
+B staging onto 2–4 of the 32 warps and REGRESSED banking77
+76→89–106 ms (idle warps in a threadgroup cannot be backfilled — memory
+parallelism is per-warp); (b) keeping all threads active but swapping the
+bit extraction to k-fastest warps (col = idx>>5, one aligned line per
+warp) measured DEAD EVEN (banking77 76/77, ag_news 34/34 quiet-box) —
+the sector waste was already absorbed by L2/MLP on these shapes, so the
+uncoalesced element form stays. A literal
 per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
 shape on the gate corpus.
 
