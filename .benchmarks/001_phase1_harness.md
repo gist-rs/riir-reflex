@@ -496,3 +496,45 @@ tool-timeout-killed at 60 min under the same load — no partial output,
 the detached rerun is the recorded one). Checkpoint coverage is the
 runner's own protocol: typed_decisions × 3 checkpoints, every other
 suite × english.
+
+## Addendum 7 (2026-09-23 late, issues 012 remain + the G1 no-claim fix) — the quiet-box latency refresh + the honest third G1 verdict
+
+The remains from the issue-012 session, landed in one run
+(`0d956be`-tree binary, sources HEAD):
+
+1. **The load-touched latency rows are refreshed.** The 16:00Z run started
+   under a sibling's release build; the 17:21Z run read a quiet box (no
+   cargo, no GPU compute consumer; Zed + desktop background only, loadavg
+   ~4-6). The typed row's numbers came down and STAYED honest: rust typed
+   p50 1359 → **1164 ms**, rust typed/english 1440 → **1069 ms**, rust
+   multilingual 682 → **448 ms**; the python reference lanes moved less
+   (py/typed 352 → 261 ms). **Accuracy is bit-identical on every lane,
+   old run vs new** — the determinism claim holding exactly where it
+   should, and confirming the first readings were load, not the port.
+2. **G1 gains its third verdict — NO CLAIM** (`bb2370a`). The five
+   synthetic families' cal windows sit below the calibrator's 64-obs fit
+   floor: the calibrator never fitted, the "calibrated vs raw" comparison
+   compared the raw readout against itself, and the gate serialized a
+   FAIL for a claim that was never made — while the run meta's own
+   `calibration_protocol` line had promised "no calibration claim when
+   the calibrator never moved" since the lane landed. The code keeps the
+   promise now: `G1Verdict {pass, fail, no_claim}` + the pure
+   known-answer-tested `g1_verdict_of`; `g1_pass` keeps its wire shape
+   (None projects no_claim); the markdown and the site render NO CLAIM
+   (reflex-site `e5738fb`). Verdict census, old → new: 6 PASS / 8 FAIL →
+   **7 PASS / 2 FAIL (ag_news, massive_intent — genuine fitted-and-lost) /
+   5 NO CLAIM (the synthetic families)**. The one content flip is
+   code_fixtures FAIL → PASS: the suite mines this repo's own sources,
+   its fn spans moved with the day's committed edits, and its re-fit
+   cal composition now improves — a moving fixture legitimately tracking
+   the repo it mines.
+3. **route_scale probe (issue 013 lever 2): FLAT, promotion declined.**
+   `EngineConfig.route_scale` (default 8.0 unchanged) replaces the module
+   const; the synthetic-family grid {2, 4, 8, 16, 32} shows no dominating
+   scale (16.0's nominal mean is +2.6 pp = 1-2 questions on these slices;
+   32.0 collapses tool_fit and sensitivity). The table lives in
+   `.issues/013_modelless_accuracy_levers.md`.
+
+Run identity: 15/15 suites, no absences, exit 0; rust ≡ python on
+accuracy at every suite/checkpoint (the issue-012 equivalence holding on
+the refresh too). Wall ~32 min detached (23:49-00:21 local).

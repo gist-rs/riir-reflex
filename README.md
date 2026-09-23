@@ -124,7 +124,7 @@ scripts/binary_leak_scan.sh target/aarch64-apple-darwin/dist/reflex
 
 | gate | verdict | where |
 |---|---|---|
-| G1 calibration (beats raw + conformal-naive floor) | PASS 6/14 suites in the 15-suite tables (the failures are calibration-honesty verdicts, not accuracy ones: on the tiny synthetic families the calibrator has nothing to move — cal ECE == raw — and the conformal floor is strong on thin slices) | `.benchmarks/001_phase1_tables/TABLES.md` |
+| G1 calibration (beats raw + conformal-naive floor) | PASS 7/14 · FAIL 2 (ag_news, massive_intent) · NO CLAIM 5 (the synthetic families — their cal windows sit below the calibrator's 64-obs fit floor, so no calibration claim is made; reported NO CLAIM since `bb2370a`, matching the calibration_protocol promise, never a FAIL) | `.benchmarks/001_phase1_tables/TABLES.md` |
 | G2 latency (p99 ≤ 1 ms per decision set) | PASS — p99 0.06 ms per 8-question set | `benches/decision_set_goat.rs` |
 | G3 no regression | PASS — consumes katgpt-rs, never edits it | boundary gate |
 | G4 alloc (hot path alloc-free, canary-armed) | PASS — 0 allocs post-warmup | `benches/decision_set_goat.rs` |
@@ -139,19 +139,22 @@ record: [`001_phase1_harness.md`](.benchmarks/001_phase1_harness.md).
 Protocol + divergences: [`laya_bench_protocols.md`](.docs/laya_bench_protocols.md),
 [`dataset_manifest.md`](.docs/dataset_manifest.md).
 
-Headline (accuracy per suite; modelless vs the BEST laya checkpoint):
+Headline (accuracy per suite; modelless vs the BEST laya checkpoint;
+accuracy is bit-identical across the 09-23 runs — deterministic lanes —
+and the latency rows are the 17:21Z refresh; the first typed/english
+reading at 16:00Z was load-inflated by a sibling release build):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
-| typed_decisions | 2000 | 0.2780 | **0.7445** (`typed`) | 0.5 ms | 4493 ms |
-| ag_news | 400 | 0.2575 | **0.9500** | 0.2 ms | 388 ms |
-| emotion | 400 | 0.2950 | **0.5925** | 0.1 ms | 170 ms |
-| sst5 | 600 | 0.1567 | **0.3717** | 0.1 ms | 204 ms |
-| prompt_injections | 116 | 0.4828 | **0.6983** | 0.1 ms | 169 ms |
-| xnli_en | 300 | 0.3333 | **0.8600** | 0.1 ms | 344 ms |
-| massive_intent_en | 300 | 0.0767 | **0.7500** | 0.1 ms | 529 ms |
-| banking77 | 500 | 0.0400 | **0.4980** | 0.3 ms | 773 ms |
-| code_fixtures | 32 | 0.2500 | **0.5625** | 0.1 ms | 1051 ms |
+| typed_decisions | 2000 | 0.3190 | **0.7445** (`typed`) | 0.6 ms | 1164 ms |
+| ag_news | 400 | 0.5100 | **0.9500** | 0.2 ms | 116 ms |
+| emotion | 400 | 0.2825 | **0.5925** | 0.1 ms | 70 ms |
+| sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 79 ms |
+| prompt_injections | 116 | 0.4397 | **0.6983** | 0.1 ms | 78 ms |
+| xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 94 ms |
+| massive_intent_en | 300 | 0.0767 | **0.7500** | 0.1 ms | 140 ms |
+| banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 257 ms |
+| code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 263 ms |
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,
@@ -162,21 +165,29 @@ typed-decisions extras (the specialist's own axis, calibrated probs): laya·type
 soft_acc 0.4668 · brier_soft 0.0677 · score MAE 0.2424 · within_1 0.995 — vs
 modelless soft_acc 0.3168 · brier_soft 0.2436 · MAE 0.7272 · within_1 0.724.
 
-**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4):**
+**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the kernel-ladder pass):**
 
 | checkpoint | python torch MPS (row p50) | rust candle Metal (row p50) | rust riir Metal (row p50, candle-free) |
 |---|---|---|---|
-| english | **25.7 ms** | 31.1 ms | 79.0 ms |
-| typed | **25.5 ms** | 31.2 ms | 78.7 ms |
-| multilingual | **16.2 ms** | 18.7 ms | 38.5 ms |
+| english | **25.7 ms** | 31.1 ms | 28.3 ms |
+| typed | **25.5 ms** | 31.2 ms | 28.1 ms |
+| multilingual | 16.2 ms | 18.7 ms | **12.6 ms** |
 
 The fair compare the owner asked for — every lane on the same GPU
-(`.issues/005`): torch MPS wins every checkpoint, candle Metal follows,
-and the riir lane's OWN Metal backend lands ~2.5× behind candle — the
-honest naive-kernel v1 baseline (one 16×16-tiled GEMM kernel + per-op
-command buffers; candle's MLX simdgroup kernels + fused dispatch are the
-measured gap). G5 parity is green at the Metal posture (drift ≤ 6e-6 vs
-the 1e-3 gate) — same function, slower kernels, optimize later.
+(`.issues/005`). v1 (one 16×16-tiled GEMM + per-op command buffers) landed
+~2.5× behind candle; the kernel ladder then closed it: ONE pass-scoped
+command buffer (commit at the three host reads + a 1024-encode pipeline
+flush), ALL-heads batched attention (one dispatch per op instead of one per
+head), a simdgroup GEMM (32×32 tile, 16 simdgroups/threadgroup, coalesced
+staging incl. the Wᵀ/Kᵀ shapes, guarded edge stores), and row-parallel
+softmax/LN (one simdgroup per row). Result: riir Metal went 79.0/78.7/38.5
+→ 28.3/28.1/12.6 ms — beats torch MPS on multilingual, matches candle Metal
+on english/typed (whose numbers are frozen v1 — their kernels were already
+simdgroup-class). G5 parity green at BOTH postures after the change (drift
+within the 1e-3 budget; the CPU lane is bit-identical). The recorded next
+rung for the long-sequence harness suites (ag_news 107→38 ms, banking77
+206→99 ms vs the site's py 32/62) is a flash-attention-style fused kernel
+that never materializes the heads·seq² scores.
 
 ```mermaid
 xychart-beta
@@ -185,7 +196,7 @@ xychart-beta
     y-axis "ms" 0 --> 90
     bar [25.7, 25.5, 16.2]
     line [31.1, 31.2, 18.7]
-    line [79.0, 78.7, 38.5]
+    line [28.3, 28.1, 12.6]
 ```
 
 (bar = torch MPS · dashed line 1 = candle Metal · dashed line 2 = riir
@@ -211,13 +222,16 @@ above is the verdict, and the retraction is recorded in Bench 001.)
 
 ## Honest reading (the losses are the point)
 
-- **The modelless lane is corpus-bound by design**: near-chance on
-  out-of-domain text classification (AG News, SST-5, MASSIVE, banking77) —
-  the zero-shot breadth loss is structural, not a bug (plan caveat 4). Its
-  native territory (typed decision sets over workflow states, code spans)
-  is where the substrate is meant to live. Its G1 calibration PASSES 8/9:
-  where the scorer carries no signal, confidence honestly collapses to the
-  base rate and beats the conformal-naive floor.
+- **The modelless lane is corpus-bound by design**: near-chance to
+  well-below-laya on out-of-domain text classification (ag_news 0.510 vs
+  0.950, massive 0.077 vs 0.750) — the zero-shot breadth loss is
+  structural, not a bug (plan caveat 4). banking77 is the near-parity
+  exception (0.446 vs 0.498) since the option-rank blend (Issue 004 T7).
+  Its native territory (typed decision sets over workflow states, code
+  spans) is where the substrate is meant to live. Its G1 calibration
+  reads 7 PASS / 2 FAIL / 5 NO CLAIM in the current tables: where the
+  scorer carries no signal, confidence honestly collapses to the base
+  rate and beats the conformal-naive floor.
 - **The laya lane is the accuracy heavyweight** (pretrained 421M/322M
   encoders) at ~10³–10⁴× the per-decision latency and ~10⁹× the
   parameters. The arena exists to make that trade visible, not to hide it.

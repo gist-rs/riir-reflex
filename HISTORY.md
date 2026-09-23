@@ -243,3 +243,18 @@ already closed with records only in git history.
   Residual (out-of-repo): arena-site rendering of the metadata rides the
   reflex-site repo's next data/bench.json regeneration — publish_bench is
   site-side.
+
+- **Issue 012 remains + the G1 no-claim fix** LANDED 2026-09-24 (commits
+  `bb2370a`, `fd3ae48`, docs commit; record: Bench 001 Addendum 7). The
+  calibrator-never-fitted state serialized `g1_pass: Some(false)` — a FAIL
+  for a claim that was never made, against the run meta's own
+  calibration_protocol promise — now `G1Verdict::{Pass,Fail,NoClaim}` via
+  the pure `g1_verdict_of` (31/31 units; g1_pass keeps its wire shape).
+  Census 6 PASS/8 FAIL → 7 PASS/2 FAIL/5 NO CLAIM; code_fixtures
+  FAIL→PASS is its mined-source questions moving with the day's edits.
+  `route_scale` became `EngineConfig.route_scale` (default 8.0 unchanged);
+  the synthetic-family sweep probe measured FLAT — promotion declined,
+  evidence in issue 013. Latency refresh run (17:21Z, quiet box): typed
+  rust p50 1164 ms, typed/english 1069 ms, accuracy bit-identical on every
+  lane across both same-day runs. Issue 013 (accuracy levers) filed;
+  levers 1/3 open, lever 2 recorded dead-on-this-evidence.
