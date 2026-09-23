@@ -80,12 +80,6 @@ const GATE_MID: f32 = 0.35;
 /// distance from the midpoint). At slope 8 the two measured populations
 /// (in-corpus cos ≈ 0.68–0.70, off-corpus ≈ 0.00–0.02) pin to ≈0.94 / ≈0.06.
 const GATE_SCALE: f32 = 8.0;
-/// Routing-affinity sigmoid SLOPE on the query↔label-centroid cosine (the
-/// option-rank term of the score blend). Same measured-geometry basis as
-/// `GATE_SCALE`: spread the in-corpus cosine population (≈0.2–0.7 against
-/// per-label centroids) across the sigmoid's useful range so the correct
-/// label's term dominates the degenerate-equal drafter terms.
-const ROUTE_SCALE: f32 = 8.0;
 
 /// One domain's authored corpus — the builder input to
 /// [`DecisionEngine::build_specs`].
@@ -184,6 +178,11 @@ pub struct EngineConfig {
     pub cal_capacity: usize,
     /// Calibrator occupancy floor before a refit can move anything.
     pub cal_min_obs: usize,
+    /// Option-rank blend scale (Issue 004 T7, sweep lever in issue 013):
+    /// the state-to-centroid cosine is sigmoid-squashed at this scale before
+    /// it ranks options. Default 8.0 is the landing value; a promoted change
+    /// needs the measured sweep at parity everywhere else (the GOAT shape).
+    pub route_scale: f32,
 }
 
 impl Default for EngineConfig {
@@ -194,6 +193,7 @@ impl Default for EngineConfig {
             distance_threshold: DEFAULT_DISTANCE_THRESHOLD,
             cal_capacity: 512,
             cal_min_obs: 64,
+            route_scale: 8.0,
         }
     }
 }
@@ -420,7 +420,9 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // options at all: a 4-byte option string never moves the
             // compressed length of a ~300-byte context, so drafter-only
             // scoring made every option identical and the argmax tie broke
-            // to index 0 — a constant pick (Issue 004 T7). Stack-local;
+            // to index 0 — a constant pick (Issue 004 T7). The blend
+            // scale is a config knob (`route_scale`, sweep lever in
+            // issue 013), not a silent constant. Stack-local;
             // zero-alloc law holds.
             let mut route_terms = [0.0f32; N];
             let route_active = k == N;
@@ -432,7 +434,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     for (qv, dv) in q_state.iter().zip(dir.iter()) {
                         dot += qv * dv;
                     }
-                    *rt = sigmoid(dot * ROUTE_SCALE);
+                    *rt = sigmoid(dot * self.cfg.route_scale);
                 }
             }
             sc.scores.clear();

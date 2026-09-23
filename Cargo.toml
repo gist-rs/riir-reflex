@@ -159,6 +159,12 @@ path = "benches/harness_families_goat.rs"
 harness = false
 required-features = ["modelless"]
 
+# Issue 013 lever 2: the route_scale sweep probe over the synthetic
+# families (measurement only — never a gate).
+[[example]]
+name = "route_scale_probe"
+required-features = ["modelless"]
+
 # The laya parity test is GEMM-bound inside the riir forward's `gemm` calls;
 # the local code is only orchestration. Optimizing DEPENDENCIES in the dev
 # profile keeps a plain `cargo test --features laya-riir` within minutes
