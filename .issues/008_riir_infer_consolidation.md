@@ -1,0 +1,343 @@
+# Issue 008 — the riir-infer consolidation: check the Metal lane against riir-ai's kernels; verdict + refactor plan for the public LLM-inference substrate
+
+> **Numbering note:** born as `007_riir_infer_consolidation.md`, renumbered
+> `008` the same day — a same-worktree allocation race with the sibling
+> session's `007_harness_corpus_neuron_db_substrate.md` (committed first,
+> `6759a79`; first commit wins per the collision convention, and this file
+> had zero inbound mentions). The `.highwater` tell: the sibling's bump to
+> 7 made this session's own `7`-write a silent no-op. Re-scan at WRITE time
+> is the rule; a shared worktree makes the window between read and write
+> the hazard.
+
+**Status:** OPEN — P0 + P1/T3 LANDED 2026-09-22; **T5 fence gate + P3
+slice 1 LANDED 2026-09-23** (see tasks below; plan: riir-ai
+`.plans/610_riir_infer_gpu_carve_slice1.md`). Remaining: P2 (encoder
+move — WAITING for this repo's sibling WIP to land first), P4/T6
+(owner-gated), P5/T7. Owner directive 2026-09-22: *"file issue to
+check about
+metal lane against riir-ai, we maybe separate around that (riir-infer-core)
+so it can consolidate with related metal and consume by both … we plan to
+open src infer and reflex btw so maybe new repos named riir-infer to contain
+that context … the main idea is open src infer part that related to llm
+without leak other part — do verdict for possibility and how to refactor"*.
+
+Refined 2026-09-22 against the code + riir-ai Proposal 041: this issue IS
+041's Phase 2 pull-trigger **T-B firing** (§Alignment below); three factual
+corrections landed (LN is bias-free mean-centered, not with-bias;
+tokenizers **0.22** moves — 006 T3's v1 bump is deferred-on-a-negative;
+naming follows 041 Q2's decided answer, name-unchanged, no shim).
+
+## The owner plan (restated so the issue can be adjudicated against it)
+
+1. New repo **`riir-infer`**: the LLM-inference substrate — weights /
+   quant / models / ops — **public**.
+2. It consolidates **"the related metal"**: riir-ai's CubeCL/CUDA kernel
+   layer AND reflex's hand-MSL encoder kernels — one op layer, not two.
+3. Consumed by BOTH: riir-ai (re-export, the Proposal 041 zero-breakage
+   law) and riir-reflex (the laya lane's backend).
+4. riir-infer AND reflex open-source — a **Research 003 amendment**
+   ("anything riir-* is internal, no exceptions" gets its first sanctioned
+   exceptions), owner authority, recorded here and dated in the executing
+   plan.
+
+## Alignment with riir-ai Proposal 041 (checked against code 2026-09-22)
+
+Proposal 041 owns this seam: its Phase 1 extracted `riir-infer-core`
+(2026-08-27, 44 files / 30,373 LOC, zero-breakage same-path re-exports from
+riir-engine) and its §Session 5 decided Phase 2 = **GO-behind-a-pull-trigger**
+with three fires — T-A (measured graph pain), **T-B (a repo outside riir-ai
+needs `riir-infer-core`/`riir-gpu` WITHOUT `riir-engine`)**, T-C (riir-ai
+contention top pain). **This issue IS T-B firing** — reflex needs the
+inference substrate engine-free — so the deferral is discharged and the
+promotion runbook is 041's T2.1–T2.4, extended by P2/P3 below. 041's
+sequencing rule binds: the carve is the FIRST act of this campaign, never
+mid-campaign.
+
+Where this plan refines (not contradicts) 041:
+
+- **Naming — follow 041 §Session 5 Q2's decided answer: keep the crate
+  name `riir-infer-core`** inside a repo named `riir-infer`. Moving the
+  crate name-unchanged needs **no compat shim at all**: riir-engine's T1.2
+  re-exports (`pub use riir_infer_core::{quant, types, deltanet,
+  transformer, rope, gemma_layer, llama_layer, ternary_layer, simd,
+  spec_types, wall, safetensors_loader, gguf_loader, dflash}` — verified in
+  engine lib.rs) keep resolving once the dep path retargets. A public rename
+  crate → `riir-infer` remains an option but must explicitly supersede 041
+  Q2 and pays the shim — owner call at execution.
+- **P3 supersedes 041's crate-contents row "`riir-gpu` moved verbatim"**:
+  measured in Check part 2, riir-gpu carries never-move surfaces (game/,
+  game_mux, weaver_gpu*, gpu_thoughtfold, memory_soup_gpu, rosetta_gpu,
+  moa, spec_marketplace + the riir-router dep). A wholesale move would ship
+  private game/cognition code into a public repo. Only the CLEAN modules
+  move; the residue stays as riir-ai's riir-gpu and DEPENDS on riir-infer
+  (041's own dep-direction row `riir-gpu ─► riir-infer-core`, unchanged).
+- **Riders adopted from 041's runbook:** T2.3 (riir-train + riir-clippy
+  path deps retarget so inference-only consumers stop dep-ing riir-ai —
+  riir-clippy's opt-in arms were 041's own named first candidate), and the
+  D4 widening re-narrowing (riir-ai BOUNDARY D4: bundled into the promotion
+  — re-narrow what the new structure makes unnecessary, as part of T2.x,
+  never before).
+
+## Check part 1 — is there really a consolidation? (metal lane vs riir-gpu)
+
+Op-by-op, reflex `src/laya/riir/metal.rs` (MSL) vs `riir-ai/crates/riir-gpu`:
+
+| op | reflex MSL | riir-gpu | verdict |
+|---|---|---|---|
+| gemm | stride-general (one kernel, stride args) | `matmul_cubecl` + the ternary gemm/gemv families | OVERLAP — unify on one op layer |
+| elementwise | add / add_bias / scale / relu / gelu-erf / glu | `elementwise_cubecl` (+ fused GEGLU gemv) | OVERLAP |
+| norm | true LayerNorm, **bias-free** (mean-centered `ln_rows`; encoder.rs pins "NO bias tensors anywhere in the encoder" — the trait op is `layer_norm_nobias_into`) | `norms_cubecl` — RMSNorm-shaped, no mean-centering (decoder) | GAP — **mean-centered LN** is reflex's seed; port in |
+| softmax | row kernels | fused in attention + `cpu_reference::softmax` | OVERLAP-ish |
+| rope | MSL row kernel | rope kernels (decode/causal-shaped) | OVERLAP (rope is rope) |
+| attention | **non-causal**, alternating full + sliding-window layers (bidirectional window `lo=qi−w, hi=qi+w`; additive `f32::MIN` mask via the Backend `add` — composed from primitives, not a fused kernel) | causal KV-cache / GQA / block-causal decode family | GAP — no non-causal kernel exists there; reflex's is the seed |
+| runtime | per-op command buffers (objc2) | `cubecl_runtime` / context | RUNTIME CALL — one dispatch layer; the Backend trait stays the seam |
+
+Verdict: the overlap is real (~60% of the op surface) and the two GAPs are
+exactly what reflex already wrote. This is two seeds of one op layer, not a
+from-scratch build.
+
+Verified against code 2026-09-22 (every claim the table rests on):
+reflex — one stride-general `gemm_tiled` ✓, `ln_rows` mean-centering MSL ✓,
+`softmax_rows` ✓, `apply_rope`/`rope` MSL ✓, the bidirectional window
+construction ✓, per-op command buffers over objc2-metal (lazy-flush) ✓;
+riir-gpu — `MatmulCubeCL` (`matmul_cubecl`) ✓, `elementwise_cubecl`
+(Split4/Situ) ✓, `norms_cubecl` (RmsNorm* — no mean-centered variant) ✓,
+`cpu_reference::softmax` ✓, fused `attention_cubecl` (causal/GQA) ✓.
+
+## Check part 2 — how extractable is riir-ai's kernel layer? (measured 2026-09-22)
+
+- **`riir-infer-core` is ALREADY the clean leaf — Proposal 041 did the
+  hard part.** Its deps are katgpt-core + katgpt-transformer /
+  katgpt-speculative / katgpt-forward / katgpt-quant / katgpt-attn (all
+  PUBLIC katgpt-rs crates) + crates.io only. **Zero `riir-*` deps**
+  (verified: the manifest is exactly those six + half/rayon/anyhow/memmap2/
+  fastrand/bytemuck/serde/serde_json/thiserror/log/blake3). Its
+  own header: "NO cognition (measured: 0 cognition imports), NO
+  training". It owns GGUF loading, the quant zoo (q2k → q8kv, q2_0
+  ternary, ptq), architectures (gemma/llama/ternary/wall layers,
+  deltanet, transformer, rope), the safetensors loader, CPU references.
+  Today it sits inside the riir-ai workspace with `publish = false`
+  (Research 003) — this move makes it a repo and lifts that.
+- **riir-gpu's engine coupling is thinner than the grep suggests.** Its
+  `riir_engine::quant::q8kv`, `riir_engine::deltanet::forward::*`,
+  `riir_engine::types::DeltaNetLayerType` imports RESOLVE THROUGH
+  riir-engine's T1.2 re-exports of riir-infer-core. Flip the re-export
+  direction (engine re-exports FROM riir-infer) and those import paths
+  keep resolving — the vocabulary does not move a second time.
+- **The real hazards are elsewhere in riir-gpu**: `riir-engine` is a
+  NON-OPTIONAL dep of the crate (forward drivers live there);
+  `riir-gpu-async` is a sibling path dep; and the module list carries
+  surfaces that must NEVER move: `game/`, `game_mux`, `weaver_gpu*`,
+  `gpu_thoughtfold`, `memory_soup_gpu`, `rosetta_gpu`, `moa`,
+  `spec_marketplace` (triage), plus `riir-router` (routing policy stays
+  private).
+
+## The verdict — possibility
+
+**FEASIBLE, and further along than expected.** The owner's instinct is
+right, and the extraction seam already exists inside the workspace; this
+move is that seam made into a repo.
+
+Net-new IP leak from opening: **LOW**. The ternary/modelless approach is
+already public (katgpt-rs IS the public funnel); the quant formats are
+GGUF-standard; the architectures are public models (gemma, llama, qwen,
+modernbert); kernels are engineering craft, and the perf league already
+benchmarks against public opponents. Research 003's moat is
+product/chain/tokenomics/cognition — none of it is in the move-set.
+
+Conditions (the fence — each is load-bearing, none optional):
+
+1. **Research 003 amendment recorded** — dated, owner authority, in the
+   executing plan; reflex's "Private forever" language is amended in the
+   same stroke.
+2. **Fresh git history** — the public repo starts at the carve commit; no
+   workspace narrative in commit messages (the cargo-heal dist-repo
+   pattern, with source this time).
+3. **Sanitized public docs** — new README + public BOUNDARY; the
+   workspace AGENTS.md narrative, Research 003 quotes, perf-league
+   internals do NOT ship. Internal lineage stays recorded in riir-ai.
+4. **Module fence enforced by CI** — a grep gate in riir-infer red on any
+   cognition/game/router import (the `standalone_dep_gate.sh` pattern).
+5. **Contract registration** — `repo_set.txt` + BOUNDARY rows:
+   riir-infer → katgpt-rs only; riir-ai → riir-infer allowed
+   (dep-direction row added); reflex → riir-infer allowed (reflex
+   BOUNDARY amendment: riir-infer ONLY, never riir-ai — the layering
+   survives: reflex → riir-infer → katgpt-core, all public).
+6. **Weights stay private** — riir-train's checkpoints never move;
+   riir-infer ships LOADERS, not weights.
+
+reflex's own opening rides the same conditions with one extra vector: its
+docs/history carry the workspace narrative (AGENTS.md quotes Research 003
+and names siblings) — the opening pass is a docs-sanitize +
+history-strategy work item of its own, separate from the carve.
+
+## The refactor — how (phases; each independently landable)
+
+- **P0 — contract first** (no code): this issue + riir-ai's mirror issue;
+  BOUNDARY rows, dep-direction rows, repo_set registration, the 003
+  amendment note.
+- **P1 — carve v1**: create `/git/riir-infer` (fresh init). Move
+  `riir-infer-core` out **name-unchanged** (041 §Session 5 Q2's decided
+  naming; path deps `../../../katgpt-rs` → `../katgpt-rs`; workspace
+  members updated both sides; riir-engine's dep retargets and its T1.2
+  `pub use riir_infer_core::X` re-exports keep resolving — **no shim, zero
+  consumer edits**). (Optional public rename crate → `riir-infer` with a
+  path-dep compat shim must explicitly supersede 041 Q2 — owner call at
+  execution.)
+- **P2 — the encoder lane consolidates** ("the related metal"): move
+  reflex's `src/laya` (Backend trait, flat-Vec ops, encoder/head, the MSL
+  kernels, tokenizers substrate, G5 fixtures + parity gates) into
+  riir-infer as the ModernBERT encoder family. reflex consumes via its
+  existing `laya-riir` feature = a `pub use` shim — public API unchanged,
+  tests keep passing, and the candle-free property is preserved
+  (gemm/libm/tokenizers **0.22** move WITH the lane — 006 T3's v1 bump is
+  DEFERRED on a measured negative, so the 0.22 pin lands in riir-infer's
+  manifest and the 1.0.0-stable reopen trigger rides along; 006's plan is
+  otherwise unaffected).
+- **P3 — GPU kernel migration** (the big program, separately gated): the
+  T2 audit classifies every riir-gpu module CLEAN / SEAM / STAYS; CLEAN
+  kernel modules move into riir-infer's gpu layer importing vocabulary
+  DIRECT; riir-gpu re-exports during transition; the re-export-direction
+  flip (engine re-exports FROM riir-infer) lands here. **Riders from 041's
+  runbook, executed here:** T2.3 consumer retarget (riir-train +
+  riir-clippy path deps → the new repo) and the D4 widening re-narrowing
+  (per 041's D4 discharge).
+- **P4 — open**: MIT, sanitized docs, cargo-about licenses, CI (the
+  katgpt-rs public-repo pattern: native lanes + the fence gate); then
+  reflex's opening pass.
+- **P5 — the duplicate retires**: the hand-MSL op layer and the CubeCL op
+  layer unify behind the Backend trait; A/B against the chart numbers; G5
+  at both postures; the loser is deleted. This is where the "rewrite
+  candle twice" debt actually gets paid down — AFTER the chart exists,
+  never before (005 T5 sequencing stands).
+
+## Sequencing vs 005 / 006
+
+Non-blocking and non-overlapping: 005's riir-Metal lane lands first and
+takes the chart (006 T1 unchanged); 006's candle removal proceeds
+(riir-infer is candle-free by construction — the lane moves into it
+carrying the tokenizers-0.22 pin/gemm/libm; 006 T3's v1 bump stays deferred
+with its reopen trigger). 006's "re-open path, deliberately not
+wired" paragraph is SUPERSEDED by this owner pull — this issue is the
+wiring.
+
+## Tasks
+
+- [x] **T1** riir-ai mirror issue + BOUNDARY / dep-direction rows + the
+      003-amendment note (P0) — landed 2026-09-22: mirror is riir-ai
+      `.issues/996`; BOUNDARY rows (Owns strikethrough, Does-not-own,
+      May-depend-on, CANONICAL matrix, D4 T-B annotation) + the Research
+      003 dated amendment + this repo's BOUNDARY amendment (Private-forever
+      note + the pre-declared riir-infer row) all in the same window.
+- [x] **T2** The riir-gpu module audit: per-module CLEAN / SEAM / STAYS
+      classification — recorded as the table in riir-ai `.issues/996`
+      (171 modules: CLEAN 98 / SEAM 34 / STAYS 39 / UNRESOLVED 0;
+      comment-stripped grep + per-line verification; the verified 14-entry
+      T1.2 re-export list; riir-router + riir-gpu-async measured as
+      zero-reference dead deps from riir-gpu's side).
+- [x] **T3** Carve riir-infer v1 (P1): repo + crate move (name-unchanged
+      per 041 Q2 — no shim); both workspaces green; `cargo tree` proves
+      riir-infer has zero riir-* deps; the engine re-exports compile clean
+      (no flip needed at P1). The 041 riders (T2.3 retarget + D4
+      re-narrowing) execute with P3/T7, not here. — LANDED 2026-09-22:
+      gist-rs/riir-infer @ 86a5986 (fresh history, sanitized docs posture
+      from birth); riir-ai retarget + gate re-points landed with it;
+      Cargo.lock byte-identical (path deps record no source); registered
+      as the 23rd contract repo (katgpt-rs bd2ce3cca); 4090 synced
+      (E:/git/riir-infer).
+- [ ] **T4** Encoder-lane move (P2): reflex `src/laya` → riir-infer; the
+      reflex shim; G5 green from the new home (same fixtures, same
+      gates); the tokenizers **0.22** pin lands in riir-infer's manifest
+      (006 T3: the v1 bump is deferred on a measured negative — the
+      1.0.0-stable reopen trigger rides along, nothing else changes).
+- [x] **T5** Fence gate (P4 precondition): the CI grep gate red on
+      cognition/game/router imports + the public-docs checklist (no
+      workspace narrative ships). — LANDED 2026-09-23:
+      `riir-infer/scripts/fence_gate.py` (comment+string-masked import
+      fence over all foreign `riir_*` tokens with the self-reference
+      exemption, path-dep allowlist = `../katgpt-rs` only, membership
+      pin file `fence_expected.txt` deliberately empty, walk floors,
+      planted-violation self-test on every run) + `.github/workflows/
+      ci.yml` (fence + check/clippy/test with the public sibling
+      checked out) + `.docs/p4_opening_checklist.md` (the judgment
+      half of the sanitized-docs fence) + the toolchain comment
+      sanitized (sibling names + internal issue refs removed). Gate
+      green at landing: 213 tracked .rs (vendor forks included in the
+      walk), 0 findings, 0 pins.
+- [ ] **T6** Open riir-infer (P4) + the reflex opening pass (docs
+      sanitize + history decision) — owner-gated go.
+- [ ] **T7** Op-layer unification (P5): A/B vs the chart numbers, G5 both
+      postures, delete the duplicate.
+
+## P3 progress (the GPU kernel migration — executing in slices, plan:
+## riir-ai `.plans/610_riir_infer_gpu_carve_slice1.md`)
+
+- [x] **S1 LANDED 2026-09-23** — the base GPU runtime cluster moved:
+      `buffer`, `context`, `pool_poison`, `weight_buffer_cache`,
+      `gpu_transpose`, `cubecl_runtime` (+ the adapter VRAM probe,
+      cut from riir-gpu's `vram_budget` — its only caller moved) now
+      live in `crates/riir-infer-gpu` in the riir-infer repo.
+      riir-gpu re-exports the modules (`pub use riir_infer_gpu::...`,
+      cfg-matched) — zero consumer edits; riir-gpu lib suite 426/0
+      from the re-export layer; clippy `-D warnings` clean both
+      postures both crates. **Two vendor forks ride the slice**
+      (byte-identical copies + `[patch.crates-io]` in riir-infer's
+      workspace root — patches do not cross workspaces and the
+      public repo can never patch from a private sibling):
+      `cubecl-runtime` (drop-queue fix, upstream #1359) and
+      `wgpu-hal` (the `total_video_memory_bytes()` accessors the
+      VRAM pre-flight probes — discovered mid-slice, the audit's
+      moving→STAYS edge list did not name it).
+- [x] **S2 LANDED 2026-09-23** — the elementwise/norm/matmul/attention
+      family (28 files) moved to `crates/riir-infer-gpu`: cpu_reference,
+      the GEMV family (autotune/cubecl/f16/geglu/geglu_f16/qkv_f16/q4k
+      + batched + rmsnorm-fused + qkv_q4k + geglu_q4k), matmul +
+      swap_ab, attention (flash/causal-fused/q8kv + tests),
+      gemma2_d2f_sc, norms/sampling/elementwise, epilogue, and
+      params_cache (the blake3-keyed params-handle cache — the audit's
+      edge list missed it; slice-1's vram-probe class). The five
+      quant SEAM imports became `riir_infer_core::quant`; six
+      riir-gpu features mirrored + forwarded (swap_ab_gemm, gemma2_d2f,
+      q4k_rowtiled_gemv, gemv_fma_contract, fold_dispatch,
+      q8kv_sink_guard); half/papaya/blake3 + the riir-infer-core path
+      dep added to the manifest; the fence gate's F1 path-dep check
+      fixed to real containment (the leading-`..` heuristic would have
+      red the in-repo `../..` dep by construction) + selftest arms.
+      Zero consumer edits — riir-gpu module re-exports keep every
+      `crate::<mod>`/`riir_gpu::<mod>` path resolving (riir-train-engine,
+      riir-train-gpu, riir-poc verified green). Tests: riir-infer-gpu
+      206/0 at the full-feature combo; riir-gpu lib 283/0 (the 28
+      gemma2 tests exercise the moved kernels through the re-exports on
+      Metal); one forced divergence recorded (ArgmaxCubeCL
+      pub(crate)->pub); found pre-existing bench_603 all-features rot
+      (S3 territory, verified not ours).
+- [x] **S3 LANDED 2026-09-23** — the ternary gemv/gemm + metal + CUDA-raw
+      families (33 files: 31 .rs + 2 .metal) moved to
+      `crates/riir-infer-gpu`: the gemv family around the
+      gemv_ternary_cubecl hub, the gemm family (incl. the #[path]
+      simdgroup_smem child — audit gap noted in the plan), the macOS
+      metal-tensor trio (+ the .metal sources; include_str! paths
+      resolve same-dir), the CUDA raw prefill family, and
+      deltanet_input_proj_fused (CLEAN row, pulled forward by the
+      bench_603 rot fix). Nine pub(crate)->pub widenings (recorded in
+      the plan) for the remaining SEAM consumers;
+      canonical_expand_forms moved with its kernel family; 10 features
+      mirrored + forwarded (ternary_gemv drops the riir-engine leg
+      infer-side — fence); katgpt-core joins via a new
+      [workspace.dependencies] table (fence raw-prefix check stays
+      green). bench_663_t5_single_gemm_isolation moved with its kernel.
+      **bench_603 rot FIXED** (Issue-980 GateProjWeights ripple;
+      pre-existing at HEAD, stash-verified) — and the same rot class
+      fixed in riir-train-engine's bonsai-go lane (f5bfe3f9, 1691/0).
+      Tests: infer-gpu 225/0 all-features (Metal); riir-gpu 267/0
+      default + the 4 gemma2_d2f re-export-path tests pass individually
+      (the all-features lib suite is jetsam-killed on the loaded M3 AT
+      HEAD TOO — stash-verified, box-state not slice); clippy -D at all
+      postures both crates. Commits: riir-infer `0c2f3b4`, riir-ai
+      `027aef2d6`, riir-train `f5bfe3f9`.
+- [ ] **S4+** — SEAM adjudications (`forward`'s adapter slots,
+      `ternary_deltanet_gpu_forward` L179), the gemma-cluster unlock
+      (WallConfig re-home), then the T2.3 retarget + D4 re-narrowing
+      riders, then the residue re-export completion. (S4 ready-notes
+      pre-adjudicated in plan 610: the qwen38/cudarc cluster + the
+      ternary_deltanet_forward cluster + the deltanet CLEAN kernels.)

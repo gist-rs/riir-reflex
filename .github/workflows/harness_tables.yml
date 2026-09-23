@@ -1,0 +1,60 @@
+name: harness-tables
+
+# Plan 603 T1.5: the CI-table lane. Phase 2's site LINKS this workflow's
+# artifact — a hand-typed number on the site is a defect by definition.
+#
+# Dispatch-only (workspace spending convention: no automatic triggers; the
+# datasets + laya weights are re-fetched/re-downloaded in the job, so the
+# tables stay reproducible from nothing but this repo + the manifest).
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: harness-tables
+  cancel-in-progress: false
+
+jobs:
+  tables:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry + target
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/registry/index
+            target
+          key: harness-tables-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+
+      - name: Cache datasets + laya weights
+        uses: actions/cache@v4
+        with:
+          path: |
+            .raw/datasets
+            ~/.cache/riir-reflex/laya
+          key: harness-data-v1
+
+      - name: Fetch datasets (idempotent; manifest Gaps stay honest)
+        run: ./scripts/fetch_datasets.sh || true
+
+      - name: Unit gates
+        run: cargo test --test harness_units
+
+      - name: Run the harness (both lanes)
+        env:
+          LAYA_WEIGHTS_DIR: /home/runner/.cache/riir-reflex/laya
+        run: cargo run --release --features laya-riir --bin harness -- --out .benchmarks/001_phase1_tables
+
+      - name: Upload the regenerated tables
+        uses: actions/upload-artifact@v4
+        with:
+          name: harness-tables
+          path: |
+            .benchmarks/001_phase1_tables/results.json
+            .benchmarks/001_phase1_tables/TABLES.md

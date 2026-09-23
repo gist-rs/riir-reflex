@@ -1,0 +1,4 @@
+# Workspace-wide pin (the every-workspace-pins directive); matches the
+# katgpt-rs sibling so the path dep and this crate build on one toolchain.
+[toolchain]
+channel = "1.98.1"

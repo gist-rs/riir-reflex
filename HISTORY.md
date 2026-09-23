@@ -1,0 +1,205 @@
+# HISTORY.md — riir-reflex
+
+Durable records for closed issues (the noise-reduction rule: a resolved
+issue file is removed from `.issues/`; its record lands here, hash-pinned).
+A removed file's full life: `git log --follow -- .issues/<file>`. Open work
+lives in `.issues/` and `.plans/`, never here.
+
+Created retroactively 2026-09-22: four issues (001, 002, 003, 005) had
+already closed with records only in git history.
+
+## 2026-09-23
+
+- **Issue 004 — the Jev harness decision-point map** CLOSED (T1/T2/T4/T5
+  landed 2026-09-22 at `e4bf657`-window commits; T3 THIS COMMIT — the
+  completion its deferral named). T3 (the cache-reuse `noul` lane,
+  LLM-lane-only) was deferred on "the laya-lane numbers ride the next
+  full harness run with weights present"; the weights
+  (`~/.cache/riir-reflex/laya/{english,typed,multilingual}`) landed
+  09-22 and this session ran the run: UNCAPPED
+  (`laya_max_questions = 0`), 15 suites, PASSED no-absences, tables +
+  results.json regenerated at HEAD `2aa2dda` — the sha the TABLES.md
+  header carries next to the laya numbers, because `src/laya` moves to
+  the riir-infer repo (008 T4) and the laya columns are labelled a
+  PRE-MOVE BASELINE pinned at that sha (owner-verdict condition;
+  hardcoded into the runner's header output, along with an explicit
+  PARTIAL-run cap disclosure whenever `--laya-max-questions` is used
+  and an honest "the laya lane answered below" blockquote for the
+  LLM-only family). The T3 measurement itself:
+  The T3 measurement itself:
+  `harness_cache_reuse` laya·english acc **0.5000** on 12 binary
+  fixtures — at chance, with the power stated (95% CI ≈ [0.21, 0.79]
+  at n=12 — a weak refutation, one flip from 0.583) and the mechanism
+  sharper than a coin flip: macro F1 0.3333 with mean confidence
+  0.8618 (ece = 0.8618 − 0.5; brier 0.754) is a CONSTANT CONFIDENT
+  one-class predictor over the 6/6-balanced fixtures (a constant
+  `reuse` scores exactly 6/12), so the readout collapses to one class
+  rather than hedging — the next attempt aims at the readout
+  (per-class calibration / class prior / a cache-metrics feature), not
+  at re-running the forward. p50 227 ms, det ✓. Full reading + power +
+  box-state disclosure: Bench 001 Addendum 6,
+  `.benchmarks/001_phase1_harness.md`. The six decision-point
+  families live in `src/harness/families.rs`; gates in
+  `tests/harness_families_gates.rs`; task-family framing per katgpt-rs
+  Research 579 (nominative use). Full file life:
+  `git log --follow -- .issues/004_jev_harness_decision_point_map.md`.
+
+- **Issue 006 — remove candle from this repo at all cost (owner
+  directive)** CLOSED (T1/T2/T4/T5/T6/T7 executed 2026-09-22; the
+  release cut's T4 tail closed at `bf8ebe5` — tag `v0.2.0`, 5-target
+  matrix, leak-scan cross-arch strip catch, tap `c30f0d6` on_linux fix,
+  scoop `07cb8b6`; T4's own record:
+  `git log --follow -- .issues/006_remove_candle_lane.md`).
+  **T3 (tokenizers v1) remains DEFERRED on a measured upstream
+  negative**, and per the owner verdict the reopen trigger lives HERE,
+  in this row — a cited record must outlive the document it was parked
+  in (it previously rode only 008's T4 task text, and 008 will itself
+  be removed one day): **reopen trigger — tokenizers 1.0.0 STABLE (or
+  an rc relaxing the byte-atom strictness): wire the same adaptation
+  that measured the negative (facade `from_json` → `PipelineTokenizer`,
+  `EncodeOptions::no_specials()`, the tk-convert v1→v2 in-memory
+  canonicalize pass), run G5 at BOTH postures (CPU + Metal) before any
+  publish — the GATE refuses the load today (`Byte atom 0xC0 not found
+  in the vocabulary`: the english/typed GPT-2-family vocabs genuinely
+  lack 14 ByteLevel byte atoms that 0.22 tolerates lazily and v1
+  validates up front — upstream v1-rc incompatibility with
+  legitimately-published tokenizers, not our wiring). The pin is back
+  on 0.22 as a DIRECT dep (never via candle); its one-shared-build
+  rationale died with T2 but the dep itself is load-bearing. The
+  3-30× encode promise is unused headroom (encode is µs against a
+  ~10-160 ms forward).**
+
+- **The T2 disclosure is LIVE on the site + the committed tables — the
+  landing gap closed (this commit + reflex-site `80d4fb1`).** The T2
+  landing (`0dc2397`) had carried the PRE-swap baseline tables (run at
+  ancestor `86e3727`): the validation outputs lived in the /tmp rig and
+  were cleaned with it, so the committed results.json lacked
+  `threshold_recommendation` and TABLES.md lacked the gate-fit column
+  its own commit message promised. Full both-lane regeneration at
+  `0dc2397` (15 suites, laya-riir, PASSED no-absences, ~62 min wall;
+  modelless accuracy/ECE bit-match the published run). Box state: M3
+  LOADED (loadavg 10.9-15.1, sibling cargo builds throughout) — the
+  laya latencies carry that state; the modelless determinism lanes do
+  not. Site half: `data/bench.json` republished via publish_bench.py +
+  the bench page renders the per-suite Gate fit line (posture rho cited
+  with the numbers, per-axis threshold/accuracy/support, thin ->
+  defaults on a null axis; laya lanes and pre-T2 data degrade to no
+  line). Live-verified on reflex.gist.rs (bench.json meta sha
+  `0dc2397`, gateFit deployed, HTTP 200). Site README rider: the
+  harness flag is `laya-riir` since `.issues/006` (the `--features
+  laya` line was stale).
+
+- **Issue 010 — the agent-skill section (the laya-page steal:
+  "Give your coding agent a decision engine")** CLOSED at `177156d` +
+  `c65bfcd`-followed close (filed `4e7cc6c`; verdict fixes `c65bfcd`).
+  `.docs/agent-skill/SKILL.md` authored as the source of truth in-repo,
+  versioned with the engine — every wire example captured against the real
+  binary built from clean HEAD `2c6acb9` in the detached worktree
+  `riir-reflex.w010`, not hand-written. Two traps measured live and taught:
+  feedback-lies collapse (invented p values → one refit → confidence
+  1e-3→1e-10) and the 64-observation refit floor (`method` `none`→
+  `sigmoid-gate`, temperature 0.306). The ρ=30 threshold recipe cites
+  `engine::threshold_recommendation` (`a732bcf`, Issue 009) as the
+  normative surface with the quantile law reproduced over the wire.
+  Numbers table is losses-published (G1 ag_news FAIL included, run
+  `86e3727`). Site half LANDED live in gist-rs/reflex-site (`f2b9063`):
+  the `#skill` section after the arena, both agent-target curl one-liners
+  (`.claude/skills/` + `.agents/skills/`), the FAQ pair, nominative credit
+  to the laya page; SKILL.md served at the stable URL
+  `https://reflex.gist.rs/skills/reflex-integration/SKILL.md` (200
+  `text/markdown`; the one-liner verified end-to-end — fetched file
+  byte-identical to the source of truth). Rider fix `47247a8`: the site's
+  assets root had been serving repo plumbing as public assets
+  (`GET /.git/HEAD` → 200 with contents — pre-existing since the first
+  deploy); `.assetsignore` closed it (`.git`, `scripts`, `wrangler.toml`,
+  `README.md` now 404; site surfaces re-verified 200). The release-cut
+  curl re-verification stays a stated process in the skill's Freshness
+  section (mechanizing it into `build-release.sh` deferred — the sibling
+  candle-cut WIP owns that file).
+
+- **Issue 006 — candle removed ENTIRELY (owner directive "no candle at all
+  cost") + the candle-free release cut v0.2.0** CLOSED (file removed
+  2026-09-23 with this row; executed 2026-09-22, T1/T2/T4/T5/T6/T7
+  done; the release cut's T4 tail closed at `bf8ebe5`; T3 deferred on a
+  measured negative — **the reopen trigger is now THE row above**, this
+  09-23 entry, which is where it lives durably). Deleted: the `laya`,
+  `laya-metal`, `candle-metal` features, the `candle-core` dep,
+  `src/laya/{agent,encoder,head}.rs`, `tests/laya_parity.rs` + its
+  `[[test]]` row; the harness's laya lane re-pointed at `RiirAgent` (same
+  `system_one` envelope); `RELEASE_FEATURES` flipped to
+  `modelless+laya-riir`; about.toml/build-release/guard/workflow re-derived;
+  BOUNDARY gained an explicit never-candle row; docs amended across
+  AGENTS/README/pin-doc/sibling-layout. Verified end-to-end in the same
+  cut: `grep candle Cargo.lock` = 0, clippy green at all five postures,
+  full test suite green, **G5 green at BOTH postures post-removal** (CPU
+  58+2 / Metal 2/2), guard [1-7] PASSED (full). **T3 negative on record:**
+  tokenizers 1.0.0-rc.2 was wired end-to-end (facade API + the tk-convert
+  v1→v2 in-memory pass) and REFUSED to load the pinned english/typed
+  tokenizers — their GPT-2-family vocabs genuinely lack 14 ByteLevel byte
+  atoms (`j`, `}`, `~`, `²`…), tolerated lazily by 0.22, validated up
+  front by v1. Upstream incompatibility, not wiring; reverted to 0.22
+  (always a DIRECT dep); reopen at 1.0.0 stable. Chart's candle column
+  frozen as history (T6). The tokenizers/GEMM version-match rationales
+  died with the lane (T5) — gemm/metal/objc2 float freely with a G5
+  re-run on any bump; libm stays pinned on numerics grounds.
+  **The release cut landed the same day:** tag `v0.2.0` at `c25e1c3`,
+  5-target matrix all leak-scan PASS (the scan caught the zigbuild
+  x86_64-apple-darwin binary keeping a symbol table — profile `strip`
+  doesn't fully apply cross-arch; stripped before publish), live-smoked
+  on mac arm64 + Rosetta, alpine musl ×2, windows on the 4090, decide
+  byte-identical mac↔linux; released on gist-rs/reflex; homebrew tap
+  bumped to 0.2.0 WITH the formula gaining its missing `on_linux` blocks
+  (brew's arm64_linux audit rejects the macOS-only shape — the cargo-heal
+  pattern, tap `c30f0d6`); scoop bumped (`07cb8b6`).
+
+- **Issue 005 — the riir forward's own Metal backend (`laya-riir-metal`)**
+  CLOSED at `4f22e9b` (filed `73ada82`; deps boundary-first `07039c1`;
+  backend T2–T4 `a3e7c49`). 14 MSL kernels, per-op committed command
+  buffers in candle's lazy-flush shape; G5 GREEN at the Metal posture
+  (drift ≤ 5.981e-6 vs the 1e-3 gate) — the gate caught four real defects
+  en route (weight-cache stale-serving recycled activation addresses,
+  sync-count eviction vs forward-lifetime slots, untracked hazards across
+  command buffers, layer-0's host copy reading stale residual bytes). The
+  fair all-Metal three-way (Bench 001 addendum 6, same-session
+  interleaved): torch MPS 25.7/25.5/16.2 · candle Metal 31.1/31.2/18.7 ·
+  riir Metal 79.0/78.7/38.5 ms row p50 — the honest naive-v1 baseline the
+  optimization ladder measures against. Full narrative: AGENTS.md
+  §"The laya-riir lane".
+
+- **Issues 002 + 003 — the `laya-riir` kernel deps (`gemm` 0.18, `libm` 0.2)**
+  CLOSED at `e601295` (the lane landing; both filed, rowed in BOUNDARY.md,
+  and closed per the boundary-gap-first pattern — issue, row, code, one
+  commit). 003's standalone file was born with a stale OPEN line (the
+  CLOSED record lived embedded in 002's file — a drifted duplicate); both
+  files removed 2026-09-22 with this record. Both deps version-matched to
+  candle's own CPU calls (one shared build); the A&S f64 gelu measured
+  1.4e-2–3.5e-2 drift, ~1000× over the gate, before `libm::erff`.
+  Acceptance: G5 top-1 1.000000 ×3 checkpoints, prob drift
+  1.03e-6/1.83e-6/3.01e-6 against the 1e-3 gate. The `libm` pin SURVIVES
+  candle's removal (Issue 006): its reason is bit-parity numerics, not
+  build-sharing.
+
+- **Issue 001 — undeclared crates.io deps (missing BOUNDARY rows)** CLOSED
+  at `8e58cc5`; the rows landed in the same window as the Plan 603 T1.4
+  verdict-review closures (`1ef3e8e`).
+
+- **Issue 009 — the threshold-recommendation surface (the jimothy steal)**
+  CLOSED at `059794d` (T1+T3+T4 landed `a732bcf`; T2 this commit). The
+  four-part CONTRACT stolen from jimothy (fit-time recommendation, return
+  everything at run time, null on thin support, validate in the
+  deployment environment) — the PATTERN, never the trained method. T2
+  migrated the harness to the engine surface BYTE-IDENTICALLY: pure-swap
+  diff over 14 suites (`--skip-laya`) NORMALIZED-IDENTICAL on
+  results.json with the noise set {latency, seconds, date, git_sha}
+  validated by a double-baseline run; TABLES.md identical beyond the
+  environmental run-line sha; the disclosure step measured ADDITIVE-ONLY
+  (exactly 14 new `threshold_recommendation` keys, zero changed values).
+  The runner's old inline `quantile` is deleted; its law lives on as the
+  frozen oracle in the 3 in-module migration gates
+  (`harness::runner::threshold_migration_tests`). The LaneResult now
+  carries jimothy's `thresholdRecommendation` shape (posture + per-axis
+  threshold/status/targetAccuracy/support, camelCase, per-axis null on
+  thin support) and TABLES.md gains the `gate-fit (rho=.30)` column.
+  Residual (out-of-repo): arena-site rendering of the metadata rides the
+  reflex-site repo's next data/bench.json regeneration — publish_bench is
+  site-side.

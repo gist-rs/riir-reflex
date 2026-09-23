@@ -1,0 +1,94 @@
+#!/bin/sh
+# ─────────────────────────────────────────────────────────────────────────────
+# Plan 606 T1.6 — the manual release build pipeline (one command per target).
+#
+# Usage:
+#   scripts/build-release.sh <target> [<target>...]
+#   scripts/build-release.sh --licenses          # regenerate THIRD_PARTY_LICENSES.md only
+#
+# Per target: dist-profile build (strip + fat LTO + --remap-path-prefix) of
+# the SHIPPING feature set (default + laya-riir — the candle-free cut,
+# .issues/006) → package tar.gz (unix) / zip
+# (windows) carrying the binary + THIRD_PARTY_LICENSES.md → one SHA256SUMS
+# over every archive. The leak scan (scripts/binary_leak_scan.sh) runs
+# separately over the packaged binaries.
+#
+# Cross targets: any triple ≠ the host routes through cargo-zigbuild
+# (zig cc) — the windows-gnu + *-musl matrix; plain cargo cannot link
+# those from macOS. Host triple builds with plain cargo, byte-identical
+# to before.
+#
+# The home layout never reaches the artifacts: the remap prefix rewrites
+# /Users/<user> (and the CARGO_TARGET_DIR if it lives under it) to /build —
+# the Plan-105 measured fix for the 61-machine-path class.
+# ─────────────────────────────────────────────────────────────────────────────
+set -eu
+
+cd "$(dirname "$0")/.."
+REPO_ROOT="$(pwd)"
+VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+PKG_DIR="$REPO_ROOT/dist/pkg"
+LICENSES="$REPO_ROOT/THIRD_PARTY_LICENSES.md"
+
+if [ "${1:-}" = "--licenses" ]; then
+    cargo about generate --config .github/about/about.toml \
+        .github/about/about.hbs > "$LICENSES"
+    echo "licenses: $LICENSES ($(wc -l < "$LICENSES") lines)"
+    exit 0
+fi
+
+[ $# -ge 1 ] || { echo "usage: $0 <target> [<target>...] | --licenses" >&2; exit 2; }
+[ -f "$LICENSES" ] || { echo "error: $LICENSES missing — run '$0 --licenses' first" >&2; exit 1; }
+
+mkdir -p "$PKG_DIR"
+RUSTFLAGS="--remap-path-prefix $HOME=/build"
+export RUSTFLAGS
+BIN_NAME="riir-reflex"
+HOST_TARGET="$(rustc -vV | awk '/^host:/{print $2}')"
+
+for target in "$@"; do
+    CARGO_CMD="cargo"
+    BUILD_SUB="build"
+    if [ "$target" != "$HOST_TARGET" ] && command -v cargo-zigbuild >/dev/null 2>&1; then
+        # cargo-zigbuild IS the build subcommand (cargo zigbuild, not cargo zigbuild build)
+        CARGO_CMD="cargo zigbuild"
+        BUILD_SUB=""
+    fi
+    echo "== building $BIN_NAME v$VERSION for $target (profile dist, features: modelless+laya-riir, via $CARGO_CMD)"
+    $CARGO_CMD $BUILD_SUB --profile dist --features laya-riir --target "$target" --bin "$BIN_NAME"
+
+    EXE="$BIN_NAME"
+    ARCHIVE_EXT="tar.gz"
+    case "$target" in
+        *windows*) EXE="$BIN_NAME.exe"; ARCHIVE_EXT="zip" ;;
+    esac
+    SRC_BIN="$REPO_ROOT/target/$target/dist/$EXE"
+    [ -f "$SRC_BIN" ] || { echo "error: built binary missing: $SRC_BIN" >&2; exit 1; }
+
+    STAGE="$PKG_DIR/$BIN_NAME-v$VERSION-$target"
+    rm -rf "$STAGE"; mkdir -p "$STAGE"
+    cp "$SRC_BIN" "$STAGE/$EXE"
+    cp "$LICENSES" "$STAGE/THIRD_PARTY_LICENSES.md"
+
+    ARCHIVE="$PKG_DIR/$BIN_NAME-v$VERSION-$target.$ARCHIVE_EXT"
+    rm -f "$ARCHIVE"
+    # Contents at the archive ROOT (the cargo-heal installer + Homebrew
+    # `bin.install` both expect `<binary>` + THIRD_PARTY_LICENSES.md at top
+    # level — found by the G1 clean-install smoke, Plan 606 T2.5).
+    case "$ARCHIVE_EXT" in
+        tar.gz) tar -czf "$ARCHIVE" -C "$STAGE" "$EXE" THIRD_PARTY_LICENSES.md ;;
+        zip) (cd "$STAGE" && zip -q "$ARCHIVE" "$EXE" THIRD_PARTY_LICENSES.md) ;;
+    esac
+    echo "   packaged: $ARCHIVE"
+done
+
+# One SHA256SUMS over every archive in the pkg dir (rebuilds wholesale —
+# the file describes the whole release, never a subset).
+SUMS="$PKG_DIR/SHA256SUMS"
+rm -f "$SUMS"
+for archive in "$PKG_DIR"/*.tar.gz "$PKG_DIR"/*.zip; do
+    [ -f "$archive" ] || continue
+    (cd "$PKG_DIR" && shasum -a 256 "$(basename "$archive")") >> "$SUMS"
+done
+echo "SHA256SUMS: $SUMS"
+cat "$SUMS"

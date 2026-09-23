@@ -1,0 +1,9 @@
+/target
+Cargo.lock.bak
+.heal/
+.benchmarks/data/
+/dist
+/.raw/
+
+# Local release staging (separate git repos pushed to their own remotes) + packaged artifacts
+dist/

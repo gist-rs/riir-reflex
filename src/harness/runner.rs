@@ -1,0 +1,2229 @@
+//! The Plan 603 T1.5 harness runner: builds each suite from the fetched
+//! datasets-server row files, runs BOTH lanes over byte-identical questions,
+//! and emits the honest per-task tables (`results.json` + `TABLES.md`).
+//!
+//! Lane contracts:
+//! - **modelless** — [`crate::engine::DecisionEngine`], one domain per label
+//!   (corpus-is-the-model: train-split texts of that label, capped per
+//!   label), sigmoid-gate calibration fit on a train-tail calibration slice
+//!   via `observe`, fused abstain at the birth-measured thresholds.
+//! - **laya** (feature `laya-riir`) — [`crate::laya::riir::RiirAgent`], the
+//!   G5-parity-gated forward (the riir-owned backend since the candle
+//!   removal, `.issues/006`); hard metrics read the same answer
+//!   envelope the reference benches read (rounded-4 probabilities, max-prob
+//!   confidence per protocols §5.1).
+//!
+//! Honesty rules enforced here (plan caveats 3/4):
+//! - every number in the tables comes from a run of THIS binary — nothing
+//!   hand-typed;
+//! - the bit-identity determinism CLAIM is scoped to the modelless lane
+//!   (caveat 3); the laya lane gets the same observed repeat check and it is
+//!   REPORTED, but the published claim stays the modelless one;
+//! - losses are printed, never hidden (the zero-shot-breadth caveat).
+//!
+//! Protocol divergences from the laya reference (documented, deliberate):
+//! - option sampling for `massive_intent_en` uses SplitMix64 (suites.rs), not
+//!   CPython MT19937 — the comparison integrity that matters is that BOTH
+//!   lanes here answer byte-identical questions, which this runner
+//!   guarantees by construction (one Suite, two renderers);
+//! - banking77 uses the `mteb/banking77` mirror (the reference's own
+//!   bench_apps variant) because `PolyAI/banking77` is script-based and
+//!   unservable (dataset_manifest.md Gaps);
+//! - the engine-side context is state + prompt only (wire `criteria` stays
+//!   None) — matching the modelless lane's serving path.
+
+use std::collections::BTreeMap;
+use std::path::{Path, PathBuf};
+use std::time::Instant;
+
+use serde::Serialize;
+use serde_json::Value;
+
+use crate::embed::EMBED_DIM;
+use crate::engine::{
+    DecisionEngine, EngineConfig, ExpertSpec, FusedGateRecommendation, GateObservation, Posture,
+    Scratch, recommend_fused_gate,
+};
+use crate::harness::families::SynthData;
+use crate::harness::metrics::{
+    CalibrationPair, HardMetrics, conformal_naive_floor, ece_of, hard_metrics, score_metrics,
+    soft_metrics,
+};
+use crate::harness::suites::{
+    QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
+    build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
+    build_xnli_en, train_docs,
+};
+use crate::pyjson::serialize_state;
+
+/// Where the fetch layer leaves the row files.
+pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
+
+/// The SplitMix64 option seed for MASSIVE (any fixed value; reproducibility
+/// is what matters, not the value).
+pub const MASSIVE_OPTION_SEED: u64 = 0x0603_2026_0922;
+
+// ── suite registry ──────────────────────────────────────────────────────
+
+struct SuiteSpec {
+    name: &'static str,
+    /// Test-row eval cap (0 = all rows on disk).
+    test_cap: usize,
+    /// Calibration-slice cap (train rows reused as cases; 0 = none).
+    cal_cap: usize,
+    corpus_cap_per_label: usize,
+    build: fn(&Value, usize) -> Suite,
+    /// Some(build) = in-process synthetic suite (Issue 004): no dataset
+    /// files — `prepare` never touches `dir`, the builder self-splits
+    /// corpus/cal/eval, and the caps above are ignored.
+    synthetic: Option<fn() -> SynthData>,
+    /// false = LLM-lane ONLY (Issue 004 T3): the modelless lane has no KV
+    /// cache, so it has no honest answer for the family — the runner skips
+    /// it LOUDLY (an absence line, never a silent zero) when `laya` is off.
+    modelless_lane: bool,
+}
+
+/// Per-suite registry. Domain counts are pinned to the FETCHED test rows
+/// (dataset_manifest.md); the runner asserts them at build time so a
+/// silently different fetch fails loud instead of mis-arming the engine.
+const SUITES: &[SuiteSpec] = &[
+    SuiteSpec {
+        name: "typed_decisions",
+        test_cap: 0, // all 400 — no sampling (protocols §3.1)
+        cal_cap: 100,
+        corpus_cap_per_label: 48,
+        build: build_typed_decisions,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "ag_news",
+        test_cap: 400,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        build: build_ag_news,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "emotion",
+        test_cap: 400,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        build: build_emotion,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "sst5",
+        test_cap: 600,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        build: build_sst5,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "prompt_injections",
+        test_cap: 0, // all 116
+        cal_cap: 100,
+        corpus_cap_per_label: 64,
+        build: build_prompt_injections,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "xnli_en",
+        test_cap: 300,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        build: build_xnli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "massive_intent_en",
+        test_cap: 300,
+        cal_cap: 200,
+        corpus_cap_per_label: 48,
+        build: |v, n| build_massive_intent_en(v, n, MASSIVE_OPTION_SEED),
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "banking77",
+        test_cap: 500,
+        cal_cap: 200,
+        corpus_cap_per_label: 40,
+        build: build_banking77_mteb,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "code_fixtures",
+        test_cap: 0,
+        cal_cap: 0, // generated with its own gold-programmatic cal slice
+        corpus_cap_per_label: usize::MAX, // the builder fixes its own corpus
+        build: build_code_fixtures, // generated in-process; rows_file unused
+        synthetic: None, // legacy in-process path (prepare branch below)
+        modelless_lane: true,
+    },
+    // ── Issue 004 (Research 579): the six harness decision-point families ──
+    // In-process synthetic suites (no datasets); five modelless by default,
+    // cache_reuse LLM-lane only (loud skip without `laya`).
+    SuiteSpec {
+        name: "harness_visibility",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_visibility),
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "harness_permissions",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_permissions),
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "harness_tool_fit",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_tool_fit),
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "harness_routing",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_routing),
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "harness_sensitivity",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_sensitivity),
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "harness_cache_reuse",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        build: synthetic_build_unused,
+        // Issue 004 T3: the modelless lane has no KV cache — the family is
+        // answered by the `laya` lane only, and the default build reports a
+        // loud SKIPPED absence instead of a fake answer.
+        modelless_lane: false,
+        synthetic: Some(families_synth_cache_reuse),
+    },
+];
+
+/// Never called — synthetic suites build via their `synthetic` fn; this
+/// placeholder keeps the `build` field total.
+fn synthetic_build_unused(_rows: &Value, _max_rows: usize) -> Suite {
+    unreachable!("synthetic suites build via SuiteSpec::synthetic")
+}
+
+fn families_synth_visibility() -> SynthData {
+    crate::harness::families::synth_visibility()
+}
+
+fn families_synth_permissions() -> SynthData {
+    crate::harness::families::synth_permissions()
+}
+
+fn families_synth_tool_fit() -> SynthData {
+    crate::harness::families::synth_tool_fit()
+}
+
+fn families_synth_routing() -> SynthData {
+    crate::harness::families::synth_routing()
+}
+
+fn families_synth_sensitivity() -> SynthData {
+    crate::harness::families::synth_sensitivity()
+}
+
+fn families_synth_cache_reuse() -> SynthData {
+    crate::harness::families::synth_cache_reuse()
+}
+
+/// Checkpoints per suite (laya lane): the specialist `typed` model answers
+/// the typed-decisions headline alongside the two base checkpoints; every
+/// other suite is the general `english` checkpoint (the reference's own
+/// layout — T4 ran base checkpoints on the English suites and `typed` on
+/// typed-decisions).
+fn laya_checkpoints_for(suite: &str) -> &'static [&'static str] {
+    if suite == "typed_decisions" {
+        &["typed", "english", "multilingual"]
+    } else {
+        &["english"]
+    }
+}
+
+// ── code fixtures (our own suite — no network, programmatic gold) ───────
+
+/// The modules the code fixtures draw from (fixed order IS the option
+/// order). Real code spans from THIS repo's own sources; gold labels are
+/// programmatic (which module / is-pub), never hand-labeled.
+const CODE_MODULES: &[&str] = &[
+    "embed.rs",
+    "engine.rs",
+    "readout.rs",
+    "serve.rs",
+    "harness/metrics.rs",
+    "harness/suites.rs",
+    "laya/agent.rs",
+    "laya/router.rs",
+];
+
+const CODE_MODULE_LABELS: &[&str] = &[
+    "embed",
+    "engine",
+    "readout",
+    "serve",
+    "harness::metrics",
+    "harness::suites",
+    "laya::agent",
+    "laya::router",
+];
+
+struct CodeFn {
+    src: String,
+    is_pub: bool,
+}
+
+/// Extract top-level `fn` decls from one source file: returns (decl line,
+/// body text up to the closing brace at column 0 or a 80-line cap).
+fn extract_fns(path: &Path) -> Vec<CodeFn> {
+    let Ok(text) = std::fs::read_to_string(path) else {
+        return Vec::new();
+    };
+    let lines: Vec<&str> = text.lines().collect();
+    let mut fns = Vec::new();
+    let mut i = 0;
+    while i < lines.len() {
+        let trimmed = lines[i].trim_start();
+        let is_pub = trimmed.starts_with("pub fn ");
+        let is_fn = trimmed.starts_with("fn ");
+        if is_pub || is_fn {
+            let start = i;
+            let mut body = String::new();
+            while i < lines.len() && i - start < 80 {
+                body.push_str(lines[i]);
+                body.push('\n');
+                if i > start && lines[i].starts_with('}') {
+                    break;
+                }
+                i += 1;
+            }
+            fns.push(CodeFn { src: body, is_pub });
+        }
+        i += 1;
+    }
+    fns
+}
+
+/// The deterministic code-fixture split: per module, fns[0..2] = eval cases,
+/// fns[2..10] = calibration cases, fns[10..16] = corpus docs (with graceful
+/// fallbacks for small modules; every module yields ≥1 eval case).
+fn code_fn_slices() -> Vec<(usize /*module idx*/, Vec<CodeFn>)> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+    CODE_MODULES
+        .iter()
+        .enumerate()
+        .map(|(mi, m)| (mi, extract_fns(&root.join(m))))
+        .collect()
+}
+
+fn code_case(mi: usize, f: &CodeFn, id: &str) -> SuiteCase {
+    let mut crit = serde_json::Map::new();
+    for label in CODE_MODULE_LABELS {
+        crit.insert((*label).to_string(), Value::Null);
+    }
+    SuiteCase {
+        id: id.to_string(),
+        state: Value::String(f.src.clone()),
+        questions: vec![
+            crate::harness::suites::SuiteQuestion {
+                qid: "module".into(),
+                kind: QKind::Choice,
+                instructions: "Which module of the riir-reflex crate is this Rust function from?"
+                    .into(),
+                criteria: Value::Object(crit),
+            },
+            crate::harness::suites::SuiteQuestion {
+                qid: "is_pub".into(),
+                kind: QKind::Noul,
+                instructions: "Is this Rust function declared `pub`?".into(),
+                criteria: Value::Null,
+            },
+        ],
+        gold: vec![
+            crate::harness::suites::GoldAnswer {
+                idx: mi,
+                soft: vec![0.0; CODE_MODULE_LABELS.len()],
+                gold_score: None,
+            },
+            crate::harness::suites::GoldAnswer {
+                idx: usize::from(f.is_pub),
+                soft: vec![0.0; 2],
+                gold_score: None,
+            },
+        ],
+    }
+}
+
+fn build_code_fixtures(_rows: &Value, _max_rows: usize) -> Suite {
+    let mut cases = Vec::new();
+    for (mi, fns) in code_fn_slices() {
+        if fns.is_empty() {
+            continue;
+        }
+        cases.push(code_case(
+            mi,
+            &fns[0],
+            &format!("code:{}:0", CODE_MODULES[mi]),
+        ));
+        if fns.len() > 1 {
+            cases.push(code_case(
+                mi,
+                &fns[1],
+                &format!("code:{}:1", CODE_MODULES[mi]),
+            ));
+        }
+    }
+    Suite {
+        name: "code_fixtures",
+        cases,
+        option_counts_note: "8 modules × up to 2 real fn spans from this repo's own sources; \
+                             gold programmatic (module, is_pub)",
+    }
+}
+
+/// The code-fixture calibration cases (gold-programmatic, same questions).
+pub fn code_fixtures_cal_cases() -> Vec<SuiteCase> {
+    let mut cases = Vec::new();
+    for (mi, fns) in code_fn_slices() {
+        for (k, f) in fns.iter().enumerate().skip(2).take(8) {
+            cases.push(code_case(
+                mi,
+                f,
+                &format!("codecal:{}:{k}", CODE_MODULES[mi]),
+            ));
+        }
+    }
+    cases
+}
+
+/// The code-fixture corpora: per module, fns[10..16] as docs — STRICTLY
+/// after the eval (fns[0..2]) and calibration (fns[2..10]) slices, so no
+/// cal/eval fn ever scores against itself in its own corpus (the
+/// self-inclusion leak measured on the first run). Modules with fewer fns
+/// contribute what remains; empty corpora take the self-doc fallback.
+pub fn code_fixtures_docs() -> Vec<TrainDoc> {
+    let mut docs = Vec::new();
+    for (mi, fns) in code_fn_slices() {
+        for f in fns.iter().skip(10).take(6) {
+            docs.push(TrainDoc {
+                label: CODE_MODULE_LABELS[mi].to_string(),
+                text: f.src.clone(),
+            });
+        }
+    }
+    docs
+}
+
+// ── result types (serde — results.json) ─────────────────────────────────
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SelectiveMetrics {
+    pub abstain_rate: f64,
+    /// Forced accuracy among the NOT-abstained questions.
+    pub selective_accuracy: f64,
+    pub selective_n: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LaneResult {
+    pub lane: &'static str,
+    /// Model/checkpoint name (modelless lane: "modelless").
+    pub model: String,
+    /// Hard metrics over ALL questions, forced (abstain ignored — argmax of
+    /// the full probability vector; protocols §5.1 hard_metrics).
+    pub hard: HardMetrics,
+    /// ECE over the lane's own reported confidence readout (modelless: the
+    /// engine's readout confidence; laya: its entropy `confidence` field).
+    pub readout_ece: Option<f64>,
+    /// Abstain behavior (modelless only — laya cannot abstain; the
+    /// Research-562 flaw the wire fixes with first-class abstention).
+    pub raw_abstain: Option<SelectiveMetrics>,
+    pub calibrated_abstain: Option<SelectiveMetrics>,
+    /// G1 surfaces (modelless only): ECE over the readout confidence raw vs
+    /// sigmoid-gate-calibrated vs the conformal-naive floor.
+    pub readout_ece_raw: Option<f64>,
+    pub readout_ece_calibrated: Option<f64>,
+    pub floor_ece: Option<f64>,
+    pub g1_pass: Option<bool>,
+    /// Per-question-type hard metrics (typed_decisions only).
+    pub by_question_type: Option<BTreeMap<String, HardMetrics>>,
+    /// Soft-distribution metrics (typed_decisions only).
+    pub soft_acc: Option<f64>,
+    pub brier_soft: Option<f64>,
+    /// Score metrics (typed_decisions score questions / sst5).
+    pub score_mae: Option<f64>,
+    pub within_1: Option<f64>,
+    pub latency_p50_ms: f64,
+    pub latency_p99_ms: f64,
+    pub latency_tail_support: usize,
+    /// Repeat-run bit-identity check (first 10 cases answered twice).
+    pub determinism_ok: Option<bool>,
+    pub seconds: f64,
+    pub n_cases: usize,
+    pub n_questions: usize,
+    /// The fitted fused-gate thresholds (cal-slice 30th percentile — the
+    /// T1.6 arena posture ρ=30%). Default birth constants when the cal
+    /// slice is too small to fit.
+    pub score_threshold: f32,
+    pub distance_threshold: f32,
+    /// The fit-time recommendation the thresholds came from (Issue 009
+    /// T2/T3 — jimothy's `thresholdRecommendation` shape): posture + per-
+    /// axis support and accuracy disclosure; per-axis `null` on thin
+    /// support. `None` on lanes that fit no gates (laya).
+    pub threshold_recommendation: Option<FusedGateRecommendation>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SuiteResult {
+    pub name: String,
+    pub n_cases: usize,
+    pub n_questions: usize,
+    /// None = the family has NO modelless lane (Issue 004 T3: LLM-only —
+    /// an honest absence, never a fabricated row).
+    pub modelless: Option<LaneResult>,
+    /// checkpoint name → result (empty when compiled without `laya` or the
+    /// lane was disabled — the table prints the honest absence).
+    pub laya: BTreeMap<String, LaneResult>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RunMeta {
+    pub date_utc: String,
+    pub git_sha: String,
+    pub host: String,
+    pub profile: String,
+    pub laya_feature: bool,
+    /// 0 = uncapped (protocol default). >0 = the laya lane was question-capped
+    /// per checkpoint — a PARTIAL run; disclosed in the table header so a
+    /// capped laya `n` is never read against a full-N modelless `n`.
+    pub laya_max_questions: usize,
+    pub datasets_dir: String,
+    pub corpus_protocol: String,
+    pub calibration_protocol: String,
+    pub floor_definition: String,
+    pub determinism_scoping: String,
+    pub divergences: Vec<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct RunOutput {
+    pub meta: RunMeta,
+    pub suites: Vec<SuiteResult>,
+}
+
+// ── data loading ────────────────────────────────────────────────────────
+
+/// Concatenate `.rows[].row` across every `test-*.json` (or `train-*.json`)
+/// page file, in sorted filename order, into one synthetic envelope.
+fn load_rows(dir: &Path, split: &str) -> Result<Value, String> {
+    let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
+        .map_err(|e| format!("read_dir {}: {e}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| {
+            p.file_name()
+                .and_then(|n| n.to_str())
+                .is_some_and(|n| n.starts_with(&format!("{split}-")) && n.ends_with(".json"))
+        })
+        .collect();
+    files.sort();
+    if files.is_empty() {
+        return Err(format!("no {split}-*.json files under {}", dir.display()));
+    }
+    let mut rows: Vec<Value> = Vec::new();
+    for f in &files {
+        let text = std::fs::read_to_string(f).map_err(|e| format!("read {}: {e}", f.display()))?;
+        let v: Value =
+            serde_json::from_str(&text).map_err(|e| format!("parse {}: {e}", f.display()))?;
+        let page = v
+            .get("rows")
+            .and_then(Value::as_array)
+            .ok_or_else(|| format!("{}: no rows array", f.display()))?;
+        for r in page {
+            if let Some(row) = r.get("row") {
+                rows.push(row.clone());
+            }
+        }
+    }
+    // Re-wrap in the datasets-server ENVELOPE shape the suite builders
+    // consume (`{"rows": [{"row_idx": N, "row": {...}}]}`) — the builders
+    // read `.rows[i].row`, never bare rows.
+    let wrapped: Vec<Value> = rows
+        .into_iter()
+        .enumerate()
+        .map(|(i, row)| serde_json::json!({ "row_idx": i, "row": row }))
+        .collect();
+    Ok(serde_json::json!({ "rows": wrapped }))
+}
+
+// ── engine construction ─────────────────────────────────────────────────
+
+/// Build the per-suite engine: one domain per label, corpus = capped train
+/// docs of that label (self-doc fallback so an option with no train rows
+/// still has a corpus — covered by `corpus_protocol`, never an empty
+/// domain).
+fn build_engine<const N: usize>(
+    suite: &str,
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    cfg: EngineConfig,
+) -> Result<DecisionEngine<N, EMBED_DIM>, String> {
+    assert_eq!(
+        labels.len(),
+        N,
+        "suite {suite}: {N} domains armed but the option universe has {} labels",
+        labels.len()
+    );
+    let mut specs: Vec<ExpertSpec> = Vec::with_capacity(N);
+    for label in labels {
+        let mut docs: Vec<String> = train
+            .iter()
+            .filter(|d| d.label == *label)
+            .map(|d| d.text.clone())
+            .take(cap_per_label)
+            .collect();
+        if docs.is_empty() {
+            // Self-doc fallback: the label text itself is the corpus (a
+            // corpus-is-the-model engine always has SOMETHING to score
+            // against; without this, out-of-train options would be
+            // unscorable). Reported in the run meta via corpus_protocol.
+            docs.push(label.clone());
+        }
+        specs.push(ExpertSpec::new(label.as_str(), &docs));
+    }
+    DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
+        .map_err(|e| format!("engine build ({suite}): {e}"))
+}
+
+/// The engine wire request for one case: state serialized with the
+/// Python-JSON law (the SAME bytes the laya lane sequences), prompt =
+/// instructions, options from the criteria structure, criteria text None
+/// (the modelless context is state + prompt, its serving path).
+fn engine_request(
+    case: &SuiteCase,
+    state_str: &str,
+) -> Result<katgpt_core::decision_wire::DecisionRequest, String> {
+    use katgpt_core::decision_wire::Question;
+    let mut questions = Vec::with_capacity(case.questions.len());
+    for q in &case.questions {
+        let q = match q.kind {
+            QKind::Choice => {
+                let keys: Vec<String> = q
+                    .criteria
+                    .as_object()
+                    .map(|m| m.keys().cloned().collect())
+                    .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
+                Question::choice(q.qid.as_str(), q.instructions.as_str(), keys, None)
+            }
+            QKind::Score => {
+                let levels: Vec<String> = q
+                    .criteria
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .map(|v| match v {
+                                Value::String(s) => s.clone(),
+                                other => other.to_string(),
+                            })
+                            .collect()
+                    })
+                    .ok_or_else(|| format!("case {}: score criteria must be an array", q.qid))?;
+                Question::score(q.qid.as_str(), q.instructions.as_str(), levels)
+            }
+            QKind::Noul => Question::noul(q.qid.as_str(), q.instructions.as_str()),
+        };
+        questions.push(q);
+    }
+    Ok(katgpt_core::decision_wire::DecisionRequest {
+        state: state_str.to_string(),
+        questions,
+    })
+}
+
+// ── evaluation record ───────────────────────────────────────────────────
+
+/// A lane evaluation over one case set: per case, per question probabilities
+/// in LABEL space ([p_no, p_yes] for noul — gold idx 1 = true), forced picks
+/// in label space, readout confidences, abstain flags.
+struct Eval {
+    probs: Vec<Vec<Vec<f64>>>,
+    picks: Vec<Vec<usize>>,
+    confs: Vec<Vec<f64>>,
+    abstained: Vec<Vec<bool>>,
+}
+
+impl Eval {
+    fn n_questions(&self) -> usize {
+        self.probs.iter().map(|c| c.len()).sum()
+    }
+
+    fn forced_rows(&self, cases: &[SuiteCase]) -> Vec<(usize, Vec<f64>)> {
+        let mut rows = Vec::new();
+        for (ci, case) in cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                rows.push((case.gold[qi].idx, self.probs[ci][qi].clone()));
+            }
+        }
+        rows
+    }
+
+    fn readout_pairs(&self, cases: &[SuiteCase]) -> Vec<(f64, bool)> {
+        let mut pairs = Vec::new();
+        for (ci, case) in cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                pairs.push((self.confs[ci][qi], self.picks[ci][qi] == case.gold[qi].idx));
+            }
+        }
+        pairs
+    }
+
+    fn selective(&self, cases: &[SuiteCase]) -> SelectiveMetrics {
+        let mut n = 0usize;
+        let mut correct = 0usize;
+        let mut total = 0usize;
+        for (ci, case) in cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                total += 1;
+                if !self.abstained[ci][qi] {
+                    n += 1;
+                    if self.picks[ci][qi] == case.gold[qi].idx {
+                        correct += 1;
+                    }
+                }
+            }
+        }
+        SelectiveMetrics {
+            abstain_rate: if total > 0 {
+                (total - n) as f64 / total as f64
+            } else {
+                0.0
+            },
+            selective_accuracy: if n > 0 {
+                correct as f64 / n as f64
+            } else {
+                0.0
+            },
+            selective_n: n,
+        }
+    }
+}
+
+struct Latency {
+    p50_ms: f64,
+    p99_ms: f64,
+    tail_support: usize,
+    determinism_ok: Option<bool>,
+}
+
+/// Nearest-rank percentiles over µs samples; returns (p50, p99, tail support
+/// of p99) — the tail-support figure prints beside p99 in the tables (the
+/// repo-family percentile law).
+fn percentile_us(durs: &[u64]) -> (u64, u64, usize) {
+    let mut d = durs.to_vec();
+    d.sort_unstable();
+    let n = d.len();
+    if n == 0 {
+        return (0, 0, 0);
+    }
+    let p50 = d[n / 2];
+    let idx99 = (n * 99).div_ceil(100) - 1;
+    (p50, d[idx99], n - idx99)
+}
+
+fn argmax(p: &[f64]) -> usize {
+    let mut best = 0usize;
+    for (i, v) in p.iter().enumerate() {
+        if *v > p[best] {
+            best = i;
+        }
+    }
+    best
+}
+
+// ── the modelless lane ──────────────────────────────────────────────────
+
+fn eval_engine<const N: usize>(
+    engine: &mut DecisionEngine<N, EMBED_DIM>,
+    cases: &[SuiteCase],
+    state_strs: &[String],
+    check_determinism: bool,
+) -> Result<(Eval, Latency), String> {
+    let mut probs = Vec::with_capacity(cases.len());
+    let mut picks = Vec::with_capacity(cases.len());
+    let mut confs = Vec::with_capacity(cases.len());
+    let mut abstained = Vec::with_capacity(cases.len());
+    let max_q = cases.iter().map(|c| c.questions.len()).max().unwrap_or(1);
+    let mut sc: Scratch<EMBED_DIM> = Scratch::new();
+    sc.prepare(max_q);
+    let mut durs_us: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = if check_determinism { Some(true) } else { None };
+
+    for (ci, case) in cases.iter().enumerate() {
+        let req = engine_request(case, &state_strs[ci])?;
+        let t0 = Instant::now();
+        let resp = engine
+            .decide_with(&req, &mut sc)
+            .map_err(|e| format!("engine decide ({}, case {ci}): {e}", case.id))?;
+        durs_us.push(t0.elapsed().as_micros() as u64);
+
+        if check_determinism && ci < 10 {
+            let resp2 = engine
+                .decide_with(&req, &mut sc)
+                .map_err(|e| format!("engine determinism rerun ({}, case {ci}): {e}", case.id))?;
+            let j1 = serde_json::to_string(&resp.answers).unwrap_or_default();
+            let j2 = serde_json::to_string(&resp2.answers).unwrap_or_default();
+            if j1 != j2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+            drop(resp2);
+        }
+
+        let mut cprobs = Vec::with_capacity(case.questions.len());
+        let mut cpicks = Vec::with_capacity(case.questions.len());
+        let mut cconfs = Vec::with_capacity(case.questions.len());
+        let mut cabst = Vec::with_capacity(case.questions.len());
+        for (q, ans) in case.questions.iter().zip(resp.answers.iter()) {
+            // Engine internal noul order is [yes, no] (wire p_yes only);
+            // flip to [no, yes] to match the gold-index convention.
+            let p: Vec<f64> = if q.kind == QKind::Noul {
+                let p_yes = f64::from(ans.probabilities[0]);
+                vec![1.0 - p_yes, p_yes]
+            } else {
+                ans.probabilities.iter().map(|p| f64::from(*p)).collect()
+            };
+            let pick = match &ans.outcome {
+                Some(katgpt_core::decision_wire::Outcome::Choice { index }) => *index as usize,
+                Some(katgpt_core::decision_wire::Outcome::Score { level }) => *level as usize,
+                Some(katgpt_core::decision_wire::Outcome::Noul { yes }) => usize::from(*yes),
+                None => argmax(&p), // abstained — forced pick for the metrics
+            };
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(f64::from(ans.confidence));
+            cabst.push(ans.outcome.is_none());
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+        abstained.push(cabst);
+    }
+    let (p50, p99, support) = percentile_us(&durs_us);
+    Ok((
+        Eval {
+            probs,
+            picks,
+            confs,
+            abstained,
+        },
+        Latency {
+            p50_ms: p50 as f64 / 1000.0,
+            p99_ms: p99 as f64 / 1000.0,
+            tail_support: support,
+            determinism_ok,
+        },
+    ))
+}
+
+// ── per-suite modelless result ──────────────────────────────────────────
+
+/// Gold answer per question for a case, restricted to what the lane tables
+/// read (idx / soft / score).
+struct Gold<'a> {
+    idx: usize,
+    soft: &'a [f64],
+    score: Option<f64>,
+}
+
+/// Inputs for one modelless lane run (bundled to keep the runner's
+/// argument list short; all borrowed).
+struct ModellessInput<'a> {
+    spec: &'a SuiteSpec,
+    suite: &'a Suite,
+    train: &'a [TrainDoc],
+    state_strs: &'a [String],
+    cal_cases: &'a [SuiteCase],
+    cal_state_strs: &'a [String],
+    labels: &'a [String],
+    want_by_type: bool,
+}
+
+#[allow(clippy::too_many_lines)]
+fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult, String> {
+    let spec = inp.spec;
+    let suite = inp.suite;
+    let train = inp.train;
+    let state_strs = inp.state_strs;
+    let cal_cases = inp.cal_cases;
+    let cal_state_strs = inp.cal_state_strs;
+    let labels = inp.labels;
+    let want_by_type = inp.want_by_type;
+    let t_start = Instant::now();
+    let default_cfg = EngineConfig::default();
+
+    // Corpus pool = the train docs AFTER the calibration slice — the cal
+    // cases must not be members of their own reference corpora (a cal case
+    // scoring cos 1.0 against ITSELF inflates every cal-slice quantile and
+    // over-arms the gates on test — measured: 64→100% abstain drift on
+    // ag_news before this split). The code_fixtures suite self-splits
+    // (spec.cal_cap = 0 → the pool is its whole generated corpus, which is
+    // already disjoint by construction).
+
+    // ── Fused-gate threshold fitting (the engine's own law: thresholds from
+    // measured geometry, never magic numbers). The birth constants (0.35 /
+    // 0.5) were measured on the birth corpus and do NOT transfer to these
+    // suites — measured: with the defaults the distance gate abstains 100%
+    // on several suites. Fit BOTH thresholds at the cal-slice 30th
+    // percentile (the T1.6 arena posture, target abstain rate ρ = 30%):
+    // 30% of in-corpus-distribution questions abstain, the rest pass. The
+    // fitted values ride the result row.
+    let (score_threshold, distance_threshold, threshold_recommendation) = {
+        let corpus_pool: &[TrainDoc] = train.get(spec.cal_cap.min(train.len())..).unwrap_or(train);
+        let mut probe = build_engine::<N>(
+            spec.name,
+            corpus_pool,
+            labels,
+            spec.corpus_cap_per_label,
+            default_cfg.clone(),
+        )?;
+        let mut sc: Scratch<EMBED_DIM> = Scratch::new();
+        let max_cal_q = cal_cases
+            .iter()
+            .map(|c| c.questions.len())
+            .max()
+            .unwrap_or(1);
+        sc.prepare(max_cal_q);
+        // Labeled cal-slice observations for the threshold-recommendation
+        // surface (Issue 009): score axis = the engine readout confidence,
+        // distance axis = the corpus-distance gate's abstain confidence;
+        // correct = the probe's own pick vs gold on the case's LAST
+        // question (the eval_engine convention, incl. the Noul [no, yes]
+        // wire flip). The percentile posture selects on score only — the
+        // label feeds the accuracy DISCLOSURE, never the threshold, so
+        // the T2 migration stays byte-identical.
+        let mut score_obs: Vec<GateObservation> = Vec::new();
+        let mut distance_obs: Vec<GateObservation> = Vec::new();
+        for (ci, case) in cal_cases.iter().enumerate() {
+            let req = engine_request(case, &cal_state_strs[ci])?;
+            probe
+                .solve_into(&req, &mut sc)
+                .map_err(|e| format!("cal probe ({}, case {ci}): {e}", case.id))?;
+            // The gate q survives only for the LAST question of a solve —
+            // sample the last slot per case (n = #cal cases, enough for a
+            // quantile at every suite's cal_cap).
+            if let (Some(slot), Some(dom)) = (sc.slots.last(), sc.domains.last()) {
+                let pick = match case.questions.last().map(|q| q.kind) {
+                    // Engine internal noul order is [yes, no]; gold uses
+                    // the wire [no, yes] convention (eval_engine's flip).
+                    Some(QKind::Noul) => (1 - slot.pick) as usize,
+                    _ => slot.pick as usize,
+                };
+                let correct = case.gold.last().is_some_and(|g| g.idx == pick);
+                score_obs.push(GateObservation {
+                    score: slot.confidence,
+                    correct,
+                });
+                distance_obs.push(GateObservation {
+                    score: probe.gate(*dom).abstain_confidence(&sc.q),
+                    correct,
+                });
+            }
+        }
+        // The T1.6 arena posture through the engine surface (Issue 009
+        // T2): both axes at ρ = 30%. Thin support falls back to the birth
+        // constants — THIN_SUPPORT_FLOOR == 16 IS the old
+        // `confs.len() < 16` arm, so the fallback semantics are
+        // identical, and the percentile law itself is pinned bit-identical
+        // to the runner's old `quantile` by the migration gate.
+        let rec =
+            recommend_fused_gate(&score_obs, &distance_obs, Posture::Percentile { rho: 0.30 });
+        (
+            rec.score
+                .map_or(default_cfg.score_threshold, |r| r.threshold),
+            rec.distance
+                .map_or(default_cfg.distance_threshold, |r| r.threshold),
+            rec,
+        )
+    };
+    let cfg = EngineConfig {
+        score_threshold,
+        distance_threshold,
+        ..default_cfg
+    };
+
+    // Corpus corpora: eval-cap docs per label, from the SAME pool the
+    // thresholds were fitted on (post-cal-slice train docs).
+    let corpus_pool: &[TrainDoc] = train.get(spec.cal_cap.min(train.len())..).unwrap_or(train);
+    let mut raw_engine = build_engine::<N>(
+        spec.name,
+        corpus_pool,
+        labels,
+        spec.corpus_cap_per_label,
+        cfg.clone(),
+    )?;
+
+    // Calibration pairs from a RAW (uncalibrated) engine over the cal slice.
+    let mut cal_engine = build_engine::<N>(
+        spec.name,
+        corpus_pool,
+        labels,
+        spec.corpus_cap_per_label,
+        cfg.clone(),
+    )?;
+    let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
+        Vec::new()
+    } else {
+        cal_cases.to_vec()
+    };
+    let (cal_eval, _) = if cal_cases.is_empty() {
+        // code_fixtures carries its own cal slice; empty here means no cal.
+        (
+            Eval {
+                probs: vec![],
+                picks: vec![],
+                confs: vec![],
+                abstained: vec![],
+            },
+            Latency {
+                p50_ms: 0.0,
+                p99_ms: 0.0,
+                tail_support: 0,
+                determinism_ok: None,
+            },
+        )
+    } else {
+        eval_engine(&mut cal_engine, &cal_cases, cal_state_strs, false)?
+    };
+    let mut cal_pairs: Vec<CalibrationPair> = Vec::new();
+    for (ci, case) in cal_cases.iter().enumerate() {
+        for (qi, _q) in case.questions.iter().enumerate() {
+            cal_pairs.push(CalibrationPair {
+                conf: cal_eval.confs[ci][qi],
+                correct: cal_eval.picks[ci][qi] == case.gold[qi].idx,
+            });
+        }
+    }
+
+    // RAW eval over the test cases (uncalibrated readout + raw abstain).
+    let (raw_eval, lat) = eval_engine(&mut raw_engine, &suite.cases, state_strs, true)?;
+
+    // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
+    let mut fitted = build_engine::<N>(
+        spec.name,
+        corpus_pool,
+        labels,
+        spec.corpus_cap_per_label,
+        cfg,
+    )?;
+    let mut moved = false;
+    for p in &cal_pairs {
+        moved |= fitted.observe(p.conf as f32, p.correct);
+    }
+    let (cal_eval_test, _) = eval_engine(&mut fitted, &suite.cases, state_strs, false)?;
+
+    // ── metrics assembly (label space; noul [no, yes]) ──
+    let forced = raw_eval.forced_rows(&suite.cases);
+    let hard = hard_metrics(&forced);
+    let readout_pairs_raw = raw_eval.readout_pairs(&suite.cases);
+    let readout_pairs_cal = cal_eval_test.readout_pairs(&suite.cases);
+    let readout_ece_raw = ece_of(&readout_pairs_raw);
+    let readout_ece_cal = ece_of(&readout_pairs_cal);
+    let raw_abstain = raw_eval.selective(&suite.cases);
+    let calibrated_abstain = cal_eval_test.selective(&suite.cases);
+
+    // The conformal-naive floor: split-conformal recalibration of the raw
+    // readout confidences (G1's Report-the-Floor comparison).
+    let test_confs: Vec<f64> = readout_pairs_raw.iter().map(|(c, _)| *c).collect();
+    let floored: Vec<f64> = conformal_naive_floor(&cal_pairs, &test_confs);
+    let floor_pairs: Vec<(f64, bool)> = floored
+        .into_iter()
+        .zip(readout_pairs_raw.iter().map(|(_, ok)| *ok))
+        .collect();
+    let floor_ece = ece_of(&floor_pairs);
+
+    let g1_pass = if moved && !cal_pairs.is_empty() {
+        Some(readout_ece_cal < readout_ece_raw && readout_ece_cal < floor_ece)
+    } else {
+        // The calibrator never moved (too few obs) — no calibration claim.
+        Some(false)
+    };
+
+    // Optional per-type + soft/score metrics.
+    let mut by_question_type: Option<BTreeMap<String, HardMetrics>> = None;
+    let mut soft_acc: Option<f64> = None;
+    let mut brier_soft: Option<f64> = None;
+    let mut score_mae: Option<f64> = None;
+    let mut within_1: Option<f64> = None;
+
+    if want_by_type {
+        let mut buckets: BTreeMap<String, Vec<(usize, Vec<f64>)>> = BTreeMap::new();
+        let mut soft_sum = 0.0f64;
+        let mut soft_n = 0usize;
+        let mut mae_sum = 0.0f64;
+        let mut w1_sum = 0.0f64;
+        let mut score_n = 0usize;
+        for (ci, case) in suite.cases.iter().enumerate() {
+            for (qi, q) in case.questions.iter().enumerate() {
+                let g = Gold {
+                    idx: case.gold[qi].idx,
+                    soft: &case.gold[qi].soft,
+                    score: case.gold[qi].gold_score,
+                };
+                let probs = &raw_eval.probs[ci][qi];
+                buckets
+                    .entry(q.kind.as_str().to_string())
+                    .or_default()
+                    .push((g.idx, probs.clone()));
+                if let Some(sm) = soft_metrics(probs, g.soft) {
+                    soft_sum += sm.soft_acc;
+                    soft_n += 1;
+                }
+                if let Some(gs) = g.score {
+                    let sm = score_metrics(probs, gs);
+                    mae_sum += sm.mae;
+                    w1_sum += sm.within_1;
+                    score_n += 1;
+                }
+            }
+        }
+        by_question_type = Some(
+            buckets
+                .into_iter()
+                .map(|(k, rows)| (k, hard_metrics(&rows)))
+                .collect(),
+        );
+        if soft_n > 0 {
+            soft_acc = Some(soft_sum / soft_n as f64);
+        }
+        if score_n > 0 {
+            score_mae = Some(mae_sum / score_n as f64);
+            within_1 = Some(w1_sum / score_n as f64);
+        }
+    } else {
+        // sst5: score metrics over its single score question per case.
+        let mut mae_sum = 0.0f64;
+        let mut w1_sum = 0.0f64;
+        let mut score_n = 0usize;
+        for (ci, case) in suite.cases.iter().enumerate() {
+            for (qi, q) in case.questions.iter().enumerate() {
+                if q.kind == QKind::Score
+                    && let Some(gs) = case.gold[qi].gold_score
+                {
+                    let sm = score_metrics(&raw_eval.probs[ci][qi], gs);
+                    mae_sum += sm.mae;
+                    w1_sum += sm.within_1;
+                    score_n += 1;
+                }
+            }
+        }
+        if score_n > 0 {
+            score_mae = Some(mae_sum / score_n as f64);
+            within_1 = Some(w1_sum / score_n as f64);
+        }
+    }
+
+    // Brier soft for typed_decisions: mean of per-question brier_soft.
+    if spec.name == "typed_decisions" {
+        let mut bsum = 0.0f64;
+        let mut bn = 0usize;
+        for (ci, case) in suite.cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                if let Some(sm) = soft_metrics(&raw_eval.probs[ci][qi], &case.gold[qi].soft) {
+                    bsum += sm.brier_soft;
+                    bn += 1;
+                }
+            }
+        }
+        if bn > 0 {
+            brier_soft = Some(bsum / bn as f64);
+        }
+        if soft_acc.is_none() {
+            let (mut s, mut n) = (0.0f64, 0usize);
+            for (ci, case) in suite.cases.iter().enumerate() {
+                for (qi, _q) in case.questions.iter().enumerate() {
+                    if let Some(sm) = soft_metrics(&raw_eval.probs[ci][qi], &case.gold[qi].soft) {
+                        s += sm.soft_acc;
+                        n += 1;
+                    }
+                }
+            }
+            if n > 0 {
+                soft_acc = Some(s / n as f64);
+            }
+        }
+    }
+
+    Ok(LaneResult {
+        lane: "modelless",
+        model: "modelless".to_string(),
+        hard,
+        readout_ece: Some(readout_ece_cal),
+        raw_abstain: Some(raw_abstain),
+        calibrated_abstain: Some(calibrated_abstain),
+        readout_ece_raw: Some(readout_ece_raw),
+        readout_ece_calibrated: Some(readout_ece_cal),
+        floor_ece: Some(floor_ece),
+        g1_pass,
+        by_question_type,
+        soft_acc,
+        brier_soft,
+        score_mae,
+        within_1,
+        latency_p50_ms: lat.p50_ms,
+        latency_p99_ms: lat.p99_ms,
+        latency_tail_support: lat.tail_support,
+        determinism_ok: lat.determinism_ok,
+        seconds: t_start.elapsed().as_secs_f64(),
+        n_cases: suite.cases.len(),
+        n_questions: raw_eval.n_questions(),
+        score_threshold,
+        distance_threshold,
+        threshold_recommendation: Some(threshold_recommendation),
+    })
+}
+
+// ── the laya lane (the riir-owned backend since .issues/006 — the candle
+// reference lane was deleted; `RiirAgent` serves the same envelope surface
+// `system_one`, G5-proven against the same frozen captures) ────────────────
+
+#[cfg(feature = "laya-riir")]
+fn run_laya_checkpoint(
+    suite: &Suite,
+    ckpt: &'static str,
+    laya_max_questions: usize,
+) -> Result<LaneResult, String> {
+    use crate::laya::config::Checkpoint;
+    use crate::laya::riir::RiirAgent;
+    use crate::laya::weights::weights_root;
+
+    let t_start = Instant::now();
+    let ck = match ckpt {
+        "english" => Checkpoint::English,
+        "multilingual" => Checkpoint::Multilingual,
+        "typed" => Checkpoint::TypedDecisions,
+        other => return Err(format!("unknown checkpoint {other}")),
+    };
+    let agent =
+        RiirAgent::load(&weights_root(), ck).map_err(|e| format!("laya load ({ckpt}): {e}"))?;
+
+    // Cap the eval cases when asked (runtime trim; documented in the table
+    // when used).
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs = Vec::with_capacity(cases.len());
+    let mut picks = Vec::with_capacity(cases.len());
+    let mut confs = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+
+    for (ci, case) in cases.iter().enumerate() {
+        let mut questions: Vec<(String, Value)> = Vec::with_capacity(case.questions.len());
+        for q in &case.questions {
+            let mut def = serde_json::Map::new();
+            def.insert("type".into(), Value::String(q.kind.as_str().into()));
+            def.insert("instructions".into(), Value::String(q.instructions.clone()));
+            if !q.criteria.is_null() {
+                def.insert("criteria".into(), q.criteria.clone());
+            }
+            questions.push((q.qid.clone(), Value::Object(def)));
+        }
+        let t0 = Instant::now();
+        let answers = agent
+            .system_one(&case.state, &questions)
+            .map_err(|e| format!("laya forward ({}, case {ci}): {e}", case.id))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+
+        if ci < 10 {
+            let answers2 = agent
+                .system_one(&case.state, &questions)
+                .map_err(|e| format!("laya determinism rerun (case {ci}): {e}"))?;
+            let render = |as_: &[crate::laya::types::Answer]| {
+                as_.iter()
+                    .map(|a| {
+                        format!(
+                            "{}|{}|{:.6}|{:.6}|{:.6}",
+                            a.choice.as_deref().unwrap_or(""),
+                            a.score.unwrap_or(-1.0),
+                            a.noul.unwrap_or(-1.0),
+                            a.confidence,
+                            a.act_probability
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join(";")
+            };
+            if render(&answers) != render(&answers2) {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(questions.len());
+        let mut cpicks = Vec::with_capacity(questions.len());
+        let mut cconfs = Vec::with_capacity(questions.len());
+        for (q, ans) in case.questions.iter().zip(answers.iter()) {
+            let (p, pick) = match q.kind {
+                QKind::Choice => {
+                    let keys: Vec<String> = q
+                        .criteria
+                        .as_object()
+                        .map(|m| m.keys().cloned().collect())
+                        .unwrap_or_default();
+                    let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
+                    let idx = ans
+                        .choice
+                        .as_ref()
+                        .and_then(|c| keys.iter().position(|k| k == c))
+                        .unwrap_or_else(|| {
+                            probs
+                                .iter()
+                                .enumerate()
+                                .max_by(|a, b| a.1.total_cmp(b.1))
+                                .map_or(0, |(i, _)| i)
+                        });
+                    (probs, idx)
+                }
+                QKind::Score => {
+                    let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
+                    let pick = probs
+                        .iter()
+                        .enumerate()
+                        .max_by(|a, b| a.1.total_cmp(b.1))
+                        .map_or(0, |(i, _)| i);
+                    (probs, pick)
+                }
+                QKind::Noul => {
+                    let p_true = ans.noul.unwrap_or(0.5);
+                    (vec![1.0 - p_true, p_true], usize::from(p_true >= 0.5))
+                }
+            };
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(ans.confidence);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+
+    let ev = Eval {
+        probs,
+        picks,
+        confs,
+        // laya cannot abstain (Research-562 flaw) — the selective metrics
+        // report None rather than a fake zero; this field stays empty.
+        abstained: Vec::new(),
+    };
+    let forced = ev.forced_rows(cases);
+    let hard = hard_metrics(&forced);
+    let readout: Vec<(f64, bool)> = {
+        let mut pairs = Vec::new();
+        for (ci, case) in cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                pairs.push((ev.confs[ci][qi], ev.picks[ci][qi] == case.gold[qi].idx));
+            }
+        }
+        pairs
+    };
+
+    // Optional extras for typed_decisions.
+    let mut by_question_type: Option<BTreeMap<String, HardMetrics>> = None;
+    let mut soft_acc: Option<f64> = None;
+    let mut brier_soft: Option<f64> = None;
+    let mut score_mae: Option<f64> = None;
+    let mut within_1: Option<f64> = None;
+    if suite.name == "typed_decisions" {
+        let mut buckets: BTreeMap<String, Vec<(usize, Vec<f64>)>> = BTreeMap::new();
+        let (mut ssum, mut sn, mut bsum) = (0.0f64, 0usize, 0.0f64);
+        let (mut msum, mut wsum, mut mn) = (0.0f64, 0.0f64, 0usize);
+        for (ci, case) in cases.iter().enumerate() {
+            for (qi, q) in case.questions.iter().enumerate() {
+                buckets
+                    .entry(q.kind.as_str().to_string())
+                    .or_default()
+                    .push((case.gold[qi].idx, ev.probs[ci][qi].clone()));
+                if let Some(sm) = soft_metrics(&ev.probs[ci][qi], &case.gold[qi].soft) {
+                    ssum += sm.soft_acc;
+                    bsum += sm.brier_soft;
+                    sn += 1;
+                }
+                if let Some(gs) = case.gold[qi].gold_score {
+                    let sm = score_metrics(&ev.probs[ci][qi], gs);
+                    msum += sm.mae;
+                    wsum += sm.within_1;
+                    mn += 1;
+                }
+            }
+        }
+        by_question_type = Some(
+            buckets
+                .into_iter()
+                .map(|(k, rows)| (k, hard_metrics(&rows)))
+                .collect(),
+        );
+        if sn > 0 {
+            soft_acc = Some(ssum / sn as f64);
+            brier_soft = Some(bsum / sn as f64);
+        }
+        if mn > 0 {
+            score_mae = Some(msum / mn as f64);
+            within_1 = Some(wsum / mn as f64);
+        }
+    }
+
+    let (p50, p99, support) = percentile_us(&durs_ms);
+    Ok(LaneResult {
+        lane: "laya-riir",
+        model: ckpt.to_string(),
+        hard,
+        readout_ece: Some(ece_of(&readout)),
+        raw_abstain: None,
+        calibrated_abstain: None,
+        readout_ece_raw: None,
+        readout_ece_calibrated: None,
+        floor_ece: None,
+        g1_pass: None,
+        by_question_type,
+        soft_acc,
+        brier_soft,
+        score_mae,
+        within_1,
+        latency_p50_ms: p50 as f64,
+        latency_p99_ms: p99 as f64,
+        latency_tail_support: support,
+        determinism_ok,
+        seconds: t_start.elapsed().as_secs_f64(),
+        n_cases: cases.len(),
+        n_questions: ev.n_questions(),
+        score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
+        distance_threshold: f32::NAN,
+        threshold_recommendation: None,
+    })
+}
+
+#[cfg(not(feature = "laya-riir"))]
+fn run_laya_checkpoint(
+    _suite: &Suite,
+    _ckpt: &str,
+    _laya_max_questions: usize,
+) -> Result<LaneResult, String> {
+    Err("laya-riir feature off".to_string())
+}
+
+// ── prepared suite + run ────────────────────────────────────────────────
+
+struct Prepared {
+    suite: Suite,
+    train: Vec<TrainDoc>,
+    state_strs: Vec<String>,
+    cal_cases: Vec<SuiteCase>,
+    cal_state_strs: Vec<String>,
+    labels: Vec<String>,
+}
+
+fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
+    if let Some(synth) = spec.synthetic {
+        if !spec.modelless_lane && !cfg!(feature = "laya-riir") {
+            return Err(format!(
+                "{}: SKIPPED \u{2014} LLM-lane only (Issue 004 T3): the modelless lane has \
+                 no KV cache, so a modelless answer here would be a fake task; \
+                 compile with --features laya-riir to run this family",
+                spec.name
+            ));
+        }
+        let d = synth();
+        let state_strs = d
+            .suite
+            .cases
+            .iter()
+            .map(|c| serialize_state(&c.state))
+            .collect();
+        let cal_state_strs = d
+            .cal_cases
+            .iter()
+            .map(|c| serialize_state(&c.state))
+            .collect();
+        return Ok(Prepared {
+            labels: d.labels,
+            suite: d.suite,
+            train: d.docs,
+            state_strs,
+            cal_cases: d.cal_cases,
+            cal_state_strs,
+        });
+    }
+
+    if spec.name == "code_fixtures" {
+        let suite = build_code_fixtures(&Value::Null, 0);
+        let state_strs = suite
+            .cases
+            .iter()
+            .map(|c| serialize_state(&c.state))
+            .collect();
+        let cal_cases = code_fixtures_cal_cases();
+        let cal_state_strs = cal_cases
+            .iter()
+            .map(|c| serialize_state(&c.state))
+            .collect();
+        return Ok(Prepared {
+            labels: CODE_MODULE_LABELS
+                .iter()
+                .map(|s| (*s).to_string())
+                .collect(),
+            suite,
+            train: code_fixtures_docs(),
+            state_strs,
+            cal_cases,
+            cal_state_strs,
+        });
+    }
+
+    let suite_dir = dir.join(spec.name);
+    let test_rows = load_rows(&suite_dir, "test")?;
+    let suite = (spec.build)(&test_rows, spec.test_cap);
+    let train_rows =
+        load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
+    let train = train_docs(&train_rows, spec.name);
+    if train.is_empty() {
+        return Err(format!(
+            "suite {}: the train split produced no corpus docs — the modelless \
+             lane cannot be built honestly without its corpus; fetch train rows \
+             first (scripts/fetch_datasets.sh)",
+            spec.name
+        ));
+    }
+
+    // Engine domain labels. These must equal the TRAIN-DOC labels so the
+    // per-domain corpora bind (routing routes over these domains; corpora
+    // are the train docs of each label). Per suite:
+    // - classification suites (ag_news / emotion / sst5 / xnli / prompt):
+    //   the integer class labels the train docs carry (option index i
+    //   ↔ class label i — asserted against the option-key union below);
+    // - typed_decisions: the WORKFLOW names (train docs carry them);
+    // - derived-universe suites (massive / banking77): the union of option
+    //   keys over the TEST cases (train docs carry label_text);
+    // - code_fixtures: the fixed module labels (already set above).
+    let option_key_union = {
+        let mut u: Vec<String> = Vec::new();
+        for case in &suite.cases {
+            for q in &case.questions {
+                match q.kind {
+                    QKind::Choice => {
+                        if let Some(m) = q.criteria.as_object() {
+                            for k in m.keys() {
+                                if !u.contains(k) {
+                                    u.push(k.clone());
+                                }
+                            }
+                        }
+                    }
+                    QKind::Score => {
+                        if let Some(a) = q.criteria.as_array() {
+                            for i in 0..a.len() {
+                                let s = i.to_string();
+                                if !u.contains(&s) {
+                                    u.push(s);
+                                }
+                            }
+                        }
+                    }
+                    QKind::Noul => {}
+                }
+            }
+        }
+        u
+    };
+    let labels: Vec<String> = match spec.name {
+        "ag_news" => (0..4).map(|i| i.to_string()).collect(),
+        "emotion" => (0..6).map(|i| i.to_string()).collect(),
+        "sst5" => (0..5).map(|i| i.to_string()).collect(),
+        "xnli_en" => (0..3).map(|i| i.to_string()).collect(),
+        "prompt_injections" => (0..2).map(|i| i.to_string()).collect(),
+        "typed_decisions" => {
+            // The workflow names from the TEST case ids (id =
+            // "<workflow>:<row_idx>"), sorted for a stable domain order.
+            let mut w: Vec<String> = suite
+                .cases
+                .iter()
+                .filter_map(|c| c.id.split(':').next().map(str::to_string))
+                .collect();
+            w.sort();
+            w.dedup();
+            w
+        }
+        _ => option_key_union.clone(),
+    };
+    // For fixed-criteria classification suites the engine domains must be
+    // exactly as numerous as the option keys (pick index ↔ domain index).
+    // Noul-only suites present no option keys — exempt (their classes ride
+    // the train-doc labels).
+    if matches!(spec.name, "ag_news" | "emotion" | "sst5" | "xnli_en") {
+        assert_eq!(
+            labels.len(),
+            option_key_union.len(),
+            "suite {}: {} class labels vs {} option keys — the fetch/protocol \
+             and the engine arming disagree",
+            spec.name,
+            labels.len(),
+            option_key_union.len()
+        );
+    }
+    if spec.name == "banking77" {
+        assert_eq!(
+            option_key_union.len(),
+            77,
+            "banking77: the TEST suite presents {} option keys (need all 77 — \
+             fetch the full test split for the option universe)",
+            option_key_union.len()
+        );
+    }
+
+    // Calibration cases: the SAME builder over the train rows (identical
+    // question shapes; gold from the train labels).
+    let (cal_cases, cal_state_strs) = if spec.cal_cap > 0 {
+        let cal_suite = (spec.build)(&train_rows, spec.cal_cap);
+        let strs = cal_suite
+            .cases
+            .iter()
+            .map(|c| serialize_state(&c.state))
+            .collect();
+        (cal_suite.cases, strs)
+    } else {
+        (Vec::new(), Vec::new())
+    };
+
+    let state_strs = suite
+        .cases
+        .iter()
+        .map(|c| serialize_state(&c.state))
+        .collect();
+    Ok(Prepared {
+        suite,
+        train,
+        state_strs,
+        cal_cases,
+        cal_state_strs,
+        labels,
+    })
+}
+
+/// Gate/CLI accessor: `(is_synthetic, modelless_lane)` for a suite name.
+#[must_use]
+pub fn suite_lanes(name: &str) -> Option<(bool, bool)> {
+    SUITES
+        .iter()
+        .find(|s| s.name == name)
+        .map(|s| (s.synthetic.is_some(), s.modelless_lane))
+}
+
+/// Options for one harness run.
+#[derive(Debug, Clone)]
+pub struct RunOptions {
+    pub datasets_dir: PathBuf,
+    /// Suite names; empty = all registered.
+    pub suites: Vec<String>,
+    /// Cap laya-lane questions per suite (0 = the protocol default).
+    pub laya_max_questions: usize,
+    /// Skip the laya lane entirely (modelless-only run).
+    pub skip_laya: bool,
+}
+
+/// Run the harness. Suite-level failures (missing datasets, engine build
+/// errors) are REPORTED in the returned output as errors — never silently
+/// dropped — and the run continues with the remaining suites.
+pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
+    let mut results: Vec<SuiteResult> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
+    let laya_feature = cfg!(feature = "laya-riir");
+
+    for spec in SUITES {
+        if !opts.suites.is_empty() && !opts.suites.iter().any(|s| s == spec.name) {
+            continue;
+        }
+        eprintln!("═══ suite {} ═══", spec.name);
+        let prepared = match prepare(spec, &opts.datasets_dir) {
+            Ok(p) => p,
+            Err(e) => {
+                errors.push(format!("{}: {e}", spec.name));
+                continue;
+            }
+        };
+        let n_questions: usize = prepared.suite.cases.iter().map(|c| c.questions.len()).sum();
+        eprintln!(
+            "    {} cases / {} questions · {} domains",
+            prepared.suite.cases.len(),
+            n_questions,
+            prepared.labels.len()
+        );
+
+        // Modelless lane (const-generic dispatch over the domain count).
+        // Skipped entirely for LLM-only families (Issue 004 T3) — an honest
+        // None, never a fabricated row.
+        let modelless = if spec.modelless_lane {
+            let inp = ModellessInput {
+                spec,
+                suite: &prepared.suite,
+                train: &prepared.train,
+                state_strs: &prepared.state_strs,
+                cal_cases: &prepared.cal_cases,
+                cal_state_strs: &prepared.cal_state_strs,
+                labels: &prepared.labels,
+                want_by_type: spec.name == "typed_decisions",
+            };
+            macro_rules! dispatch {
+                ($n:literal) => {
+                    run_modelless::<$n>(&inp)
+                };
+            }
+            let modelless = match prepared.labels.len() {
+                2 => dispatch!(2),
+                3 => dispatch!(3),
+                4 => dispatch!(4),
+                5 => dispatch!(5),
+                6 => dispatch!(6),
+                8 => dispatch!(8),
+                59 => dispatch!(59),
+                77 => dispatch!(77),
+                n => {
+                    errors.push(format!(
+                        "{}: no engine instantiation for {} domains — extend the \
+                         dispatch table in runner.rs",
+                        spec.name, n
+                    ));
+                    continue;
+                }
+            };
+            match modelless {
+                Ok(r) => {
+                    eprintln!(
+                        "    modelless: acc {:.4} · ece(maxp) {:.4} · p50 {:.3} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (modelless): {e}", spec.name));
+                    continue;
+                }
+            }
+        } else {
+            eprintln!(
+                "    modelless: SKIPPED — LLM-lane only (Issue 004 T3: no KV \
+                 cache in the modelless lane)"
+            );
+            None
+        };
+
+        // Laya lane.
+        let mut laya_results = BTreeMap::new();
+        if !opts.skip_laya {
+            for ck in laya_checkpoints_for(spec.name) {
+                eprintln!("    laya[{ck}]: running…");
+                match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions) {
+                    Ok(r) => {
+                        eprintln!(
+                            "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                            r.hard.accuracy,
+                            r.hard.ece,
+                            r.latency_p50_ms,
+                            (r.seconds * 10.0).round() / 10.0
+                        );
+                        laya_results.insert((*ck).to_string(), r);
+                    }
+                    Err(e) => {
+                        // Honest absence: weights missing / feature off —
+                        // recorded, never silently skipped.
+                        errors.push(format!("{} (laya/{ck}): {e}", spec.name));
+                    }
+                }
+            }
+        }
+
+        results.push(SuiteResult {
+            name: spec.name.to_string(),
+            n_cases: prepared.suite.cases.len(),
+            n_questions,
+            modelless,
+            laya: laya_results,
+        });
+    }
+
+    let meta = RunMeta {
+        date_utc: iso8601_utc(),
+        git_sha: git_sha().unwrap_or_else(|| "unknown".to_string()),
+        host: hostname(),
+        profile: if cfg!(debug_assertions) {
+            "dev".to_string()
+        } else {
+            "release".to_string()
+        },
+        laya_feature,
+        laya_max_questions: opts.laya_max_questions,
+        datasets_dir: opts.datasets_dir.display().to_string(),
+        corpus_protocol: "one engine domain per label; corpus = train-split docs of that \
+                          label, capped per label (registry), self-doc fallback for \
+                          labels absent from the fetched train rows"
+            .to_string(),
+        calibration_protocol: "sigmoid-gate fit on a train-tail calibration slice (same \
+                               builder over the train rows); fused-gate thresholds fitted \
+                               per suite at the cal-slice 30th percentile (the T1.6 arena \
+                               posture rho=30%; the birth constants do not transfer — \
+                               measured: 100% abstain on several suites at defaults); \
+                               raw-vs-calibrated readout ECE compared per the G1 gate; \
+                               no calibration claim when the calibrator never moved"
+            .to_string(),
+        floor_definition: "conformal-naive floor = split-conformal recalibration of the raw \
+                           readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — \
+                           the exchangeability-valid baseline (G1 fails unless the \
+                           calibrated ECE beats it)"
+            .to_string(),
+        determinism_scoping: "the bit-identity claim is the MODELLESS lane's (plan caveat 3); \
+                              the laya lane gets the same observed repeat check and it is \
+                              reported, not claimed"
+            .to_string(),
+        divergences: vec![
+            "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
+             both lanes see byte-identical questions, which is the integrity that matters"
+                .to_string(),
+            "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); \
+             PolyAI/banking77 is script-based and unservable"
+                .to_string(),
+            "engine context = state + prompt (wire criteria None) — the modelless \
+             serving path"
+                .to_string(),
+            "harness families (Issue 004, Research 579): in-process synthetic \
+             fixtures with programmatic gold; harness_cache_reuse is LLM-lane \
+             only (the modelless lane has no KV cache) and reports a loud \
+             SKIPPED absence without the laya-riir feature"
+                .to_string(),
+        ],
+    };
+
+    Ok((
+        RunOutput {
+            meta,
+            suites: results,
+        },
+        errors,
+    ))
+}
+
+// ── table rendering ─────────────────────────────────────────────────────
+
+fn fmt4(x: f64) -> String {
+    format!("{x:.4}")
+}
+
+fn fmt_opt(x: Option<f64>) -> String {
+    x.map_or("—".to_string(), fmt4)
+}
+
+/// Render the run as markdown (`TABLES.md`).
+#[must_use]
+/// The gate-fit table cell (Issue 009 T2/T3): the fitted pair + the
+/// support disclosure, `thin → defaults` when the cal slice was too small,
+/// `—` on lanes that fit no gates.
+fn fmt_gate_fit(r: &LaneResult) -> String {
+    let Some(rec) = &r.threshold_recommendation else {
+        return "—".to_string();
+    };
+    match (&rec.score, &rec.distance) {
+        (Some(s), Some(d)) => format!(
+            "s {} / d {} (n {})",
+            fmt4(f64::from(s.threshold)),
+            fmt4(f64::from(d.threshold)),
+            s.support.n
+        ),
+        _ => "thin → defaults".to_string(),
+    }
+}
+
+pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
+    let mut s = String::new();
+    s.push_str("# Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)\n\n");
+    s.push_str(&format!(
+        "- run: `{}` on `{}` ({}) · profile {} · laya feature {}\n",
+        out.meta.git_sha, out.meta.host, out.meta.date_utc, out.meta.profile, out.meta.laya_feature
+    ));
+    if out.meta.laya_feature {
+        s.push_str(
+            "- laya posture: PRE-MOVE BASELINE — `src/laya` is scheduled to move to the \
+             riir-infer repo (008 T4); the laya columns pin the pre-move tree at the sha above\n",
+        );
+        if out.meta.laya_max_questions > 0 {
+            s.push_str(&format!(
+                "- laya cap: {} questions per checkpoint — PARTIAL run; the laya `n` columns \
+                 reflect the cap and are NOT comparable row-wise against the modelless `n` columns\n",
+                out.meta.laya_max_questions
+            ));
+        }
+    }
+    s.push_str(&format!(
+        "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
+        out.meta.corpus_protocol,
+        out.meta.calibration_protocol,
+        out.meta.floor_definition,
+        out.meta.determinism_scoping
+    ));
+    for d in &out.meta.divergences {
+        s.push_str(&format!("- divergence: {d}\n"));
+    }
+    s.push('\n');
+
+    if !errors.is_empty() {
+        s.push_str("## Absences / errors (honest — never silently dropped)\n\n");
+        for e in errors {
+            s.push_str(&format!("- {e}\n"));
+        }
+        s.push('\n');
+    }
+
+    for suite in &out.suites {
+        s.push_str(&format!(
+            "## {} — {} cases / {} questions\n\n",
+            suite.name, suite.n_cases, suite.n_questions
+        ));
+        let Some(m) = &suite.modelless else {
+            if suite.laya.is_empty() {
+                s.push_str(
+                    "> modelless lane: SKIPPED — LLM-lane only (Issue 004 T3: the \
+                     modelless lane has no KV cache; compile with `--features laya-riir`).\n\n",
+                );
+            } else {
+                s.push_str(
+                    "> modelless lane: SKIPPED — LLM-lane only (the modelless lane has no \
+                     KV cache, so it has no honest answer for this family); the laya lane \
+                     answered below.\n\n",
+                );
+            }
+            if !suite.laya.is_empty() {
+                s.push_str("| lane · model | n | acc | ECE(maxp) | readout-ECE | p50 | p99 (support) | det |\n");
+                s.push_str("|---|---|---|---|---|---|---|---|\n");
+                for (ck, r) in &suite.laya {
+                    s.push_str(&format!(
+                        "| laya · {ck} | {} | {} | {} | {} | {:.1} ms | {:.1} ms ({}) | {} |\n",
+                        r.hard.n,
+                        fmt4(r.hard.accuracy),
+                        fmt4(r.hard.ece),
+                        fmt_opt(r.readout_ece),
+                        r.latency_p50_ms,
+                        r.latency_p99_ms,
+                        r.latency_tail_support,
+                        r.determinism_ok
+                            .map_or("—", |ok| if ok { "✓" } else { "✗" }),
+                    ));
+                }
+            } else {
+                s.push_str("(no lane produced a result — see the absences section)\n");
+            }
+            s.push('\n');
+            continue;
+        };
+        s.push_str(
+            "| lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |\n",
+        );
+        s.push_str("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
+        s.push_str(&format!(
+            "| modelless | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2}/{:.2} | {} | {:.3} ms | {:.3} ms ({}) | {} | {} |\n",
+            m.hard.n,
+            fmt4(m.hard.accuracy),
+            fmt4(m.hard.macro_f1),
+            fmt4(m.hard.ece),
+            fmt4(m.hard.brier),
+            fmt4(m.hard.nll),
+            fmt4(m.hard.aurc),
+            fmt4(m.hard.acc_at_50_coverage),
+            fmt_opt(m.readout_ece),
+            m.raw_abstain.as_ref().map_or(0.0, |a| a.abstain_rate),
+            m.calibrated_abstain.as_ref().map_or(0.0, |a| a.abstain_rate),
+            m.calibrated_abstain
+                .as_ref()
+                .map_or("—".to_string(), |a| fmt4(a.selective_accuracy)),
+            m.latency_p50_ms,
+            m.latency_p99_ms,
+            m.latency_tail_support,
+            m.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            fmt_gate_fit(m),
+        ));
+        for (ck, r) in &suite.laya {
+            s.push_str(&format!(
+                "| laya · {ck} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {:.1} ms ({}) | {} | — |\n",
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                r.latency_p99_ms,
+                r.latency_tail_support,
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
+        if suite.laya.is_empty() {
+            s.push_str("| laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |\n");
+        }
+
+        // G1 table (modelless only).
+        if let (Some(raw), Some(cal), Some(floor), Some(pass)) = (
+            m.readout_ece_raw,
+            m.readout_ece_calibrated,
+            m.floor_ece,
+            m.g1_pass,
+        ) {
+            s.push_str(&format!(
+                "\n**G1 (modelless readout ECE):** raw {} · calibrated {} · conformal-naive floor {} → **{}** ({} of the uncalibrated output AND the floor)\n",
+                fmt4(raw),
+                fmt4(cal),
+                fmt4(floor),
+                if pass { "PASS" } else { "FAIL" },
+                if pass { "beats both" } else { "does not beat both" }
+            ));
+        }
+
+        // typed_decisions extras.
+        if suite.name == "typed_decisions" {
+            if let Some(m) = suite.modelless.as_ref() {
+                s.push_str(&format!(
+                    "\n**typed-decisions extras (modelless):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n\n",
+                    fmt_opt(m.soft_acc),
+                    fmt_opt(m.brier_soft),
+                    fmt_opt(m.score_mae),
+                    fmt_opt(m.within_1)
+                ));
+                if let Some(by) = &m.by_question_type {
+                    s.push_str("| model | type | n | acc | ECE(maxp) | mean conf |\n|---|---|---|---|---|---|\n");
+                    for (t, h) in by {
+                        s.push_str(&format!(
+                            "| modelless | {t} | {} | {} | {} | {} |\n",
+                            h.n,
+                            fmt4(h.accuracy),
+                            fmt4(h.ece),
+                            fmt4(h.mean_confidence)
+                        ));
+                    }
+                    for (ck, r) in &suite.laya {
+                        if let Some(by) = &r.by_question_type {
+                            for (t, h) in by {
+                                s.push_str(&format!(
+                                    "| laya·{ck} | {t} | {} | {} | {} | {} |\n",
+                                    h.n,
+                                    fmt4(h.accuracy),
+                                    fmt4(h.ece),
+                                    fmt4(h.mean_confidence)
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            for (ck, r) in &suite.laya {
+                s.push_str(&format!(
+                    "**typed-decisions extras (laya·{ck}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
+                    fmt_opt(r.soft_acc),
+                    fmt_opt(r.brier_soft),
+                    fmt_opt(r.score_mae),
+                    fmt_opt(r.within_1)
+                ));
+            }
+        }
+        if suite.name == "sst5"
+            && let Some(m) = suite.modelless.as_ref()
+        {
+            s.push_str(&format!(
+                "\n**sst5 score metrics (modelless):** MAE {} · within_1 {}\n",
+                fmt_opt(m.score_mae),
+                fmt_opt(m.within_1)
+            ));
+        }
+        s.push('\n');
+    }
+    s
+}
+
+// ── misc ────────────────────────────────────────────────────────────────
+
+fn iso8601_utc() -> String {
+    let secs = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |d| d.as_secs());
+    let days = secs / 86_400;
+    let rem = secs % 86_400;
+    let (h, mi, se) = (rem / 3600, (rem % 3600) / 60, rem % 60);
+    // civil-from-days (Howard Hinnant's algorithm).
+    let z = i64::try_from(days).unwrap_or(0) + 719_468;
+    let era = z.div_euclid(146_097);
+    let doe = z.rem_euclid(146_097);
+    let yoe = (doe - doe / 1460 + doe / 36_524 - doe / 146_096) / 365;
+    let y = yoe + era * 400;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = if m <= 2 { y + 1 } else { y };
+    format!("{y:04}-{m:02}-{d:02}T{h:02}:{mi:02}:{se:02}Z")
+}
+
+fn git_sha() -> Option<String> {
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--short", "HEAD"])
+        .output()
+        .ok()?;
+    let s = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if s.is_empty() { None } else { Some(s) }
+}
+
+fn hostname() -> String {
+    std::process::Command::new("uname")
+        .arg("-n")
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string())
+}
+
+#[cfg(test)]
+mod threshold_migration_tests {
+    //! Issue 009 T2 — the byte-identical migration arm. The runner's old
+    //! inline `quantile` law is the frozen oracle here (deleted from the
+    //! production path by the migration); the surface's Percentile posture
+    //! and thin-support fallback must reproduce it exactly.
+
+    use super::*;
+    use crate::engine::THIN_SUPPORT_FLOOR;
+
+    /// The runner's pre-T2 `quantile`, frozen verbatim (the migration
+    /// oracle — T1's `percentile_parity_with_the_harness_quantile_law`
+    /// gate pins the same law from the engine side).
+    fn old_quantile_law(sample: &[f32], q: f64) -> f32 {
+        let mut s = sample.to_vec();
+        s.sort_by(|a, b| a.total_cmp(b));
+        if s.is_empty() {
+            return 0.0;
+        }
+        let idx = ((s.len() as f64) * q) as usize;
+        s[idx.min(s.len() - 1)]
+    }
+
+    fn obs(scores: &[f32]) -> Vec<GateObservation> {
+        scores
+            .iter()
+            .map(|&s| GateObservation {
+                score: s,
+                correct: true,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn percentile_surface_matches_the_frozen_runner_law() {
+        let fixtures: Vec<Vec<f32>> = vec![
+            (0..16).map(|i| 0.01 + i as f32 * 0.06).collect(), // n=16 boundary
+            (0..64).map(|i| 0.02 + i as f32 * 0.015).collect(),
+            vec![0.5f32; 40], // all-ties
+            {
+                let mut v = (0..32).map(|i| i as f32 * 0.03).collect::<Vec<_>>();
+                v[7] = f32::NAN; // NaN sorts above +inf under total_cmp
+                v
+            },
+        ];
+        for scores in fixtures {
+            let o = obs(&scores);
+            let rec = recommend_fused_gate(&o, &o, Posture::Percentile { rho: 0.30 });
+            let want = old_quantile_law(&scores, 0.30);
+            assert_eq!(
+                rec.score.unwrap().threshold.to_bits(),
+                want.to_bits(),
+                "score axis, n={}",
+                scores.len()
+            );
+            assert_eq!(
+                rec.distance.unwrap().threshold.to_bits(),
+                want.to_bits(),
+                "distance axis, n={}",
+                scores.len()
+            );
+        }
+    }
+
+    #[test]
+    fn thin_support_falls_back_to_the_birth_constants() {
+        // n = THIN_SUPPORT_FLOOR - 1 == the old `confs.len() < 16` arm.
+        let scores: Vec<f32> = (0..(THIN_SUPPORT_FLOOR - 1) as i32)
+            .map(|i| 0.05 + i as f32 * 0.05)
+            .collect();
+        let o = obs(&scores);
+        let rec = recommend_fused_gate(&o, &o, Posture::Percentile { rho: 0.30 });
+        assert!(rec.score.is_none() && rec.distance.is_none());
+        let defaults = EngineConfig::default();
+        assert_eq!(
+            rec.score
+                .map_or(defaults.score_threshold, |r| r.threshold)
+                .to_bits(),
+            defaults.score_threshold.to_bits()
+        );
+        assert_eq!(
+            rec.distance
+                .map_or(defaults.distance_threshold, |r| r.threshold)
+                .to_bits(),
+            defaults.distance_threshold.to_bits()
+        );
+    }
+
+    #[test]
+    fn n_equal_floor_fits() {
+        let scores: Vec<f32> = (0..THIN_SUPPORT_FLOOR as i32)
+            .map(|i| 0.05 + i as f32 * 0.05)
+            .collect();
+        let o = obs(&scores);
+        let rec = recommend_fused_gate(&o, &o, Posture::Percentile { rho: 0.30 });
+        assert!(rec.score.is_some() && rec.distance.is_some());
+    }
+}

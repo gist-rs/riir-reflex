@@ -1,0 +1,35 @@
+# Plan 606 T1.6 — THIRD_PARTY_LICENSES.md generation config, the cargo-heal
+# Plan-105 shape. Scope = the SHIPPING feature set (default `modelless` +
+# `laya-riir` — the candle-free cut, `.issues/006`); the `targets` table is
+# the release matrix (v0.2.0: the cargo-zigbuild cross set).
+#
+# A dependency whose license is not in `accepted` FAILS generation — that is
+# the compliance gate (loud, not silently skipped). Extend only after a human
+# reads the license. The laya tree's additions (tokenizers, gemm, libm,
+# rayon, ...) resolve to the already-accepted ids except where noted at
+# first generation — candle and its dep tree left the set with the candle
+# lane's removal.
+accepted = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Zlib",
+    "MPL-2.0",
+    "CC0-1.0",
+    "OpenSSL",
+    "CDLA-Permissive-2.0",
+]
+
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-musl",
+    "aarch64-unknown-linux-musl",
+    "x86_64-pc-windows-gnu",
+]

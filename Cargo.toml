@@ -1,0 +1,172 @@
+[package]
+name = "riir-reflex"
+version = "0.2.0"
+edition = "2024"
+license = "MIT"
+description = "Decision-engine serving + comparison + contribution (Plan 603 / Proposal 014 Phase 1): the modelless lane over katgpt_core::decision_wire, the laya comparison lane, and the honest-metrics harness."
+repository = "https://github.com/gist-rs/riir-reflex"
+homepage = "https://github.com/gist-rs/riir-reflex"
+publish = false
+
+[workspace]
+
+[dependencies]
+# The ONE code-level dep (BOUNDARY.md): the modelless substrate.
+# serde + postcard ride its non-optional deps; serde_json below is the
+# HTTP/JSON edge only.
+katgpt-core = { path = "../katgpt-rs/crates/katgpt-core", default-features = false }
+# preserve_order: the laya lane renders Python dicts whose INSERTION ORDER is
+# the option order (label indices shift if reordered — parity-critical).
+serde_json = { version = "1", features = ["preserve_order"] }
+# serde + derive: the /feedback envelope at the HTTP edge (already in-tree
+# via katgpt-core's non-optional serde — no new package; edge-only by law).
+serde = { version = "1", features = ["derive"] }
+
+# ── laya lane (opt-in `laya-riir`; the candle reference lane was removed by
+# .issues/006, owner directive 2026-09-22 — no candle dep anywhere) ────────
+# The HF fast-tokenizer implementation as a Rust crate — loads the pinned
+# BPE tokenizer.json files directly (the capture ran the same library via
+# transformers' fast backend). **v1 attempted + measured NEGATIVE
+# (`.issues/006` T3, 2026-09-22):** 1.0.0-rc.2 refuses the pinned
+# english/typed tokenizers at load — their GPT-2-family vocabs genuinely
+# lack 14 ByteLevel byte atoms (`j`, `}`, `~`, `²`…), which 0.22 tolerates
+# lazily; the v1 loader validates all 256 up front (and needs the tk-convert
+# v1→v2 in-memory pass besides). Reopen trigger: tokenizers 1.0.0 stable (or
+# an rc relaxing the byte-atom strictness) — re-run G5 at both postures
+# then. The candle-unification rationale for the 0.22 pin died with the
+# candle lane; the version itself stays on measured grounds.
+tokenizers = { version = "0.22", optional = true }
+# SHA-256: the WEIGHT pins are SHA-256 (the HF LFS oids) — verification
+# target, not a house-hash choice; blake3 pins the small files (house law).
+sha2 = { version = "0.10", optional = true }
+blake3 = { version = "1", optional = true }
+# The GEMM kernel for the riir-owned forward (`.issues/002`): pure Rust, 0.18
+# line. Was version-matched to candle's CPU backend to share one build — the
+# match rationale died with the candle lane (.issues/006 T5); the version may
+# float now, and ANY bump re-runs G5 at both postures before publishing (the
+# gate law: bit-parity is verified, never assumed across gemm releases).
+gemm = { version = "0.18", optional = true, features = ["rayon"] }
+# libm::erff for the riir gelu (`.issues/003`): the same crate + version
+# candle-core's CPU gelu called — bit-identical gelu, so the G5 drift budget
+# is spent on op order, not an erf approximation (the A&S f64 path measured
+# 1.4e-2–3.5e-2 prob drift). This pin is NUMERICS, not build-sharing — it
+# stays pinned with the candle lane gone (.issues/006 T5).
+libm = { version = "0.2", optional = true }
+# The Apple Metal backend of the riir-owned forward (`laya-riir-metal`,
+# `.issues/005`): MSL kernels transcribed from candle's metal-kernel approach
+# (their A&S erf included — copy, don't invent). `objc2` supplies the
+# autoreleasepool every dispatch drains into. macOS-only by construction —
+# never in the release feature set (the release matrix ships linux/windows).
+# Version-matching to candle's lock died with the candle lane (.issues/006
+# T5); float freely, G5 re-run on any bump.
+metal = { version = "0.29", optional = true }
+objc2 = { version = "0.6", optional = true }
+[features]
+# The Proposal 014 Phase-1 modelless decision engine (Plan 603 T1.3) is the
+# product of this repo and ships default-on the way an application crate's
+# own domain ships default-on (the riir-clippy `clippy_lints`/`dist`
+# precedent) — the GOAT discipline binds the engine's CLAIMS (G1 calibration
+# vs floors, G2/G4 gates land WITH the lane), not whether the binary exists.
+# `--no-default-features` is the tested flag-OFF posture (empty-ish lib, no
+# bin — the [[bin]] row carries required-features).
+default = ["modelless"]
+modelless = [
+    "katgpt-core/action_bridge",
+    "katgpt-core/sigmoid_calibration",
+    "katgpt-core/distance_abstain",
+    "katgpt-core/compression_drafter",
+    "katgpt-core/variable_rank_domain_expert",
+    "katgpt-core/decision_wire",
+]
+# The riir-OWNED forward — the ONE laya backend since the candle removal
+# (.issues/006, owner directive 2026-09-22 "no candle at all cost"): the
+# model math over our own flat-Vec tensor code; `gemm` is the ONE kernel dep
+# (`.issues/002`). Owns the laya substrate outright (tokenizers / config /
+# weights-download / render — the any(laya, laya-riir) split died with the
+# candle lane).
+laya-riir = ["dep:tokenizers", "dep:sha2", "dep:blake3", "dep:gemm", "dep:libm"]
+# The riir forward's OWN Metal backend (.issues/005, owner directive: the
+# fair three-way compare is all-Metal): `LAYA_DEVICE=metal` is HONORED by
+# the riir lane — fail loud when the feature/platform is absent. G5 parity
+# must be green at THIS posture before any riir-Metal number is published.
+laya-riir-metal = ["laya-riir", "dep:metal", "dep:objc2"]
+
+[[bin]]
+name = "riir-reflex"
+path = "src/bin/riir-reflex.rs"
+required-features = ["modelless"]
+
+# The Plan 603 T1.5 harness runner — CI-regenerated tables live here.
+[[bin]]
+name = "harness"
+path = "src/bin/harness.rs"
+required-features = ["modelless"]
+
+# Repo-birth gate discipline (Plan 603 T1.1e): every gated target carries its
+# required-features row in the SAME commit it lands. `engine_gates` opens with
+# #![cfg(feature = "modelless")] — without this row a --no-default-features
+# run would print `ok. 0 passed`, exit 0, byte-for-byte a real pass.
+[[test]]
+name = "engine_gates"
+required-features = ["modelless"]
+
+# The riir-owned backend's G5 gate (twin of the deleted candle lane's
+# `laya_parity`, `.issues/006`): the SAME fixture corpus + expected capture
+# over `RiirAgent` — no number from the lane is published before this is
+# green. The frozen captures in tests/fixtures/ ARE the reference now.
+[[test]]
+name = "laya_riir_parity"
+required-features = ["laya-riir"]
+
+# TEMPORARY debug harness (`.issues/005` T4 debugging) — delete or promote
+# before the lane lands.
+[[test]]
+name = "metal_ops_smoke"
+required-features = ["laya-riir-metal"]
+
+# The HTTP-edge CORS seam (Phase 2 T1.2): both directions of the
+# allow-list, preflight + ACAO echo, and the closed-by-default posture.
+[[test]]
+name = "serve_cors"
+required-features = ["modelless"]
+
+# Issue 004 (Research 579) T6: the six harness decision-point families —
+# count floors, slice disjointness, gold/option agreement, determinism,
+# G2 latency, and the cache_reuse loud-skip contract.
+[[test]]
+name = "harness_families_gates"
+required-features = ["modelless"]
+
+[[bench]]
+name = "decision_set_goat"
+path = "benches/decision_set_goat.rs"
+harness = false
+required-features = ["modelless"]
+
+# Issue 004 T6: G2 (p99 per family decision set ≤ 1 ms, tail support
+# printed) + G4 (alloc-free core, canary-first) over the family engines —
+# the decision_set_goat law applied to the six-point families.
+[[bench]]
+name = "harness_families_goat"
+path = "benches/harness_families_goat.rs"
+harness = false
+required-features = ["modelless"]
+
+# The laya parity test is GEMM-bound inside the riir forward's `gemm` calls;
+# the local code is only orchestration. Optimizing DEPENDENCIES in the dev
+# profile keeps a plain `cargo test --features laya-riir` within minutes
+# instead of ~an hour of opt-0 matmuls, without touching local-code
+# debuggability.
+[profile.dev.package."*"]
+opt-level = 2
+
+# The shipped-binary profile (the cargo-heal lesson): NOT [profile.release]
+# on purpose — `cargo bench` inherits release, and the G2 latency gate must
+# measure a speed-optimized build, not an opt-for-size one. Strip + fat LTO
+# + one codegen unit is the release-artifact posture; the leak scan and the
+# remap-path-prefix RUSTFLAGS live in scripts/build-release.sh.
+[profile.dist]
+inherits = "release"
+lto = "fat"
+codegen-units = 1
+strip = true
