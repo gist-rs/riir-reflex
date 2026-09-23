@@ -289,11 +289,27 @@ forward), all-heads batched attention (`matmul_kt_heads`/`matmul_heads`/
 GEMM (32×32 tile · 16 simdgroups/threadgroup · TBS=33 staging · b_cs≠1
 takes the coalesced transposed-B path · guarded per-simdgroup edge stores),
 and row-parallel softmax/LN (one simdgroup per row). Measured: riir Metal
-**28.3/28.1/12.6** row p50 — beats torch MPS on multilingual, matches
-candle Metal on english/typed (README table updated same day). Long-seq
-harness suites moved ag_news 107→38 ms · banking77 206→99 ms vs py 32/62;
-the recorded next rung there is a flash-attention-style fused kernel (the
-heads·seq² scores materialization is the remaining traffic). A literal
+**28.3/28.3/12.2** row p50 — beats torch MPS on multilingual, matches
+candle Metal on english/typed (README table updated same day). The
+follow-up pass (`4ef290c`, 2026-09-24) rebuilt the sgemm as TWO instances
+picked per-call by `m` — narrow `sgemm` (32×64 tiles · 512 threads ·
+column-twin accs) below m ≥ 256, wide `sgemm_wide` (64×64 · 1024 threads ·
+row-twin accs) above — interleaved A/B: banking77 (seq ~317) 95→80 ms
+(−16%), ag_news (seq ~106) 38→36 ms, fixtures neutral. THE MEASURED TRAPS,
+both paid for: (a) a staging stride must EXCEED the staged tile's row width
+— the [32][64] B tile at stride 33 overlaps itself (row kk's column 63 =
+row kk+1's column 30) and corrupts half the output in a pattern that twice
+read as a "hardware mystery" before the identity-matrix block map pinned
+it; (b) the fused flash-attention kernel was BUILT, MEASURED, and REVERTED
+the same day — at the lane's real sequence lengths (fixture p50 ~100
+tokens, banking77 p50 ~317, measured, not guessed) the materialized score
+parent costs ~3 ms of an 86 ms forward while K/V re-reads (⌈seq/BQ⌉×)
+outweigh it below BQ=32; the `Backend::attention_forward` seam it needed
+STAYS (default body = the exact CPU op sequence through the trait's own op
+methods — the one op-order home). Remaining vs the python subprocess
+oracle (their full-table run): fixtures 28.3 vs 25.7 ms · banking77 80 vs
+70 ms — the residual is in-kernel sgemm efficiency; recorded next rungs:
+BK=64 staging, the BQ≥32 fused-attention revival. A literal
 per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
 shape on the gate corpus.
 

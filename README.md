@@ -166,13 +166,13 @@ typed-decisions extras (the specialist's own axis, calibrated probs): laya·type
 soft_acc 0.4668 · brier_soft 0.0677 · score MAE 0.2424 · within_1 0.995 — vs
 modelless soft_acc 0.3168 · brier_soft 0.2436 · MAE 0.7272 · within_1 0.724.
 
-**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the kernel-ladder pass):**
+**Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the kernel-ladder pass `374d9af` + the two-instance sgemm `4ef290c`):**
 
 | checkpoint | python torch MPS (row p50) | rust candle Metal (row p50) | rust riir Metal (row p50, candle-free) |
 |---|---|---|---|
 | english | **25.7 ms** | 31.1 ms | 28.3 ms |
-| typed | **25.5 ms** | 31.2 ms | 28.1 ms |
-| multilingual | 16.2 ms | 18.7 ms | **12.6 ms** |
+| typed | **25.5 ms** | 31.2 ms | 28.3 ms |
+| multilingual | 16.2 ms | 18.7 ms | **12.2 ms** |
 
 The fair compare the owner asked for — every lane on the same GPU
 (`.issues/005`). v1 (one 16×16-tiled GEMM + per-op command buffers) landed
@@ -181,14 +181,23 @@ command buffer (commit at the three host reads + a 1024-encode pipeline
 flush), ALL-heads batched attention (one dispatch per op instead of one per
 head), a simdgroup GEMM (32×32 tile, 16 simdgroups/threadgroup, coalesced
 staging incl. the Wᵀ/Kᵀ shapes, guarded edge stores), and row-parallel
-softmax/LN (one simdgroup per row). Result: riir Metal went 79.0/78.7/38.5
-→ 28.3/28.1/12.6 ms — beats torch MPS on multilingual, matches candle Metal
-on english/typed (whose numbers are frozen v1 — their kernels were already
-simdgroup-class). G5 parity green at BOTH postures after the change (drift
-within the 1e-3 budget; the CPU lane is bit-identical). The recorded next
-rung for the long-sequence harness suites (ag_news 107→38 ms, banking77
-206→99 ms vs the site's py 32/62) is a flash-attention-style fused kernel
-that never materializes the heads·seq² scores.
+softmax/LN (one simdgroup per row) → 28.3/28.1/12.6 ms; the two-instance
+sgemm (`4ef290c`: a 32×64 narrow + a 64×64 wide kernel — row-twin and
+column-twin accumulator shapes, two staged tiles per threadgroup, picked
+by `m ≥ 256`) held english/typed and moved multilingual → 28.3/28.3/12.2 ms.
+A flash-attention-style fused kernel was BUILT, MEASURED, and REVERTED the
+same day: at the lane's real sequence lengths (fixture p50 ~100 tokens,
+banking77 p50 ~317) the materialized score parent costs only ~3 ms of an
+86 ms forward while the fused form's K/V re-reads (⌈seq/BQ⌉×) outweigh it
+below BQ=32 — the geometry worth reviving if a long-sequence workload ever
+makes attention the term that matters. What DID move the long-sequence
+suites is the wide sgemm instance: interleaved same-box A/B, banking77
+(seq ~317) 95→80 ms (−16%), ag_news (seq ~106) 38→36 ms (python oracle:
+36/70 ms — ag_news now TIED, banking77 1.14× behind, the residual is
+in-kernel sgemm efficiency; the recorded next rungs are BK=64 staging and
+the BQ≥32 fused-attention revival). G5 parity green at BOTH postures
+throughout (prob drift 2.2e-6, top-1 1.000000; the CPU lane is
+bit-identical).
 
 ```mermaid
 xychart-beta
@@ -197,7 +206,7 @@ xychart-beta
     y-axis "ms" 0 --> 90
     bar [25.7, 25.5, 16.2]
     line [31.1, 31.2, 18.7]
-    line [28.3, 28.1, 12.6]
+    line [28.3, 28.3, 12.2]
 ```
 
 (bar = torch MPS · dashed line 1 = candle Metal · dashed line 2 = riir
