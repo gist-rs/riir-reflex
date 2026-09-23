@@ -10,6 +10,12 @@ already closed with records only in git history.
 
 ## 2026-09-23
 
+- **crates.io publication DEFERRED (owner-gates menu v2 row 2):** no
+  `cargo publish` until an external adopter asks. The binary funnel already
+  serves distribution (GitHub releases + brew tap + scoop bucket, all
+  live-verified through v0.2.2), and the door stays open: `katgpt-core` — the
+  one code-level dep — ships to crates.io, so a future publish needs no
+  sibling-strip. Record-only; nothing to execute.
 - **Issue 012 — the laya-python reference lane** CLOSED at `67470be`.
   The bench tables gain the ORIGINAL torch reference as a measurement-only
   subprocess oracle (`scripts/laya_python_lane.py`, harness
