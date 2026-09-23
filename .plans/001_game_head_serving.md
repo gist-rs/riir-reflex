@@ -49,15 +49,19 @@ not a copied weight table.
   decoded features); fixture parsing; the published fit recipe
   (Standardizer + LOO λ select + final fit over
   `katgpt_core::state_option_scoring::head`); `GameHeads::build()`.
+  LANDED `367766c` — the fit reproduces the published anchors
+  bit-identically (serving head digest `00aa6221…c6e`).
 - [x] T2 — the serve path: the modelless `/decide` branch tries
   `GameHeads` before the cosine engine (question-pinned, grammar-invalid
   → fall through → abstain); wire response = `Outcome::Noul` +
   `probabilities[0]` (clamped p) + routing reason `game-head/tetris`.
+  LANDED `367766c`.
 - [x] T3 — tests `tests/game_heads_serve.rs`: fixture BLAKE3 pins; corpus
   round-trip (2660/2660 decode → re-render byte-identical); fit
   bit-determinism; the published agreement anchors (44/120 in+LOO at
   λ=1); serve-wire tests (hit p, abstain paths, question mismatch,
-  validate_against).
+  validate_against). LANDED `367766c` — 6/6 green; full local guard
+  PASSED (7 layers) with the G5 parity green at BOTH postures.
 - [x] T4 — Metal-default for the laya lane: on macOS with
   `laya-riir-metal` compiled, unset `LAYA_DEVICE` → Metal (the measured
   ~2× forward, the arena watchability lever); explicit `cpu` opts out;
