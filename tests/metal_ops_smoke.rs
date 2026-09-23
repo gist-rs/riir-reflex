@@ -88,6 +88,34 @@ fn metal_ops_match_cpu_op_by_op() {
         report("matmul_kt", &sc, &sync_out(&m, &sm), 1e-3);
     }
 
+    // The batched-head attention ops (the forward's ONE-dispatch-per-op
+    // path). Ragged seq on purpose: 37 walks every sgemm edge tile.
+    {
+        let (seq, heads, hd) = (37usize, 4usize, 64usize);
+        let q = vec_of(heads * seq * hd);
+        let k = vec_of(heads * seq * hd);
+        let mut sc = vec![0f32; heads * seq * seq];
+        let mut sm = vec![0f32; heads * seq * seq];
+        c.matmul_kt_heads(&q, &k, heads, seq, hd, &mut sc);
+        m.matmul_kt_heads(&q, &k, heads, seq, hd, &mut sm);
+        report("matmul_kt_heads", &sc, &sync_out(&m, &sm), 1e-3);
+
+        let v = vec_of(heads * seq * hd);
+        let probs = vec_of(heads * seq * seq);
+        let mut cc = vec![0f32; heads * seq * hd];
+        let mut cm = vec![0f32; heads * seq * hd];
+        c.matmul_heads(&probs, &v, heads, seq, seq, hd, &mut cc);
+        m.matmul_heads(&probs, &v, heads, seq, seq, hd, &mut cm);
+        report("matmul_heads", &cc, &sync_out(&m, &cm), 1e-3);
+
+        let mask = vec_of(seq * seq);
+        let mut xc = probs.clone();
+        let mut xm = probs.clone();
+        c.add_mask_broadcast(&mut xc, &mask, heads);
+        m.add_mask_broadcast(&mut xm, &mask, heads);
+        report("add_mask_broadcast", &xc, &sync_out(&m, &xm), 1e-6);
+    }
+
     // Elementwise.
     let n = 1000;
     let x = vec_of(n);

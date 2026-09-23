@@ -181,21 +181,14 @@ impl Head {
             b.split_heads(&qkv, 3 * d, d, seq, heads, hd, &mut k);
             b.split_heads(&qkv, 3 * d, 2 * d, seq, heads, hd, &mut v);
             // torch's need_weights path scales q by sqrt(1/head_dim) before
-            // the matmul.
+            // the matmul. All heads in ONE backend op (one dispatch under
+            // Metal; the CPU lane loops per head identically to v1).
             b.scale(&mut q, scale);
             let mut scores = vec![0f32; heads * seq * seq];
-            for head in 0..heads {
-                let qb = head * seq * hd;
-                let sb = head * seq * seq;
-                b.matmul_kt(&q, qb, seq, hd, &k, qb, &mut scores, sb);
-            }
+            b.matmul_kt_heads(&q, &k, heads, seq, hd, &mut scores);
             b.softmax_rows(&mut scores, seq);
             let mut ctx = vec![0f32; heads * seq * hd];
-            for head in 0..heads {
-                let sb = head * seq * seq;
-                let vb = head * seq * hd;
-                b.matmul(&scores, sb, seq, seq, &v, vb, hd, &mut ctx, vb);
-            }
+            b.matmul_heads(&scores, &v, heads, seq, seq, hd, &mut ctx);
             let mut merged = vec![0f32; seq * d];
             b.merge_heads(&ctx, seq, heads, hd, &mut merged);
             let mut attn_out = vec![0f32; seq * d];

@@ -57,6 +57,43 @@ pub trait Backend {
     /// projections; whole buffers, no offsets.
     fn matmul_w(&self, a: &[f32], m: usize, k: usize, w: &[f32], n: usize, dst: &mut [f32]);
 
+    /// Batched over heads in ONE backend op:
+    /// `dst[h·m·m ..] ← q[h·m·hd ..] @ k[h·m·hd ..]ᵀ` for every `h < heads`
+    /// (q/k row-major `[heads, m, hd]`, dst `[heads, m, m]`) — the
+    /// attention score loop as one dispatch on the device backends. The
+    /// CPU lane keeps the identical per-head op order (bit-unchanged
+    /// numerics).
+    #[allow(clippy::too_many_arguments)]
+    fn matmul_kt_heads(
+        &self,
+        q: &[f32],
+        k: &[f32],
+        heads: usize,
+        m: usize,
+        hd: usize,
+        dst: &mut [f32],
+    );
+
+    /// Batched over heads in ONE backend op:
+    /// `dst[h·m·n ..] ← a[h·m·k ..] @ b[h·k·n ..]` (dst `[heads, m, n]`) —
+    /// the attention context loop.
+    #[allow(clippy::too_many_arguments)]
+    fn matmul_heads(
+        &self,
+        a: &[f32],
+        b: &[f32],
+        heads: usize,
+        m: usize,
+        k: usize,
+        n: usize,
+        dst: &mut [f32],
+    );
+
+    /// `x[r] += mask[r % mask.len()]` over the whole `heads·mask.len()`
+    /// scores parent — the attention mask broadcast for every head in one
+    /// op (candle's broadcast_add: adding 0.0 to allowed entries is exact).
+    fn add_mask_broadcast(&self, x: &mut [f32], mask: &[f32], heads: usize);
+
     /// x[x_off..x_off + len] += y[y_off..y_off + len]. Operands are WHOLE
     /// parent buffers + offsets (the mask add targets one head's slab of
     /// the scores parent).
@@ -192,6 +229,35 @@ impl Backend for Cpu {
         let q = &q[q_off..q_off + m * hd];
         let k = &k[k_off..k_off + m * hd];
         super::ops::matmul_kt_into(q, m, hd, k, &mut dst[dst_off..dst_off + m * m]);
+    }
+
+    fn matmul_kt_heads(
+        &self,
+        q: &[f32],
+        k: &[f32],
+        heads: usize,
+        m: usize,
+        hd: usize,
+        dst: &mut [f32],
+    ) {
+        super::ops::matmul_kt_heads(q, k, heads, m, hd, dst);
+    }
+
+    fn matmul_heads(
+        &self,
+        a: &[f32],
+        b: &[f32],
+        heads: usize,
+        m: usize,
+        k: usize,
+        n: usize,
+        dst: &mut [f32],
+    ) {
+        super::ops::matmul_heads(a, b, heads, m, k, n, dst);
+    }
+
+    fn add_mask_broadcast(&self, x: &mut [f32], mask: &[f32], heads: usize) {
+        super::ops::add_mask_broadcast(x, mask, heads);
     }
 
     fn add(&self, x: &mut [f32], x_off: usize, y: &[f32], y_off: usize, len: usize) {
