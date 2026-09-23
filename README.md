@@ -68,6 +68,25 @@ call the engine from a browser. `cargo-heal`-style staleness guard: a
 binary built without the full release set says so on `--version`
 (`release set: STALE — missing …` + the rebuild command).
 
+### The laya lane over HTTP (opt-in)
+
+The comparison lane is compiled into the release binary but OFF at runtime.
+Start with `RIIR_REFLEX_LAYA=1` and the english checkpoint loads in a
+background thread at boot (first start downloads ~650 MB from HF,
+SHA-256-verified, cached under `~/.cache/riir-reflex/laya`); `/healthz`
+reports `lanes: {modelless, laya}` with the laya state `off | loading |
+ready | failed`.
+
+`/decide` accepts an `X-Reflex-Lane: laya` header. The lane is served by
+the same G5-parity forward the benches measure, through a one-thread actor
+(the `RiirAgent` backend is `!Send`; forwards serialize — one model, one
+forward at a time). Every non-ready state answers FAIL-CLOSED (`503` naming
+`RIIR_REFLEX_LAYA=1`, `503 loading`, `500` with the load failure) — never a
+silent modelless fallback, because a silently-served wrong lane would poison
+the arena's per-lane claims. Responses carry `routing.lane: "laya"` + the
+applied temperature in `calibration`. This is what powers the live games at
+[reflex.gist.rs/arena](https://reflex.gist.rs/arena/).
+
 Release builds on this box (manual, Plan-105 posture; non-host triples
 route through cargo-zigbuild):
 

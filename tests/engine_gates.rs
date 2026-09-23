@@ -373,10 +373,15 @@ fn http_edge_contract() {
         let _ = riir_reflex::serve::serve_listener(listener, eng);
     });
 
-    // Liveness.
+    // Liveness: JSON with the lane map (the arena page's lane discovery —
+    // `laya` reads off/loading/ready/failed; a bare-"ok" engine predates the
+    // lane edge).
     let (status, body) = http_get(port, "/healthz");
     assert_eq!(status, 200);
-    assert_eq!(body, "ok");
+    assert_eq!(
+        body,
+        "{\"status\":\"ok\",\"lanes\":{\"modelless\":\"ready\",\"laya\":\"off\"}}"
+    );
 
     // The full decision path through the edge.
     let req = sample_request();

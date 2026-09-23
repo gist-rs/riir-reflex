@@ -4,7 +4,7 @@
 //! drive-by posture. No process-global env mutation: the explicit allow-list
 //! seam (`serve_listener_with`) is the surface under test.
 
-use riir_reflex::serve::{demo_engine, serve_listener_with};
+use riir_reflex::serve::{demo_engine, serve_listener_with, LayaLane};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
@@ -13,8 +13,9 @@ fn spawn(allow: Vec<String>) -> String {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
     let addr = listener.local_addr().expect("addr").to_string();
     let eng = Arc::new(Mutex::new(demo_engine()));
+    let laya = Arc::new(Mutex::new(LayaLane::Off));
     std::thread::spawn(move || {
-        let _ = serve_listener_with(listener, eng, allow);
+        let _ = serve_listener_with(listener, eng, laya, allow);
     });
     addr
 }
