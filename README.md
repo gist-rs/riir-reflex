@@ -1,7 +1,8 @@
 # riir-reflex
 
 Decision-engine serving + comparison + contribution — the Proposal 014
-Phase 1 deliverable (Plan 603). Private (Research 003); do not publish.
+Phase 1 deliverable (Plan 603). Open source under the Research 003
+amendment (the sanctioned exception, owner directive 2026-09-22); MIT.
 
 **Status (2026-09-22): Phase 1 COMPLETE** — T1.1–T1.8 all landed. The
 engine serves typed decisions (`choice` / `score` / `noul`, abstention
@@ -28,7 +29,8 @@ cargo test                                     # the gates
 ## Install (binary-only distribution, Plan 606)
 
 Public releases live at [`gist-rs/reflex`](https://github.com/gist-rs/reflex)
-(source stays private here per Research 003); the homebrew tap and scoop
+(this source repo is public under the same amendment — the dist repo stays
+the binary-only install surface); the homebrew tap and scoop
 bucket carry the same archives — the FULL cargo-heal-matching matrix:
 macOS aarch64 + x86_64 · linux musl x86_64 + aarch64 · windows
 x86_64-pc-windows-gnu. The shipped feature set is `modelless + laya-riir`

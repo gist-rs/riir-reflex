@@ -47,7 +47,9 @@ LANDED katgpt-rs substrate — `decision_wire` requests (`choice`/`score`/
 
 Spawned by `../katgpt-rs/.proposals/014_katgpt_decision_engine_site.md`,
 executed by `../katgpt-rs/.plans/603_reflex_phase1_engine_harness.md`.
-**Private forever** per katgpt-rs Research 003.
+Was **Private forever** per katgpt-rs Research 003 — opened public
+2026-09-23 as one of the first sanctioned exceptions (Research 003's
+dated amendment, owner directive 2026-09-22).
 
 ## Sibling-Repo Layout
 

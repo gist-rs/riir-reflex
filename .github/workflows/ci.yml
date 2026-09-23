@@ -1,0 +1,41 @@
+name: ci
+
+on:
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  cargo:
+    name: check / clippy / test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: checkout the public sibling (path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: katopz/katgpt-rs
+          ref: develop
+          path: katgpt-rs
+      - name: place the sibling at the layout path
+        run: |
+          mkdir -p "${{ github.workspace }}/../katgpt-rs"
+          cp -R "${{ github.workspace }}/katgpt-rs/." \
+                "${{ github.workspace }}/../katgpt-rs/"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: cargo check (all features)
+        # compiles the laya lane (the comparison lane compiles without the
+        # HF weights — only its tests need them at runtime)
+        run: cargo check --all-features
+      - name: cargo clippy (all targets)
+        run: cargo clippy --all-targets -- -D warnings
+      - name: cargo test (modelless gates, release)
+        # --release is the repo's own gate law: the latency gates (G2
+        # harness_tool_fit) measure an unoptimised binary in a debug build.
+        # The laya parity gate needs the downloaded weights at runtime and
+        # stays a workstation lane (`--features laya-riir`).
+        run: cargo test --release

@@ -51,9 +51,9 @@ directive — the laya lane is the native-Rust port, cost accepted).
 strip. **Amended 2026-09-22** (owner directive, recorded in Research 003's
 dated amendment + riir-ai Issue 998 / this repo's Issue 008): this repo is
 one of the FIRST SANCTIONED EXCEPTIONS — directed to open source. The
-opening (P4/T6) executes owner-gated, behind T5's fence (CI grep on
-cognition/game/router imports + the docs-sanitize checklist); until then
-`publish = false` stays and the private posture holds.
+opening (P4/T6) executed 2026-09-23 on the owner green-light: the repo is
+public; `publish = false` stays until the owner decides crates.io
+publication.
 
 ## Does not own
 
