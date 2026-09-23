@@ -1,3 +1,4 @@
+#![cfg(feature = "modelless")]
 //! Known-answer unit tests for the harness metrics + suite builders
 //! (Plan 603 T1.5 slice 1). The modules are consumed through the crate
 //! (the wiring is live since the runner slice landed).
@@ -5,6 +6,11 @@
 //! Every expected number below is hand-computed and hard-coded (or rebuilt
 //! from the same f64 expression the implementation uses, where the value is
 //! transcendental), per the task's known-answer discipline.
+//!
+//! (The runner slice imports gated code; the file-level gate + the paired
+//! `required-features` row in Cargo.toml are the repo-birth discipline —
+//! without them a `--no-default-features` run died at import resolution
+//! instead of skipping loud.)
 
 use riir_reflex::harness::metrics::*;
 use riir_reflex::harness::suites::*;

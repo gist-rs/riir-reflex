@@ -137,6 +137,14 @@ required-features = ["laya-riir-metal"]
 name = "serve_cors"
 required-features = ["modelless"]
 
+# The Plan 603 T1.5 known-answer units — imports the gated runner slice,
+# so it carries the repo-birth pair (file-level #![cfg] in the file + this
+# row) that lets a --no-default-features run skip loud instead of dying at
+# import resolution.
+[[test]]
+name = "harness_units"
+required-features = ["modelless"]
+
 # Issue 004 (Research 579) T6: the six harness decision-point families —
 # count floors, slice disjointness, gold/option agreement, determinism,
 # G2 latency, and the cache_reuse loud-skip contract.
