@@ -411,6 +411,9 @@ struct Req {
     origin: Option<String>,
     /// `X-Reflex-Lane` — the lane hint for `/decide` (`laya` | `modelless`).
     lane: Option<String>,
+    /// `Access-Control-Request-Private-Network: true` — Chromium's PNA
+    /// preflight for a public page reaching a local address.
+    pna_requested: bool,
 }
 
 fn read_request(reader: &mut BufReader<TcpStream>) -> std::io::Result<Option<Req>> {
@@ -424,6 +427,7 @@ fn read_request(reader: &mut BufReader<TcpStream>) -> std::io::Result<Option<Req
     let mut content_length = 0usize;
     let mut origin = None;
     let mut lane = None;
+    let mut pna_requested = false;
     loop {
         let mut h = String::new();
         if reader.read_line(&mut h)? == 0 {
@@ -441,6 +445,10 @@ fn read_request(reader: &mut BufReader<TcpStream>) -> std::io::Result<Option<Req
                 origin = Some(value.to_string());
             } else if name.eq_ignore_ascii_case("x-reflex-lane") {
                 lane = Some(value.to_ascii_lowercase());
+            } else if name.eq_ignore_ascii_case("access-control-request-private-network")
+                && value.eq_ignore_ascii_case("true")
+            {
+                pna_requested = true;
             }
         }
     }
@@ -450,6 +458,7 @@ Ok(Some(Req {
     content_length,
     origin,
     lane,
+    pna_requested,
 }))
 }
 
@@ -496,8 +505,19 @@ fn handle_conn<const N: usize, const D: usize>(
         // is the arena playground; anything else is drive-by).
         ("OPTIONS", _) => match cors {
             Some(o) => {
+                // Private Network Access: a public (https) page fetching a
+                // local address makes Chromium send the PNA preflight header;
+                // the engine must consent or the browser blocks the request
+                // (measured live: prod page → loopback engine denied without
+                // it). Consented ONLY alongside an allow-listed origin — the
+                // drive-by posture stays closed.
+                let pna = if req.pna_requested {
+                    "Access-Control-Allow-Private-Network: true\r\n"
+                } else {
+                    ""
+                };
                 let head = format!(
-                    "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: {o}\r\nVary: Origin\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Reflex-Lane\r\nAccess-Control-Max-Age: 86400\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+                    "HTTP/1.1 204 No Content\r\nAccess-Control-Allow-Origin: {o}\r\nVary: Origin\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type, X-Reflex-Lane\r\n{pna}Access-Control-Max-Age: 86400\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
                 );
                 let _ = writer.write_all(head.as_bytes());
                 let _ = writer.flush();
