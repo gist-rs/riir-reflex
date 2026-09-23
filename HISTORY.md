@@ -254,7 +254,10 @@ already closed with records only in git history.
   FAIL→PASS is its mined-source questions moving with the day's edits.
   `route_scale` became `EngineConfig.route_scale` (default 8.0 unchanged);
   the synthetic-family sweep probe measured FLAT — promotion declined,
-  evidence in issue 013. Latency refresh run (17:21Z, quiet box): typed
-  rust p50 1164 ms, typed/english 1069 ms, accuracy bit-identical on every
-  lane across both same-day runs. Issue 013 (accuracy levers) filed;
+  evidence in issue 013. Latency refresh runs (17:21Z quiet; committed
+  artifacts are the 18:09Z isolated-worktree re-run `83173e5` after a
+  sibling's 2-suite re-run clobbered the first run's working-tree
+  artifacts — tree restored, no data lost; typed rust p50 1164/1312 ms
+  across the two readings), accuracy bit-identical on every lane across
+  all three same-day runs. Issue 013 (accuracy levers) filed;
   levers 1/3 open, lever 2 recorded dead-on-this-evidence.

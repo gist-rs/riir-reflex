@@ -537,4 +537,14 @@ The remains from the issue-012 session, landed in one run
 
 Run identity: 15/15 suites, no absences, exit 0; rust ≡ python on
 accuracy at every suite/checkpoint (the issue-012 equivalence holding on
-the refresh too). Wall ~32 min detached (23:49-00:21 local).
+the refresh too). Two same-class readings: the 17:21Z run (typed rust
+p50 1164 ms) whose working-tree artifacts were then CLOBBERED by a
+sibling session's 2-suite re-run five minutes later — the committed
+artifacts (`83173e5`) are the 18:09Z isolated-worktree re-run (clean
+`aa37823` sources, typed rust p50 1312 ms against a concurrent
+riir-shader wasm build), accuracy bit-identical to the first on every
+lane. Both readings are PRE-ladder: the sibling's riir-Metal kernel
+ladder landed as `374d9af` immediately after, so the laya latency
+columns are stale-by-progress and the next harness run reads faster
+lanes (their fixture-corpus probe measured 2.7-3.0×; the harness suites
+re-measure it on their own schedule).

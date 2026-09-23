@@ -141,20 +141,21 @@ Protocol + divergences: [`laya_bench_protocols.md`](.docs/laya_bench_protocols.m
 
 Headline (accuracy per suite; modelless vs the BEST laya checkpoint;
 accuracy is bit-identical across the 09-23 runs — deterministic lanes —
-and the latency rows are the 17:21Z refresh; the first typed/english
-reading at 16:00Z was load-inflated by a sibling release build):
+and the latency rows are the committed 18:09Z refresh run `83173e5`;
+BOTH same-day readings predate the sibling's riir-Metal kernel ladder
+`374d9af`, so the laya latency columns are stale-by-progress):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
-| typed_decisions | 2000 | 0.3190 | **0.7445** (`typed`) | 0.6 ms | 1164 ms |
+| typed_decisions | 2000 | 0.3190 | **0.7445** (`typed`) | 0.5 ms | 1312 ms |
 | ag_news | 400 | 0.5100 | **0.9500** | 0.2 ms | 116 ms |
-| emotion | 400 | 0.2825 | **0.5925** | 0.1 ms | 70 ms |
-| sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 79 ms |
-| prompt_injections | 116 | 0.4397 | **0.6983** | 0.1 ms | 78 ms |
-| xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 94 ms |
-| massive_intent_en | 300 | 0.0767 | **0.7500** | 0.1 ms | 140 ms |
-| banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 257 ms |
-| code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 263 ms |
+| emotion | 400 | 0.2825 | **0.5925** | 0.1 ms | 66 ms |
+| sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 88 ms |
+| prompt_injections | 116 | 0.4397 | **0.6983** | 0.1 ms | 88 ms |
+| xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 99 ms |
+| massive_intent_en | 300 | 0.0767 | **0.7500** | 0.1 ms | 159 ms |
+| banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 249 ms |
+| code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,
