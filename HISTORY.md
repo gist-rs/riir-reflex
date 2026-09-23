@@ -10,6 +10,24 @@ already closed with records only in git history.
 
 ## 2026-09-23
 
+- **Plan 001 — the fitted game head served over HTTP + the Metal-default
+  laya lane + release v0.2.2** LANDED (`367766c` + `932a2a3`, tag
+  `v0.2.2`). The arena's modelless board plays Tetris out of the box: the
+  decoded Bench-881 head (λ=1, 44/120 in+LOO — katgpt-rs's published
+  anchors, reproduced bit-identically by `tests/game_heads_serve.rs`;
+  serving head digest `00aa6221…c6e`) is boot-fitted from the verbatim
+  BLAKE3-pinned fixture copy and answers the pinned spot question on
+  `/decide` before the cosine engine's honest abstain. Lanes + flappy
+  stay abstains with measured reasons (cross-lane features 6–7 / v2
+  render) — unblock paths in `.issues/011`. The laya lane defaults to
+  Metal on macOS metal builds (`LAYA_DEVICE=cpu` opts out); G5 green at
+  both postures; fresh interleaved 78.1 vs 176.8 ms row p50 (2.26×).
+  Release: 6 assets, leak-scan PASS ×5, host + 4090 windows smoke
+  (byte-identical head answer), brew/scoop bumped (audit clean),
+  installers teach the `reflex` rename with a pre-v0.2.2 pin fallback
+  (both paths live-verified), site copy deployed (b09bffb / e6ac2ce8).
+  Plan: `.plans/001_game_head_serving.md`.
+
 - **Issue 004 — the Jev harness decision-point map** CLOSED (T1/T2/T4/T5
   landed 2026-09-22 at `e4bf657`-window commits; T3 THIS COMMIT — the
   completion its deferral named). T3 (the cache-reuse `noul` lane,

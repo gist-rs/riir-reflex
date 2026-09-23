@@ -1,6 +1,6 @@
 # Plan 001 — the fitted game head served over HTTP (the arena's modelless lane plays)
 
-**Status:** IN PROGRESS — T1–T3 landed, T4–T9 open.
+**Status:** COMPLETE — 2026-09-23, same day. Serving lane + Metal default + the v0.2.2 cut all landed and deployed; issue 011 carries the two remaining boards' unblock paths.
 
 The Plan 607 follow-up the release session decision-listed: the arena's
 modelless board "honestly abstains here and falls back to a random spot"
@@ -69,14 +69,23 @@ not a copied weight table.
   `--all-features` test suites green (61 lib + all integration incl. the
   G5 parity at BOTH postures); the G2/G4 engine-core benches untouched
   (the game-heads path is boot+edge, not the engine core).
-- [ ] T6 — release v0.2.2: darwin artifacts gain `laya-riir-metal`
+- [x] T6 — release v0.2.2: darwin artifacts gain `laya-riir-metal`
   (the stamp check is missing-subset — unaffected); licenses regen; leak
-  scan; host + 4090 smoke; GitHub release; brew/scoop/hash bumps.
-- [ ] T7 — site text: the modelless board now plays Tetris out of the box
-  (v0.2.2); flappy/lanes abstain notes stay honest.
-- [ ] T8 — docs: AGENTS.md + README + HISTORY; the katgpt-rs consumption
-  row (Plan 607 heads now have a serving consumer).
-- [ ] T9 — follow-up issue 011: the lanes + flappy unblock paths.
+  scan PASS ×5; host smoke (healthz / game-head 200 / abstain honest /
+  laya ready at device=metal) + 4090 windows smoke (byte-identical head
+  answer) PASS; GitHub release live with 6 assets; brew tap resolves
+  0.2.2 hash-verified + audit clean; scoop manifest bumped; install.sh /
+  install.ps1 handle the v0.2.2 `reflex` rename with a pre-v0.2.2 pin
+  fallback (both paths live-verified); dist repo README command copies
+  updated.
+- [x] T7 — site copy + deploy (b09bffb, version e6ac2ce8): the modelless
+  board plays Tetris out of the box (v0.2.2), Metal-default laya note,
+  `reflex` launch command, the tetris explain blurb updated; golden
+  tests + demo check still PASS; prod curl-verified on all three
+  surfaces.
+- [x] T8 — docs: AGENTS.md + README + HISTORY rows; this plan.
+- [x] T9 — follow-up issue 011 filed (the lanes + flappy unblock paths,
+  with the acceptance law: no serving from an unmeasured fit).
 
 ## Anchors (pinned in tests)
 

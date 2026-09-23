@@ -120,7 +120,24 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   release — until the dist-side follow-ups land, existing archives still carry `riir-reflex`:
   gist-rs/reflex `install.sh`/`install.ps1` (binary filename inside the archive), the tap
   formula's `bin.install` target, the scoop manifest (`bucket/riir-reflex.json` → the exe
-  name), and reflex-site's launch-command copy.
+  name), and reflex-site's launch-command copy. **ALL DISCHARGED in v0.2.2 (2026-09-23,
+  `367766c`+`932a2a3` + tap `d60e40d` + bucket `75d2878` + dist `ba750f4`)** — the v0.2.2
+  archives carry `reflex`; the installers accept BOTH spellings (pre-v0.2.2 pins keep
+  installing `riir-reflex`), both paths live-verified.
+- **v0.2.2 live (2026-09-23)** — the fitted game head + Metal-default laya (Plan 001,
+  `.plans/001_game_head_serving.md`): the modelless lane answers Plan 607's Tetris spot
+  question from the decoded Bench-881 head (λ=1, 44/120 in+LOO anchors pinned in
+  `tests/game_heads_serve.rs`; head digest `00aa6221…c6e`), boot-fitted from the verbatim
+  BLAKE3-pinned fixture copy (`assets/game_heads/`); the serve edge tries the head before
+  the cosine engine's abstain (grammar-invalid / foreign question / non-noul all fall
+  through — `src/game_heads.rs` `respond`). Lanes + flappy stay honest abstains with
+  recorded unblock paths (`.issues/011`). Darwin release artifacts carry `laya-riir-metal`
+  and the laya lane defaults to Metal on those builds (`LAYA_DEVICE=cpu` opts out; G5
+  parity green at BOTH postures — 29 s metal vs 219 s cpu on this box; fresh interleaved
+  row p50 78.1 vs 176.8 ms = 2.26×). Release surface: GitHub release v0.2.2 (6 assets,
+  leak-scan PASS ×5), host + 4090 windows smoke (byte-identical head answer), brew tap
+  resolves 0.2.2 hash-verified + audit clean, scoop bumped, site copy deployed and
+  curl-verified.
 - **CORS seam** (`src/serve.rs`): `RIIR_REFLEX_ALLOWED_ORIGIN` allow-list gates OPTIONS
   preflight + ACAO echo; default CLOSED (no ACAO — drive-by posture). The arena site prints
   the exact launch command. 7 tcp-level tests both directions (`tests/serve_cors.rs`);

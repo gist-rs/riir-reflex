@@ -35,9 +35,12 @@ bucket carry the same archives — the FULL cargo-heal-matching matrix:
 macOS aarch64 + x86_64 · linux musl x86_64 + aarch64 · windows
 x86_64-pc-windows-gnu. The shipped feature set is `modelless + laya-riir`
 (since v0.2.0, the candle-free cut — the candle reference lane was removed
-entirely) — the comparison lane rides the binary, its model weights do NOT
-ride the archives (runtime HF download, SHA-256-verified, cached under
-`~/.cache/riir-reflex/laya`).
+entirely) with the darwin artifacts adding `laya-riir-metal` (since v0.2.2,
+the Metal-default watchability lane) — the comparison lane rides the
+binary, its model weights do NOT ride the archives (runtime HF download,
+SHA-256-verified, cached under `~/.cache/riir-reflex/laya`). The installed
+COMMAND is `reflex` (v0.2.2 rename; the formula/scoop/package names stay
+`riir-reflex`).
 
 ```sh
 # macOS / Linux
@@ -86,6 +89,22 @@ silent modelless fallback, because a silently-served wrong lane would poison
 the arena's per-lane claims. Responses carry `routing.lane: "laya"` + the
 applied temperature in `calibration`. This is what powers the live games at
 [reflex.gist.rs/arena](https://reflex.gist.rs/arena/).
+
+The device is Metal on macOS metal builds by default (v0.2.2 — the measured
+~2× per-forward gain; `LAYA_DEVICE=cpu` opts out, an explicit env value is
+always honored verbatim).
+
+### The fitted game head (Tetris, default-on)
+
+The modelless lane answers Plan 607's Tetris spot question ("Does the stack
+look clean?") from the **decoded Bench-881 corpus-fitted head** — boot-
+fitted from the verbatim BLAKE3-pinned copy of the katgpt-rs oracle fixture
+(the published fit: λ=1, in-corpus 44/120, LOO 44/120 — 2.7× the random-
+spot fallback). The head serves BEFORE the cosine engine falls through:
+grammar-invalid states, foreign questions and non-noul kinds all decline to
+the honest abstain. This is what makes the arena's modelless Tetris board
+play out of the box. Lanes + flappy still abstain (`.issues/011` records
+the unblock paths — no serving from an unmeasured fit).
 
 Release builds on this box (manual, Plan-105 posture; non-host triples
 route through cargo-zigbuild):
