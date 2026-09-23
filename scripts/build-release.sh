@@ -65,6 +65,26 @@ for target in "$@"; do
     SRC_BIN="$REPO_ROOT/target/$target/dist/$EXE"
     [ -f "$SRC_BIN" ] || { echo "error: built binary missing: $SRC_BIN" >&2; exit 1; }
 
+    # [profile.dist] strip = true is honored by Apple ld64 (the host link)
+    # and by zig's gnu-flavor ld (musl) but NOT reliably by zig's Mach-O
+    # ld — measured v0.2.1: the x86_64-apple-darwin cross link kept its
+    # symbol table (Onig data + rust_eh_personality) while the v0.2.0 cut
+    # of the same manifest stripped clean. Strip Mach-O artifacts
+    # explicitly (idempotent; __mh_execute_header is the stripped
+    # baseline's one defined symbol) so the leak-scan gate's premise
+    # holds by construction, and verify.
+    case "$target" in
+        *darwin*)
+            SYMS=$(nm "$SRC_BIN" 2>/dev/null | grep -c -E '^[0-9a-f]{8,} [TDB]' || true)
+            if [ "$SYMS" -gt 1 ]; then
+                strip "$SRC_BIN"
+                SYMS=$(nm "$SRC_BIN" 2>/dev/null | grep -c -E '^[0-9a-f]{8,} [TDB]' || true)
+                echo "   stripped: $target (defined syms now $SYMS)"
+                [ "$SYMS" -le 1 ] || { echo "error: strip failed to clear $SRC_BIN" >&2; exit 1; }
+            fi
+            ;;
+    esac
+
     STAGE="$PKG_DIR/$BIN_NAME-v$VERSION-$target"
     rm -rf "$STAGE"; mkdir -p "$STAGE"
     cp "$SRC_BIN" "$STAGE/$EXE"
