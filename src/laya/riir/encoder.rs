@@ -257,22 +257,36 @@ impl Encoder {
             b.apply_rope(&mut sc.k, seq, heads, hd, &rope.0, &rope.1);
 
             // scores [heads, seq, seq] = (q / √hd) @ kᵀ per head — the
-            // reference scales q BEFORE the matmul (torch MHA and SDPA
-            // both). All heads in ONE backend op (one dispatch under
-            // Metal; the CPU lane loops per head identically to v1).
+            // reference scales q BEFORE the matmul (torch MHA and SDPA both).
             b.scale(&mut sc.q, scale);
             sc.scores.resize(heads * seq * seq, 0.0);
-            b.matmul_kt_heads(&sc.q, &sc.k, heads, seq, hd, &mut sc.scores);
+            for head in 0..heads {
+                let qb = head * seq * hd;
+                let sb = head * seq * seq;
+                // Whole parents + offsets: the Metal chain cache keeps ONE
+                // device slot per parent (sc.q / sc.k / sc.scores) and binds
+                // the per-head offset at encode time.
+                b.matmul_kt(&sc.q, qb, seq, hd, &sc.k, qb, &mut sc.scores, sb);
+            }
             if let (true, Some(mask)) = (layer.sliding, mask.as_ref()) {
                 // The [seq, seq] mask broadcasts over heads (candle's
                 // broadcast_add): adding 0.0 to allowed entries is exact.
-                b.add_mask_broadcast(&mut sc.scores, mask, heads);
+                for head in 0..heads {
+                    let sb = head * seq * seq;
+                    // Whole scores parent + per-head offset (the mask is the
+                    // same [seq, seq] slab for every head).
+                    b.add(&mut sc.scores, sb, mask, 0, seq * seq);
+                }
             }
             b.softmax_rows(&mut sc.scores, seq);
 
             // ctx [heads, seq, hd] = probs @ v per head, then merge heads.
             sc.ctx.resize(heads * seq * hd, 0.0);
-            b.matmul_heads(&sc.scores, &sc.v, heads, seq, seq, hd, &mut sc.ctx);
+            for head in 0..heads {
+                let sb = head * seq * seq;
+                let vb = head * seq * hd;
+                b.matmul(&sc.scores, sb, seq, seq, &sc.v, vb, hd, &mut sc.ctx, vb);
+            }
             b.merge_heads(&sc.ctx, seq, heads, hd, &mut sc.merged);
             b.matmul_w(&sc.merged, seq, d, &layer.wo, d, &mut sc.attn_out);
             let h_len = h.len();

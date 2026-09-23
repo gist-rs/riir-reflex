@@ -280,22 +280,10 @@ Tracked is EXPLICIT; layer-0's host copy reading stale residual bytes —
 now a device-side `copy_into`). The fair all-Metal three-way (Bench 001
 addendum 6, same-session interleaved): torch MPS 25.7/25.5/16.2 · candle
 Metal 31.1/31.2/18.7 · riir Metal 79.0/78.7/38.5 row p50 — the honest
-naive-v1 baseline (2.5× behind candle's MLX simdgroup kernels).
-**The ladder was CLIMBED 2026-09-24** (G5 green both postures after):
-ONE pass-scoped command buffer (commit at the three host reads + a
-1024-encode pipeline-flush cap — v1 committed ~600–1400 per-op CBs per
-forward), all-heads batched attention (`matmul_kt_heads`/`matmul_heads`/
-`add_mask_broadcast` — one dispatch per op, not one per head), a simdgroup
-GEMM (32×32 tile · 16 simdgroups/threadgroup · TBS=33 staging · b_cs≠1
-takes the coalesced transposed-B path · guarded per-simdgroup edge stores),
-and row-parallel softmax/LN (one simdgroup per row). Measured: riir Metal
-**28.3/28.1/12.6** row p50 — beats torch MPS on multilingual, matches
-candle Metal on english/typed (README table updated same day). Long-seq
-harness suites moved ag_news 107→38 ms · banking77 206→99 ms vs py 32/62;
-the recorded next rung there is a flash-attention-style fused kernel (the
-heads·seq² scores materialization is the remaining traffic). A literal
-per-op commit+wait measured 0.59 ms/dispatch — 19× slower than the lazy
-shape on the gate corpus.
+naive-v1 baseline (2.5× behind candle's MLX simdgroup kernels); the
+optimization ladder (persistent activations, fused chains, simdgroup
+GEMM) measures against it. A literal per-op commit+wait measured 0.59
+ms/dispatch — 19× slower than the lazy shape on the gate corpus.
 
 The GLU trap worth remembering: the fused Wi output is `[rows, 2I]` — the
 activation MUST be written to its own contiguous buffer, or the next

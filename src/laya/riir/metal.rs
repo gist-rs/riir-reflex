@@ -10,96 +10,65 @@
 //!   is compared against, and it passes the G5 ≤ 1e-3 gate with exactly
 //!   this kernel. The CPU lane keeps `libm::erff` (`.issues/003`) — each
 //!   lane matches the candle posture it mirrors.
-//! - **candle's flush shape, per PASS** — ops ENCODE into one pass-scoped
-//!   command buffer and commit WITHOUT waiting; the wait happens only when
-//!   the host genuinely reads a result ([`Backend::download_into`]: the
-//!   scorer logits, the CLS row, the act logits — three syncs per forward).
-//!   The v1 shape committed a fresh command buffer PER OP (~600–1400
-//!   commits/forward — measured the lane's dominant overhead); the pass
-//!   buffer plus a 1024-encode pipeline-flush cap keeps a long pass under
-//!   Metal's per-buffer encoder ceiling without ever waiting mid-pass.
-//!   A literal commit+wait per op measured 0.59 ms of round-trip per
-//!   dispatch × ~1100 dispatches/forward — 2.5 s/forward, pure sync
-//!   overhead. Device memory is the single writer between syncs — forward
-//!   bodies never read op outputs host-side except through
-//!   `download_into`.
+//! - **candle's own flush shape (lazy sync)** — ops ENCODE into per-op
+//!   command buffers and commit WITHOUT waiting; the wait happens only
+//!   when the host genuinely reads a result ([`Backend::download_into`]:
+//!   the scorer logits, the CLS row, the act logits — three syncs per
+//!   forward). A literal commit+wait per op measured 0.59 ms of round-trip
+//!   per dispatch × ~1100 dispatches/forward — 2.5 s/forward, pure sync
+//!   overhead; the lazy shape is what candle-core's `Commands` actually
+//!   does (flush at CPU readback) and lands in its latency class.
+//!   Device memory is the single writer between syncs — forward bodies
+//!   never read op outputs host-side except through `download_into`.
 //! - **generation-keyed chain cache** — activations flow device-side, so
 //!   scratch slices are cached by `(ptr, len, generation)` with the
-//!   generation bumped at every pass: host-authored buffers (rope tables,
+//!   generation bumped at every sync: host-authored buffers (rope tables,
 //!   mask, `act_in`) rebuilt at recycled heap addresses can never hit a
 //!   stale entry from an earlier epoch, and the write-first audit of the
 //!   two forward bodies guarantees a hit's device copy is current. True
 //!   weights (agent-owned `Vec`s: every `matmul_w` weight, LN scales,
 //!   biases, the embedding table) live in a permanent cache keyed by
 //!   `(ptr, len)` — stable for the agent's lifetime, uploaded once.
-//! - **one batched simdgroup GEMM** covers all matmul shapes — including
-//!   the all-heads attention batch — via explicit row/column strides plus
-//!   a batch count with per-batch strides. 32×32 output tiles, 16
-//!   simdgroups (512 threads) per threadgroup, `simdgroup_multiply_
-//!   accumulate` over 8×8 frags, threadgroup staging at a 33-float padded
-//!   stride (bank-conflict guard), and a guarded per-simdgroup store path
-//!   for ragged edge tiles. The v1 kernel was a naive 16×16
-//!   one-thread-per-element tile (the recorded honest baseline, ~3.5% of
-//!   peak); this is the recorded optimization ladder climbed.
-//! - **attention is ONE dispatch per op over ALL heads** —
-//!   `matmul_kt_heads` / `matmul_heads` / `add_mask_broadcast` replaced
-//!   the per-head host loops (heads× dispatches of tiny GEMMs per layer).
-//!   The CPU lane keeps the identical per-head op order, so its numerics
-//!   are bit-unchanged.
-//! - **softmax / LN are row-parallel** — one threadgroup (one simdgroup,
-//!   32 lanes) per row with `simd_max`/`simd_sum` reductions; the v1
-//!   kernels ran one thread per row (32× the GPU idle). Reduction order
-//!   differs from the CPU lane's `candle_vec_sum` NEON order — exactly
-//!   the drift budget the G5 gate holds (≤ 1e-3, the same room candle
-//!   Metal passes within).
+//! - **one tiled GEMM kernel** covers all three matmul shapes via explicit
+//!   row/column strides (naive 16×16 tiling — candle's MLX simdgroup kernel
+//!   is out of v1 scope; the chart records the honest baseline).
 //!
 //! Binding contract: every kernel declares `[[buffer(N)]]` /
-//! `[[threadgroup(N)]]` attributes explicitly — device buffers at 0..,
-//! then the 4-byte `constant` scalars, then the GEMM's three staging
-//! buffers — and [`Metal::encode`] binds in exactly that order.
+//! `[[threadgroup(N)]]` attributes explicitly — device buffers at 0.., then
+//! the 4-byte `constant` scalars, then the GEMM's two threadgroup tiles —
+//! and [`Metal::encode`] binds in exactly that order. Reduction order: LN /
+//! softmax sum sequentially per row — GPU kernels cannot replicate the CPU
+//! lane's `candle_vec_sum` NEON order; that reduction-order delta is
+//! exactly the drift budget the G5 gate holds (≤ 1e-3, the same room
+//! candle Metal passes within).
 
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use metal::{Buffer, CommandBuffer, CommandQueue, ComputePipelineState, Device, MTLResourceOptions, MTLSize};
+use metal::{Buffer, CommandQueue, ComputePipelineState, Device, MTLResourceOptions, MTLSize};
 use objc2::rc::autoreleasepool;
 
 use super::super::{LayaError, Result};
 use super::backend::Backend;
 
-/// Shared storage with EXPLICIT tracked hazard tracking: the pipeline
-/// flush commits a full command buffer mid-pass, and Metal only inserts
-/// the cross-command-buffer memory barriers for TRACKED resources. On
-/// macOS the DEFAULT is untracked (so merely dropping the flag changed
-/// nothing — measured), and candle's `HazardTrackingModeUntracked` pairs
-/// with their ONE long-lived command buffer, where intra-buffer encoder
-/// ordering provides the visibility. With multiple committed buffers per
-/// pass, untracked meant kernel N+1 read stale memory written by kernel N
-/// — a timing-dependent race the G5 gate caught. The tracked cost is part
-/// of the honest baseline.
+/// Shared storage with EXPLICIT tracked hazard tracking: our ops commit
+/// PER-OP command buffers, and Metal only inserts the cross-command-buffer
+/// memory barriers for TRACKED resources. On macOS the DEFAULT is
+/// untracked (so merely dropping the flag changed nothing — measured), and
+/// candle's `HazardTrackingModeUntracked` pairs with their ONE long-lived
+/// command buffer, where intra-buffer encoder ordering provides the
+/// visibility. With per-op buffers, untracked meant kernel N+1 read stale
+/// memory written by kernel N — a timing-dependent race the G5 gate
+/// caught. The tracked cost is part of the honest v1 baseline.
 const RESOURCE_OPTIONS: MTLResourceOptions = MTLResourceOptions::StorageModeShared
     .union(MTLResourceOptions::HazardTrackingModeTracked);
 
-/// sgemm tile geometry — MUST mirror the MSL `BM`/`BN`/`BK`/`TBS`
-/// constants below; the `metal_ops_smoke` ragged-shape arms exercise
-/// every edge path this mirroring could get wrong.
-const BM: u32 = 32;
-const BN: u32 = 32;
-/// Padded staging row stride: 33 = 32 + 1 so the transposed-B store
-/// pattern (consecutive lanes, stride-33 rows) never lands a full warp on
-/// one bank.
-const TG_STRIDE: usize = 33;
-/// One staging tile (A or B): 32 rows × 33 floats.
-const TG_TILE_BYTES: u64 = (TG_STRIDE * 32 * std::mem::size_of::<f32>()) as u64;
-/// Per-simdgroup 8×8 staging for the ragged-edge store path (16 simdgroups).
-const TG_EDGE_BYTES: u64 = (16 * 64 * std::mem::size_of::<f32>()) as u64;
-/// Encoders per command buffer before a pipelined (no-wait) flush — keeps
-/// a pass under Metal's per-buffer encoder ceiling without stalling; the
-/// buffers join the committed list and are waited at the next sync.
-const MAX_ENCODERS_PER_CB: u32 = 1024;
+/// GEMM tile edge (threadgroup edge too — one thread per output element).
+const TS: u32 = 16;
 
+/// The compiled-once kernel names (one `.msl` source, one library).
 /// Debug trace flag (`LAYA_METAL_TRACE=1`): log every chain-cache miss.
 fn trace_enabled() -> bool {
     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
@@ -114,7 +83,7 @@ fn next_trace_instance() -> usize {
 }
 
 const KERNELS: &[&str] = &[
-    "sgemm",
+    "gemm_tiled",
     "add",
     "copy",
     "add_bias_row",
@@ -128,7 +97,6 @@ const KERNELS: &[&str] = &[
     "split_heads",
     "merge_heads",
     "gather_rows",
-    "add_mask_bcast",
 ];
 
 /// The MSL source. Sizes fit u32 (every pinned extent < 2³¹); `erf_as` is
@@ -136,17 +104,9 @@ const KERNELS: &[&str] = &[
 /// pointer/scalar argument carries its explicit buffer-space index.
 const MSL: &str = r#"
 #include <metal_stdlib>
-#include <metal_simdgroup_matrix>
 using namespace metal;
 
-// ── sgemm geometry: 32×32 output per threadgroup, 32-deep k stages, 16
-// simdgroups (512 threads), each simdgroup owning one 8×8 block. Staging
-// rows are padded to 33 floats so the transposed-B store pattern cannot
-// hit a same-bank column.
-constant uint BM = 32u;
-constant uint BN = 32u;
-constant uint BK = 32u;
-constant uint TBS = 33u;
+constant uint TS = 16u;
 
 // candle-metal-kernels unary.metal — A&S 7.1.26 f32 erf, their constants.
 inline float erf_as(float x) {
@@ -168,14 +128,10 @@ inline float gelu_as(float x) {
     return x * (1.0f + erf_as(x * 0.70710678f)) / 2.0f;
 }
 
-// out[b][m×n] = A[b][m×k] @ B[b][k×n]; element (i, j) of X at
-// x[i·xrs + j·xcs]; batch b's operands start b·bxs elements in (the
-// batch-1 call sites pass zero batch strides). Row-major B (b_cs == 1)
-// stages coalesced along n; transposed B — the Wᵀ / Kᵀ shapes (b_rs == 1)
-// — along k. Ragged edge tiles route the store through per-simdgroup
-// staging so out-of-range lanes can be masked (the barrier is
-// threadgroup-uniform by construction).
-kernel void sgemm(
+// out[m×n] row-major = A[m×k] @ B[k×n]; element (i, j) of X at
+// x[i·rs + j·cs]. One thread per padded (row, col); 16×16 threadgroup
+// tiles of A and B.
+kernel void gemm_tiled(
     device const float* a [[buffer(0)]],
     device const float* b [[buffer(1)]],
     device float* out [[buffer(2)]],
@@ -186,73 +142,27 @@ kernel void sgemm(
     constant uint& a_cs [[buffer(7)]],
     constant uint& b_rs [[buffer(8)]],
     constant uint& b_cs [[buffer(9)]],
-    constant uint& a_bs [[buffer(10)]],
-    constant uint& b_bs [[buffer(11)]],
-    constant uint& c_bs [[buffer(12)]],
-    threadgroup float* ta [[threadgroup(13)]],
-    threadgroup float* tb [[threadgroup(14)]],
-    threadgroup float* edge [[threadgroup(15)]],
-    uint3 gtp [[threadgroup_position_in_grid]],
-    uint lid [[thread_index_in_threadgroup]])
+    threadgroup float* ta [[threadgroup(10)]],
+    threadgroup float* tb [[threadgroup(11)]],
+    uint2 gid [[thread_position_in_grid]],
+    uint2 lid [[thread_position_in_threadgroup]])
 {
-    const uint m0 = gtp.y * BM;
-    const uint n0 = gtp.x * BN;
-    device const float* A = a + gtp.z * a_bs;
-    device const float* B = b + gtp.z * b_bs;
-    device float* C = out + gtp.z * c_bs;
-
-    const uint sg = lid >> 5u;   // simdgroup id 0..15
-    const uint lane = lid & 31u;
-    const uint sgr = sg >> 2u;   // 8×8 block row 0..3
-    const uint sgc = sg & 3u;    // 8×8 block col 0..3
-
-    simdgroup_float8x8 acc = simdgroup_float8x8(0.0f);
-
-    for (uint t = 0u; t < k; t += BK) {
+    const uint row = gid.y;
+    const uint col = gid.x;
+    float acc = 0.0f;
+    for (uint t = 0u; t < k; t += TS) {
+        ta[lid.y * TS + lid.x] = (row < m && t + lid.x < k)
+            ? a[row * a_rs + (t + lid.x) * a_cs] : 0.0f;
+        tb[lid.y * TS + lid.x] = (t + lid.y < k && col < n)
+            ? b[(t + lid.y) * b_rs + col * b_cs] : 0.0f;
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        // Stage A [BM][BK] and B [BK][BN]: 2 of each 1024 elements per
-        // thread. Element (kk, col) of B always lands at tb[kk·TBS + col];
-        // the two load mappings below both keep consecutive lanes on
-        // consecutive global addresses for their layout.
-        for (uint q = 0u; q < 2u; ++q) {
-            const uint idx = lid + q * 512u;
-            const uint r = idx >> 5u;
-            const uint c = idx & 31u;
-            const uint gr = m0 + r;
-            const uint ac = t + c;
-            ta[r * TBS + c] = (gr < m && ac < k) ? A[gr * a_rs + ac * a_cs] : 0.0f;
-            if (b_cs == 1u) {
-                const uint bc = t + r;
-                tb[r * TBS + c] =
-                    (bc < k && n0 + c < n) ? B[bc * b_rs + n0 + c] : 0.0f;
-            } else {
-                const uint bc = t + c;
-                tb[c * TBS + r] =
-                    (bc < k && n0 + r < n) ? B[bc * b_rs + (n0 + r) * b_cs] : 0.0f;
-            }
+        for (uint l = 0u; l < TS; ++l) {
+            acc += ta[lid.y * TS + l] * tb[l * TS + lid.x];
         }
         threadgroup_barrier(mem_flags::mem_threadgroup);
-        for (uint kk = 0u; kk < BK; kk += 8u) {
-            simdgroup_float8x8 fa, fb;
-            simdgroup_load(fa, ta + sgr * 8u * TBS + kk, TBS);
-            simdgroup_load(fb, tb + kk * TBS + sgc * 8u, TBS);
-            simdgroup_multiply_accumulate(acc, fa, fb, acc);
-        }
     }
-
-    if ((m0 + BM <= m) && (n0 + BN <= n)) {
-        simdgroup_store(acc, C + (m0 + sgr * 8u) * n + (n0 + sgc * 8u), n);
-    } else {
-        simdgroup_store(acc, edge + sg * 64u, 8u);
-        threadgroup_barrier(mem_flags::mem_threadgroup);
-        for (uint q = 0u; q < 2u; ++q) {
-            const uint e = lane + q * 32u;
-            const uint er = e >> 3u;
-            const uint ec = e & 7u;
-            const uint gr = m0 + sgr * 8u + er;
-            const uint gc = n0 + sgc * 8u + ec;
-            if (gr < m && gc < n) { C[gr * n + gc] = edge[sg * 64u + e]; }
-        }
+    if (row < m && col < n) {
+        out[row * n + col] = acc;
     }
 }
 
@@ -312,9 +222,8 @@ kernel void glu_gelu_gate(device const float* fused [[buffer(0)]],
     out[gid] = act * fused[base + i_sz + j];
 }
 
-// One threadgroup (one simdgroup) per row: strided lanes + simd
-// reductions. Mean → centered² → 1/sqrt(var+eps) → (v−mean)·inv·w, the
-// CPU op order; inv_d arrives as the CPU lane's f64-rounded constant.
+// One thread per row: mean → centered² → 1/sqrt(var+eps) → (v−mean)·inv·w,
+// the CPU op order; inv_d arrives as the CPU lane's f64-rounded constant.
 kernel void ln_rows(device const float* x [[buffer(0)]],
                     device const float* w [[buffer(1)]],
                     device float* out [[buffer(2)]],
@@ -322,45 +231,39 @@ kernel void ln_rows(device const float* x [[buffer(0)]],
                     constant uint& d [[buffer(4)]],
                     constant float& inv_d [[buffer(5)]],
                     constant float& eps [[buffer(6)]],
-                    uint tpg [[threadgroup_position_in_grid]],
-                    uint lane [[thread_index_in_threadgroup]]) {
-    if (tpg >= rows) { return; }
-    device const float* row = x + tpg * d;
-    device float* orow = out + tpg * d;
-    float acc = 0.0f;
-    for (uint i = lane; i < d; i += 32u) { acc += row[i]; }
-    const float mean = simd_sum(acc) * inv_d;
-    float vacc = 0.0f;
-    for (uint i = lane; i < d; i += 32u) {
+                    uint gid [[thread_position_in_grid]]) {
+    if (gid >= rows) { return; }
+    device const float* row = x + gid * d;
+    device float* orow = out + gid * d;
+    float mean = 0.0f;
+    for (uint i = 0u; i < d; ++i) { mean += row[i]; }
+    mean *= inv_d;
+    float var = 0.0f;
+    for (uint i = 0u; i < d; ++i) {
         const float c = row[i] - mean;
-        vacc += c * c;
+        var += c * c;
     }
-    const float var = simd_sum(vacc) * inv_d;
+    var *= inv_d;
     const float inv = 1.0f / sqrt(var + eps);
-    for (uint i = lane; i < d; i += 32u) { orow[i] = (row[i] - mean) * inv * w[i]; }
+    for (uint i = 0u; i < d; ++i) {
+        orow[i] = (row[i] - mean) * inv * w[i];
+    }
 }
 
-// One threadgroup (one simdgroup) per row: strided lanes + simd
-// reductions. The v1 kernel ran one thread per row — 32× the GPU idle.
 kernel void softmax_rows(device float* x [[buffer(0)]],
                          constant uint& rows [[buffer(1)]],
                          constant uint& n [[buffer(2)]],
-                         uint tpg [[threadgroup_position_in_grid]],
-                         uint lane [[thread_index_in_threadgroup]]) {
-    if (tpg >= rows) { return; }
-    device float* row = x + tpg * n;
-    float mx = -3.402823466e+38f;
-    for (uint i = lane; i < n; i += 32u) { mx = fmax(mx, row[i]); }
-    mx = simd_max(mx);
+                         uint gid [[thread_position_in_grid]]) {
+    if (gid >= rows) { return; }
+    device float* row = x + gid * n;
+    float max = row[0];
+    for (uint i = 1u; i < n; ++i) { max = fmax(max, row[i]); }
     float sum = 0.0f;
-    for (uint i = lane; i < n; i += 32u) {
-        const float e = precise::exp(row[i] - mx);
-        row[i] = e;
-        sum += e;
+    for (uint i = 0u; i < n; ++i) {
+        row[i] = precise::exp(row[i] - max);
+        sum += row[i];
     }
-    sum = simd_sum(sum);
-    const float inv = 1.0f / sum;
-    for (uint i = lane; i < n; i += 32u) { row[i] *= inv; }
+    for (uint i = 0u; i < n; ++i) { row[i] /= sum; }
 }
 
 // q[(h·seq+pos)·hd + j] paired with its +half twin; one thread per
@@ -426,37 +329,10 @@ kernel void gather_rows(device const float* x [[buffer(0)]],
     const uint i = gid % d;
     out[gid] = x[rows[r] * d + i];
 }
-
-// scores[r] += mask[r % mlen] — the sliding-window mask broadcast over
-// every head's slab of the scores parent in ONE dispatch (was one add
-// dispatch per head).
-kernel void add_mask_bcast(device float* x [[buffer(0)]],
-                           device const float* mask [[buffer(1)]],
-                           constant uint& len [[buffer(2)]],
-                           constant uint& mlen [[buffer(3)]],
-                           uint gid [[thread_position_in_grid]]) {
-    if (gid < len) { x[gid] += mask[gid % mlen]; }
-}
 "#;
 
 fn rt(detail: impl std::fmt::Display) -> LayaError {
     LayaError::Runtime(format!("riir metal backend: {detail}"))
-}
-
-/// A pass-scoped command buffer: created on the first encode after a sync,
-/// appended-to by every op, committed at the sync (or the encoder cap).
-struct PendingPass {
-    cb: CommandBuffer,
-    encodes: u32,
-}
-
-/// The open pass buffer plus the committed-but-unwaited pipeline flushes.
-/// `sync()` waits both — a flush must never let a `download_into` read
-/// ahead of in-flight writes.
-#[derive(Default)]
-struct PendingState {
-    open: Option<PendingPass>,
-    committed: Vec<CommandBuffer>,
 }
 
 /// The Metal backend: one device + queue, the compiled-once kernel library,
@@ -470,14 +346,12 @@ pub struct Metal {
     /// `matmul_w` weight, LN scales, biases, the embedding table).
     weights: Mutex<HashMap<(usize, usize), Buffer>>,
     /// `(ptr, len, gen)` → device buffer for activations and per-forward
-    /// host-authored inputs. The generation (bumped at every pass) makes a
+    /// host-authored inputs. The generation (bumped at every sync) makes a
     /// recycled heap address miss instead of serving a stale epoch's
     /// bytes; within an epoch a hit's device copy is current because the
     /// forward bodies write every activation device-side before reading
     /// it (the write-first audit in the module doc).
     chain: Mutex<HashMap<(usize, usize, u64), Buffer>>,
-    /// The pass-scoped command buffer + the committed drain list.
-    pending: Mutex<PendingState>,
     /// The sync generation (how many host-read barriers have run).
     epoch: AtomicU64,
     /// Debug kill-switch (`LAYA_METAL_PER_OP_SYNC`): `1` = sync + write
@@ -516,7 +390,6 @@ impl Metal {
             pipelines,
             weights: Mutex::new(HashMap::new()),
             chain: Mutex::new(HashMap::new()),
-            pending: Mutex::new(PendingState::default()),
             epoch: AtomicU64::new(0),
             per_op_sync: std::env::var("LAYA_METAL_PER_OP_SYNC")
                 .ok()
@@ -601,28 +474,24 @@ impl Metal {
         )
     }
 
-    /// Host-read barrier: commit the open pass buffer, then wait every
-    /// committed-but-unwaited buffer (the pipeline flushes included).
+    /// Host-read barrier: a fresh committed no-op dispatch on the SERIAL
+    /// queue completes only after every prior encode. The epoch is NOT
+    /// bumped here — syncs may happen many times within one forward (three
+    /// in the head), and slots created early in the forward (the hidden
+    /// state) stay live until its last download. Pass invalidation happens
+    /// in [`Self::begin_pass`], once per forward.
     fn sync(&self) {
-        let mut st = self.pending.lock().expect("pending cb poison");
-        if let Some(pending) = st.open.take() {
-            pending.cb.commit();
-            st.committed.push(pending.cb);
-        }
-        for cb in st.committed.drain(..) {
-            cb.wait_until_completed();
-        }
+        let xb = self.upload(&[0.0f32]);
+        self.run("scale", &[&xb], &[0], &[0.0], 0, true)
+            .unwrap_or_else(|e| panic!("{e}"));
     }
 
-    /// One forward is beginning: drain any outstanding GPU work (a cleared
-    /// chain entry releases its Buffer — that must never happen while
-    /// commands still reference it), bump the pass epoch, and drop the
-    /// previous pass's slots. Host-authored buffers (rope tables, mask,
-    /// `act_in`, the id list) are rebuilt per forward — often at recycled
-    /// heap addresses with fresh contents — so last pass's keys must never
-    /// hit; within a pass the serial queue keeps every slot device-current.
+    /// One forward is beginning: bump the pass epoch and drop the previous
+    /// pass's slots. Host-authored buffers (rope tables, mask, `act_in`,
+    /// the id list) are rebuilt per forward — often at recycled heap
+    /// addresses with fresh contents — so last pass's keys must never hit;
+    /// within a pass the serial queue keeps every slot device-current.
     fn begin_pass_impl(&self) {
-        self.sync();
         self.epoch.fetch_add(1, Ordering::Relaxed);
         self.chain.lock().expect("chain cache poison").clear();
     }
@@ -652,72 +521,12 @@ impl Metal {
         }
     }
 
-    /// Encode one kernel dispatch into the PASS command buffer (no commit
-    /// — the lazy shape; commit + wait happens in [`Self::sync`], or a
-    /// pipelined no-wait flush at the encoder cap). `buffers` bind at
-    /// `[[buffer(0..)]]`, then `uargs`/`fargs` as 4-byte `constant`
-    /// scalars, then any staging buffers. `threadgroups` selects
-    /// `dispatch_thread_groups` (the 2D/3D kernels) over
-    /// `dispatch_threads` (the 1D elementwise kernels). Runs inside an
-    /// autoreleasepool — the autoreleased encoders drain per op instead
-    /// of accumulating on a thread with no Cocoa runloop.
-    #[allow(clippy::too_many_arguments)]
-    fn encode(
-        &self,
-        p: &ComputePipelineState,
-        buffers: &[(&Buffer, u64)],
-        uargs: &[u32],
-        fargs: &[f32],
-        grid: MTLSize,
-        tpg: MTLSize,
-        tiles: Option<&[(u64, u64)]>,
-        threadgroups: bool,
-    ) -> Result<()> {
-        autoreleasepool(|_| {
-            let mut st = self.pending.lock().expect("pending cb poison");
-            if st.open.is_none() {
-                st.open = Some(PendingPass {
-                    cb: self.queue.new_command_buffer().to_owned(),
-                    encodes: 0,
-                });
-            }
-            let pending = st.open.as_mut().expect("just inserted");
-            let enc = pending.cb.new_compute_command_encoder();
-            enc.set_compute_pipeline_state(p);
-            for (i, (b, off)) in buffers.iter().enumerate() {
-                enc.set_buffer(i as u64, Some(b), *off);
-            }
-            let mut idx = buffers.len() as u64;
-            for v in uargs {
-                enc.set_bytes(idx, 4, std::ptr::from_ref(v).cast::<c_void>());
-                idx += 1;
-            }
-            for v in fargs {
-                enc.set_bytes(idx, 4, std::ptr::from_ref(v).cast::<c_void>());
-                idx += 1;
-            }
-            if let Some(tiles) = tiles {
-                for (base, bytes) in tiles {
-                    enc.set_threadgroup_memory_length(*base, *bytes);
-                }
-            }
-            if threadgroups {
-                enc.dispatch_thread_groups(grid, tpg);
-            } else {
-                enc.dispatch_threads(grid, tpg);
-            }
-            enc.end_encoding();
-            pending.encodes += 1;
-            if pending.encodes >= MAX_ENCODERS_PER_CB {
-                let done = st.open.take().expect("checked above");
-                done.cb.commit();
-                st.committed.push(done.cb);
-            }
-        });
-        Ok(())
-    }
-
-    /// The 1D elementwise dispatch.
+    /// Encode one kernel dispatch and COMMIT (no wait — the lazy-flush
+    /// shape). `buffers` bind at `[[buffer(0..)]]`, then `uargs`/`fargs` as
+    /// 4-byte `constant` scalars; with `wait` the command buffer is also
+    /// waited on (the sync path). Runs inside an autoreleasepool — the
+    /// autoreleased command buffer drains per op instead of accumulating
+    /// on a thread with no Cocoa runloop.
     fn run(
         &self,
         kernel: &'static str,
@@ -725,6 +534,7 @@ impl Metal {
         uargs: &[u32],
         fargs: &[f32],
         len: u64,
+        wait: bool,
     ) -> Result<()> {
         let p = self
             .pipelines
@@ -749,7 +559,7 @@ impl Metal {
                 depth: 1,
             },
             None,
-            false,
+            wait,
         )
     }
 
@@ -764,6 +574,7 @@ impl Metal {
         uargs: &[u32],
         fargs: &[f32],
         len: u64,
+        wait: bool,
     ) -> Result<()> {
         let p = self
             .pipelines
@@ -787,90 +598,95 @@ impl Metal {
                 depth: 1,
             },
             None,
-            false,
+            wait,
         )
     }
 
-    /// The row-parallel reduction kernels (softmax / LN): ONE threadgroup —
-    /// one simdgroup — per row, 32 threads, no staging memory.
-    fn run_rows(
-        &self,
-        kernel: &'static str,
-        buffers: &[&Buffer],
-        uargs: &[u32],
-        fargs: &[f32],
-        rows: u64,
-    ) -> Result<()> {
-        let p = self
-            .pipelines
-            .get(kernel)
-            .ok_or_else(|| rt(format!("kernel {kernel} missing")))?;
-        let bufs: Vec<(&Buffer, u64)> = buffers.iter().map(|b| (*b, 0)).collect();
-        self.encode(
-            p,
-            &bufs,
-            uargs,
-            fargs,
-            MTLSize {
-                width: rows.max(1),
-                height: 1,
-                depth: 1,
-            },
-            MTLSize {
-                width: 32,
-                height: 1,
-                depth: 1,
-            },
-            None,
-            true,
-        )
-    }
-
-    /// The batched simdgroup GEMM dispatch: grid = (⌈n/BN⌉, ⌈m/BM⌉, batch),
-    /// 512-thread threadgroups, the three staging buffers. `uargs` =
-    /// [m, n, k, `a_rs`, `a_cs`, `b_rs`, `b_cs`, `a_bs`, `b_bs`, `c_bs`] — element
-    /// strides, then per-batch element strides (batch-1 callers pass
-    /// zeros).
-    #[allow(clippy::too_many_arguments)]
-    fn run_sgemm(
+    /// The 2D GEMM dispatch (padded 16×16 grid + two threadgroup tiles at
+    /// buffer indices 10 and 11, per the MSL attributes). Operands bind at
+    /// explicit byte offsets into their whole-buffer slots.
+    fn run_gemm_at(
         &self,
         a: (&Buffer, u64),
         b: (&Buffer, u64),
         out: (&Buffer, u64),
-        uargs: &[u32; 10],
+        uargs: &[u32],
         m: u32,
         n: u32,
-        batch: u32,
     ) -> Result<()> {
         let p = self
             .pipelines
-            .get("sgemm")
-            .ok_or_else(|| rt("kernel sgemm missing"))?;
+            .get("gemm_tiled")
+            .ok_or_else(|| rt("kernel gemm_tiled missing"))?;
+        let tile_bytes = (std::mem::size_of::<f32>() * TS as usize * TS as usize) as u64;
         self.encode(
             p,
             &[a, b, out],
             uargs,
             &[],
             MTLSize {
-                width: u64::from(n.div_ceil(BN)),
-                height: u64::from(m.div_ceil(BM)),
-                depth: u64::from(batch),
-            },
-            MTLSize {
-                width: 512,
-                height: 1,
+                width: u64::from(n.next_multiple_of(TS)),
+                height: u64::from(m.next_multiple_of(TS)),
                 depth: 1,
             },
-            Some(&[(13, TG_TILE_BYTES), (14, TG_TILE_BYTES), (15, TG_EDGE_BYTES)]),
-            true,
+            MTLSize {
+                width: u64::from(TS),
+                height: u64::from(TS),
+                depth: 1,
+            },
+            Some((10, tile_bytes)),
+            false,
         )
     }
+
+    #[allow(clippy::too_many_arguments)]
+    fn encode(
+        &self,
+        p: &ComputePipelineState,
+        buffers: &[(&Buffer, u64)],
+        uargs: &[u32],
+        fargs: &[f32],
+        grid: MTLSize,
+        tpg: MTLSize,
+        tiles: Option<(u64, u64)>,
+        wait: bool,
+    ) -> Result<()> {
+        autoreleasepool(|_| {
+            let cb = self.queue.new_command_buffer();
+            let enc = cb.new_compute_command_encoder();
+            enc.set_compute_pipeline_state(p);
+            for (i, (b, off)) in buffers.iter().enumerate() {
+                enc.set_buffer(i as u64, Some(b), *off);
+            }
+            let mut idx = buffers.len() as u64;
+            for v in uargs {
+                enc.set_bytes(idx, 4, std::ptr::from_ref(v).cast::<c_void>());
+                idx += 1;
+            }
+            for v in fargs {
+                enc.set_bytes(idx, 4, std::ptr::from_ref(v).cast::<c_void>());
+                idx += 1;
+            }
+            if let Some((base, bytes)) = tiles {
+                enc.set_threadgroup_memory_length(base, bytes);
+                enc.set_threadgroup_memory_length(base + 1, bytes);
+            }
+            enc.dispatch_threads(grid, tpg);
+            enc.end_encoding();
+            cb.commit();
+            if wait {
+                cb.wait_until_completed();
+            }
+        });
+        Ok(())
+    }
 }
+
 
 /// Classification of every backend arg (the lazy-sync correctness
 /// contract, argued in the module doc):
 /// - `weight_buf` — agent-owned, stable for the agent's lifetime
-///   (`matmul_w` weights, LN scales, biases, the embedding table);
+///   (matmul_w weights, LN scales, biases, the embedding table);
 /// - `chain_buf` — activations + per-forward host-authored inputs, always
 ///   the WHOLE parent buffer (per-head access goes through explicit offset
 ///   args, so one slot per parent and serial GPU ordering makes every hit
@@ -903,7 +719,7 @@ impl Backend for Metal {
         // b is an ACTIVATION here (the probs@v rhs) — the chain class.
         let bb = self.chain_buf(b);
         let ob = self.chain_slot_for(dst);
-        self.run_sgemm(
+        self.run_gemm_at(
             (&ab, (a_off * 4) as u64),
             (&bb, (b_off * 4) as u64),
             (&ob, (dst_off * 4) as u64),
@@ -915,13 +731,9 @@ impl Backend for Metal {
                 1,        // a_cs
                 n as u32, // b_rs
                 1,        // b_cs
-                0,        // batch strides (batch = 1)
-                0,
-                0,
             ],
             m as u32,
             n as u32,
-            1,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, dst);
@@ -934,7 +746,7 @@ impl Backend for Metal {
         let ab = self.chain_buf(a);
         let wb = self.weight_buf(w);
         let ob = self.chain_slot_for(dst);
-        self.run_sgemm(
+        self.run_gemm_at(
             (&ab, 0),
             (&wb, 0),
             (&ob, 0),
@@ -946,18 +758,15 @@ impl Backend for Metal {
                 1,        // a_cs
                 1,        // b_rs — B = Wᵀ, W row-major [n, k]
                 k as u32, // b_cs
-                0,        // batch strides (batch = 1)
-                0,
-                0,
             ],
             m as u32,
             n as u32,
-            1,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, dst);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn matmul_kt(
         &self,
         q: &[f32],
@@ -976,7 +785,7 @@ impl Backend for Metal {
         // k is an ACTIVATION here (the per-head K matrix) — the chain class.
         let kb = self.chain_buf(k);
         let ob = self.chain_slot_for(dst);
-        self.run_sgemm(
+        self.run_gemm_at(
             (&qb, (q_off * 4) as u64),
             (&kb, (k_off * 4) as u64),
             (&ob, (dst_off * 4) as u64),
@@ -988,94 +797,9 @@ impl Backend for Metal {
                 1,         // a_cs
                 1,         // b_rs — B = Kᵀ, K row-major [m, hd]
                 hd as u32, // b_cs
-                0,         // batch strides (batch = 1)
-                0,
-                0,
             ],
             m as u32,
             m as u32,
-            1,
-        )
-        .unwrap_or_else(|e| panic!("{e}"));
-        self.debug_writeback(&ob, dst);
-    }
-
-    /// scores[h] ← q[h]·k[h]ᵀ for every head in ONE dispatch.
-    fn matmul_kt_heads(
-        &self,
-        q: &[f32],
-        k: &[f32],
-        heads: usize,
-        m: usize,
-        hd: usize,
-        dst: &mut [f32],
-    ) {
-        assert_eq!(q.len(), heads * m * hd, "q extent");
-        assert_eq!(k.len(), heads * m * hd, "k extent");
-        assert_eq!(dst.len(), heads * m * m, "dst extent");
-        let qb = self.chain_buf(q);
-        let kb = self.chain_buf(k);
-        let ob = self.chain_slot_for(dst);
-        self.run_sgemm(
-            (&qb, 0),
-            (&kb, 0),
-            (&ob, 0),
-            &[
-                m as u32,
-                m as u32,
-                hd as u32,
-                hd as u32,      // a_rs
-                1,              // a_cs
-                1,              // b_rs — B = Kᵀ, K row-major [m, hd]
-                hd as u32,      // b_cs
-                (m * hd) as u32, // a_bs
-                (m * hd) as u32, // b_bs
-                (m * m) as u32,  // c_bs
-            ],
-            m as u32,
-            m as u32,
-            heads as u32,
-        )
-        .unwrap_or_else(|e| panic!("{e}"));
-        self.debug_writeback(&ob, dst);
-    }
-
-    /// ctx[h] ← probs[h] @ v[h] for every head in ONE dispatch.
-    fn matmul_heads(
-        &self,
-        a: &[f32],
-        b: &[f32],
-        heads: usize,
-        m: usize,
-        k: usize,
-        n: usize,
-        dst: &mut [f32],
-    ) {
-        assert_eq!(a.len(), heads * m * k, "a extent");
-        assert_eq!(b.len(), heads * k * n, "b extent");
-        assert_eq!(dst.len(), heads * m * n, "dst extent");
-        let ab = self.chain_buf(a);
-        let bb = self.chain_buf(b);
-        let ob = self.chain_slot_for(dst);
-        self.run_sgemm(
-            (&ab, 0),
-            (&bb, 0),
-            (&ob, 0),
-            &[
-                m as u32,
-                n as u32,
-                k as u32,
-                k as u32,       // a_rs
-                1,              // a_cs
-                n as u32,       // b_rs
-                1,              // b_cs
-                (m * k) as u32, // a_bs
-                (k * n) as u32, // b_bs
-                (m * n) as u32, // c_bs
-            ],
-            m as u32,
-            n as u32,
-            heads as u32,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, dst);
@@ -1095,27 +819,7 @@ impl Backend for Metal {
             &[len as u32],
             &[],
             len as u64,
-        )
-        .unwrap_or_else(|e| panic!("{e}"));
-        self.debug_writeback(&xb, x);
-    }
-
-    /// scores[r] += mask[r % mlen] over the whole heads·seq² parent — the
-    /// sliding-window mask for every head in ONE dispatch.
-    fn add_mask_broadcast(&self, x: &mut [f32], mask: &[f32], heads: usize) {
-        let mlen = mask.len();
-        assert!(heads > 0, "heads");
-        assert_eq!(x.len(), heads * mlen, "mask broadcast extent");
-        let xb = self.chain_buf(x);
-        let mb = self.chain_buf(mask);
-        let len = x.len();
-        self.run_at(
-            "add_mask_bcast",
-            (&xb, 0),
-            (&mb, 0),
-            &[len as u32, mlen as u32],
-            &[],
-            len as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
@@ -1132,6 +836,7 @@ impl Backend for Metal {
             &[x.len() as u32, d as u32],
             &[],
             x.len() as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
@@ -1139,8 +844,15 @@ impl Backend for Metal {
 
     fn scale(&self, x: &mut [f32], s: f32) {
         let xb = self.chain_buf(x);
-        self.run("scale", &[&xb], &[x.len() as u32], &[s], x.len() as u64)
-            .unwrap_or_else(|e| panic!("{e}"));
+        self.run(
+            "scale",
+            &[&xb],
+            &[x.len() as u32],
+            &[s],
+            x.len() as u64,
+            false,
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
     }
 
@@ -1162,12 +874,13 @@ impl Backend for Metal {
         let xb = self.chain_buf(x);
         let wb = self.weight_buf(w);
         let ob = self.chain_slot_for(out);
-        self.run_rows(
+        self.run(
             "ln_rows",
             &[&xb, &wb, &ob],
             &[rows as u32, d as u32],
             &[inv_d, eps],
             rows as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, out);
@@ -1177,12 +890,13 @@ impl Backend for Metal {
         assert_eq!(x.len() % n, 0, "softmax row extent");
         let rows = x.len() / n;
         let xb = self.chain_buf(x);
-        self.run_rows(
+        self.run(
             "softmax_rows",
             &[&xb],
             &[rows as u32, n as u32],
             &[],
             rows as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
@@ -1190,15 +904,29 @@ impl Backend for Metal {
 
     fn relu(&self, x: &mut [f32]) {
         let xb = self.chain_buf(x);
-        self.run("relu", &[&xb], &[x.len() as u32], &[], x.len() as u64)
-            .unwrap_or_else(|e| panic!("{e}"));
+        self.run(
+            "relu",
+            &[&xb],
+            &[x.len() as u32],
+            &[],
+            x.len() as u64,
+            false,
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
     }
 
     fn gelu_erf(&self, x: &mut [f32]) {
         let xb = self.chain_buf(x);
-        self.run("gelu_erf", &[&xb], &[x.len() as u32], &[], x.len() as u64)
-            .unwrap_or_else(|e| panic!("{e}"));
+        self.run(
+            "gelu_erf",
+            &[&xb],
+            &[x.len() as u32],
+            &[],
+            x.len() as u64,
+            false,
+        )
+        .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&xb, x);
     }
 
@@ -1213,6 +941,7 @@ impl Backend for Metal {
             &[rows as u32, i_sz as u32],
             &[],
             (rows * i_sz) as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, out);
@@ -1242,6 +971,7 @@ impl Backend for Metal {
             &[seq as u32, heads as u32, hd as u32],
             &[],
             (heads * seq * half) as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&qb, q);
@@ -1272,6 +1002,7 @@ impl Backend for Metal {
             ],
             &[],
             (heads * seq * hd) as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, out);
@@ -1288,6 +1019,7 @@ impl Backend for Metal {
             &[seq as u32, heads as u32, hd as u32],
             &[],
             (seq * d) as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, out);
@@ -1308,6 +1040,7 @@ impl Backend for Metal {
             &[d as u32],
             &[],
             out.len() as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
         self.debug_writeback(&ob, out);
@@ -1323,6 +1056,7 @@ impl Backend for Metal {
             &[dst.len() as u32],
             &[],
             dst.len() as u64,
+            false,
         )
         .unwrap_or_else(|e| panic!("{e}"));
     }
