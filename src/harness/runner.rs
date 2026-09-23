@@ -1359,7 +1359,8 @@ fn run_laya_checkpoint(
         confs.push(cconfs);
     }
 
-    let (p50, p99, support) = percentile_us(&durs_ms);
+    // Latency percentiles are computed ONCE in the shared tail
+    // (assemble_laya_lane_result) — both lanes' metrics must not diverge.
     Ok(assemble_laya_lane_result(
         "laya-riir",
         ckpt,
