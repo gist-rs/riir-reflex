@@ -264,8 +264,40 @@ wiring.
       sanitized (sibling names + internal issue refs removed). Gate
       green at landing: 213 tracked .rs (vendor forks included in the
       walk), 0 findings, 0 pins.
-- [ ] **T6** Open riir-infer (P4) + the reflex opening pass (docs
-      sanitize + history decision) — owner-gated go.
+- [x] **T6** Open riir-infer (P4) + the reflex opening pass (docs
+      sanitize + history decision) — owner-gated go. — EXECUTED 2026-09-23
+      (owner green-light in-session; both repos PUBLIC):
+      - **riir-infer**: history squashed to FIVE sanitized commits
+        (86a5986 core / 0643575 gpu layer / f8dfc69 doctest +
+        reader-protection fixes / acbcdad opening posture — MIT LICENSE,
+        cargo-about THIRD_PARTY_LICENSES.md, BOUNDARY private-sibling
+        paths sanitized / 6b6de2b the gemma decode stack + gemv split2
+        rung, the twin-landing reconciliation). CI green on the public
+        repo (run 35835743560 — the private-repo lane never started:
+        Actions spending limit; the opening's full-gate execution also
+        caught the doctest-blindspot class + a green-zero test target,
+        both fixed). The twin S5 landing merged the old history back
+        mid-opening — re-squashed ONCE with lease, and the standing
+        rule for every future pusher: REBASE onto the squashed line,
+        never merge, and keep commit messages free of internal numbers,
+        sibling names, and box references. The 4090 checkout was
+        fast-forwarded clean; its in-flight S5 work landed via the
+        reconciliation untouched.
+      - **reflex** (the owner plan's "riir-infer AND reflex
+        open-source"): history decision = FRESH two-commit history
+        (622b5e5 engine root, c3f9083 opening posture) — the old
+        history carried the full campaign narrative; the source-side
+        v0.2.0 tag deleted (the dist repo's releases are the install
+        record); README/AGENTS/BOUNDARY private-forever statements
+        rewritten; LICENSE added; minimal ci.yml (check at the shipped
+        release set — NOT --all-features: laya-riir-metal is
+        macOS-only by construction — clippy -D, test --release for the
+        G2 latency gates); machine-local path scrubbed from the tracked
+        benchmark results. Verified green in an isolated worktree
+        (clippy -D + cargo test --release) before the flip.
+      - `publish = false` stays both sides — crates.io remains
+        owner-gated. Remaining in this campaign: T4 (encoder move) +
+        T7 (op-layer unification).
 - [ ] **T7** Op-layer unification (P5): A/B vs the chart numbers, G5 both
       postures, delete the duplicate.
 
