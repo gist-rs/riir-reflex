@@ -257,9 +257,10 @@ const LANES_ANCHOR_AGREE: usize = 84;
 const LANES_STATES: usize = 100;
 const LANES_OPTIONS: usize = 300;
 /// The published Bench 880 head anchor (the decoded arm produces the
-/// IDENTICAL digest — Bench 881's losslessness proof). Only the prefix was
-/// published; the full digest below is this repo's own fit, pinned for the
-/// same two-box portability the flappy v3 full pin enjoys.
+/// IDENTICAL digest — Bench 881's losslessness proof). Bench 880 published
+/// ONLY the prefix, so the pin here is a prefix match (unlike the flappy v3
+/// full-digest pin below); the λ + agreement + corpus-BLAKE3 pins carry the
+/// rest of the two-box portability.
 const LANES_HEAD_PREFIX: &str = "7d3f1d8e";
 
 /// The fixture's state 0: its three lane sentences + the oracle argmax.

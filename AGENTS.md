@@ -130,8 +130,16 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   `tests/game_heads_serve.rs`; head digest `00aa6221…c6e`), boot-fitted from the verbatim
   BLAKE3-pinned fixture copy (`assets/game_heads/`); the serve edge tries the head before
   the cosine engine's abstain (grammar-invalid / foreign question / non-noul all fall
-  through — `src/game_heads.rs` `respond`). Lanes + flappy stay honest abstains with
-  recorded unblock paths (`.issues/011`). Darwin release artifacts carry `laya-riir-metal`
+  through — `src/game_heads.rs` `respond`). ~~Lanes + flappy stay honest abstains with
+  recorded unblock paths (`.issues/011`)~~ — SUPERSEDED post-v0.2.2 (issue 011 CLOSED,
+  `514d34a`; serving landed `d1eda08`): all three boards now serve from the engine —
+  lanes at Bench 880's lossless decoded arm (λ 0.01, in-corpus 84/100, head digest
+  prefix `7d3f1d8e` — Bench 880 published only the prefix; the decoded arm is
+  digest-identical to the structured arm per Bench 881) and flappy at Bench 882's v3
+  decoded arm (λ 1, in-corpus 96/100, FULL digest `c93d36dc…e3c5`). Joined-state
+  protocol: the sentence sequence rides the `state` field one per line (`noul`
+  questions carry no options by wire law); request shapes in README. Ships in
+  v0.2.3. Darwin release artifacts carry `laya-riir-metal`
   and the laya lane defaults to Metal on those builds (`LAYA_DEVICE=cpu` opts out; G5
   parity green at BOTH postures — 29 s metal vs 219 s cpu on this box; fresh interleaved
   row p50 78.1 vs 176.8 ms = 2.26×). Release surface: GitHub release v0.2.2 (6 assets,
