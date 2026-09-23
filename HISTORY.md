@@ -10,6 +10,17 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 014 — engine.rs local sigmoid delegates to `katgpt_core::exact_sigmoid`**
+  CLOSED (substrate-first Mode 2 finding, fixed by the lane owner after the
+  X-Reflex-Lane lane went quiet). The local single-branch fn deleted; the two
+  call sites (route-term gate, per-option score normalization) call the
+  substrate directly. Pin `sigmoid_delegation_matches_frozen_legacy_body`:
+  bit-identical for x ≥ 0, measured max **3 ULPs at x=−16.68** on the negative
+  band (−87, 0) — the same maximum the katgpt-rs Issue-870 pin measured on its
+  domain — far tail (−96, −87] envelope-only (legacy saturates to exactly 0.0
+  via 1/inf at x ≤ −88.73; the two-branch form stays representable; unreachable
+  from the call sites). G2 p99 44 µs / G4 core alloc-free — neutral as
+  predicted. Full guard PASSED (7/7 incl. G5 parity 27.8 s).
 - **Wide-BK=48 rung measured NEGATIVE + the sgemm shape-timing probe**
   (uncommitted at write time; session record). The recorded rung ("BK=48
   for the wide instance — the largest k-chunk fitting 32 KB at 64×64")

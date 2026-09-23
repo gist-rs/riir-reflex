@@ -49,6 +49,7 @@ use katgpt_core::decision_wire::{
     Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Outcome, QuestionKind, Routing,
     WireError,
 };
+use katgpt_core::exact_sigmoid;
 use katgpt_core::distance_abstain::CorpusDistanceGate;
 use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 use katgpt_core::variable_rank_domain_expert::pick_domain;
@@ -434,7 +435,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     for (qv, dv) in q_state.iter().zip(dir.iter()) {
                         dot += qv * dv;
                     }
-                    *rt = sigmoid(dot * self.cfg.route_scale);
+                    *rt = exact_sigmoid(dot * self.cfg.route_scale);
                 }
             }
             sc.scores.clear();
@@ -455,7 +456,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 // The zero-alloc hot scorer (substrate: katgpt-core
                 // `score_into`, landed for THIS lane's G4).
                 let s = self.experts[di].drafter.score_into(&sc.ctx, &sc.cand) as f32;
-                let mut score = sigmoid(s / self.cfg.score_temperature);
+                let mut score = exact_sigmoid(s / self.cfg.score_temperature);
                 if route_active {
                     score += terms
                         .next()
@@ -620,11 +621,6 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
     }
 }
 
-#[inline]
-fn sigmoid(x: f32) -> f32 {
-    1.0 / (1.0 + (-x).exp())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -694,5 +690,59 @@ mod tests {
             Err(e) => assert_eq!(e, EngineError::DomainCount { have: 1, want: 2 }),
             Ok(_) => panic!("1 spec must not build a 2-domain engine"),
         }
+    }
+
+    #[test]
+    fn sigmoid_delegation_matches_frozen_legacy_body() {
+        // Issue 014: engine.rs carried a local single-branch sigmoid
+        // (`1.0 / (1.0 + (-x).exp())`) beside an import block consuming five
+        // katgpt-core substrate items. The delegation to `exact_sigmoid`
+        // must not move engine outputs on the reachable domain — the route
+        // term `dot · route_scale` (L2-normalized cosines; |x| ≤ 32-class
+        // even at the probe's largest route_scale) and the score term
+        // `s / score_temperature`. Sweep [−96, 40]: bit-identical for
+        // x ≥ 0; ≤ 3 ULPs for −87 < x < 0 (algebraically identical forms,
+        // different fp roundings — measured 3 ULPs at x=−16.68, the same
+        // maximum the katgpt-rs Issue-870 pin measured on its domain); below −87 the envelope-only band, where the legacy body
+        // saturates to exactly 0.0 via 1/inf (exp(−x) overflows at
+        // x ≤ −88.73) while the two-branch form stays a representable tiny
+        // until exp(x) itself underflows (~x < −103). That tail is
+        // unreachable from the call sites; pinned as an envelope, never
+        // equality. The legacy body is frozen HERE so any future form
+        // drift reds this pin.
+        let legacy = |x: f32| 1.0f32 / (1.0 + (-x).exp());
+        let mut max_ulps = 0i64;
+        let mut max_ulps_at = 0.0f32;
+        for i in 0..=13_600i32 {
+            let x = -96.0f32 + (i as f32) * 0.01;
+            let got = exact_sigmoid(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(
+                    got.to_bits(),
+                    want.to_bits(),
+                    "x={x} must be bit-identical"
+                );
+            } else if x > -87.0 {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            } else {
+                let in_tail = |v: f32| (0.0..=1e-36).contains(&v);
+                assert!(
+                    got > 0.0 && in_tail(got) && in_tail(want),
+                    "x={x}: far-tail envelope broken (got {got}, want {want})"
+                );
+            }
+        }
+        println!(
+            "sigmoid delegation: max drift {max_ulps} ULPs at x={max_ulps_at} (negative band only)"
+        );
+        assert!(
+            max_ulps <= 3,
+            "negative-x drift {max_ulps} ULPs (at x={max_ulps_at}) exceeds the pinned envelope"
+        );
     }
 }
