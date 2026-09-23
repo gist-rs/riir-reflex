@@ -9,7 +9,10 @@
 //! `confidence_from_probs`) live in [`super::super::types`], one copy for
 //! both backends.
 //!
-//! `LAYA_DEVICE` is HONORED here (`.issues/005`): unset or `cpu` → the
+//! `LAYA_DEVICE` is HONORED here (`.issues/005`): unset → the build's
+//! default posture (Metal on macOS with `laya-riir-metal` compiled — the
+//! Plan 001 T4 watchability default; CPU elsewhere), explicit `cpu`/`metal`
+//! is honored verbatim, anything else fails loud.
 //! `Cpu` backend (the lane's original posture); `metal` → the MSL backend
 //! ([`super::metal`], feature `laya-riir-metal`, macOS) — fail loud when
 //! the feature or platform is absent, never a silent CPU fallback (the
@@ -40,12 +43,15 @@ pub enum DeviceKind {
 }
 
 impl DeviceKind {
-    /// Resolve `LAYA_DEVICE` — unset/empty/`cpu` → [`DeviceKind::Cpu`],
-    /// `metal` → [`DeviceKind::Metal`], anything else is an error (an env
-    /// typo must fail loud, never fall back).
+    /// Resolve `LAYA_DEVICE` — unset/empty → [`Self::default_device`]
+    /// (Metal when this build SHIPS the Metal backend on macOS, CPU
+    /// everywhere else — the measured ~2× forward is the arena
+    /// watchability default, Plan 001 T4), `cpu` → [`DeviceKind::Cpu`]
+    /// (the explicit opt-out), `metal` → [`DeviceKind::Metal`], anything
+    /// else is an error (an env typo must fail loud, never fall back).
     pub fn from_env() -> Result<Self> {
         match std::env::var("LAYA_DEVICE").as_deref() {
-            Ok("") | Err(_) => Ok(Self::Cpu),
+            Ok("") | Err(_) => Ok(Self::default_device()),
             Ok("cpu") => Ok(Self::Cpu),
             Ok("metal") => Ok(Self::Metal),
             Ok(other) => Err(LayaError::Config {
@@ -54,6 +60,20 @@ impl DeviceKind {
                     "unknown LAYA_DEVICE {other:?} — expected unset, \"cpu\" or \"metal\""
                 ),
             }),
+        }
+    }
+
+    /// The no-env posture: Metal where the backend is compiled and exists
+    /// (macOS + `laya-riir-metal`), CPU everywhere else. An explicit env
+    /// value is always honored verbatim — only the ABSENT choice defaults.
+    pub fn default_device() -> Self {
+        #[cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
+        {
+            Self::Metal
+        }
+        #[cfg(not(all(target_os = "macos", feature = "laya-riir-metal")))]
+        {
+            Self::Cpu
         }
     }
 }

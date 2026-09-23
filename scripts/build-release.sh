@@ -8,10 +8,11 @@
 #
 # Per target: dist-profile build (strip + fat LTO + --remap-path-prefix) of
 # the SHIPPING feature set (default + laya-riir — the candle-free cut,
-# .issues/006) → package tar.gz (unix) / zip
-# (windows) carrying the binary + THIRD_PARTY_LICENSES.md → one SHA256SUMS
-# over every archive. The leak scan (scripts/binary_leak_scan.sh) runs
-# separately over the packaged binaries.
+# .issues/006; darwin targets carry laya-riir-metal since v0.2.2, the
+# Plan 001 T4 Metal-default watchability lane) → package tar.gz (unix) /
+# zip (windows) carrying the binary + THIRD_PARTY_LICENSES.md → one
+# SHA256SUMS over every archive. The leak scan (scripts/binary_leak_scan.sh)
+# runs separately over the packaged binaries.
 #
 # Cross targets: any triple ≠ the host routes through cargo-zigbuild
 # (zig cc) — the windows-gnu + *-musl matrix; plain cargo cannot link
@@ -54,15 +55,26 @@ for target in "$@"; do
         CARGO_CMD="cargo zigbuild"
         BUILD_SUB=""
     fi
-    echo "== building $BIN_NAME v$VERSION for $target (profile dist, features: modelless+laya-riir, via $CARGO_CMD)"
-    $CARGO_CMD $BUILD_SUB --profile dist --features laya-riir --target "$target" --bin "$BIN_NAME"
+    # The darwin artifacts carry the Metal backend (v0.2.2 — the Plan 001
+    # T4 watchability default: the laya lane runs Metal unless the visitor
+    # opts out with LAYA_DEVICE=cpu). The metal deps are macOS-only by
+    # construction; every other target keeps the CPU-only feature set.
+    FEATURES="laya-riir"
+    case "$target" in
+        *darwin*) FEATURES="laya-riir-metal" ;;
+    esac
+    echo "== building $BIN_NAME v$VERSION for $target (profile dist, features: $FEATURES, via $CARGO_CMD)"
+    $CARGO_CMD $BUILD_SUB --profile dist --features "$FEATURES" --target "$target" --bin "$BIN_NAME"
 
     EXE="$BIN_NAME"
     ARCHIVE_EXT="tar.gz"
     case "$target" in
         *windows*) EXE="$BIN_NAME.exe"; ARCHIVE_EXT="zip" ;;
     esac
-    SRC_BIN="$REPO_ROOT/target/$target/dist/$EXE"
+    # Honor CARGO_TARGET_DIR (the sibling-lock isolation convention) —
+    # cargo puts the artifact under <target-dir>/<triple>/<profile>/.
+    TGT_DIR="${CARGO_TARGET_DIR:-$REPO_ROOT/target}"
+    SRC_BIN="$TGT_DIR/$target/dist/$EXE"
     [ -f "$SRC_BIN" ] || { echo "error: built binary missing: $SRC_BIN" >&2; exit 1; }
 
     # [profile.dist] strip = true is honored by Apple ld64 (the host link)

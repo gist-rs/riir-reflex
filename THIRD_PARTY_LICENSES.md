@@ -2,10 +2,10 @@
 
 This file lists the third-party crates distributed inside the `reflex`
 binary (the `riir-reflex` crate), grouped by license, with each license
-text. It is generated at
-release time by [cargo-about](https://github.com/EmbarkStudios/cargo-about)
+text. It is generated at release time by [cargo-about](https://github.com/EmbarkStudios/cargo-about)
 (`.github/about/about.toml` + this template, Plan 606 T1.6) from the shipping
-feature set (default `modelless` + `laya`) on the release targets.
+feature set (default `modelless` + `laya-riir`, the candle-free cut) on the
+release targets.
 
 The `reflex` binary is distributed binary-only; this document covers the
 attribution obligations of the third-party code it contains. The optional
@@ -760,11 +760,41 @@ THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRES
 
 Used by:
 
+- [riir-reflex 0.2.2](https://github.com/gist-rs/riir-reflex)
+
+```
+MIT License
+
+Copyright (c) 2026 Todsaporn Banjerdkit
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the &quot;Software&quot;), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+```
+
+### MIT License
+
+Used by:
+
 - [katgpt-core 0.4.1](https://github.com/katopz/katgpt-rs)
 - [katgpt-hla 0.1.3](https://github.com/katopz/katgpt-rs)
 - [katgpt-personality 0.1.3](https://github.com/katopz/katgpt-rs)
 - [katgpt-types 0.2.1](https://github.com/katopz/katgpt-rs)
-- [riir-reflex 0.1.0](https://github.com/gist-rs/riir-reflex)
 
 ```
 MIT License

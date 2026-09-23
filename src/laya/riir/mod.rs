@@ -17,14 +17,16 @@
 //!   needs, ONE forward body in [`encoder`] / [`head`], `Cpu` delegating 1:1
 //!   to [`ops`];
 //! - [`metal`] — the MSL backend (feature `laya-riir-metal`, macOS;
-//!   `LAYA_DEVICE=metal`, fail loud) — the same op semantics over Metal
-//!   kernels, candle's METAL erf transcribed verbatim;
+//!   the default posture on those builds, `LAYA_DEVICE=cpu` opts out —
+//!   fail loud when the feature/platform is absent) — the same op semantics
+//!   over Metal kernels, candle's METAL erf transcribed verbatim;
 //! - [`encoder`] / [`head`] — the forwards, ported in the candle port's
 //!   op order (the normative math the G5 gate was measured against);
 //! - [`agent`] — `RiirAgent`, the candle agent's envelope semantics over
 //!   the shared substrate (`types` / `temps` / `tokenize` / `weights`-
 //!   download / `render` — one copy for both backends); the device is
-//!   chosen at load from `LAYA_DEVICE` (cpu default, metal opt-in).
+//!   chosen at load from `LAYA_DEVICE` (Metal default on macOS metal
+//!   builds — Plan 001 T4; CPU elsewhere; explicit env always wins).
 //!
 //! G5 parity: `tests/laya_riir_parity.rs` gates the SAME fixture corpus and
 //! expected capture as the candle lane (top-1 ≥ 99.9 %, p-drift ≤ 1e-3, per
