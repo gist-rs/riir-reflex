@@ -375,12 +375,14 @@ fn http_edge_contract() {
 
     // Liveness: JSON with the lane map (the arena page's lane discovery —
     // `laya` reads off/loading/ready/failed; `raw` is the head-skip escape
-    // hatch; a bare-"ok" engine predates the lane edge).
+    // hatch; a bare-"ok" engine predates the lane edge) + the game-head
+    // map (compile-time surfaces: all three heads serve or the boot
+    // panicked — issue 011 closed).
     let (status, body) = http_get(port, "/healthz");
     assert_eq!(status, 200);
     assert_eq!(
         body,
-        "{\"status\":\"ok\",\"lanes\":{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"off\"}}"
+        "{\"status\":\"ok\",\"lanes\":{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"off\"},\"heads\":{\"tetris\":true,\"lanes\":true,\"flappy\":true}}"
     );
 
     // The full decision path through the edge.

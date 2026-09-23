@@ -349,16 +349,27 @@ pub fn run() -> std::io::Result<()> {
         "[riir-reflex] laya lane: {} (set RIIR_REFLEX_LAYA=1 to enable the comparison lane)",
         laya.lock().unwrap().as_str()
     );
-    // The fitted game head (Plan 607's decoded Tetris head — boot-fitted
-    // from the digest-pinned oracle fixture). Failure here is a broken
-    // build, never a runtime condition: the fixture is compile-time and
-    // the tests pin the fit's determinism + agreement anchors.
+    // The fitted game heads (Plan 607's decoded arms — boot-fitted from
+    // the digest-pinned oracle fixtures; issue 011 closed: all three arena
+    // boards serve). Failure here is a broken build, never a runtime
+    // condition: the fixtures are compile-time and the tests pin each
+    // fit's determinism + published agreement anchors.
     let heads = Arc::new(GameHeads::build());
     eprintln!(
         "[riir-reflex] game head: tetris fitted ({} corpus options, λ {}, digest {})",
         heads.n_options(),
         heads.lambda(),
         heads.digest_hex()
+    );
+    let (lanes_lambda, lanes_digest, lanes_n) = heads.lanes_fit();
+    eprintln!(
+        "[riir-reflex] game head: lanes fitted ({} corpus options, λ {}, digest {})",
+        lanes_n, lanes_lambda, lanes_digest
+    );
+    let (flappy_lambda, flappy_digest, flappy_n) = heads.flappy_fit();
+    eprintln!(
+        "[riir-reflex] game head: flappy v3 fitted ({} corpus options, λ {}, digest {})",
+        flappy_n, flappy_lambda, flappy_digest
     );
     serve_listener_lanes(listener, engine, laya, heads)
 }
@@ -570,11 +581,14 @@ fn handle_conn<const N: usize, const D: usize>(
         },
         ("GET", "/healthz") => {
             let laya_state = laya.lock().unwrap().as_str();
+            // The game heads are compile-time surfaces (they boot-fitted or
+            // the process died): advertised statically so the arena page can
+            // label precisely instead of guessing the engine version.
             json_response(
                 &mut writer,
                 "200 OK",
                 &format!(
-                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}}}}"
+                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}},\"heads\":{{\"tetris\":true,\"lanes\":true,\"flappy\":true}}}}"
                 ),
                 cors.as_deref(),
             );
