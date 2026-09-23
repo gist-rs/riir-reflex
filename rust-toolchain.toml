@@ -1,4 +1,8 @@
 # Workspace-wide pin (the every-workspace-pins directive); matches the
 # katgpt-rs sibling so the path dep and this crate build on one toolchain.
+# components must be declared: without them rustup installs the pinned
+# toolchain bare and every CI clippy lane dies with "'cargo-clippy' is
+# not installed" (the riir-infer sibling's pin is the working shape).
 [toolchain]
 channel = "1.98.1"
+components = ["clippy", "rustfmt"]
