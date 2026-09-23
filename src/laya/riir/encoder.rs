@@ -14,7 +14,7 @@ use std::collections::HashMap;
 
 use super::super::config::EncoderConfig;
 use super::super::{LayaError, Result};
-use super::backend::Backend;
+use super::backend::{AttnScratch, Backend};
 use super::ops;
 use super::weights::Weights;
 
@@ -56,11 +56,7 @@ pub struct Encoder {
 struct Scratch {
     x: Vec<f32>,
     qkv: Vec<f32>,
-    q: Vec<f32>,
-    k: Vec<f32>,
-    v: Vec<f32>,
-    scores: Vec<f32>,
-    ctx: Vec<f32>,
+    attn: AttnScratch,
     merged: Vec<f32>,
     attn_out: Vec<f32>,
     xn: Vec<f32>,
@@ -75,11 +71,7 @@ impl Scratch {
         Self {
             x: Vec::new(),
             qkv: Vec::new(),
-            q: Vec::new(),
-            k: Vec::new(),
-            v: Vec::new(),
-            scores: Vec::new(),
-            ctx: Vec::new(),
+            attn: AttnScratch::default(),
             merged: Vec::new(),
             attn_out: Vec::new(),
             xn: Vec::new(),
@@ -92,16 +84,12 @@ impl Scratch {
 
     fn reset(&mut self, n: usize) {
         self.x.resize(n, 0.0);
-        self.q.resize(n, 0.0);
-        self.k.resize(n, 0.0);
-        self.v.resize(n, 0.0);
         self.merged.resize(n, 0.0);
         self.attn_out.resize(n, 0.0);
         self.xn.resize(n, 0.0);
         self.mlp_out.resize(n, 0.0);
-        // qkv (seq·3d), scores (heads·seq²), ctx (seq·d) and fused (seq·2I)
-        // are sized at their use sites — reset sizes the [seq, d] buffers
-        // only.
+        // qkv (seq·3d) and the attention scratch (split thirds + the score
+        // parent) are sized inside the backend's `attention_forward`.
     }
 }
 
@@ -238,14 +226,13 @@ impl Encoder {
                 None => b.copy_into(&h, &mut sc.x),
             }
 
-            // Attention: Wqkv → contiguous-thirds Q/K/V split → per-type
-            // RoPE → pre-scaled dot-product → Wo.
+            // Attention: Wqkv → the backend's fused attention block over the
+            // packed projection (rope + q-scale + score + mask + softmax +
+            // value mix + head merge in ONE op — the op contract and its CPU
+            // op sequence live on the `Backend` trait, the Metal lane's
+            // flash-attention form in [`super::metal`]).
             sc.qkv.resize(seq * 3 * d, 0.0);
             b.matmul_w(&sc.x, seq, d, &layer.wqkv, 3 * d, &mut sc.qkv);
-            b.split_heads(&sc.qkv, 3 * d, 0, seq, heads, hd, &mut sc.q);
-            b.split_heads(&sc.qkv, 3 * d, d, seq, heads, hd, &mut sc.k);
-            b.split_heads(&sc.qkv, 3 * d, 2 * d, seq, heads, hd, &mut sc.v);
-
             let rope = if layer.sliding {
                 rope_slide
                     .get_or_insert_with(|| ops::rope_tables(seq, hd, self.cfg.rope_theta_slide))
@@ -253,27 +240,19 @@ impl Encoder {
                 rope_full
                     .get_or_insert_with(|| ops::rope_tables(seq, hd, self.cfg.rope_theta_full))
             };
-            b.apply_rope(&mut sc.q, seq, heads, hd, &rope.0, &rope.1);
-            b.apply_rope(&mut sc.k, seq, heads, hd, &rope.0, &rope.1);
-
-            // scores [heads, seq, seq] = (q / √hd) @ kᵀ per head — the
-            // reference scales q BEFORE the matmul (torch MHA and SDPA
-            // both). All heads in ONE backend op (one dispatch under
-            // Metal; the CPU lane loops per head identically to v1).
-            b.scale(&mut sc.q, scale);
-            sc.scores.resize(heads * seq * seq, 0.0);
-            b.matmul_kt_heads(&sc.q, &sc.k, heads, seq, hd, &mut sc.scores);
-            if let (true, Some(mask)) = (layer.sliding, mask.as_ref()) {
-                // The [seq, seq] mask broadcasts over heads (candle's
-                // broadcast_add): adding 0.0 to allowed entries is exact.
-                b.add_mask_broadcast(&mut sc.scores, mask, heads);
-            }
-            b.softmax_rows(&mut sc.scores, seq);
-
-            // ctx [heads, seq, hd] = probs @ v per head, then merge heads.
-            sc.ctx.resize(heads * seq * hd, 0.0);
-            b.matmul_heads(&sc.scores, &sc.v, heads, seq, seq, hd, &mut sc.ctx);
-            b.merge_heads(&sc.ctx, seq, heads, hd, &mut sc.merged);
+            b.attention_forward(
+                &sc.qkv,
+                &rope.0,
+                &rope.1,
+                scale,
+                seq,
+                heads,
+                hd,
+                if layer.sliding { window } else { usize::MAX },
+                if layer.sliding { mask.as_deref() } else { None },
+                &mut sc.attn,
+                &mut sc.merged,
+            );
             b.matmul_w(&sc.merged, seq, d, &layer.wo, d, &mut sc.attn_out);
             let h_len = h.len();
             b.add(&mut h, 0, &sc.attn_out, 0, h_len);

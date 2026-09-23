@@ -89,6 +89,67 @@ pub trait Backend {
         dst: &mut [f32],
     );
 
+    /// The whole attention block, projected QKV in → merged heads out.
+    ///
+    /// Input `qkv` is the `[seq, 3d]` Wqkv projection (contiguous thirds
+    /// Q/K/V at column offsets 0/d/2d). The op contract — rope BOTH the q
+    /// and k thirds in place (q additionally takes the `1/√hd` scale AFTER
+    /// the rotate, the encoder's rope-then-scale order), score every head,
+    /// mask, softmax, mix the values, merge heads into `out` `[seq, d]` —
+    /// is implemented HERE for the CPU lane as the exact op sequence below;
+    /// device backends override it with their fused form. The allowed-set
+    /// contract: `mask` (the `[seq, seq]` additive tensor, `Some` only when
+    /// `window < seq − 1` and `seq > 1`) and `window` (the sliding radius,
+    /// `usize::MAX` = full attention) describe the SAME set — 0/allowed
+    /// inside `|q − k| ≤ window`, `f32::MIN`/masked outside — so a device
+    /// lane may use either representation. `scratch` is the caller's
+    /// per-forward buffer set, resized in place (device lanes ignore it).
+    #[allow(clippy::too_many_arguments)]
+    fn attention_forward(
+        &self,
+        qkv: &[f32],
+        rope_cos: &[f32],
+        rope_sin: &[f32],
+        scale: f32,
+        seq: usize,
+        heads: usize,
+        hd: usize,
+        window: usize,
+        mask: Option<&[f32]>,
+        scratch: &mut AttnScratch,
+        out: &mut [f32],
+    ) {
+        let d = heads * hd;
+        // The mask tensor is authoritative on this lane; `window` only
+        // matters to lanes that predicate instead.
+        let _ = window;
+        let AttnScratch {
+            q,
+            k,
+            v,
+            scores,
+            ctx,
+        } = scratch;
+        q.resize(heads * seq * hd, 0.0);
+        k.resize(heads * seq * hd, 0.0);
+        v.resize(heads * seq * hd, 0.0);
+        self.split_heads(qkv, 3 * d, 0, seq, heads, hd, q);
+        self.split_heads(qkv, 3 * d, d, seq, heads, hd, k);
+        self.split_heads(qkv, 3 * d, 2 * d, seq, heads, hd, v);
+        self.apply_rope(q, seq, heads, hd, rope_cos, rope_sin);
+        self.apply_rope(k, seq, heads, hd, rope_cos, rope_sin);
+        self.scale(q, scale);
+        scores.resize(heads * seq * seq, 0.0);
+        self.matmul_kt_heads(q, k, heads, seq, hd, scores);
+        if let Some(m) = mask {
+            self.add_mask_broadcast(scores, m, heads);
+        }
+        self.softmax_rows(scores, seq);
+        ctx.resize(heads * seq * hd, 0.0);
+        self.matmul_heads(scores, v, heads, seq, seq, hd, ctx);
+        self.merge_heads(ctx, seq, heads, hd, out);
+    }
+
     /// `x[r] += mask[r % mask.len()]` over the whole `heads·mask.len()`
     /// scores parent — the attention mask broadcast for every head in one
     /// op (candle's broadcast_add: adding 0.0 to allowed entries is exact).
@@ -180,6 +241,19 @@ pub trait Backend {
     /// are rebuilt per forward, often at recycled heap addresses). CPU:
     /// no-op. Called once per forward by the agent, before the encoder.
     fn begin_pass(&self);
+}
+
+/// The attention block's host scratch — the split q/k/v thirds, the score
+/// matrix and the per-head context. Owned by the encoder's per-forward
+/// scratch (resized in place across layers, never reallocated in the layer
+/// loop); device lanes run the fused form and ignore it entirely.
+#[derive(Debug, Default)]
+pub struct AttnScratch {
+    pub q: Vec<f32>,
+    pub k: Vec<f32>,
+    pub v: Vec<f32>,
+    pub scores: Vec<f32>,
+    pub ctx: Vec<f32>,
 }
 
 /// The CPU backend — a 1:1 delegation onto the [`super::ops`] free fns, so

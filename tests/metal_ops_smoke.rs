@@ -333,6 +333,81 @@ fn metal_attention_chain_matches_cpu() {
     report("attention chain (merged)", &merged, &merged_got, 1e-3);
 }
 
+/// The fused-attention seam: `attention_forward` equivalence vs the CPU
+/// default op sequence, full attention, ragged + padded tile sizes (9/37
+/// walk every sgemm + fa tile edge; 129 = FBQ·16 + 1; 1 = the single-key
+/// row).
+#[test]
+fn metal_fused_attention_matches_cpu_full() {
+    let m = Metal::new().expect("metal backend");
+    let c = Cpu;
+    let hd = 64usize;
+    for (seq, heads) in [(1usize, 4usize), (9, 4), (37, 4), (64, 2), (129, 2)] {
+        let d = heads * hd;
+        let qkv = vec_of(seq * 3 * d);
+        let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
+        let scale = (hd as f32).sqrt().recip();
+        let mut sa = riir_reflex::laya::riir::backend::AttnScratch::default();
+        let mut sb = riir_reflex::laya::riir::backend::AttnScratch::default();
+        let mut oc = vec![0f32; seq * d];
+        let mut om = vec![0f32; seq * d];
+        c.attention_forward(
+            &qkv, &cos, &sin, scale, seq, heads, hd, usize::MAX, None, &mut sa, &mut oc,
+        );
+        m.attention_forward(
+            &qkv, &cos, &sin, scale, seq, heads, hd, usize::MAX, None, &mut sb, &mut om,
+        );
+        report(
+            &format!("attn full {seq}x{heads}"),
+            &oc,
+            &sync_out(&m, &om),
+            1e-3,
+        );
+    }
+}
+
+/// Sliding-window equivalence: the CPU lane consumes the additive mask
+/// tensor, Metal predicates on the window — the SAME allowed set must come
+/// out. Window 8 at seq 64, window 4 ragged at seq 37, window 16 at seq
+/// 130 (the english geometry's shape at a small window).
+#[test]
+fn metal_fused_attention_matches_cpu_sliding() {
+    let m = Metal::new().expect("metal backend");
+    let c = Cpu;
+    let hd = 64usize;
+    for (seq, heads, window) in [(64usize, 4usize, 8usize), (37, 4, 4), (130, 2, 16)] {
+        let d = heads * hd;
+        let qkv = vec_of(seq * 3 * d);
+        let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
+        let scale = (hd as f32).sqrt().recip();
+        // the encoder's mask: [seq, seq], f32::MIN outside the window
+        let mut mask = vec![f32::MIN; seq * seq];
+        for qi in 0..seq {
+            let lo = qi.saturating_sub(window);
+            let hi = (qi + window).min(seq - 1);
+            for kv in lo..=hi {
+                mask[qi * seq + kv] = 0.0;
+            }
+        }
+        let mut sa = riir_reflex::laya::riir::backend::AttnScratch::default();
+        let mut sb = riir_reflex::laya::riir::backend::AttnScratch::default();
+        let mut oc = vec![0f32; seq * d];
+        let mut om = vec![0f32; seq * d];
+        c.attention_forward(
+            &qkv, &cos, &sin, scale, seq, heads, hd, window, Some(&mask), &mut sa, &mut oc,
+        );
+        m.attention_forward(
+            &qkv, &cos, &sin, scale, seq, heads, hd, window, Some(&mask), &mut sb, &mut om,
+        );
+        report(
+            &format!("attn slide {seq}x{heads} w{window}"),
+            &oc,
+            &sync_out(&m, &om),
+            1e-3,
+        );
+    }
+}
+
 /// Long-sequence sliding-window attention block: the mask add (offset
 /// form) + full-size gemms — the english/multilingual shape that stayed
 /// broken after the pass fix while typed-decisions went exact.
