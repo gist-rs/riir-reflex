@@ -136,7 +136,10 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   (`6db0cce`, CF `ab5d8524`); G5 parity green BOTH postures on the tagged tree (cpu 27.8 s,
   metal 9.9 s), metal smoke green ×3 serialized + full laya-riir-metal suite 154/0;
   packaged-binary live smoke PASS (stamp complete, all three heads fitted, lanes turn
-  answered from the head). Carries the Metal BK64+xwide lane (`a51ea42`: ag_news 34→29 ms
+  answered from the head); 4090 windows smoke PASS (zip hash-verified against
+  SHA256SUMS, stamp complete, all three boot digests at the published pins, lanes
+  joined-turn answered — BYTE-IDENTICAL to the darwin-arm64 answer on the M3 for the
+  same request). Carries the Metal BK64+xwide lane (`a51ea42`: ag_news 34→29 ms
   beats the python oracle, xwide n-floor + cold-GPU-sequencing traps recorded in the
   landing) and issue 015 (the parallel-Metal smoke flake — observation 4 is this
   release's own pre-flight: one serialized red minutes after sibling GPU work, then
