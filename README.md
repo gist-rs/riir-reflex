@@ -98,17 +98,26 @@ The device is Metal on macOS metal builds by default (v0.2.2 — the measured
 ~2× per-forward gain; `LAYA_DEVICE=cpu` opts out, an explicit env value is
 always honored verbatim).
 
-### The fitted game head (Tetris, default-on)
+### The fitted game heads (Tetris + lanes + flappy, default-on)
 
-The modelless lane answers Plan 607's Tetris spot question ("Does the stack
-look clean?") from the **decoded Bench-881 corpus-fitted head** — boot-
-fitted from the verbatim BLAKE3-pinned copy of the katgpt-rs oracle fixture
-(the published fit: λ=1, in-corpus 44/120, LOO 44/120 — 2.7× the random-
-spot fallback). The head serves BEFORE the cosine engine falls through:
-grammar-invalid states, foreign questions and non-noul kinds all decline to
-the honest abstain. This is what makes the arena's modelless Tetris board
-play out of the box. Lanes + flappy still abstain (`.issues/011` records
-the unblock paths — no serving from an unmeasured fit).
+The modelless lane answers Plan 607's three game questions from the
+**decoded corpus-fitted heads** — boot-fitted from verbatim BLAKE3-pinned
+copies of the katgpt-rs oracle fixtures (each head's published fit is
+asserted in `tests/game_heads_serve.rs` — no serving from an unmeasured
+fit):
+
+| head | published fit | request shape |
+|---|---|---|
+| Tetris | Bench 881: λ=1, 44/120 · 44/120 | `state` = the spot sentence |
+| Lanes | Bench 880 (lossless): λ=0.01, 84/100 · 84/100, digest `7d3f1d8e…09d34` | joined-state turn: `state` = the three lane sentences ONE PER LINE, exactly three noul questions — answer i is lane i |
+| Flappy | Bench 882 v3: λ=1, 96/100 · 96/100, digest `c93d36dc…e3c5` | (state, option) pair: `state` = the state sentence + the option sentence (two lines), one noul question |
+
+The heads serve BEFORE the cosine engine falls through: grammar-invalid
+states, foreign questions and non-noul kinds all decline to the honest
+abstain. `noul` questions legally carry no options, so the sentence
+sequence rides in the `state` field one per line. This is what makes the
+arena's three modelless boards play out of the box against a local engine
+(issue 011 closed; the wasm in-tab heads play even with no engine).
 
 Release builds on this box (manual, Plan-105 posture; non-host triples
 route through cargo-zigbuild):
