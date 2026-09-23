@@ -10,6 +10,22 @@ already closed with records only in git history.
 
 ## 2026-09-23
 
+- **Issue 012 — the laya-python reference lane** CLOSED (this commit).
+  The bench tables gain the ORIGINAL torch reference as a measurement-only
+  subprocess oracle (`scripts/laya_python_lane.py`, harness
+  `--laya-python`): SAME cases, ONE shared metrics tail
+  (`assemble_laya_lane_result`), the reference's own rounded-4
+  probabilities, 4 known-answer mapping tests. First measurement
+  (prompt_injections, metal/mps): acc/ECE/F1 IDENTICAL to laya-riir
+  (0.6983 / 0.2620) — the port is parity-true outside the fixture corpus;
+  torch-MPS row batching leads our per-op dispatch ~2.7× at p50 (the
+  Bench-001 optimization ladder's baseline, now published in the same
+  table). Site spellings (`laya (rust)` / `laya (python)` /
+  `modelless · none`) are display-only renames in reflex-site's
+  `publish_bench.py` — the canonical results.json keeps machine fields.
+  The "no Python anywhere" directive governs the shipped binary, not the
+  bench reference (the `probe_orig_laya_latency.py` precedent).
+
 - **Plan 001 — the fitted game head served over HTTP + the Metal-default
   laya lane + release v0.2.2** LANDED (`367766c` + `932a2a3`, tag
   `v0.2.2`). The arena's modelless board plays Tetris out of the box: the

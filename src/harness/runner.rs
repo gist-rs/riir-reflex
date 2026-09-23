@@ -534,6 +534,12 @@ pub struct RunMeta {
     pub calibration_protocol: String,
     pub floor_definition: String,
     pub determinism_scoping: String,
+    /// The riir lane's device posture for this run (honest latency reading:
+    /// the same build answers differently on cpu vs metal).
+    pub laya_device: String,
+    /// Whether the laya-python (torch reference) oracle lane ran, and its
+    /// measurement caveats when it did.
+    pub laya_python_lane: String,
     pub divergences: Vec<String>,
 }
 
@@ -1348,6 +1354,38 @@ fn run_laya_checkpoint(
         confs.push(cconfs);
     }
 
+    let (p50, p99, support) = percentile_us(&durs_ms);
+    Ok(assemble_laya_lane_result(
+        "laya-riir",
+        ckpt,
+        suite.name,
+        cases,
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
+/// Shared tail of BOTH laya backends (the in-process riir backend and the
+/// python subprocess oracle): the answer vectors → metrics, the optional
+/// typed-decisions extras, and the [`LaneResult`] envelope. The two lanes
+/// differ only in HOW answers are produced — the metrics must not.
+#[allow(clippy::too_many_arguments)]
+fn assemble_laya_lane_result(
+    lane: &'static str,
+    model: &str,
+    suite_name: &str,
+    cases: &[SuiteCase],
+    probs: Vec<Vec<Vec<f64>>>,
+    picks: Vec<Vec<usize>>,
+    confs: Vec<Vec<f64>>,
+    durs_ms: Vec<u64>,
+    determinism_ok: Option<bool>,
+    seconds: f64,
+) -> LaneResult {
     let ev = Eval {
         probs,
         picks,
@@ -1374,7 +1412,7 @@ fn run_laya_checkpoint(
     let mut brier_soft: Option<f64> = None;
     let mut score_mae: Option<f64> = None;
     let mut within_1: Option<f64> = None;
-    if suite.name == "typed_decisions" {
+    if suite_name == "typed_decisions" {
         let mut buckets: BTreeMap<String, Vec<(usize, Vec<f64>)>> = BTreeMap::new();
         let (mut ssum, mut sn, mut bsum) = (0.0f64, 0usize, 0.0f64);
         let (mut msum, mut wsum, mut mn) = (0.0f64, 0.0f64, 0usize);
@@ -1414,9 +1452,9 @@ fn run_laya_checkpoint(
     }
 
     let (p50, p99, support) = percentile_us(&durs_ms);
-    Ok(LaneResult {
-        lane: "laya-riir",
-        model: ckpt.to_string(),
+    LaneResult {
+        lane,
+        model: model.to_string(),
         hard,
         readout_ece: Some(ece_of(&readout)),
         raw_abstain: None,
@@ -1434,13 +1472,231 @@ fn run_laya_checkpoint(
         latency_p99_ms: p99 as f64,
         latency_tail_support: support,
         determinism_ok,
-        seconds: t_start.elapsed().as_secs_f64(),
+        seconds,
         n_cases: cases.len(),
         n_questions: ev.n_questions(),
         score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
-    })
+    }
+}
+
+/// The laya-python lane: the ORIGINAL torch reference driven as a JSONL
+/// subprocess oracle (measurement-only — the product lane stays the riir
+/// backend; the owner's "no Python anywhere" directive governs the shipped
+/// binary, not the bench reference, per the probe_orig_laya_latency
+/// precedent). SAME cases, SAME answer mapping, SAME metrics tail as the
+/// riir lane ([`assemble_laya_lane_result`]) — the only differences are the
+/// forward's executor and the reference's own rounded-4 probabilities.
+/// Latency is the subprocess round-trip per case (IPC included) and is
+/// disclosed as such in the run meta.
+fn run_laya_python_checkpoint(
+    suite: &Suite,
+    ckpt: &str,
+    laya_max_questions: usize,
+) -> Result<LaneResult, String> {
+    use std::io::{BufRead, BufReader, Write};
+    use std::process::{ChildStdin, Command, Stdio};
+
+    let script = std::env::var("LAYA_PYTHON_LANE_SCRIPT")
+        .unwrap_or_else(|_| "scripts/laya_python_lane.py".to_string());
+    if !Path::new(&script).is_file() {
+        return Err(format!(
+            "oracle script not found at {script} — run from the repo root or set \
+             LAYA_PYTHON_LANE_SCRIPT (the lane is opt-in measurement tooling)"
+        ));
+    }
+    let python = std::env::var("LAYA_PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let device = std::env::var("LAYA_PY_DEVICE").unwrap_or_else(|_| "mps".to_string());
+
+    let t_start = Instant::now();
+    let mut child = Command::new(&python)
+        .arg(&script)
+        .arg(ckpt)
+        .arg(&device)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        // stderr inherits: the reference's load warnings stay visible.
+        .spawn()
+        .map_err(|e| format!("spawn {python} {script} ({ckpt}): {e}"))?;
+    let mut stdin: ChildStdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "oracle stdin unavailable".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "oracle stdout unavailable".to_string())?;
+    let mut reader = BufReader::new(stdout);
+
+    let send_case = |stdin: &mut ChildStdin, case: &SuiteCase| -> Result<(), String> {
+        let mut qs = Vec::with_capacity(case.questions.len());
+        for q in &case.questions {
+            let mut def = serde_json::Map::new();
+            def.insert("type".into(), Value::String(q.kind.as_str().into()));
+            def.insert("instructions".into(), Value::String(q.instructions.clone()));
+            if !q.criteria.is_null() {
+                def.insert("criteria".into(), q.criteria.clone());
+            }
+            qs.push(serde_json::json!({"qid": q.qid, "def": Value::Object(def)}));
+        }
+        let line = serde_json::json!({"state": case.state, "questions": qs});
+        writeln!(stdin, "{line}").map_err(|e| format!("oracle stdin ({ckpt}): {e}"))?;
+        stdin.flush().map_err(|e| format!("oracle stdin flush ({ckpt}): {e}"))
+    };
+
+    let read_line = |reader: &mut BufReader<std::process::ChildStdout>,
+                     buf: &mut String|
+     -> Result<(), String> {
+        buf.clear();
+        let n = reader
+            .read_line(buf)
+            .map_err(|e| format!("oracle stdout ({ckpt}): {e}"))?;
+        if n == 0 {
+            return Err(format!(
+                "oracle stream ended early ({ckpt}) — the reference process died; \
+                 its stderr above names the cause"
+            ));
+        }
+        Ok(())
+    };
+
+    // Handshake: one line once the checkpoint is loaded.
+    let mut line = String::new();
+    read_line(&mut reader, &mut line)?;
+    let ready: Value = serde_json::from_str(line.trim())
+        .map_err(|e| format!("oracle handshake ({ckpt}): {e} (got: {})", line.trim()))?;
+    if ready.get("ready") != Some(&Value::Bool(true)) {
+        return Err(format!("oracle handshake ({ckpt}): expected {{\"ready\":true}}, got {line}"));
+    }
+
+    // Cap the eval cases when asked — the SAME trim law as the riir lane.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs = Vec::with_capacity(cases.len());
+    let mut picks = Vec::with_capacity(cases.len());
+    let mut confs = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        send_case(&mut stdin, case)?;
+        let mut line = String::new();
+        read_line(&mut reader, &mut line)?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        let resp: Value = serde_json::from_str(line.trim())
+            .map_err(|e| format!("oracle response ({ckpt}, case {ci}): {e}"))?;
+
+        if ci < 10 {
+            send_case(&mut stdin, case)?;
+            let mut line2 = String::new();
+            read_line(&mut reader, &mut line2)?;
+            if line != line2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(case.questions.len());
+        let mut cpicks = Vec::with_capacity(case.questions.len());
+        let mut cconfs = Vec::with_capacity(case.questions.len());
+        for q in case.questions.iter() {
+            let answers = resp
+                .get("answers")
+                .and_then(|a| a.as_object())
+                .ok_or_else(|| format!("oracle response ({ckpt}, case {ci}): no answers object"))?;
+            let a = answers.get(&q.qid).ok_or_else(|| {
+                format!("oracle response ({ckpt}, case {ci}): missing qid {}", q.qid)
+            })?;
+            let (p, pick, conf) = parse_python_answer(q, a)
+                .map_err(|e| format!("oracle response ({ckpt}, case {ci}): {e}"))?;
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    drop(stdin);
+    let _ = child.wait();
+
+    Ok(assemble_laya_lane_result(
+        "laya-python",
+        ckpt,
+        suite.name,
+        cases,
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
+/// Map one oracle answer object (`{"p": [...], "conf": c, "choice"?,
+/// "noul"?}`) to the SAME (probs, pick, confidence) triple the riir lane's
+/// answer mapping produces — the metrics must not see a different shape.
+pub fn parse_python_answer(
+    q: &crate::harness::suites::SuiteQuestion,
+    a: &Value,
+) -> Result<(Vec<f64>, usize, f64), String> {
+    let p: Vec<f64> = a
+        .get("p")
+        .and_then(Value::as_array)
+        .map(|arr| {
+            arr.iter()
+                .map(|v| v.as_f64().unwrap_or(0.0))
+                .collect::<Vec<_>>()
+        })
+        .ok_or_else(|| format!("qid {}: missing/invalid p", q.qid))?;
+    let conf = a
+        .get("conf")
+        .and_then(Value::as_f64)
+        .ok_or_else(|| format!("qid {}: missing/invalid conf", q.qid))?;
+    let pick = match q.kind {
+        QKind::Choice => {
+            let keys: Vec<String> = q
+                .criteria
+                .as_object()
+                .map(|m| m.keys().cloned().collect())
+                .unwrap_or_default();
+            a.get("choice")
+                .and_then(Value::as_str)
+                .and_then(|c| keys.iter().position(|k| k == c))
+                .unwrap_or_else(|| {
+                    p.iter()
+                        .enumerate()
+                        .max_by(|a, b| a.1.total_cmp(b.1))
+                        .map_or(0, |(i, _)| i)
+                })
+        }
+        QKind::Score => p
+            .iter()
+            .enumerate()
+            .max_by(|a, b| a.1.total_cmp(b.1))
+            .map_or(0, |(i, _)| i),
+        QKind::Noul => {
+            if p.len() != 2 {
+                return Err(format!("qid {}: noul p must be [1-n, n]", q.qid));
+            }
+            usize::from(p[1] >= 0.5)
+        }
+    };
+    Ok((p, pick, conf))
 }
 
 #[cfg(not(feature = "laya-riir"))]
@@ -1668,6 +1924,9 @@ pub struct RunOptions {
     pub laya_max_questions: usize,
     /// Skip the laya lane entirely (modelless-only run).
     pub skip_laya: bool,
+    /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
+    /// subprocess oracle (measurement-only; opt-in, off by default).
+    pub laya_python: bool,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
@@ -1784,6 +2043,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         }
 
+        // Laya-python lane (opt-in measurement oracle): the ORIGINAL torch
+        // reference answering the SAME cases as a subprocess. Keyed `py/`
+        // so both backends can appear side by side in the tables.
+        if opts.laya_python {
+            for ck in laya_checkpoints_for(spec.name) {
+                eprintln!("    laya-python[{ck}]: running…");
+                match run_laya_python_checkpoint(&prepared.suite, ck, opts.laya_max_questions) {
+                    Ok(r) => {
+                        eprintln!(
+                            "    laya-python[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                            r.hard.accuracy,
+                            r.hard.ece,
+                            r.latency_p50_ms,
+                            (r.seconds * 10.0).round() / 10.0
+                        );
+                        laya_results.insert(format!("py/{ck}"), r);
+                    }
+                    Err(e) => {
+                        // Loud absence, never a silent skip (the same law
+                        // as the riir lane's errors).
+                        errors.push(format!("{} (laya-python/{ck}): {e}", spec.name));
+                    }
+                }
+            }
+        }
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -1826,6 +2111,31 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                               the laya lane gets the same observed repeat check and it is \
                               reported, not claimed"
             .to_string(),
+        laya_device: {
+            #[cfg(feature = "laya-riir")]
+            {
+                use crate::laya::riir::agent::DeviceKind;
+                match DeviceKind::from_env() {
+                    Ok(DeviceKind::Metal) => "metal (LAYA_DEVICE or the build's macOS default)"
+                        .to_string(),
+                    Ok(DeviceKind::Cpu) => "cpu (LAYA_DEVICE or the no-backend default)"
+                        .to_string(),
+                    Err(e) => format!("unknown ({e})"),
+                }
+            }
+            #[cfg(not(feature = "laya-riir"))]
+            {
+                "n/a (compiled without laya-riir)".to_string()
+            }
+        },
+        laya_python_lane: if opts.laya_python {
+            "on — the ORIGINAL torch reference as a JSONL subprocess oracle: same cases, \
+             the reference's own rounded-4 probabilities, latency = subprocess round-trip \
+             (IPC included)"
+                .to_string()
+        } else {
+            "off (pass --laya-python to add the reference lane)".to_string()
+        },
         divergences: vec![
             "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
              both lanes see byte-identical questions, which is the integrity that matters"
@@ -1903,6 +2213,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             ));
         }
     }
+    s.push_str(&format!("- laya device posture: {}\n", out.meta.laya_device));
+    s.push_str(&format!(
+        "- laya-python lane: {}\n",
+        out.meta.laya_python_lane
+    ));
     s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
@@ -1944,9 +2259,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             if !suite.laya.is_empty() {
                 s.push_str("| lane · model | n | acc | ECE(maxp) | readout-ECE | p50 | p99 (support) | det |\n");
                 s.push_str("|---|---|---|---|---|---|---|---|\n");
-                for (ck, r) in &suite.laya {
+                for r in suite.laya.values() {
                     s.push_str(&format!(
-                        "| laya · {ck} | {} | {} | {} | {} | {:.1} ms | {:.1} ms ({}) | {} |\n",
+                        "| {} · {} | {} | {} | {} | {} | {:.1} ms | {:.1} ms ({}) | {} |\n",
+                        r.lane,
+                        r.model,
                         r.hard.n,
                         fmt4(r.hard.accuracy),
                         fmt4(r.hard.ece),
@@ -1990,9 +2307,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             m.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             fmt_gate_fit(m),
         ));
-        for (ck, r) in &suite.laya {
+        for r in suite.laya.values() {
             s.push_str(&format!(
-                "| laya · {ck} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {:.1} ms ({}) | {} | — |\n",
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {:.1} ms ({}) | {} | — |\n",
+                r.lane,
+                r.model,
                 r.hard.n,
                 fmt4(r.hard.accuracy),
                 fmt4(r.hard.macro_f1),
@@ -2050,11 +2369,13 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                             fmt4(h.mean_confidence)
                         ));
                     }
-                    for (ck, r) in &suite.laya {
+                    for r in suite.laya.values() {
                         if let Some(by) = &r.by_question_type {
                             for (t, h) in by {
                                 s.push_str(&format!(
-                                    "| laya·{ck} | {t} | {} | {} | {} | {} |\n",
+                                    "| {}·{} | {t} | {} | {} | {} | {} |\n",
+                                    r.lane,
+                                    r.model,
                                     h.n,
                                     fmt4(h.accuracy),
                                     fmt4(h.ece),
@@ -2065,9 +2386,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                     }
                 }
             }
-            for (ck, r) in &suite.laya {
+            for r in suite.laya.values() {
                 s.push_str(&format!(
-                    "**typed-decisions extras (laya·{ck}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
+                    "**typed-decisions extras ({}·{}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
+                    r.lane,
+                    r.model,
                     fmt_opt(r.soft_acc),
                     fmt_opt(r.brier_soft),
                     fmt_opt(r.score_mae),

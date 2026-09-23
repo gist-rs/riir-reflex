@@ -767,3 +767,65 @@ fn train_docs_rules() {
     // unknown suite → empty
     assert!(train_docs(&text_rows, "no_such_suite").is_empty());
 }
+
+// ── laya-python oracle answer mapping ───────────────────────────────────────
+
+use riir_reflex::harness::runner::parse_python_answer;
+use riir_reflex::harness::suites::SuiteQuestion;
+
+fn q(kind: QKind, criteria: serde_json::Value) -> SuiteQuestion {
+    SuiteQuestion {
+        qid: "q0".into(),
+        kind,
+        instructions: "i".into(),
+        criteria,
+    }
+}
+
+/// Choice: pick follows the reference's `choice` KEY (not argmax on rounded
+/// probs — a 4-dp tie-flip must not move the pick), probs follow criteria
+/// key order.
+#[test]
+fn python_answer_choice_uses_choice_key_and_criteria_order() {
+    let question = q(QKind::Choice, json!({"beta": null, "alpha": null, "gamma": null}));
+    let a = json!({
+        "p": [0.2000, 0.6000, 0.2000],
+        "conf": 0.6000,
+        "choice": "beta",
+    });
+    let (p, pick, conf) = parse_python_answer(&question, &a).unwrap();
+    assert_eq!(p, vec![0.2, 0.6, 0.2]);
+    assert_eq!(pick, 0, "choice=beta is criteria-order index 0");
+    assert!((conf - 0.6).abs() < EPS);
+}
+
+/// Score: argmax over the level vector, index = level.
+#[test]
+fn python_answer_score_argmaxes_levels() {
+    let question = q(QKind::Score, json!(["lvl0", "lvl1", "lvl2", "lvl3"]));
+    let a = json!({"p": [0.1, 0.2, 0.5, 0.2], "conf": 0.5});
+    let (p, pick, _) = parse_python_answer(&question, &a).unwrap();
+    assert_eq!(p.len(), 4);
+    assert_eq!(pick, 2);
+}
+
+/// Noul: p arrives as [1-n, n]; the pick is n >= 0.5 on the SECOND element.
+#[test]
+fn python_answer_noul_thresholds_on_second_element() {
+    let question = q(QKind::Noul, serde_json::Value::Null);
+    let a = json!({"p": [0.4000, 0.6000], "conf": 0.6000});
+    let (p, pick, _) = parse_python_answer(&question, &a).unwrap();
+    assert_eq!(p, vec![0.4, 0.6]);
+    assert_eq!(pick, 1);
+    let a = json!({"p": [0.5001, 0.4999], "conf": 0.5001});
+    let (_, pick, _) = parse_python_answer(&question, &a).unwrap();
+    assert_eq!(pick, 0);
+}
+
+/// Missing fields fail loud with the qid named — never a silent zero row.
+#[test]
+fn python_answer_missing_fields_fail_loud() {
+    let question = q(QKind::Score, json!(["a", "b"]));
+    assert!(parse_python_answer(&question, &json!({"conf": 0.5})).is_err());
+    assert!(parse_python_answer(&question, &json!({"p": [0.5, 0.5]})).is_err());
+}

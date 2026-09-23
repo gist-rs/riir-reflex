@@ -3,8 +3,12 @@
 //! Usage:
 //! ```text
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
-//!                                      [--skip-laya] [--out DIR]
+//!                                      [--skip-laya] [--laya-python] [--out DIR]
 //! ```
+//! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
+//! oracle lane (measurement-only; needs python3 + torch/transformers and the
+//! weights in the shared cache — absent pieces are loud absences, never
+//! silent skips).
 //! Writes `results.json` + `TABLES.md` into `--out`
 //! (default `.benchmarks/001_phase1_tables/`). Datasets come from
 //! `.raw/datasets/` (scripts/fetch_datasets.sh). Exit 0 iff every requested
@@ -22,6 +26,7 @@ fn main() {
         suites: Vec::new(),
         laya_max_questions: 0,
         skip_laya: false,
+        laya_python: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut i = 0;
@@ -44,6 +49,7 @@ fn main() {
                     .unwrap_or_else(|| die("--laya-max-questions needs a number"));
             }
             "--skip-laya" => opts.skip_laya = true,
+            "--laya-python" => opts.laya_python = true,
             "--out" => {
                 i += 1;
                 out_dir = args

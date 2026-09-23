@@ -25,6 +25,10 @@ cargo test                                     # the gates
   `scripts/fetch_datasets.sh`) and, for the laya lane, `--features
   laya-riir` with the weights root (`LAYA_WEIGHTS_DIR` or the default
   cache; weights download + SHA-256 verify on first use).
+- `harness --laya-python` ADDS the original torch reference as a
+  measurement-only subprocess oracle lane (needs python3 + torch/
+  transformers; the published tables carry both `laya (rust)` and
+  `laya (python)` — issue 012).
 
 ## Install (binary-only distribution, Plan 606)
 
