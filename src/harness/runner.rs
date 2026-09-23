@@ -46,8 +46,8 @@ use crate::engine::{
 };
 use crate::harness::families::SynthData;
 use crate::harness::metrics::{
-    CalibrationPair, HardMetrics, conformal_naive_floor, ece_of, hard_metrics, score_metrics,
-    soft_metrics,
+    CalibrationPair, G1Verdict, HardMetrics, conformal_naive_floor, ece_of, g1_verdict_of,
+    hard_metrics, score_metrics, soft_metrics,
 };
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
@@ -477,6 +477,10 @@ pub struct LaneResult {
     pub readout_ece_calibrated: Option<f64>,
     pub floor_ece: Option<f64>,
     pub g1_pass: Option<bool>,
+    /// The G1 verdict spelled out (`pass`/`fail`/`no_claim`): `no_claim` is
+    /// the calibrator-never-fitted state the `g1_pass` None projection hides,
+    /// surfaced so the tables can print NO CLAIM instead of FAIL.
+    pub g1_verdict: Option<G1Verdict>,
     /// Per-question-type hard metrics (typed_decisions only).
     pub by_question_type: Option<BTreeMap<String, HardMetrics>>,
     /// Soft-distribution metrics (typed_decisions only).
@@ -1078,12 +1082,12 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         .collect();
     let floor_ece = ece_of(&floor_pairs);
 
-    let g1_pass = if moved && !cal_pairs.is_empty() {
-        Some(readout_ece_cal < readout_ece_raw && readout_ece_cal < floor_ece)
-    } else {
-        // The calibrator never moved (too few obs) — no calibration claim.
-        Some(false)
-    };
+    // The verdict is derived in metrics (pure, known-answer-tested): the
+    // calibrator-never-fitted state is NO CLAIM — the meta's
+    // calibration_protocol line has promised exactly that since the lane
+    // landed; this makes the code keep the promise.
+    let (g1_pass, g1_verdict) =
+        g1_verdict_of(moved, cal_pairs.len(), readout_ece_cal, readout_ece_raw, floor_ece);
 
     // Optional per-type + soft/score metrics.
     let mut by_question_type: Option<BTreeMap<String, HardMetrics>> = None;
@@ -1201,6 +1205,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         readout_ece_calibrated: Some(readout_ece_cal),
         floor_ece: Some(floor_ece),
         g1_pass,
+        g1_verdict: Some(g1_verdict),
         by_question_type,
         soft_acc,
         brier_soft,
@@ -1463,6 +1468,7 @@ fn assemble_laya_lane_result(
         readout_ece_calibrated: None,
         floor_ece: None,
         g1_pass: None,
+        g1_verdict: None,
         by_question_type,
         soft_acc,
         brier_soft,
@@ -2332,19 +2338,27 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         }
 
         // G1 table (modelless only).
-        if let (Some(raw), Some(cal), Some(floor), Some(pass)) = (
+        if let (Some(raw), Some(cal), Some(floor), Some(verdict)) = (
             m.readout_ece_raw,
             m.readout_ece_calibrated,
             m.floor_ece,
-            m.g1_pass,
+            m.g1_verdict,
         ) {
+            let (word, why) = match verdict {
+                G1Verdict::Pass => ("PASS", "beats both the uncalibrated output AND the floor"),
+                G1Verdict::Fail => ("FAIL", "does not beat both"),
+                G1Verdict::NoClaim => (
+                    "NO CLAIM",
+                    "the calibrator never fitted (cal window below the occupancy floor) — nothing to pass or fail",
+                ),
+            };
             s.push_str(&format!(
-                "\n**G1 (modelless readout ECE):** raw {} · calibrated {} · conformal-naive floor {} → **{}** ({} of the uncalibrated output AND the floor)\n",
+                "\n**G1 (modelless readout ECE):** raw {} · calibrated {} · conformal-naive floor {} → **{}** ({})\n",
                 fmt4(raw),
                 fmt4(cal),
                 fmt4(floor),
-                if pass { "PASS" } else { "FAIL" },
-                if pass { "beats both" } else { "does not beat both" }
+                word,
+                why
             ));
         }
 

@@ -330,6 +330,49 @@ pub fn bin_of(conf: f64, edges: &[f64]) -> Option<usize> {
     (0..edges.len() - 1).find(|&i| conf > edges[i] && conf <= edges[i + 1])
 }
 
+/// The G1 calibration-gate verdict, spelled out for the tables and the
+/// published JSON. `NoClaim` is the honest third state: the calibrator never
+/// fitted (`refit` never moved it — the cal window is below the occupancy
+/// floor), so the "calibrated vs raw" comparison compares the raw readout
+/// against itself and there is no calibration claim to pass or fail. Never
+/// read as a pass.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum G1Verdict {
+    /// Fitted AND beats both the uncalibrated readout and the conformal floor.
+    Pass,
+    /// Fitted but fails to beat both — including the identity fit (the
+    /// calibrator looked at the evidence and concluded "no correction", which
+    /// cannot strictly beat raw; the floor contract judges it).
+    Fail,
+    /// Nothing was fitted (cal window below the occupancy floor) — no
+    /// calibration claim made.
+    NoClaim,
+}
+
+/// The G1 verdict derivation — pure so the known-answer tests pin it. The
+/// bool half is `g1_pass`'s wire-compatible projection (`None` for NoClaim —
+/// a lane that fitted nothing must not serialize as a failed gate).
+#[must_use]
+pub fn g1_verdict_of(
+    fitted: bool,
+    n_cal_pairs: usize,
+    readout_ece_cal: f64,
+    readout_ece_raw: f64,
+    floor_ece: f64,
+) -> (Option<bool>, G1Verdict) {
+    if !fitted || n_cal_pairs == 0 {
+        return (None, G1Verdict::NoClaim);
+    }
+    let pass = readout_ece_cal < readout_ece_raw && readout_ece_cal < floor_ece;
+    let verdict = if pass {
+        G1Verdict::Pass
+    } else {
+        G1Verdict::Fail
+    };
+    (Some(pass), verdict)
+}
+
 /// argmax with first-max-wins on ties (np.argmax semantics).
 fn argmax_first(probs: &[f64]) -> (usize, f64) {
     let mut best = 0;

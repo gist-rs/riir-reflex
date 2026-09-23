@@ -829,3 +829,51 @@ fn python_answer_missing_fields_fail_loud() {
     assert!(parse_python_answer(&question, &json!({"conf": 0.5})).is_err());
     assert!(parse_python_answer(&question, &json!({"p": [0.5, 0.5]})).is_err());
 }
+
+// ── metrics: the G1 verdict ─────────────────────────────────────────────────
+
+/// Nothing fitted → NO CLAIM with a None `g1_pass` projection, whatever the
+/// numbers say (the calibrated ECE IS the raw ECE there — identity apply — so
+/// the strict `<` would read a failure with nothing to fail).
+#[test]
+fn g1_verdict_no_claim_when_nothing_fitted() {
+    let (pass, verdict) = g1_verdict_of(false, 48, 0.31, 0.31, 0.20);
+    assert_eq!(pass, None);
+    assert_eq!(verdict, G1Verdict::NoClaim);
+
+    // zero cal pairs is no-claim even if `fitted` somehow reads true.
+    let (pass, verdict) = g1_verdict_of(true, 0, 0.31, 0.30, 0.20);
+    assert_eq!(pass, None);
+    assert_eq!(verdict, G1Verdict::NoClaim);
+}
+
+/// Fitted → PASS only when it beats BOTH raw and the floor; every other
+/// fitted outcome (including the identity fit, cal == raw exactly) is FAIL.
+#[test]
+fn g1_verdict_pass_and_fail_when_fitted() {
+    let (pass, verdict) = g1_verdict_of(true, 64, 0.20, 0.31, 0.25);
+    assert_eq!(pass, Some(true));
+    assert_eq!(verdict, G1Verdict::Pass);
+
+    // beats raw but not the floor → fail (the Report-the-Floor contract).
+    let (pass, verdict) = g1_verdict_of(true, 64, 0.22, 0.31, 0.20);
+    assert_eq!(pass, Some(false));
+    assert_eq!(verdict, G1Verdict::Fail);
+
+    // the identity fit: cal == raw exactly → strict < fails → fail.
+    let (pass, verdict) = g1_verdict_of(true, 64, 0.31, 0.31, 0.40);
+    assert_eq!(pass, Some(false));
+    assert_eq!(verdict, G1Verdict::Fail);
+}
+
+/// The published JSON spelling is snake_case (`no_claim`) — the site's
+/// renderer matches on these strings.
+#[test]
+fn g1_verdict_serializes_snake_case() {
+    assert_eq!(serde_json::to_string(&G1Verdict::Pass).unwrap(), "\"pass\"");
+    assert_eq!(serde_json::to_string(&G1Verdict::Fail).unwrap(), "\"fail\"");
+    assert_eq!(
+        serde_json::to_string(&G1Verdict::NoClaim).unwrap(),
+        "\"no_claim\""
+    );
+}
