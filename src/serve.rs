@@ -434,7 +434,7 @@ struct Req {
     path: String,
     content_length: usize,
     origin: Option<String>,
-    /// `X-Reflex-Lane` — the lane hint for `/decide` (`laya` | `modelless`).
+    /// `X-Reflex-Lane` — the lane hint for `/decide` (`laya` | `modelless` | `raw`).
     lane: Option<String>,
     /// `Access-Control-Request-Private-Network: true` — Chromium's PNA
     /// preflight for a public page reaching a local address.
@@ -511,6 +511,20 @@ fn json_response(stream: &mut TcpStream, status: &str, body: &str, cors: Option<
     respond(stream, status, body, "application/json", cors);
 }
 
+/// The one JSON error shape every refusal shares (`{"error":"…"}`, the
+/// message JSON-escaped — a quote in the reason must never break the body).
+fn json_error(stream: &mut TcpStream, status: &str, text: &str, cors: Option<&str>) {
+    json_response(
+        stream,
+        status,
+        &format!(
+            "{{\"error\":{}}}",
+            serde_json::to_string(text).unwrap_or_default()
+        ),
+        cors,
+    );
+}
+
 fn handle_conn<const N: usize, const D: usize>(
     stream: TcpStream,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
@@ -560,7 +574,7 @@ fn handle_conn<const N: usize, const D: usize>(
                 &mut writer,
                 "200 OK",
                 &format!(
-                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"laya\":\"{laya_state}\"}}}}"
+                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}}}}"
                 ),
                 cors.as_deref(),
             );
@@ -578,47 +592,38 @@ fn handle_conn<const N: usize, const D: usize>(
             let mut body = vec![0u8; req.content_length];
             reader.read_exact(&mut body)?;
             let parsed: Result<DecisionRequest, _> = serde_json::from_slice(&body);
-            if req.lane.as_deref() == Some("laya") {
-                match parsed {
-                    Ok(req) => laya_edge(&mut writer, &laya, &req, cors.as_deref()),
-                    Err(e) => json_response(
-                        &mut writer,
-                        "400 Bad Request",
-                        &format!(
-                            "{{\"error\":{}}}",
-                            serde_json::to_string(&e.to_string()).unwrap_or_default()
-                        ),
-                        cors.as_deref(),
-                    ),
-                }
-                return Ok(());
-            }
             if let Some(other) = &req.lane
-                && other != "modelless"
+                && !matches!(other.as_str(), "modelless" | "laya" | "raw")
             {
-                json_response(
+                json_error(
                     &mut writer,
                     "400 Bad Request",
-                    &format!(
-                        "{{\"error\":{}}}",
-                        serde_json::to_string(&format!(
-                            "unknown lane {other:?} (supported: modelless, laya)"
-                        ))
-                        .unwrap_or_default()
-                    ),
+                    &format!("unknown lane {other:?} (supported: modelless, raw, laya)"),
                     cors.as_deref(),
                 );
                 return Ok(());
             }
             match parsed {
-                Ok(req) => {
-                    // The fitted game head first (Plan 607's decoded
-                    // Tetris head): a well-formed spot question is
-                    // answered from the boot-fitted head. Everything
-                    // else — grammar-invalid state, foreign question —
-                    // falls through to the cosine engine, which abstains
-                    // off-corpus as before.
-                    if let Some(resp) = heads.respond(&req) {
+                Ok(parsed_req) => {
+                    if req.lane.as_deref() == Some("laya") {
+                        laya_edge(&mut writer, &laya, &parsed_req, cors.as_deref());
+                        return Ok(());
+                    }
+                    // The raw lane (`X-Reflex-Lane: raw`): the client asks
+                    // for the modelless engine WITHOUT the game-head try —
+                    // the honest baseline the arena's third board renders.
+                    // An abstain IS the answer here, never a head fallback.
+                    if req.lane.as_deref() == Some("raw") {
+                        engine_decide(&mut writer, &engine, &parsed_req, cors.as_deref());
+                        return Ok(());
+                    }
+                    // Default (and the `modelless` spelling): the fitted
+                    // game head first (Plan 607's decoded Tetris head): a
+                    // well-formed spot question is answered from the
+                    // boot-fitted head. Everything else — grammar-invalid
+                    // state, foreign question — falls through to the
+                    // cosine engine, which abstains off-corpus as before.
+                    if let Some(resp) = heads.respond(&parsed_req) {
                         json_response(
                             &mut writer,
                             "200 OK",
@@ -627,31 +632,12 @@ fn handle_conn<const N: usize, const D: usize>(
                         );
                         return Ok(());
                     }
-                    match engine.lock().unwrap().decide(&req) {
-                        Ok(resp) => json_response(
-                            &mut writer,
-                            "200 OK",
-                            &serde_json::to_string(&resp).unwrap_or_default(),
-                            cors.as_deref(),
-                        ),
-                        Err(e) => json_response(
-                            &mut writer,
-                            "422 Unprocessable Entity",
-                            &format!(
-                                "{{\"error\":{}}}",
-                                serde_json::to_string(&e.to_string()).unwrap_or_default()
-                            ),
-                            cors.as_deref(),
-                        ),
-                    }
+                    engine_decide(&mut writer, &engine, &parsed_req, cors.as_deref());
                 }
-                Err(e) => json_response(
+                Err(e) => json_error(
                     &mut writer,
                     "400 Bad Request",
-                    &format!(
-                        "{{\"error\":{}}}",
-                        serde_json::to_string(&e.to_string()).unwrap_or_default()
-                    ),
+                    &e.to_string(),
                     cors.as_deref(),
                 ),
             }
@@ -702,6 +688,27 @@ fn handle_conn<const N: usize, const D: usize>(
         ),
     }
     Ok(())
+}
+
+/// The raw modelless engine's own answer — the `X-Reflex-Lane: raw` path
+/// and the head's fall-through share it. The engine's response discloses
+/// itself (lane `modelless`, the engine's own routing reason), never the
+/// head's: the per-lane-claims law holds by construction.
+fn engine_decide<const N: usize, const D: usize>(
+    writer: &mut TcpStream,
+    engine: &Arc<Mutex<DecisionEngine<N, D>>>,
+    req: &DecisionRequest,
+    cors: Option<&str>,
+) {
+    match engine.lock().unwrap().decide(req) {
+        Ok(resp) => json_response(
+            writer,
+            "200 OK",
+            &serde_json::to_string(&resp).unwrap_or_default(),
+            cors,
+        ),
+        Err(e) => json_error(writer, "422 Unprocessable Entity", &e.to_string(), cors),
+    }
 }
 
 /// The `X-Reflex-Lane: laya` edge: fail-closed in every non-ready state (a

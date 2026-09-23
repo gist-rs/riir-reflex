@@ -8,6 +8,28 @@ lives in `.issues/` and `.plans/`, never here.
 Created retroactively 2026-09-22: four issues (001, 002, 003, 005) had
 already closed with records only in git history.
 
+## 2026-09-24
+
+- **Issue 014 — the engine lane-override knob `X-Reflex-Lane: raw`** CLOSED.
+  The serve edge accepts `raw` alongside `laya`/`modelless`: it SKIPS the
+  game-head try and answers from the raw modelless engine (the abstain IS
+  the answer, never a head fallback) — the honest baseline the arena's
+  third board renders (katgpt-rs Plan 607's ratified three-tier arena:
+  laya teacher / fitted head / raw baseline). `/healthz` advertises
+  `"raw":"ready"` (lane discovery); unknown lanes still 400 (fail-closed
+  preserved); default posture byte-identical (no header = head-first).
+  Per-lane claims hold by construction — the engine's response discloses
+  itself (lane `modelless`, the engine's own routing reason), never the
+  head's. Paired smoke pins BOTH directions on the request where the lanes
+  diverge (fixture spot question: head-first by default, raw abstain under
+  the override); flappy/lanes raw pins the abstain baseline (the WITHOUT-
+  header side deliberately unpinned — it moves when `.issues/011`'s
+  engine-side serving lands). Dispatch deduped: `engine_decide` shared by
+  the raw path and the head's fall-through, `json_error` the one refusal
+  shape. Unblocks reflex-site's 3-board arena layout (Plan 607 roadmap).
+  Files: `src/serve.rs`, `tests/serve_lanes.rs` (+2 pins),
+  `tests/engine_gates.rs` (healthz body re-pinned).
+
 ## 2026-09-23
 
 - **crates.io publication DEFERRED (owner-gates menu v2 row 2):** no

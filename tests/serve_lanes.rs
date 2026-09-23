@@ -56,17 +56,21 @@ fn roundtrip(addr: &str, raw: &str) -> String {
 
 const BODY: &str = r#"{"state":"Deploy the server to staging","questions":[{"id":"q0","kind":"noul","prompt":"Roll back or promote?","options":[]}]}"#;
 
-fn post_decide(addr: &str, lane: Option<&str>) -> String {
+fn post_body(addr: &str, body: &str, lane: Option<&str>) -> String {
     let lane_hdr = lane
         .map(|l| format!("X-Reflex-Lane: {l}\r\n"))
         .unwrap_or_default();
     roundtrip(
         addr,
         &format!(
-            "POST /decide HTTP/1.1\r\nHost: x\r\n{lane_hdr}Content-Type: application/json\r\nContent-Length: {}\r\n\r\n{BODY}",
-            BODY.len()
+            "POST /decide HTTP/1.1\r\nHost: x\r\n{lane_hdr}Content-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+            body.len()
         ),
     )
+}
+
+fn post_decide(addr: &str, lane: Option<&str>) -> String {
+    post_body(addr, BODY, lane)
 }
 
 #[test]
@@ -109,6 +113,7 @@ fn healthz_reports_laya_state() {
     assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
     assert!(resp.contains("\"status\":\"ok\""), "got: {resp}");
     assert!(resp.contains("\"modelless\":\"ready\""), "got: {resp}");
+    assert!(resp.contains("\"raw\":\"ready\""), "the raw lane is advertised: {resp}");
     assert!(resp.contains("\"laya\":\"loading\""), "got: {resp}");
 }
 
@@ -126,6 +131,82 @@ fn modelless_lane_spelling_serves_modelless() {
     let resp = post_decide(&addr, Some("modelless"));
     assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
     assert!(resp.contains("\"lane\":\"modelless\""), "got: {resp}");
+}
+
+// ── the raw lane (issue 014) ────────────────────────────────────────────
+
+/// The first fixture sentence (the same reader `game_heads_serve.rs` uses):
+/// the one request shape where the default and raw lanes visibly differ —
+/// the head answers it by default, the raw engine abstains off its corpus.
+fn first_fixture_sentence() -> String {
+    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl").lines() {
+        let v: serde_json::Value = serde_json::from_str(line).expect("fixture line parses");
+        if v["state_id"] == "_meta" {
+            continue;
+        }
+        return v["options"].as_array().expect("options")[0]["sentence"]
+            .as_str()
+            .expect("sentence")
+            .to_string();
+    }
+    unreachable!("fixture has states");
+}
+
+fn spot_body(state: &str, prompt: &str) -> String {
+    format!(
+        r#"{{"state":{},"questions":[{{"id":"q0","kind":"noul","prompt":{},"options":[]}}]}}"#,
+        serde_json::to_string(state).unwrap(),
+        serde_json::to_string(prompt).unwrap()
+    )
+}
+
+/// The paired smoke, BOTH directions on the request where the lanes
+/// actually diverge: the fixture spot question is answered head-first by
+/// default and answered by the raw cosine engine (an abstain off the demo
+/// corpus) under `X-Reflex-Lane: raw` — never a silent fallback between
+/// the two, and the raw response never claims the head's work (the
+/// per-lane-claims law).
+#[test]
+fn raw_lane_skips_the_head_and_the_default_serves_it() {
+    let addr = spawn_lanes(LayaLane::Off);
+    let body = spot_body(&first_fixture_sentence(), "Does the stack look clean?");
+
+    let resp = post_body(&addr, &body, None);
+    assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
+    assert!(resp.contains("game-head/"), "default must serve the head: {resp}");
+
+    let resp = post_body(&addr, &body, Some("raw"));
+    assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
+    assert!(!resp.contains("game-head/"), "raw must not claim the head: {resp}");
+    assert!(resp.contains("\"lane\":\"modelless\""), "got: {resp}");
+    assert!(
+        resp.contains("\"outcome\":null"),
+        "the raw engine abstains off its demo corpus: {resp}"
+    );
+}
+
+/// A flappy and a lanes question are foreign prompts the head refuses
+/// (`.issues/011`'s engine-side serving TODO). Under `raw` both are the
+/// modelless engine's own abstain — the honest baseline the arena's third
+/// board renders. The WITHOUT-header side is deliberately NOT pinned here:
+/// today it falls through to the same abstain, and after `.issues/011`
+/// lands it serves the head — either way `raw` stays the escape hatch.
+#[test]
+fn raw_lane_serves_foreign_questions_as_the_modelless_baseline() {
+    let addr = spawn_lanes(LayaLane::Off);
+    let sentence = first_fixture_sentence();
+    for prompt in ["Should I flap?", "Which lane should I take?"] {
+        let resp = post_body(&addr, &spot_body(&sentence, prompt), Some("raw"));
+        assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
+        assert!(
+            !resp.contains("game-head/"),
+            "{prompt} raw must not claim the head: {resp}"
+        );
+        assert!(
+            resp.contains("\"outcome\":null"),
+            "{prompt} expected the honest abstain: {resp}"
+        );
+    }
 }
 
 /// The Ready path's wire mapping, weights-free: synthetic laya answers →
