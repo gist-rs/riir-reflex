@@ -993,6 +993,10 @@ pub struct RunMeta {
     /// Whether the laya-python (torch reference) oracle lane ran, and its
     /// measurement caveats when it did.
     pub laya_python_lane: String,
+    /// Power source / power mode / load / swap at run start AND end, with a
+    /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
+    /// A/B was missing.
+    pub box_state: super::box_state::BoxStateSpan,
     pub divergences: Vec<String>,
 }
 
@@ -2564,6 +2568,7 @@ pub struct RunOptions {
 /// errors) are REPORTED in the returned output as errors — never silently
 /// dropped — and the run continues with the remaining suites.
 pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
+    let box_start = super::box_state::capture();
     if opts.corpus_cap_override != 0 && !opts.cal_select_caps.is_empty() {
         return Err(
             "--corpus-cap and --cal-select-cap are mutually exclusive: one pins the cap, \
@@ -2729,7 +2734,12 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         });
     }
 
+    let box_state = super::box_state::BoxStateSpan {
+        start: box_start,
+        end: super::box_state::capture(),
+    };
     let meta = RunMeta {
+        box_state,
         date_utc: iso8601_utc(),
         git_sha: git_sha().unwrap_or_else(|| "unknown".to_string()),
         host: hostname(),
@@ -2880,6 +2890,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             ));
         }
     }
+    s.push_str(&super::box_state::render_line(&out.meta.box_state));
     s.push_str(&format!(
         "- laya device posture: {}\n",
         out.meta.laya_device

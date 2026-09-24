@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -233,3 +233,170 @@ PROVENANCE: power=Battery Power load=4.05 swap=2947.94M canary=151.2us lpm=0
 ⚠ The canary has **no AC reference pinned yet** — it prints and never judges,
 because a reference taken on battery would bless the state the gate exists to
 refuse. Pinning it is Issue 021 T2 and is the first thing the AC re-bench owes.
+
+---
+
+## Addendum 2 (2026-09-24 11:12–11:41, Issue 021 T3/T4/T5) — the AC re-bench
+
+**Box state, per run** (every row logged with its own load and power source,
+`/tmp/abws021/results/log.tsv`, and each run preceded by a wait for 1-min load
+< 4): **AC Power** on every row · `powermode 2` (High Power) · plugged in
+11:03:52, first run 11:12:41 (8.8 min settle) · load **3.06–4.39** · swap
+~2.8 GB. Preflight at start and end, quoted verbatim:
+
+```
+PROVENANCE: power=AC Power load=6.21 swap=2787.94M canary=151.6us powermode=2(high)
+PROVENANCE: power=AC Power load=3.78 swap=2779.94M canary=172.6us powermode=2(high)
+```
+
+Both REFUSED at `MAX_LOAD=3` — this workstation never went below ~3 with
+sibling sessions active, so every number below is a **paired or same-run
+comparison**, never a publishable absolute, and the canary reference (T2)
+stays unpinned (see the end of this addendum).
+
+**Arms.** BASE = riir-infer **`c6716a4`** (the laya crate as it landed,
+pre-Issue-020) · NEW = riir-infer **`6c56f04`** · both consumed by the same
+riir-reflex HEAD, BASE from sibling worktrees in `/tmp/abws021/`
+(`CARGO_TARGET_DIR=/tmp/abws021/target_base`; dep-info verified to compile
+`/private/tmp/abws021/riir-infer/crates/riir-infer-laya/src/*`). This is a
+cleaner A/B than §1–§3, whose arms differed by a working-tree edit.
+
+### T3a — GEMM kernel, 4 position-balanced rounds (AC)
+
+| shape (m, k, n) | instance | BASE med µs | NEW med µs | paired Δ% r1..r4 | paired med | battery §2 |
+|---|---|---|---|---|---|---|
+| 317×1024×1024 | wide | 167.6 | 151.8 | +8, −10, −11, −9 | **−9.5%** | −4.4% |
+| 317×2624×1024 | wide | 483.7 | 437.9 | +10, −8, −13, −12 | **−10.0%** | −4.6% |
+| 317×1024×3072 | xwide | 447.1 | 444.0 | +17, +1, 0, −2 | +0.5% | −0.3% |
+| 317×1024×5248 | xwide | 955.9 | 941.2 | +7, −4, −4, −2 | −3.0% | −1.4% |
+| 106×1024×1024 | narrow | 103.7 | 97.1 | +1, −17, −1, −12 | −6.5% | −4.0% |
+| **106×2624×1024** | narrow | 301.3 | **232.3** | **−23, −24, −19, −20** | **−21.5%** | −19.1% |
+
+- ✅ **Narrow `k = 2624` CONFIRMED on AC: −19…−24% in all four rounds**, both
+  positions — the one Class-A kernel number that is firm by any standard.
+- ⚑ **The wide instances gained MORE on AC than on battery** (−9.5 / −10.0%
+  against −4.4 / −4.6%) — three of four rounds each, round 1 (BASE first) the
+  recorded cold-GPU first-position artifact. The battery reading under-stated
+  the win, which is the direction a clock-shedding confound predicts: a
+  throttled GPU compresses every kernel-level delta toward zero.
+- xwide stays **flat** (±3%, within round-1 artifact noise) — the BK=48
+  negative's reading holds: the gather is not the xwide instances' binding
+  cost.
+- Bit-identity re-confirmed on AC: `rel 0e0` on the four exact shapes and
+  `2.2426077e-5` on the two k=2624 shapes, identical on both arms, all rounds.
+
+### T3b — end-to-end `massive_intent_en`, 10 alternating paired rounds (AC)
+
+| round | order | BASE p50/p99 | NEW p50/p99 | Δp50 | Δp99 |
+|---|---|---|---|---|---|
+| 1 | B→N | 63/75 | 55/66 | −12.7% | −12.0% |
+| 2 | N→B | 59/73 | 57/67 | −3.4% | −8.2% |
+| 3 | B→N | 61/70 | 62/84 | +1.6% | +20.0% |
+| 4 | N→B | 57/77 | 58/77 | +1.8% | 0.0% |
+| 5 | B→N | 70/83 | 56/69 | −20.0% | −16.9% |
+| 6 | N→B | 58/74 | 56/71 | −3.4% | −4.1% |
+| 7 | B→N | 58/72 | 54/65 | −6.9% | −9.7% |
+| 8 | N→B | 57/79 | 54/67 | −5.3% | −15.2% |
+| 9 | B→N | 48/63 | 45/54 | −6.2% | −14.3% |
+| 10 | N→B | 49/59 | 47/59 | −4.1% | 0.0% |
+
+**Median paired Δ: p50 −4.7%, p99 −9.0%. NEW faster at p50 in 8 of 10**
+(sign test one-sided p ≈ 0.055), in both positions (BASE-first median −6.9%,
+NEW-first −3.4% — a ~1.7-pt position bias each way, so the position-cancelled
+effect is ≈ −5%). Accuracy identical (0.7500) in all 20 runs.
+
+- ⛔ **The battery §3 "−8%" was an OVER-statement and is retired.** The AC
+  figure is **≈ −5% p50**, and it is the one that matches the arithmetic: a
+  ~10% GEMM win on the wide instances × ~58% of the forward in `matmul_w`
+  (§4) predicts ≈ −5.5%. Four rounds (§3) could not resolve a 5% effect on a
+  box whose absolute p50 moved **45 → 70 ms** within twenty minutes at the
+  same load class; ten can, barely.
+- ⚠ Read the rounds-3/4 pair: two consecutive rounds read NEW ≥ BASE. A
+  four-round run that happened to start there would have reported "no
+  effect". n is part of this claim.
+
+### T4 — first-forward p99, one process per suite, 2 alternating rounds (AC)
+
+| suite | BASE p99 | NEW p99 | Δ | BASE p50 | NEW p50 |
+|---|---|---|---|---|---|
+| harness_visibility | 163, 160 | **50, 58** | −66% | 32, 29 | 30, 30 |
+| harness_permissions | 154, 183 | **47, 62** | −68% | 33, 38 | 32, 39 |
+| harness_routing | 179, 190 | **65, 63** | −66% | 36, 36 | 36, 37 |
+| harness_sensitivity | 183, 179 | **67, 64** | −64% | 37, 36 | 37, 38 |
+| harness_tool_fit | 193, 185 | **62, 63** | −67% | 30, 29 | 27, 28 |
+
+✅ **REPRODUCED on AC: −64…−68%, p50 unchanged in all five.** Addendum 1's
+argument that §1 carried its own control holds, now with the control run too.
+(BASE p99 reads 154–193 here against 138–145 in §1 — one cold process per
+suite rather than one per invocation of the §1 run; the delta, not the level,
+is the claim.)
+
+### T5 — the absolute cells, and why the published python column cannot be the comparator
+
+**Same-run head-to-head** — `harness --laya-python`, the rust lane and the
+torch-MPS oracle answering byte-identical questions in ONE process, NEW arm,
+2 rounds (accuracy identical per suite, rust = python):
+
+| suite | rust p50/p99 r1, r2 | py p50/p99 r1, r2 | Δp50 | Δp99 | published py |
+|---|---|---|---|---|---|
+| massive_intent_en | 43/55, 47/63 | 39/71, 43/77 | **+10.3%, +9.3%** | −22.5%, −18.2% | 51/98 |
+| banking77 | 69/87, 75/97 | 59/85, 68/105 | **+16.9%, +10.3%** | +2.4%, −7.6% | 84/162 |
+| ag_news | 30/49, 29/46 | 28/66, 31/74 | +7.1%, −6.5% | −25.8%, −37.8% | 37/98 |
+
+⛔ **The python oracle is itself 16–30% faster on this box now than its
+published column** (39–43 vs 51 on massive_intent, 59–68 vs 84 on banking77).
+So every rust-vs-published-python comparison in this record and in Issue 020 —
+including Addendum 1's "43.0/52.0 beats the published 51/98" — compared two
+different box states and is **not evidence either way**. The only valid
+comparator is a same-run cell, and on that:
+
+- ✅ **p99: rust wins** on massive_intent (−18…−23%) and ag_news (−26…−38%);
+  banking77 is a coin flip (+2.4 / −7.6%).
+- ⛔ **p50: rust still LOSES by ~10%** on massive_intent and **10–17%** on
+  banking77; ag_news is a wash. **Class A is NOT closed**, and wave 1 did not
+  change that sign — it narrowed it by ~5 points (T3b). Issue 020 T5
+  (question-batching) and T7 (the GEMM at ~¼ of peak) remain the levers.
+
+**15-suite published-order run** (rust only, NEW, AC, load 3.06→3.49, 9.4
+min): every rust cell is at or below its published-rust value except
+banking77 p99 (185 vs 116, tail support 6 — a max-class reading), and the
+Issue 020 T0 question comes out the other way from how it was posed:
+`massive_intent_en` reads **56/73** in 15-suite order against a single-suite
+NEW median of **55.5/67** — **no measurable accumulated-state penalty** at
+p50. The published **p50 63** is within this box's run-to-run spread of the
+pre-change code (BASE single-suite p50 48–70, median 58); the published
+**p99 129 is reproduced by NONE of ten BASE runs** (59–83, median 73.5), and
+its cause is unmeasured — the published run's box state was never recorded,
+which is the gap Issue 021 exists for. There is no 15-suite effect left to
+chase at p50. Notable in the same run: `code_fixtures`
+p50 **79** against the published 147 (and python's 125 from the published
+run — ⛔ a cross-run comparison, per the rule above; the same-run cell is
+owed before it is quoted), and every harness suite now below the published
+python column on BOTH p50 and p99.
+
+### The canary, and T2
+
+Canary readings (317×1024×1024, NEW binary): **148.0 µs** (11:09, load ~7),
+**151.6** (11:12, load 6.2), **172.6** (11:41, load 3.8); **860.9** at 11:04
+(load 9.9, one minute after plug-in). So it moves by ~16% between two
+AC/High-Power readings at similar load — the tolerance of 15% in the script
+is too tight for this box as it is used, or the quantity needs best-of-N.
+**Not pinned**: T2's condition (load < 2) was not met at any point this
+session, and a reference taken at load 4–6 would be read as "throttled" on a
+quiet box. Left for a genuinely quiet window.
+
+### Re-run
+
+```sh
+mkdir -p /tmp/abws021
+git -C ../riir-reflex worktree add --detach /tmp/abws021/riir-reflex HEAD
+git -C ../riir-infer  worktree add --detach /tmp/abws021/riir-infer  c6716a4
+ln -s "$PWD/../katgpt-rs" /tmp/abws021/katgpt-rs
+ln -s "$PWD/.raw" /tmp/abws021/riir-reflex/.raw
+( cd /tmp/abws021/riir-reflex && CARGO_TARGET_DIR=/tmp/abws021/target_base \
+    cargo build --release --features laya-riir-metal --bin harness --example sgemm_shape_timing )
+cargo build --release --features laya-riir-metal --bin harness --example sgemm_shape_timing
+scripts/bench_preflight.sh     # quote PROVENANCE
+# paired rounds: alternate BASE/NEW order per round, wait for load < 4 before
+# EVERY run, log load + power per row; same-run h2h: --laya-python
+```

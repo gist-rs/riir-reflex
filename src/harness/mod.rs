@@ -2,6 +2,8 @@
 //! the runner that produces the honest per-task tables over both lanes.
 //! Builders + metrics are pure (ungated); the runner consumes the modelless
 //! engine, so it rides the same feature.
+// Box-state provenance stamped into every run's meta (Issue 021 T7).
+pub mod box_state;
 pub mod families;
 pub mod metrics;
 pub mod pair_heads;

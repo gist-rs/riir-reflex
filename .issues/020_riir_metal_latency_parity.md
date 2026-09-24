@@ -1,10 +1,14 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **waves 1–2 LANDED and measured** ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md));
-Class B (the first-forward cliff) is **closed** at −63…−67%, Class A is
-**partially** closed at −8% end-to-end / −2…−23% at the GEMM, and its largest
-remaining lever (T5, per-case question batching) is now IDENTIFIED from the
-reference's own source. Filed 2026-09-24 from the published arena table
+**Status:** OPEN — **waves 1–2 LANDED and measured on AC**
+([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
+supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
+is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
+wave moved `massive_intent_en` p50 by ≈ −5% (10 paired rounds) and the GEMM by
+−10% wide / −21.5% narrow, but a **same-run** head-to-head against the python
+oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
+**winning p99**. Its largest remaining lever (T5, per-case question batching)
+is IDENTIFIED from the reference's own source. Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
 … make rust faster as it should in all cost."* Two independent causes are
@@ -177,6 +181,9 @@ green: G5 metal 88/88 @ agreement 1.000000 / drift ≤ 4.016e-6, G5 CPU 2/2,
   valid paired rounds (−10.4 / −7.0 / −6.0 / −16.7%, NEW ahead in both
   positions). GEMM kernel **−2…−8%** on the wide/xwide instances and
   **−19…−24%** on the narrow `k = 2624` instance, bit-identical.
+  ⛔ **SUPERSEDED on AC (Bench 006 Addendum 2):** −8% → **≈ −5%** p50 over 10
+  rounds (the four battery rounds over-stated it); wide GEMM −2…−8% →
+  **−9.5…−10%** (battery under-stated it); narrow −21.5% confirmed.
 - **`code_fixtures` is unmoved and that is correct** — its 14 cases vary
   hugely in length, so its max is the longest CASE, not the cold call. Its
   published +48.9% p99 loss is Class A, not Class B.
@@ -193,9 +200,17 @@ box this repo does not currently have.
 
 ## Tasks
 
-- [-] **T0 — control run.** DEFERRED, and the deferral is the finding above:
-      a 15-suite single-process control is 20+ minutes, and nothing on this
-      box holds still that long. Re-open when a quiet window exists.
+- [x] **T0 — control run.** DONE 2026-09-24 on AC (Issue 021 T5, Bench 006
+      Addendum 2): the 15-suite rust-only run took **9.4 min**, not 20+, and
+      read `massive_intent_en` **56/73** against a single-suite median of
+      **55.5/67** on the same code — **no accumulated-state penalty at p50**.
+      ⛔ It also RETIRES this issue's cross-run comparisons: a same-run
+      `--laya-python` cell measured the python oracle **16–30% faster than
+      its own published column**, so "43.0/52.0 beats the published 51/98"
+      (§Confounder above) compared two box states and is not evidence. Every
+      rust-vs-python claim from here on is a SAME-RUN cell or it is not made.
+      Original deferral text: a 15-suite single-process control is 20+
+      minutes, and nothing on this box holds still that long.
 - [x] **T1 — Class B: kill the first-forward cliff.**
   - [x] `Backend::warm_weight` / `warm_weight_2d` (default no-op) +
         `Encoder::warm` / `Head::warm` over exactly the slices that reach a

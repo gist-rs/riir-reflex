@@ -1,10 +1,10 @@
 # Issue 021 — re-bench the Issue 020 waves on AC, plug- and thermal-gated (the power axis nothing was recording)
 
-**Status:** OPEN — filed 2026-09-24 on the owner flag *"beware thermal and
-unplug recently, rebench if need, file issue to bench again as plug and
-thermal gated"*. T1 (the refusal gate) **LANDED with this issue**;
-T2–T5 need a plugged-in, quiet box. Blocks nothing in Issue 020's
-correctness, and blocks **quoting** its small Class-A deltas.
+**Status:** OPEN — T1, T3, T4, T5, T6, T7 DONE 2026-09-24 (AC re-bench =
+Bench 006 Addendum 2); **only T2 (pin the canary reference) remains**, blocked
+on a genuinely quiet window (load < 2 never occurred this session). Filed
+2026-09-24 on the owner flag *"beware thermal and unplug recently, rebench if
+need, file issue to bench again as plug and thermal gated"*.
 
 ## The gap
 
@@ -72,24 +72,43 @@ reference) is the gate's arming step rather than a nicety.
       `on AC for only 1 min (< SETTLE_MIN=5)` and `load 9.88 > 6.0`, canary
       **860.9 us** against 151–181 us quiet — so the canary does move with
       GPU contention, which is the property T2 relies on.
-- [ ] **T2 — pin the AC canary reference.** On AC, ≥ `SETTLE_MIN` minutes
+- [ ] **T2 — pin the AC canary reference.** ⚠ Measured 2026-09-24 (Bench
+      006 Addendum 2): 148.0 / 151.6 / 172.6 µs on AC/High Power at load
+      3.8–7 — a **16% spread** against the script's 15% tolerance, so pin a
+      **best-of-N** (or widen the tolerance) at the same time, or the armed
+      gate will cry wolf on an ordinary busy box. Original task: On AC, ≥ `SETTLE_MIN` minutes
       after plugging in, at load < 2, take the `317×1024×1024` canary and set
       `CANARY_REF_US` in the script. ⚠ It **must not** be taken on battery —
       a battery reference blesses the state the gate exists to refuse, which
       is this workspace's own *"a pin measured under the wrong conditions reds
       on every box but the one that produced it"* shape. Until it is pinned
       the canary PRINTS and never judges, and the gate says so.
-- [ ] **T3 — re-run Bench 006 §2 and §3 on AC** (`bench_preflight.sh` PASSED,
+- [x] **T3 — re-run Bench 006 §2 and §3 on AC** — DONE, Bench 006
+      Addendum 2: narrow k=2624 GEMM **−21.5%** (−19…−24 every round,
+      CONFIRMED); wide **−9.5 / −10.0%** (LARGER than battery's −4.4/−4.6 —
+      a throttled GPU compressed the delta); xwide flat; `massive_intent_en`
+      **≈ −5% p50 / −9% p99** over **10** paired rounds, 8/10 NEW — the
+      battery "−8%" RETIRED as an over-statement. Arms: riir-infer `c6716a4`
+      vs `6c56f04`. Original task: (`bench_preflight.sh` PASSED,
       provenance quoted in the record), position-balanced, ≥ 4 paired rounds.
       The numbers to re-confirm, in descending sturdiness: narrow-instance
       GEMM **−19…−24%**, `massive_intent_en` **−8%**, wide/xwide GEMM
       **−2…−8%**. Record as Bench 006 Addendum 2, never by editing §2/§3 —
       the battery rows stay on the record as what was measured.
-- [ ] **T4 — re-run Bench 006 §1 on AC.** Expected to reproduce (p50 unchanged
+- [x] **T4 — re-run Bench 006 §1 on AC.** — DONE: **−64…−68%** p99, p50
+      unchanged in all five, REPRODUCED. Original task: Expected to reproduce (p50 unchanged
       while p99 falls 64–67% is its own internal control, and 144→52 ms is out
       of reach of a clock effect), which makes it the cheap **confirmation**
       that the AC re-bench is measuring the same thing.
-- [ ] **T5 — the absolute AC cell the arena actually needs.** The one claim
+- [x] **T5 — the absolute AC cell the arena actually needs.** — DONE, and
+      the answer reframes the question: a same-run `--laya-python`
+      head-to-head shows the **python oracle itself 16–30% faster than its
+      published column**, so no rust-vs-published-python comparison is
+      evidence. Same-run: rust **wins p99** (massive −18…−23%, ag_news
+      −26…−38%, banking77 ±), **loses p50 ~10%** (massive +9…+10%, banking77
+      +10…+17%, ag_news ±7). Class A NOT closed. 15-suite order: massive
+      56/73 ≈ single-suite 55.5/67 → **no accumulated-state penalty at p50**
+      (Issue 020 T0 answered). Original task: The one claim
       this session could never make: `massive_intent_en` / `banking77` /
       `ag_news` post-change p50+p99 on AC, against the published python
       column, single-suite AND in the published 15-suite order (which also
@@ -106,7 +125,18 @@ reference) is the gate's arming step rather than a nicety.
       paragraph exists in katgpt-rs's CLAUDE.md §Feature Flag Discipline G2 —
       the two copies are already documented as able to drift; edit with that
       pointer in hand, do not silently fix one.
-- [ ] **T7 — decide whether the gate becomes mandatory.** Owner-gated: should
+- [x] **T7 — decide whether the gate becomes mandatory.** Resolved to the
+      recommended middle (owner-gated item → made the call per the
+      workspace's "ask Claude for verdict" rule; reversible): **advisory,
+      stamped**. `src/harness/box_state.rs` captures power source /
+      powermode / load / swap at run START and END into `results.json`
+      `meta.box_state` with a `latency_quotable` verdict (true / false +
+      reasons / null = UNJUDGED when the probes are absent, e.g. the 4090),
+      and TABLES.md prints it as a header line. Never refuses — a
+      correctness run is not blocked. 3 unit tests over the pure parsers +
+      verdict; verified end to end (a load-8.36 run stamped NOT QUOTABLE).
+      ⚠ `MAX_LOAD` is duplicated with `bench_preflight.sh` — the constant's
+      doc names the twin. Original task: Owner-gated: should
       `harness` itself refuse to write a `results.json` carrying latency
       fields when the preflight refuses, or stay advisory? A refusing harness
       cannot be bypassed by forgetting; an advisory one cannot block a
