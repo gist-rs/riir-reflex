@@ -49,6 +49,14 @@ const SHAPES: &[(usize, usize, usize, &str)] = &[
     (317, 1024, 5248, "gate/up fused xwide control"),
     (106, 1024, 1024, "ag_news O narrow control"),
     (106, 2624, 1024, "ag_news down narrow control"),
+    // The T7 occupancy rung's narrow-zone population (appended — the six
+    // rows above keep their historical indices; LAYA_METAL_SGEMM_VAR
+    // replaces the narrow pick only, so these are the A/B rows and the
+    // xwide-band rows above are the expected-flat controls).
+    (188, 1024, 1024, "O @ m188 narrow zone (occ rung)"),
+    (512, 1024, 1024, "O @ m512 narrow zone (occ rung)"),
+    (1024, 1024, 3072, "packed QKV narrow zone (occ rung)"),
+    (1024, 1024, 5248, "packed gate/up narrow zone (occ rung)"),
 ];
 
 #[cfg(all(target_os = "macos", feature = "laya-riir-metal"))]

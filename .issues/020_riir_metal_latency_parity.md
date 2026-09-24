@@ -322,10 +322,35 @@ box this repo does not currently have.
       valley). The earlier XWIDE_N_MIN candidate (Bench 006 Addendum 5,
       inside noise, not landed) is SUPERSEDED: its n-threshold question is
       answered by the band — xwide at n ≥ 2048 loses everywhere except the
-      qkv@317 cell. Remaining untried axes for a later rung: occupancy
-      (24 960 B threadgroup memory caps residency), double-buffered
-      staging, f16 operands behind a flag + G5 re-gate + the Issue-750-T3
-      lossy law.
+      qkv@317 cell.
+      **Occupancy axis REFUTED 2026-09-25 (kernel-level, both arms,
+      bit-identical results, code reverted — only this record carries the
+      negative, the BK=48 precedent):** narrow's 24 960 B staging caps
+      residency at one threadgroup/core, and the hypothesis was that
+      smaller staging → 2–3 co-resident threadgroups → latency hiding
+      during the staging loads. Two challengers were built behind
+      `LAYA_METAL_SGEMM_VAR` (unset = byte-identical), both keeping the
+      k-ascending per-element chain (every probe row bit-identical):
+      **bk32** (BK 32 at the same 32×64 tile, 12 544 B → 2 TGs/core) and
+      **bn32** (32×32 tile, 8 448 B → 3 TGs/core). Instrument:
+      `sgemm_shape_timing` (extended with four standing narrow-zone rows:
+      m 188/512 @ 1024×1024, packed 1024 @ 3072/5248), 3 position-paired
+      base/bk32 rounds + 1 bn32 run, load 10–11.5 recorded. **bk32 LOST
+      17–33% on every resolvable cell, growing with k exactly as the
+      barrier model predicts** (BK 32 doubles the k-loop's two barriers:
+      512×1024×1024 +24…+32%, 1024×1024×3072 +21…23%, 317×1024×3072 +33%,
+      317×1024×5248 +30–31%); small m-106 cells sat in the ±4% noise band.
+      **bn32 lost harder** (m-106 cells +33…+45%, packed rows +18–32% —
+      same barrier doubling plus halved B reuse). The 2–3× co-residency
+      gain is real but strictly smaller than the barrier cost — so the
+      occupancy axis is dead at BK < 64; at BK 64 a 2-TG fit would need to
+      break the bank-conflict padding (stride 65) or the 8×8 block
+      structure (BN ≤ 24 idles 4 of 16 simdgroups), and wide (BM 64, the
+      other 1-TG shape) already lost zero-for-zero in the band rung.
+      Narrow's shape is the local optimum among the tried geometries.
+      Remaining untried axes for a later rung: double-buffered staging,
+      f16 operands behind a flag + G5 re-gate + the Issue-750-T3 lossy
+      law.
 
 - [x] **T8 — attribute the `code_fixtures` max** — DONE `e2d2060`.
       Step 1: `src/harness/latency.rs` — every lane now stamps
