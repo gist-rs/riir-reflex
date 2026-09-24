@@ -138,13 +138,19 @@ fn main() {
 }
 
 // ── the CUDA arm (`.issues/004` in riir-infer — the tile-ladder rung's
-// instrument on the 4090): a SAME-PROCESS two-backend A/B. The ladder
-// kill-switch is read at `Cuda::new()` from the environment, so ONE
-// binary holds BOTH postures — baseline (`LAYA_CUDA_LADDER=0` → wide
-// everywhere) and the ladder — constructed back-to-back before any timing.
-// The two backends own two CUDA contexts; rounds ALTERNATE which backend
-// goes first (position-balanced pairs — never compare across positions,
-// only within swapped pairs).
+// instrument on the 4090): a SAME-PROCESS two-backend A/B. The kill-switch
+// is read at `Cuda::new()` from the environment, so ONE binary holds BOTH
+// postures — baseline (kill-switch set → the shipped 2-acc wide/xwide)
+// and the experiment — constructed back-to-back before any timing. The
+// two backends own two CUDA contexts; rounds ALTERNATE which backend goes
+// first (position-balanced pairs — never compare across positions, only
+// within swapped pairs).
+//
+// A/B axis history: `.issues/004` (ladder) + `.issues/006` (float4) used
+// `LAYA_CUDA_LADDER`; `.issues/007` (register blocking) swaps the axis to
+// `LAYA_CUDA_REG4` — base = the 2-acc instances (the shipped posture the
+// ladder/float4 rungs left behind), challenger = the 4×4-fragment
+// reg4 instances at the SAME tiles.
 #[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
 use riir_reflex::laya::riir::backend::{Backend, Cpu};
 #[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
@@ -173,13 +179,13 @@ const SHAPES_CUDA: &[(usize, usize, usize, &str)] = &[
     (4, 1024, 1024, "head s1 (m=4 tail GEMM)"),
     (4, 1024, 1, "head s3 (n=1 tail GEMM)"),
     (1, 1028, 256, "act a0 (m=1 tail GEMM)"),
-    // The PACKED multi-wave zone (the `.issues/004` open question): packed
-    // m = Σ seqs per case — ag_news-class ≈ 4×106 ≈ 424, banking77-class ≈
-    // 4×317 ≈ 1268. Every projection is multi-wave on EVERY instance at
-    // these m (the ladder's block-fit cap reverts them all to wide), so
-    // the A/B columns read flat by construction and the ABSOLUTE µs is the
-    // datum: the zone's share of the packed row wall (× the per-layer op
-    // count × layers) prices the occupancy-tuned-instance rung.
+    // The PACKED multi-wave zone (opened by `.issues/004`, won by
+    // `.issues/006`): packed m = Σ seqs per case — ag_news-class ≈ 4×106 ≈
+    // 424, banking77-class ≈ 4×317 ≈ 1268. The block-fit cap reverts these
+    // to the wide slot on BOTH `.issues/007` A/B sides (base = 2-acc wide,
+    // challenger = wide_reg4), so the columns are LIVE here — this zone is
+    // the register-blocking rung's primary population (the lane measured
+    // 15-20 % of fp32 peak on it pre-float4, 25-30 % after).
     (424, 1024, 1024, "packed O (multi-wave zone)"),
     (424, 2624, 1024, "packed down (multi-wave zone)"),
     (424, 1024, 3072, "packed QKV (multi-wave zone)"),
@@ -204,21 +210,21 @@ fn main() {
     // `--control`: BOTH backends baseline (kill-switch held) — the pair
     // difference is then PURE two-context/order artifact, the instrument's
     // own control arm (a same-kernel pair that disagrees is the instrument
-    // lying, not the ladder winning).
+    // lying, not the rung winning).
     let control = std::env::args().any(|a| a == "--control");
     // SAFETY: process-global env mutation — main is single-threaded here
-    // and no other code has read LAYA_CUDA_LADDER yet. The baseline backend
+    // and no other code has read LAYA_CUDA_REG4 yet. The baseline backend
     // is constructed with the kill-switch set; without `--control` it is
-    // then removed so the ladder backend sees the default posture.
+    // then removed so the experiment backend sees the default posture.
     let base = unsafe {
-        std::env::set_var("LAYA_CUDA_LADDER", "0");
-        let b = Cuda::new().expect("cuda backend (ladder off)");
+        std::env::set_var("LAYA_CUDA_REG4", "0");
+        let b = Cuda::new().expect("cuda backend (reg4 off)");
         if !control {
-            std::env::remove_var("LAYA_CUDA_LADDER");
+            std::env::remove_var("LAYA_CUDA_REG4");
         }
         b
     };
-    let ladder = Cuda::new().expect("cuda backend (ladder on)");
+    let ladder = Cuda::new().expect("cuda backend (reg4 on)");
     if control {
         eprintln!("--control: both backends at the baseline posture — pair deltas are instrument artifact");
     }
@@ -300,7 +306,7 @@ fn main() {
         let l_us = median(&mut ns_ladder);
         let delta = (l_us - b_us) / b_us * 100.0;
         println!(
-            "matmul_w {m:>3}x{k:>4}x{n:>4}: base={b_us:>8.1}us ladder={l_us:>8.1}us ({delta:>+6.1}%) rel {rel_base:e}/{rel_ladder:e}{}  # {label}",
+            "matmul_w {m:>3}x{k:>4}x{n:>4}: base={b_us:>8.1}us reg4={l_us:>8.1}us ({delta:>+6.1}%) rel {rel_base:e}/{rel_ladder:e}{}  # {label}",
             if bit_identical { ", bit-identical" } else { "" },
         );
         std::hint::black_box((a.as_ptr() as usize, w.as_ptr() as usize));
