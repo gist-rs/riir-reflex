@@ -154,3 +154,82 @@ LAYA_DEVICE=metal ./target/release/examples/sgemm_shape_timing
 LAYA_DEVICE=metal LAYA_WEIGHTS_DIR=~/.cache/riir-reflex/laya \
   ./target/release/harness --suites massive_intent_en --out /tmp/mi.json
 ```
+
+---
+
+## Addendum 1 (same day, owner flag "beware thermal and unplug") — ⛔ EVERY A/B ABOVE WAS TAKEN ON BATTERY
+
+The `BOX STATE` block at the top of this record names load average, free RAM
+and concurrent jobs — the three axes AGENTS.md's rule names. On a LAPTOP that
+list is incomplete in a first-order way, and this record fell through the gap.
+
+**Measured from `pmset -g log`:**
+
+| window (local, +0700) | power | what ran in it |
+|---|---|---|
+| 2026-09-23 22:20:59 → 2026-09-24 **09:56:10** | **AC** | the PUBLISHED `bench.json` run (`77c408e`, `date_utc 01:52:39Z` = **08:52:39 local**) · this record's two absolute baselines at 09:45 |
+| **09:56:10** (unplugged at 100%) → now (48%) | **BATTERY** | **every A/B in §1, §2 and §3 above** |
+
+So the power axis splits this record in two, and not the way that would have
+been convenient:
+
+- ✅ **The published table is an AC measurement — BOTH columns.** Nothing about
+  the arena's own numbers is in question here.
+- ✅ **The two absolute baselines at 09:45 are AC**, and they are the only
+  AC-to-AC comparison this session produced: pre-change `massive_intent_en`
+  read **p50 43.0 / p99 52.0 ms** (load 4.71, tail support 4) against the
+  published `py/english` **51 / 98**. ⛔ Read what that implies: the published
+  rust cell for that suite is **63 / 129**, and both it and the 43/52 are AC —
+  so the **published-vs-isolated gap is NOT power**, it is the 15-suite
+  single-process accumulated state against a cold single-suite process. That
+  is Issue 020 T0, still open, and it is now known to be a state effect rather
+  than a power one.
+- ⛔ **Every paired A/B — §1's cold-start rows, §2's sgemm rounds, §3's
+  massive_intent rounds — was taken unplugged**, on a battery draining 100% →
+  48% underneath them.
+
+### What survives that, and what does not
+
+**Survives — §1, the cold-start result.** Not because battery does not matter,
+but because the run carries its own control: **p50 is unchanged in all five
+suites while p99 falls 64–67% in the SAME runs.** A clock effect moves both.
+An effect that moves only the first forward and leaves the median alone is not
+a clock effect, and 144→52 ms is not a margin an uncontrolled power axis
+reaches.
+
+**Survives — bit-identity.** §2's byte-identical CPU-vs-GPU divergence and the
+G5 drift matching to the digit are value claims, not timing claims. Power
+cannot touch them.
+
+**Does NOT survive as firm — the small deltas.** §3's **−8%** median on
+`massive_intent_en` and §2's **−2…−8%** on the wide/xwide instances are small
+enough that an uncontrolled power/thermal axis could plausibly account for part
+of them. Alternating order cancels a *monotone* drift, and battery discharge is
+monotone, which is the argument for keeping them — but it is an argument, not a
+control. **They need an AC re-run before they are quoted anywhere.** The
+narrow-instance **−19…−24%** is large and consistent across three rounds, so it
+is the sturdiest of the Class-A numbers, and it too should be re-confirmed.
+
+**Never valid, before or after this addendum:** comparing any absolute number in
+§2/§3 against the published python column. Those are battery-vs-AC.
+
+### The instrument that should have caught it
+
+There is no sudo-free thermal-pressure or GPU-clock readout on this box
+(measured: `pmset -g therm` records nothing, `kern.thermalpressure` does not
+exist, `powermetrics` needs root). So the check has to be a **refusal plus a
+measured canary**, and it now exists: `scripts/bench_preflight.sh` (Issue 021)
+refuses on battery, refuses under Low Power Mode, refuses over a load ceiling,
+discloses swap and the last power transition, and runs a fixed
+`317×1024×1024` sgemm whose absolute time is the only throttle detector
+available without root. Its first run on this box printed exactly the refusal
+this addendum is about:
+
+```
+REFUSE — on BATTERY (47%) — Apple Silicon sheds sustained GPU clock off AC
+PROVENANCE: power=Battery Power load=4.05 swap=2947.94M canary=151.2us lpm=0
+```
+
+⚠ The canary has **no AC reference pinned yet** — it prints and never judges,
+because a reference taken on battery would bless the state the gate exists to
+refuse. Pinning it is Issue 021 T2 and is the first thing the AC re-bench owes.

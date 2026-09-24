@@ -125,6 +125,17 @@ are an UPPER BOUND on the real gap, not the gap. **This does not retire any
 T1–T4 item** — every root cause above is a real per-forward cost readable
 from the source, independent of which box state measured it.
 
+⛔ **Every paired A/B behind the numbers below was taken on BATTERY** — this
+box was unplugged at 09:56:10 (100% → 48%), before the first A/B round and
+after the two AC absolute baselines. Full disclosure, and the
+survives/does-not-survive split, in Bench 006 Addendum 1; the AC re-bench and
+its refusal gate are [Issue 021](021_ac_thermal_gated_rebench.md). What that
+changes here: the Class-B result stands (p50 unchanged while p99 falls 64–67%
+in the SAME runs is its own control), the small Class-A deltas are **not
+quotable until T3/T5 of 021 re-take them on AC**, and **T0's question is now
+known to be a STATE effect, not a power one** — the published cell (63/129)
+and the isolated 09:45 run (43.0/52.0) are both AC.
+
 ⛔ **The lane MOVED mid-issue.** `src/laya/` was carved out to
 `../riir-infer/crates/riir-infer-laya` by the Issue 008 consolidation while
 waves 1–2 were being gated (riir-infer `c6716a4`), which deleted the files
@@ -133,7 +144,22 @@ replayed onto the new home against a byte-identical base (all six files
 `shasum`-equal to this repo's pre-carve `HEAD`) and re-gated there; G5
 parity then reported the drift **to the digit** — english 4.016e-6, typed
 9.806e-7, multilingual 3.520e-6 — proving the replay equivalent to what was
-measured here. **The code lives at riir-infer `6c56f04`;** this issue and
+measured here. ⚑ **The replay was then verified against an independent copy.** The T4-move
+session had snapshotted the uncommitted WIP before deleting it
+(`.issues/020_wip_snapshot_t4move/`, taken 10:39–10:44) — discovered only
+after the replay had landed. Diffed code-only (comments stripped, whitespace
+normalised) against what was committed: **0 differing lines in `agent.rs`,
+`backend.rs`, `encoder.rs`, `head.rs`, `ops.rs`**, and `metal.rs` differs by
+**8 lines that are both non-semantic** — a `rustfmt` line-wrap of the
+`PendingPass { cb, enc, encodes: 0 }` literal, and the `MAX_RUN_BUFFERS`
+`assert!` placed BEFORE the array init rather than after (the replay's order,
+and the stricter of the two). So the equivalence rests on two independent
+witnesses — the G5 drift matching to the digit, and a byte-level diff against
+a copy neither session made for that purpose. Snapshot removed per its own
+README (*"commit or delete once the WIP is landed"*) and the noise-reduction
+rule; recoverable from this commit's parent tree if ever needed.
+
+**The code lives at riir-infer `6c56f04`;** this issue and
 [Bench 006](../.benchmarks/006_issue020_latency_wave1.md) stay here, because
 the losing table they answer is this repo's published arena.
 
