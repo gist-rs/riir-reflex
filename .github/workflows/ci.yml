@@ -16,9 +16,9 @@ jobs:
     name: check / clippy / test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: checkout the public sibling (path dep)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: katopz/katgpt-rs
           ref: develop
@@ -29,7 +29,7 @@ jobs:
           cp -R "${{ github.workspace }}/katgpt-rs/." \
                 "${{ github.workspace }}/../katgpt-rs/"
       - name: checkout the lane substrate sibling (path dep)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: gist-rs/riir-infer
           ref: develop
