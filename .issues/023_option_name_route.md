@@ -81,6 +81,14 @@ the legacy `k == N` index rule, unchanged. `false` is the pre-023 posture.
   the FINAL merged state pairwise — a one-host move refuses (validated on
   the real inputs: m3 0.0767 vs 4090 0.69 on massive_intent_en REFUSED,
   served file untouched).
+  **M3 step (1) IN FLIGHT 2026-09-24 14:48 (session katgpt-rs-5b):** a
+  detached quiet-gate autofire (`target/t5_m3/autofire.sh`, log
+  `target/t5_m3/autofire.log`, 10 h deadline) runs the recipe below ONCE
+  after `bench_preflight.sh` passes twice 60 s apart — the box read load
+  6.9–7.5 all afternoon, so a foreground run would publish a refused-box
+  latency. Binary built from `619f877` (engine byte-identical to the 4090
+  half's `8028a10`, default features = modelless only). Do NOT start a
+  second M3 run; check the log first.
   **M3 half — the ONLY remaining step:** (1) on a quiet box:
   `REFLEX_BENCH_HOST=m3 cargo run --release --bin harness -- --skip-laya
   --out .benchmarks/023_t5_m3_modelless` (~3 min; expect the Bench 007
