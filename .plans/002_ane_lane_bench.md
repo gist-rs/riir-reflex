@@ -1,6 +1,17 @@
 # Plan 002 — the ANE lane bench: laya on the Apple Neural Engine, measured on OUR box, published to reflex.gist.rs/bench
 
-**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `78a91c3`+`5c8ec2a`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) OPEN — the harness ANE seam is wired, T2.1's run is the remaining step.
+**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `78a91c3`+`5c8ec2a`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) RUN DONE, site push pending: T2.1's two harness runs LANDED
+(reflex `afacc3a`+`5f574a6`) — hosts m3 (fresh Metal primary, 15 suites clean,
+post-blend engine) + m3-ane (12 ANE rows; bucket skips named per case;
+banking77 + massive_intent_en honestly absent — every case > 128 tokens).
+Preflight PASSED (AC/powermode-2/load 5.78/canary 147.2us). The site merge hit
+the pre-blend m3 primary (modelless drift gate REFUSED — the gate working); the
+fresh metal run resolves it, and the sibling session's concurrent publish_bench
+rework (ordered lane-updates, Issue 023 T5) owns the final site push — the local
+reflex-site commit 95a177e holds the merged bench.json pending that flow. T2.3's
+ANE FAQ row is PUSHED (reflex-site a67d2a1). The stale-primary lesson: a
+published table's engine moved underneath it — re-run the PRIMARY beside the
+extra, never publish the extra alone.
 
 Executes the bench half of `.issues/017_ane_lane_reference_design.md` (the
 owner directive 2026-09-24: "add plan to add ane lane bench to
