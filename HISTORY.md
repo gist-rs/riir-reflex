@@ -10,6 +10,36 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 026 — the 4090 CUDA lane: `laya-riir-cuda` green + the
+  4090-windows bench row cpu → cuda** CLOSED (backend:
+  riir-infer `.issues/002`, record `e99d767`/`1efc8b7`; reflex
+  `0550820`; site data `c6d1ece`). The published row ran the laya lane on
+  CPU (Metal is macOS-scoped; the GPU idle) — 11–20× the m3 metal row.
+  The CUDA backend (cudarc 0.19 + nvrtc sm_89, the Metal architecture
+  ported: permanent weight cache, epoch-keyed chain slots,
+  `download_into` prefix barrier over `CudaView` slices — `CudaSlice::
+  clone()` is a dtod COPY, the caches hold `Arc`) composes with the
+  same-day packed-forward landing (`copy_at` added at the rebase).
+  Gates green on this box: `cuda_ops_smoke` (every op vs CPU;
+  bit-exact data movement), G5 at `LAYA_DEVICE=cuda` first run (english
+  26/26 drift 1.863e-6 · typed 26/26 2.471e-6 · multilingual 36/36
+  2.894e-6 — the metal drift class), `packed_forward_equiv` at the cuda
+  posture. The refreshed row (`.benchmarks/026_4090windows_cuda/`, host
+  `4090-windows`, sha `0550820`, accuracy byte-identical to the cpu row
+  on every lane): typed english 8127→114 ms · typed multilingual
+  4354→65 · typed typed 8221→113 · ag_news 460→17 · banking77 1745→29 ·
+  emotion 253→15 — **every suite below the m3 metal row** at the v1
+  rung (default attention path; flash/tile-ladder/CUDA-graph rungs are
+  follow-ups, each G5-gated at the cuda posture). Site publisher fixes
+  riding the merge (10/10 tests): `code_fixtures` POPULATION-EXCLUDED
+  from the cross-host drift gate (its population is commit-relative —
+  real fn spans from the repo's own sources; the 018 close-out's
+  recorded exclusion, mechanized), and the device posture is a LANE
+  fact (the 025 T4 class — a laya update refreshes the host row's
+  `laya_device`, never "cpu" beside cuda numbers). The site data commit
+  is pushed; **the `wrangler deploy` remains the M3-side handoff** (no
+  Node≥22/CF creds on this box — the 018 T6 precedent).
+
 - **Issue 025 — the `laya (python)` lane back on reflex.gist.rs/bench**
   CLOSED. The page had shown `laya (python) — not run` on every suite. No
   issue owned it: the lane shipped as Issue 012, but it is opt-in and every
