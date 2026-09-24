@@ -7,7 +7,7 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
-- **Issue 027 — the 026 bench CORRECTION: the CUDA packed-path zeros
+- **Issue 028 — the 026 bench CORRECTION: the CUDA packed-path zeros
   defect + the flash rung** CLOSED (substrate: riir-infer `.issues/003`
   `75ed138`; reflex artifacts at `6d6cd8c`+; site correction
   reflex-site `faf9b50`). The 026 run's trait-default attention SLICES
@@ -28,7 +28,7 @@ lives in `.issues/` and `.plans/`, never here.
   substrate flash kernel (the Metal one-pass online-softmax form ported
   to CUDA C, offsets bind at dispatch — Metal's design, immune by
   construction). The corrected bench
-  (`.benchmarks/027_4090windows_cuda_flash/`, host `4090-windows`):
+  (`.benchmarks/028_4090windows_cuda_flash/`, host `4090-windows`):
   typed_decisions restored to 0.357/0.350/0.7415, code_fixtures 0.5833,
   all 1-question suites unchanged; latencies improved −4..−12%
   (typed 113→108 · multiling 65→59 · banking77 29→27 · code_fixtures
@@ -39,6 +39,11 @@ lives in `.issues/` and `.plans/`, never here.
   `wrangler deploy` — **the corrupted numbers never went live** (the
   live site serves the pre-026 data; the deploy now publishes the
   corrected row directly).
+  Renumber note (the dual-allocation class): this issue was filed as
+  `.issues/027` in the same window a sibling session filed the CLM T3
+  issue; theirs is the live 027 (`027_clm_t3_4090_posture.md`, landed
+  first at `7e62f96`), so this record claims 028 — numbers never
+  reused; the bench artifacts moved with it.
 
 Created retroactively 2026-09-22: four issues (001, 002, 003, 005) had
 already closed with records only in git history.
