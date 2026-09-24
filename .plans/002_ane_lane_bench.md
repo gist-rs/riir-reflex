@@ -1,12 +1,14 @@
 # Plan 002 — the ANE lane bench: laya on the Apple Neural Engine, measured on OUR box, published to reflex.gist.rs/bench
 
-**Status:** IN PROGRESS — P0 PARTIAL 2026-09-24: the conversion harness (`scripts/ane_convert.py`) landed with the BC1S discipline + refusal path; the weight-mapped encoder trace is NOT wired, so NO artifacts exist yet (the plan's first draft over-claimed P0 green — retracted in the P0 record; do not bench from anything until T0.3's placement verify passes). P1 (Rust ANE lane) is BLOCKED on the harness sibling WIP (runner.rs/suites.rs in flight — do not start until it lands). P2 (site publish) rides P1.
+**Status:** IN PROGRESS — P0 PARTIAL 2026-09-24: the conversion harness (`scripts/ane_convert.py`) landed with the BC1S discipline + refusal path; the weight-mapped encoder trace is NOT wired, so NO artifacts exist yet (the plan's first draft over-claimed P0 green — retracted in the P0 record; do not bench from anything until T0.3's placement verify passes). P1 (Rust ANE lane) UNBLOCKED 2026-09-24 — the harness sibling WIP landed (runner.rs/suites.rs committed, worktree clean; the old blocker note was stale, Claude verdict r1). P2 (site publish) rides P1.
 
 Executes the bench half of `.issues/017_ane_lane_reference_design.md` (the
 owner directive 2026-09-24: "add plan to add ane lane bench to
 reflex.gist.rs/bench and do that first" — this directive is also the owner
 ratification of issue 017's gate 1 at the feasibility + bench scope, with the
-release-archive question for `.mlpackage` artifacts still open at P3).
+release-archive question for `.mlpackage` artifacts RULED 2026-09-24 at P3:
+download-on-demand, digest-pinned (`LAYA_ANE_ARTIFACTS_DIR` + the BLAKE3
+manifest — Claude verdict r1).
 
 The bench page (`reflex.gist.rs/bench/`) currently carries the modelless vs
 laya-rust vs laya-python-oracle comparison over the 9 dataset suites. The ANE

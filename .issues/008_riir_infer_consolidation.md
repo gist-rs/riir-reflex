@@ -11,9 +11,10 @@
 
 **Status:** OPEN — P0 + P1/T3 LANDED 2026-09-22; **T5 fence gate + P3
 slice 1 LANDED 2026-09-23** (see tasks below; plan: riir-ai
-`.plans/610_riir_infer_gpu_carve_slice1.md`). Remaining: P2 (encoder
-move — WAITING for this repo's sibling WIP to land first), P4/T6
-(owner-gated), P5/T7. Owner directive 2026-09-22: *"file issue to
+`.plans/610_riir_infer_gpu_carve_slice1.md`). Remaining: P2/T4 (encoder move — **UNBLOCKED 2026-09-24**: the harness
+sibling WIP landed, worktree clean; the old WAITING note was stale —
+Claude verdict r1), S6b/S7 (plan 610), P5/T7 (gated on T4). P4/T6 is
+DONE (task row below). Owner directive 2026-09-22: *"file issue to
 check about
 metal lane against riir-ai, we maybe separate around that (riir-infer-core)
 so it can consolidate with related metal and consume by both … we plan to
@@ -250,6 +251,26 @@ wiring.
       gates); the tokenizers **0.22** pin lands in riir-infer's manifest
       (006 T3: the v1 bump is deferred on a measured negative — the
       1.0.0-stable reopen trigger rides along, nothing else changes).
+      **Unblocked 2026-09-24** (harness sibling WIP landed; stale WAITING
+      note cleared — Claude verdict r1). **Three measured costs ride the
+      slice (Claude verdict r1, manifest-verified):** (a) `metal`/`objc2`
+      land TARGET-SCOPED in riir-infer's manifests
+      (`[target.'cfg(target_os = "macos")'.dependencies]`, the
+      riir-infer-gpu `metal_tensor_gemm` pattern) — reflex carries them
+      unscoped-optional and riir-infer CI runs `--all-features` on
+      ubuntu; never "fix" by narrowing CI's feature coverage (that
+      trades a red lane for silent coverage loss); (b) `metal` version
+      divergence reflex 0.29 vs infer-gpu 0.31 — one workspace, one
+      version; price the 0.31 bump (the G5 re-run is the acceptance),
+      never two `metal` crates in one graph; (c) riir-infer
+      `BOUNDARY.md` gains the consumer row in T4's FIRST commit (reflex
+      pre-declares the edge; the boundary contract must not see an
+      undeclared measured edge). Record rules: G5-from-the-new-home is
+      an M3 **workstation** verdict (box state beside the numbers —
+      riir-infer CI is ubuntu and can never measure it); reflex's T4
+      record cites the riir-infer commit SHA; riir-infer commit
+      messages stay sanitized (no internal numbers / sibling names /
+      box references) and REBASE onto the squashed line, never merge.
 - [x] **T5** Fence gate (P4 precondition): the CI grep gate red on
       cognition/game/router imports + the public-docs checklist (no
       workspace narrative ships). — LANDED 2026-09-23:
