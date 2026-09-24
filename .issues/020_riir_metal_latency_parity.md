@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**
+**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**; **T7 rung 1** (the sgemm dispatch band) LANDED, suite-p50 row pending a preflight-clean box; **T10 rung 2** (the rope hoist) LANDED DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1` (riir-infer `5ef7442`), promotion probe pending the same window
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -354,11 +354,31 @@ box this repo does not currently have.
             each; flash_attn kernel alone 0.79 → 0.62. G5 3×/arm
             deterministic, max prob drift ≤ 5.1e-6 (gate 1e-3), top-1 1.000.
             Load 7–9, AC, powermode 2 — ratios only (Bench 006 Addendum 5).
-      - [ ] Rung 2 — hoist rope-K into one pre-pass per layer. Upside
-            SHRANK after rung 3 (K is now staged once per tile, not twice):
-            what is left is a coalesced `[h][64][seq]` read and dropping the
-            cos/sin loads. Needs a per-layer device scratch through
-            `AttnScratch`.
+      - [x] **Rung 2 — the rope hoist pre-pass — IMPLEMENTED riir-infer
+            `5ef7442`, DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1`.**
+            `attn_rope` derives the Q/K rope ONCE per layer into a packed
+            `[2, seq, d]` device scratch (grow-only in seq, the
+            chain-cache-external weight-buffer lifetime class, write-first
+            within the dispatch pair); `flash_attn`'s staging then COPIES
+            the rotated K instead of re-rotating it per (query block ×
+            head × key tile). Flag-off stays the in-kernel rope arm —
+            bit-identical by construction (same expressions, same order).
+            Gates green at BOTH postures: `metal_ops_smoke` 7/7 ×2,
+            `packed_forward_equiv` 4/4 ×2, `packed_same_shape_gate` 1/1
+            raw-bit, substrate lib 41/41, reflex G5 metal top-1 1.000000
+            ×3 checkpoints drift ≤ 6.1e-6 ×2, `laya_batch_parity` ×2,
+            clippy `-D` × 3 feature postures. One defect caught mid-landing
+            and fixed in the same commit: the widened buffer list moved the
+            flash staging to `[[threadgroup(11)]]` while the host still
+            bound its length at index 9 — the unbound-pointer class; small
+            smoke shapes passed on allocation luck, full-model G5 failed
+            degenerate (uniform probs, agreement 12/26). **Promotion probe
+            PENDING a preflight-clean box** (load 20.5 at the 09-25 tick
+            against the 6.0 ceiling): position-balanced flash-kernel A/B
+            (`LAYA_METAL_ROPE_HOIST=0` vs `=1`, same binary — instrument
+            archived at reflex `.benchmarks/033_rope_hoist_ab/`) decides
+            promote/demote per Feature Flag Discipline — no unmeasured
+            promotion.
       - [x] **Rung 3 — one-pass online softmax — LANDED riir-infer
             `14af99f`** (taken before rung 2 because it halves the staging
             rung 2 optimizes). Row max/sum in registers, accumulator
