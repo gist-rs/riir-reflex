@@ -137,6 +137,29 @@ A DUPLICATE full harness run existed on this box for a ~10–40 min window,
   commit reflex artifacts, record the deploy handoff) is taken by this
   session; the live run is NOT to be re-launched by anyone while it lives.
 
+### Pre-023 binary (2026-09-24 ~13:15, session `katgpt-rs-59` — facts + one recommendation)
+
+The live run's `harness.exe` was built **11:04:08**; the modelless ranking fix
+(Issue 023, `d02f3a8`) landed **13:03**. So this run's modelless rows are the
+**pre-023** engine: `massive_intent_en` will read **0.0767** (post-023:
+**0.6900**) and banking77's calibrated gate will abstain on **100%** of
+questions (post-023: 23%). The laya lane does not go through
+`DecisionEngine::solve_into` and is unaffected. The 12 other suites are
+byte-identical across the fix outside latency (Bench 007 §1).
+
+- **T7 still works as written** — the site's `m3@77c408e` record is pre-023
+  too, so the two hosts are compared at the same engine. Do not "correct" the
+  massive row by hand; a spliced number is a defect by definition.
+- ⚠ **The drift-refusal gate will fire the moment one host moves past 023
+  and the other does not** — correctly. Both hosts' modelless rows have to
+  move together.
+- **Recommendation:** publish this run as-is with the provenance disclosing
+  the pre-023 engine on both hosts, then take Issue 023 T5 as a
+  **modelless-only** re-run at post-023 HEAD on BOTH hosts (~3 min CPU each,
+  after this run exits and while nothing heavy runs), re-publish, and let T7
+  confirm the two post-023 modelless records are bit-identical. The expected
+  values are known in advance (Bench 007 table).
+
 ## Out of scope
 
 - The ANE device rows (Plan 002, M3-only, sequenced first by the owner).

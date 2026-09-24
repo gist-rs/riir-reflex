@@ -62,3 +62,9 @@ the legacy `k == N` index rule, unchanged. `false` is the pre-023 posture.
   002 P1) and a laya run now would contaminate both measurements. Take it
   with the next Issue 018 refresh; the modelless rows are deterministic, so
   the published values are known in advance (Bench 007 table).
+  ⚠ The live 4090 Issue 018 run (binary built 11:04, before this fix) and the
+  site's m3@77c408e record are BOTH pre-023, so the next publish is
+  consistent and still carries massive 0.0767. T5 is therefore a
+  modelless-only post-023 re-run on BOTH hosts, published together (the 018
+  drift-refusal gate refuses a one-host move) — plan recorded in Issue 018
+  § "Pre-023 binary".
