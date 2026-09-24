@@ -135,7 +135,7 @@ from the source, independent of which box state measured it.
 box was unplugged at 09:56:10 (100% → 48%), before the first A/B round and
 after the two AC absolute baselines. Full disclosure, and the
 survives/does-not-survive split, in Bench 006 Addendum 1; the AC re-bench and
-its refusal gate are [Issue 021](021_ac_thermal_gated_rebench.md). What that
+its refusal gate are Issue 021 (closed — record in `HISTORY.md` § 2026-09-24). What that
 changes here: the Class-B result stands (p50 unchanged while p99 falls 64–67%
 in the SAME runs is its own control), the small Class-A deltas are **not
 quotable until T3/T5 of 021 re-take them on AC**, and **T0's question is now

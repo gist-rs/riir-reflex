@@ -10,6 +10,31 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 021 CLOSED — the power axis nothing was recording (AC, plug- and
+  thermal-gated re-bench of Issue 020).** Filed `e6aff52` on the owner flag
+  *"beware thermal and unplug recently, rebench if need"*: `pmset -g log` showed
+  the published `bench.json` (`77c408e`) was AC on both columns, but **every
+  paired A/B in Bench 006 was taken on BATTERY** (unplugged 09:56 at 100% →
+  48%). Landed: `scripts/bench_preflight.sh` (refuses on battery / Low Power /
+  < `SETTLE_MIN` since plug-in / over `MAX_LOAD`; prints a `PROVENANCE:` line).
+  ⛔ `pmset powermode` is a THREE-state enum (0 Automatic, 1 Low Power, 2 High
+  Power) and the first gate refused High Power — fixed at `b819718`, only `1`
+  refuses. No sudo-free throttle readout exists on this box, so the detector is
+  a fixed-kernel canary (`317×1024×1024` `matmul_w`), judged as a **best-of-5
+  minimum** pinned at `CANARY_REF_US=141` in powermode 2 (`122276b`: 30 single
+  runs spread 18%, their best-of-5 minima 2.9% — contention adds time to some
+  runs, a throttled clock raises the floor of all). AC re-bench = Bench 006
+  Addendum 2 (`098b399`): narrow k=2624 GEMM −21.5% CONFIRMED; wide −9.5/−10%
+  (larger than battery's −4.4 — the throttle compressed the delta); massive
+  ≈ −5% p50 / −9% p99 (the battery "−8%" retired); §1's −64…−68% p99
+  REPRODUCED; same-run `--laya-python` head-to-head showed the python oracle
+  16–30% faster than its own published column, so rust wins p99 and loses p50
+  ~10% (Class A open under Issue 020); no accumulated-state penalty at p50
+  (Issue 020 T0 answered). T7 resolved advisory-stamped: `src/harness/box_state.rs`
+  writes power / powermode / load / swap at run start+end into `results.json`
+  `meta.box_state` with a `latency_quotable` verdict, never refusing a
+  correctness run. The rule now names POWER SOURCE + POWER MODE (katgpt-rs
+  AGENTS.md G2 `a12ae11`; this repo's AGENTS.md GOAT-gates bullet).
 - **Issue 022 CLOSED — boundary: the `riir-infer` allowlist row now names the CRATE `riir-infer-laya`.**
   Filed at `fba613e` by the boundary-guard 145th run: `04531ae` (Issue 008 T4) landed the
   intended, pre-declared `riir-reflex → riir-infer-laya` edge, but the § May depend on
