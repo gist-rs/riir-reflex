@@ -48,6 +48,21 @@ FAILED=0
 log() { printf '%s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Python interpreter for the jq-less fallback paths (Issue 018: the windows
+# lane). `python3` on Windows is the Microsoft Store alias STUB — it exists
+# on PATH but only prints "Python was not found". Resolve a WORKING
+# interpreter once: prefer python3, fall back to `py -3` (the standard
+# Windows launcher). Sets PY3 to the full invocation string, or empty when
+# neither works (the jq paths below never consult PY3 when jq is present).
+PY3=""
+if ! have jq; then
+    if have python3 && python3 -c pass >/dev/null 2>&1; then
+        PY3="python3"
+    elif have py && py -3 -c pass >/dev/null 2>&1; then
+        PY3="py -3"
+    fi
+fi
+
 # curl GET -> file; -f so non-2xx exits non-zero; --retry handles transient
 # transport errors / 429 / 5xx at the curl level.
 http_get() {
@@ -58,12 +73,14 @@ http_get() {
 rows_count() {
     if have jq; then
         jq '.rows | length' "$1"
-    else
-        python3 - "$1" <<'EOF'
+    elif [ -n "$PY3" ]; then
+        $PY3 - "$1" <<'EOF'
 import json, sys
 with open(sys.argv[1], encoding="utf-8") as f:
     print(len(json.load(f).get("rows", [])))
 EOF
+    else
+        echo 0
     fi
 }
 
@@ -71,8 +88,8 @@ EOF
 rows_valid() {
     if have jq; then
         jq -e 'type == "object" and has("rows")' "$1" >/dev/null 2>&1
-    else
-        python3 - "$1" <<'EOF'
+    elif [ -n "$PY3" ]; then
+        $PY3 - "$1" <<'EOF'
 import json, sys
 try:
     with open(sys.argv[1], encoding="utf-8") as f:
@@ -81,6 +98,8 @@ try:
 except Exception:
     sys.exit(1)
 EOF
+    else
+        return 1
     fi
 }
 
@@ -90,8 +109,8 @@ splits_have() {
         jq -e --arg c "$2" --arg s "$3" \
            '.splits[]? | select(.config == $c and .split == $s)' \
            "$OUT/$1/splits.json" >/dev/null 2>&1
-    else
-        python3 - "$OUT/$1/splits.json" "$2" "$3" <<'EOF'
+    elif [ -n "$PY3" ]; then
+        $PY3 - "$OUT/$1/splits.json" "$2" "$3" <<'EOF'
 import json, sys
 try:
     with open(sys.argv[1], encoding="utf-8") as f:
@@ -102,6 +121,8 @@ try:
 except Exception:
     sys.exit(1)
 EOF
+    else
+        return 1
     fi
 }
 
