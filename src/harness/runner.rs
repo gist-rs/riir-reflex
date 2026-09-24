@@ -3412,6 +3412,47 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         }
         s.push('\n');
     }
+    // Issue-025 landscape: PUBLISHED vendor rows, quoted as published —
+    // never measured by this harness. Pin: malevrigns/agent-jev @
+    // a965ca8ff06ccabc0c796dca5447b55cc2069cee (2026-09-23, Apache-2.0);
+    // numbers verified against their README results table +
+    // typed_decisions/agentjev_v1_report.json (/trained/*; the same file
+    // carries the phase-4 pre-run baseline). Static by design — this file
+    // is regenerated wholesale, so the section lives here, not in a
+    // hand-edited copy.
+    s.push_str(
+r#"## Landscape — published specialist rows (NOT measured by this harness)
+
+External "System One" typed-decision models on the same 400-case /
+2000-question Typed Decisions official test split, quoted AS PUBLISHED
+(issue 025; pin `malevrigns/agent-jev` @ `a965ca8f`, Apache-2.0). Their
+protocol differs from ours — the footnotes are part of the row; no number
+here is comparable without them.
+
+| lane · model | source | acc | bool·noul / choice / score | p50 case |
+|---|---|---|---|---|
+| AgentJev-0.6B (598M, Qwen3-0.6B backbone) | published (their run) | **0.7925** | 88.83 / 75.33 / 75.00 | ~60–70 ms, their cuda box |
+| Laya (published checkpoint, 421M ModernBERT) | their table — card-copied, not re-scored | 0.7700 | — | 41.53 ms (their box) |
+| TypeSafe Jev 1.13.0 | their table — zero-shot generalist | 0.727 | — | — |
+| reflex · laya-riir·typed | MEASURED — the typed_decisions table above | 0.7445 (baseline `aa37823`) | 78.50 / 73.33 / 72.25 | 1312 ms (m3 metal, that baseline) |
+| reflex · modelless | MEASURED — the typed_decisions table above | 0.3190 (baseline `aa37823`) | 53.17 / 18.67 / 25.87 | 0.472 ms |
+
+Footnotes: (1) their accuracy is agreement with the public TEACHER argmax;
+ours is gold-label under the standard harness protocol — different
+references of truth. (2) their run held out 120 dev + 120 cal cases and
+selected the step-600 checkpoint on dev soft-CE before opening test; ours
+fits no per-benchmark head. (3) their wide-load figure (shared-prefix
+298.91 ms vs unshared 609.65 ms at 66 paths / 33,547 tokens, backbone
+token-ops 33,547 → 2,551 = 92.4% reduction, max prob delta 5.08e-4) is
+their box and their load — not re-measured here. (4) on SHORT inputs their
+own table reads Laya faster (41.53 ms vs ~60–70 ms p50/case); AgentJev's
+latency win is wide candidate loads only. (5) the bool·noul column maps
+their boolean primitive to our noul primitive — the closest analogue, not
+a wire match; neither of their lanes carries an abstention primitive (the
+wire's first-class abstention is ours alone).
+
+"#,
+    );
     s
 }
 

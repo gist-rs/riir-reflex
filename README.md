@@ -211,6 +211,29 @@ typed-decisions extras (the specialist's own axis, calibrated probs): laya·type
 soft_acc 0.4668 · brier_soft 0.0677 · score MAE 0.2424 · within_1 0.995 — vs
 modelless soft_acc 0.3168 · brier_soft 0.2436 · MAE 0.7272 · within_1 0.724.
 
+**Competitive landscape (published vendor rows, not measured here — issue 025):**
+the specialist accuracy bar on this same split moved to **~79%**: AgentJev-0.6B
+publishes **79.25%** (bool 88.83 / choice 75.33 / score 75.00; ~60–70 ms p50/case
+on their cuda box, 2,048-token context, zero decoded tokens; pin
+`malevrigns/agent-jev` @ `a965ca8f`, Apache-2.0), beside the Laya checkpoint's
+card-copied **77.00** and TypeSafe Jev 1.13.0's zero-shot **72.7**. Protocol
+differences are footnote-grade, not excuses: their accuracy is agreement with
+the public teacher argmax (ours is gold-label), they held out 120 dev + 120 cal
+cases with checkpoint selection before opening test, and their wide-load
+shared-prefix figure (298.91 ms at 66 paths / 33.5k tokens, 92.4% backbone
+token-op reduction) is their box and load. On SHORT inputs their own table reads
+Laya faster (41.53 vs ~60–70 ms p50/case) — AgentJev's latency win is wide
+candidate loads. Full footnoted row: the `## Landscape` section of
+[`TABLES.md`](.benchmarks/001_phase1_tables/TABLES.md).
+
+Where reflex stands — the axis is not the specialist accuracy bar. The
+specialists trade latency for accuracy; reflex's axis is the modelless latency
+floor (0.5 ms p50/case, zero weights), first-class abstention (none of the three
+specialists abstain at all), the conformal-floor calibration gate (G1), and
+`Lane::Hybrid` — any open decision model can sit behind `decision_wire` as a
+lane (specialist proposes, modelless gates/abstains), so the category's accuracy
+races and reflex's guarantees compose instead of compete.
+
 **Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the narrow-BK64 + xwide pass `a51ea42`):**
 
 | checkpoint | python torch MPS (row p50) | rust candle Metal (row p50) | rust riir Metal (row p50, candle-free) |

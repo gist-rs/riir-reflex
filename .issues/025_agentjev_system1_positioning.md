@@ -1,6 +1,6 @@
 # AgentJev / System-One positioning — the typed-decision category grew a beat-laya challenger
 
-**Status:** OPEN — filed from `.research/002_agentjev_system1_landscape.md` (external repo `malevrigns/agent-jev` @ `a965ca8ff06ccabc0c796dca5447b55cc2069cee`, Apache-2.0).
+**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 feasibility spike stays owner-gated — do NOT auto-start.
 
 ## Why
 
@@ -22,7 +22,7 @@ calibration gate (G1), game heads, single-binary matrix.
 
 ## Tasks
 
-- [ ] Bench docs (`.benchmarks/001_phase1_tables/TABLES.md` header block or a
+- [x] Bench docs (`.benchmarks/001_phase1_tables/TABLES.md` header block or a
       `## landscape` section + README results section): add the published
       AgentJev-0.6B row — 79.25% (bool 88.83 / choice 75.33 / score 75.00),
       ~60–70 ms p50/case cuda:0, 2048 ctx — with the protocol footnote:
@@ -30,13 +30,25 @@ calibration gate (G1), game heads, single-binary matrix.
       card-copied not re-scored; our 74.45% is gold-label measured under the
       standard harness protocol; their wide-load shared-prefix figure
       (298.91 ms @ 66 paths / 33.5k tokens) is their box, not ours.
-- [ ] README competitive-landscape paragraph: Jev / Laya / AgentJev / reflex
+      **DONE 2026-09-24** — TABLES.md is regenerated wholesale by
+      `render_markdown`, so the durable `## Landscape` section lives in the
+      RENDERER (`src/harness/runner.rs`) and survives every run; README
+      results section carries the paragraph + the reflex-axis positioning.
+- [x] README competitive-landscape paragraph: Jev / Laya / AgentJev / reflex
       axes — accuracy bar for specialists is now ~79%; reflex's axis is
       modelless latency + abstention + calibration floor + hybrid lane
-      (`Lane::Hybrid`: specialist proposes, modelless gates).
-- [ ] Verify before citing: pull the AgentJev published numbers from their
+      (`Lane::Hybrid`: specialist proposes, modelless gates). LANDED 2026-09-24
+      (README Results section).
+- [x] Verify before citing: pull the AgentJev published numbers from their
       README/`typed_decisions/comparison.json` at the pinned sha (do not
-      retype from memory; the note's table is the transcript).
+      retype from memory; the note's table is the transcript). DONE 2026-09-24
+      — clone verified at `a965ca8f` then removed: README table (79.25 ·
+      1585/2000), `agentjev_v1_report.json` `/trained/*` (0.7925 /
+      0.88833 / 0.75333 / 0.75), `comparison.json` `/agentjev/trained` (the
+      `/phase4` block there is the pre-run 38.70% baseline — do not cite it
+      as the headline), latency table (Laya 41.53 ms faster on short inputs;
+      shared-prefix 298.91 ms vs 609.65 unshared), README L174 (33,547 →
+      2,551 = 92.4%).
 - [ ] (stretch, owner-gated — do NOT auto-start) lane-3 feasibility spike:
       serve `aimeigaoshou/agent-jev` Apache-2.0 safetensors through
       riir-infer as a third lane — Qwen3-0.6B backbone (causal, arch family
