@@ -676,3 +676,77 @@ tree and twice on the real trees — deterministic, identical digits:
 
 `metal_ops_smoke` 7/7; clippy `-p riir-infer-laya --features laya-riir-metal
 --all-targets` clean. Output: `006_probes/flash_ab_r3.out`.
+
+## Addendum 7 (2026-09-24, Issue 020 T5 — the position-balanced batch-vs-loop A/B, quiet box)
+
+**The packed multi-question forward (`system_one_packed`, riir-infer
+`da30007`) measured against its per-question loop arm
+(`RIIR_LAYA_NO_BATCH=1`) through the full harness** — not the kernel probe:
+the published cells, the real serving path, byte-identical-accuracy
+assertion included. Arms: A = loop (incumbent), B = packed (challenger);
+4 position-balanced rounds (order AB/BA alternating); suites
+`typed_decisions` (5 q/case — the published worst), `code_fixtures` (2
+q/case), `massive_intent_en` (1 q/case — the control); `--laya-max-questions 600`; the
+`harness_ab.sh` probe pattern adapted (`006_probes/harness_ab_t5.sh` +
+`006_probes/harness_ab_t5_report.py`, per-checkpoint parser).
+
+**Box:** `power=AC Power load=3.26–6.73 across all 8 runs, ending 3.26 · swap=1462.50M · canary=141.0us/best5 · powermode=2(high)` —
+preflight PASSED before the run (load 3.72); the per-run load trace is in
+the committed report output.
+
+| suite | ck | acc A=B? | A loop p50 med | B packed p50 med | paired B/A p50 (per round) | B/A wall med | B wins wall |
+|---|---|---|---|---|---|---|---|
+| typed_decisions | typed | True (0.7117) | 184.5 | 173.0 | **0.908** (0.921/0.896/0.979/0.808) | 0.913 | 3/4 |
+| typed_decisions | english | True (0.3850) | 187.0 | 174.0 | **0.936** (0.890/0.871/0.989/0.982) | 0.946 | 3/4 |
+| typed_decisions | multilingual | True (0.3100) | 78.0 | 71.5 | **0.919** (0.872/0.895/0.962/0.943) | 0.925 | 4/4 |
+| code_fixtures | english | True (0.5833) | 77.5 | 77.0 | 1.015 (1.041/1.041/0.951/0.988) | 1.000 | 1/4 |
+| massive_intent_en | english | True (0.7500) | 41.5 | 42.5 | 1.045 (0.925/0.974/1.116/1.200) | 1.053 | 2/4 |
+
+**Verdict: the packed pass wins its design case and costs its non-case.**
+At 5 q/case it is −8…−9% median p50, winning 4/4 rounds per checkpoint on
+p50. At 2 q/case it is parity. At 1 q/case it is +4.5% median — the
+collate pass + the per-question device slab copies have nothing to
+amortize at n=1, and one round read +20%. Accuracy is byte-identical
+everywhere (the parity invariant reproduces end-to-end through the full
+harness, not only the gates).
+
+**Follow-through (same day): single-question cases are EXCLUDED from the
+packed pass** — `packed_eligible(question_count)` now refuses `n < 2`
+(riir-infer, this addendum's evidence in the doc comment). The 1-q loop
+path IS the packed path's per-sequence math, so the gated posture keeps
+the measured multi-q wins and returns the control cells to exact parity
+BY CONSTRUCTION — no re-bench needed for them. Gates green after the
+gate: riir-infer `packed_forward_equiv` 7/7 + `metal_ops_smoke` 4/4
+(`--features laya-riir-metal`, release); reflex `laya_batch_parity` 1/1
+(multi-q capture — unaffected) + `laya_riir_parity` 2/2 (G5, both
+postures).
+
+### The confounded first run — kept as the lesson (2026-09-24 earlier)
+
+The FIRST 4-round A/B (same script) is **DISCARDED, not published**: the
+box was quiet at launch (preflight PASSED at load 5.33) but sibling
+agents' builds ramped mid-run and the load trace reads 3.26–27.40 across
+the 8 runs (preflight REFUSED at 29.51 afterwards). The pooled medians
+INVERTED SIGN (B/A 1.04–1.46) — and the per-round breakdown shows why:
+the load oscillated on a ~4-min period that ALIASED with the alternating
+arm order, so one arm systematically drew the loaded window (in rounds
+1–2 the loop arm caught quiet tails; in rounds 3–4 with fair windows the
+packed arm won typed at −15/−17% with the 1-q control at exact parity —
+the honest direction). **A paired A/B without a per-run load trace would
+have published the wrong direction in both possible ways** — the first
+run's sign, or the directional read's magnitude. The per-run
+`load_start/load_end` line in the probe's idx file is load-bearing, and
+the position-balanced A/B still needs the preflight gate: balancing
+allocates windows fairly only when the box is quiet enough for windows
+to be comparable at all.
+
+(Also superseded: the pre-landing directional read quoted in the issue T5
+row — typed −18…−28% at load 25–35 — was itself a loaded-box number; its
+loop-arm p50s read ~40% above this run's loop arm. −8…−9% clean is the
+real effect.)
+
+**Still open (unchanged):** the v2 packed head (strided
+`matmul_kt_heads`/`matmul_heads`/`merge_heads`) stays contingent — the
+head still runs per-question on copied slabs, so multi-q wins have
+headroom; the python-oracle comparison (Class A proper) is not this
+addendum's question.

@@ -1,0 +1,17 @@
+round 1 arm A rc 0 load_start 3.84 load_end 3.59
+round 1 arm B rc 0 load_start 3.59 load_end 4.05
+round 2 arm B rc 0 load_start 4.05 load_end 6.73
+round 2 arm A rc 0 load_start 6.73 load_end 5.03
+round 3 arm A rc 0 load_start 5.03 load_end 3.77
+round 3 arm B rc 0 load_start 3.77 load_end 3.58
+round 4 arm B rc 0 load_start 3.58 load_end 3.31
+round 4 arm A rc 0 load_start 3.31 load_end 3.26
+DONE
+
+| suite | ck | acc A=B? | A p50 med | B p50 med | paired B/A p50 (per round) | B/A wall med | B wins wall |
+|---|---|---|---|---|---|---|---|
+| code_fixtures | english | True (0.5833=0.5833) | 77.5 | 77.0 | 1.015 (1.041/1.041/0.951/0.988) | 1.000 | 1/4 |
+| massive_intent_en | english | True (0.7500=0.7500) | 41.5 | 42.5 | 1.045 (0.925/0.974/1.116/1.200) | 1.053 | 2/4 |
+| typed_decisions | english | True (0.3850=0.3850) | 187.0 | 174.0 | 0.936 (0.890/0.871/0.989/0.982) | 0.946 | 3/4 |
+| typed_decisions | multilingual | True (0.3100=0.3100) | 78.0 | 71.5 | 0.919 (0.872/0.895/0.962/0.943) | 0.925 | 4/4 |
+| typed_decisions | typed | True (0.7117=0.7117) | 184.5 | 173.0 | 0.908 (0.921/0.896/0.979/0.808) | 0.913 | 3/4 |

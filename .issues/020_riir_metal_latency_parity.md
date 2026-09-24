@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **waves 1–2 LANDED and measured on AC**
+**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -259,17 +259,11 @@ box this repo does not currently have.
         parity read, not a free win. Sized at ~1.3–3% of the forward.
   - [-] Route the head's MHA through a rope-free flash variant (removes the
         only remaining `seq²` tensor, 6.4 MB × 2 layers). DEFERRED.
-- [ ] **T5 — the largest remaining Class-A lever: BATCH a case's questions
-      into ONE forward.** **LANDED IN CODE 2026-09-24** (riir-infer `da30007`, consumer gate reflex `f180cfc`) — `forward_packed`: GEMMs/elementwise over all rows in one pass, attention dispatched PER SEQUENCE at bind offsets (kernel untouched, exact per-sequence math, no padding), head per-question on device-copied slabs, one `begin_pass` per case, kill-switch `RIIR_LAYA_NO_BATCH=1` = the loop arm. Gates: lane `tests/packed_forward_equiv.rs` (CPU drift 1.4e-6 / 1e-5 gate, Metal arm), `metal_ops_smoke` 7/7, reflex G5 parity BOTH postures, `tests/laya_batch_parity.rs` top-1 1.000000 both checkpoints, clippy `-D` clean. **A/B PENDING a quiet box**: directional read at load 25–35 (typed_decisions @600-question cap: batched p50 −18…−28% — typed 195 vs 260, english 204 vs 250, ml 73 vs 101 ms; accuracies byte-identical) is NOT quotable; `bench_preflight.sh` REFUSED at load 7.78 + 1.5 GB swap on 2026-09-24 late. Publishable run = position-balanced paired harness A/B (the `harness_ab.sh` pattern in `.benchmarks/006_probes/`, arms = `RIIR_LAYA_NO_BATCH=1` vs default) once preflight passes; record as Bench 006 Addendum 7. The reference does this and says so —
+- [x] **T5 — the largest remaining Class-A lever: BATCH a case's questions
+      into ONE forward.** **LANDED + MEASURED 2026-09-24** (riir-infer `da30007`, consumer gate reflex `f180cfc`, **[Bench 006 Addendum 7](../.benchmarks/006_issue020_latency_wave1.md)**) — `forward_packed`: GEMMs/elementwise over all rows in one pass, attention dispatched PER SEQUENCE at bind offsets (kernel untouched, exact per-sequence math, no padding), head per-question on device-copied slabs, one `begin_pass` per case, kill-switch `RIIR_LAYA_NO_BATCH=1` = the loop arm. Gates: lane `tests/packed_forward_equiv.rs` (CPU drift 1.4e-6 / 1e-5 gate, Metal arm), `metal_ops_smoke` 7/7, reflex G5 parity BOTH postures, `tests/laya_batch_parity.rs` top-1 1.000000 both checkpoints, clippy `-D` clean. **The position-balanced A/B ran on a quiet box (Addendum 7): 5-q/case −8…−9% median p50, 4/4 rounds per checkpoint; 2-q parity; 1-q control +4.5% median → single-question cases EXCLUDED from the packed pass the same day (`packed_eligible(n < 2)` — the gated posture dominates: multi-q wins measured, 1-q parity by construction; all gates re-green after). The first A/B attempt is DISCARDED as the confound lesson: a ~4-min load oscillation aliased with the alternating arm order and inverted the pooled sign — the per-run load trace is load-bearing (Addendum 7 §confounded). The pre-landing directional read (−18…−28% at load 25–35) is superseded: −8…−9% clean is the real effect.** The reference does this and says so —
       `.raw/laya/laya/agent.py:267` *"Evaluate typed questions across state
-      in a single, parallel forward pass"*, collated at `:291`. Ours runs one
-      forward per question (`agent.rs:224`). The published losses track
-      q/case exactly: `typed_decisions` at 5 q/case loses worst
-      (+19.3/+23.8/+37.9%), `code_fixtures` at 2 q/case +17.6%. It is also
-      where the GPU utilisation is: at `m = seq ≈ 317` the xwide GEMM launches
-      **120 threadgroups for a 40-core GPU**; at `m = 5·seq` it launches 600.
-      Needs a batch dimension with per-sequence masking through encoder +
-      head + attention, and a G5 re-capture — a project, not a rung.
+      in a single, parallel forward pass"*, collated at `:291`. Ours packs instead of padding — per-question answers are bit-identical
+      to the loop, not "modulo padding". Residual multi-q headroom (the head still runs per-question on copied slabs) is the v2 packed head (strided `matmul_kt_heads`/`matmul_heads`/`merge_heads`) — contingent, not scheduled.
       **Evidence, T9:** on `code_fixtures` case 3 the 1q → 2q step is
       flat at every length (1.6–1.8× total at 2q against 1.25–1.45× at 1q),
       so batching is the single largest remaining gap on that suite too.
