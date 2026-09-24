@@ -70,6 +70,12 @@ pub struct SuiteCase {
     pub gold: Vec<GoldAnswer>,
 }
 
+impl AsRef<SuiteCase> for SuiteCase {
+    fn as_ref(&self) -> &Self {
+        self
+    }
+}
+
 /// A built suite. `option_counts_note` documents the option-count policy
 /// (fixed vs sampled, and the seed rule).
 #[derive(Debug, Clone, PartialEq, Serialize)]

@@ -1157,9 +1157,14 @@ impl Eval {
         self.probs.iter().map(|c| c.len()).sum()
     }
 
-    fn forced_rows(&self, cases: &[SuiteCase]) -> Vec<(usize, Vec<f64>)> {
+    // The cases are `AsRef<SuiteCase>` so the SAME methods serve the
+    // modelless lane (a full `&[SuiteCase]`) and the laya ANE lane (the
+    // SERVED subset as `&[&SuiteCase]` — bucket-skipped cases contribute
+    // no vectors, so the walk must stay index-aligned with them).
+    fn forced_rows(&self, cases: &[impl AsRef<SuiteCase>]) -> Vec<(usize, Vec<f64>)> {
         let mut rows = Vec::new();
         for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
             for (qi, _q) in case.questions.iter().enumerate() {
                 rows.push((case.gold[qi].idx, self.probs[ci][qi].clone()));
             }
@@ -1167,9 +1172,10 @@ impl Eval {
         rows
     }
 
-    fn readout_pairs(&self, cases: &[SuiteCase]) -> Vec<(f64, bool)> {
+    fn readout_pairs(&self, cases: &[impl AsRef<SuiteCase>]) -> Vec<(f64, bool)> {
         let mut pairs = Vec::new();
         for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
             for (qi, _q) in case.questions.iter().enumerate() {
                 pairs.push((self.confs[ci][qi], self.picks[ci][qi] == case.gold[qi].idx));
             }
@@ -1177,11 +1183,12 @@ impl Eval {
         pairs
     }
 
-    fn selective(&self, cases: &[SuiteCase]) -> SelectiveMetrics {
+    fn selective(&self, cases: &[impl AsRef<SuiteCase>]) -> SelectiveMetrics {
         let mut n = 0usize;
         let mut correct = 0usize;
         let mut total = 0usize;
         for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
             for (qi, _q) in case.questions.iter().enumerate() {
                 total += 1;
                 if !self.abstained[ci][qi] {
@@ -1880,7 +1887,7 @@ fn run_laya_checkpoint(
     suite: &Suite,
     ckpt: &'static str,
     laya_max_questions: usize,
-) -> Result<LaneResult, String> {
+) -> Result<(LaneResult, Vec<String>), String> {
     use crate::laya::config::Checkpoint;
 
     let t_start = Instant::now();
@@ -1913,6 +1920,14 @@ fn run_laya_checkpoint(
     let mut confs = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // The ANE lane's bucket refusals are a coverage LIMIT, not a compute
+    // failure: the case is skipped LOUDLY (named + counted into the suite's
+    // disclosure) and the lane continues with the servable cases. Real
+    // failures still abort the lane (the ?-path below is untouched).
+    // `served_cases` is the slice the metrics tail walks — Eval's vectors
+    // are per-SERVED-case, so the assembler must never see the full set.
+    let mut served_cases: Vec<&SuiteCase> = Vec::with_capacity(cases.len());
+    let mut bucket_skipped_cases: Vec<&str> = Vec::new();
 
     for (ci, case) in cases.iter().enumerate() {
         let mut questions: Vec<(String, Value)> = Vec::with_capacity(case.questions.len());
@@ -1926,9 +1941,19 @@ fn run_laya_checkpoint(
             questions.push((q.qid.clone(), Value::Object(def)));
         }
         let t0 = Instant::now();
-        let answers = agent
-            .system_one(&case.state, &questions)
-            .map_err(|e| format!("laya forward ({}, case {ci}): {e}", case.id))?;
+        let answers = match agent.system_one(&case.state, &questions) {
+            Ok(a) => a,
+            Err(crate::laya::LayaError::Bucket { seq, max, .. }) => {
+                bucket_skipped_cases.push(&case.id);
+                eprintln!(
+                    "  [laya {ckpt}] case {} skipped: seq {seq} > max ANE bucket {max} \
+                     (named + counted, not a failure)",
+                    case.id
+                );
+                continue;
+            }
+            Err(e) => return Err(format!("laya forward ({}, case {ci}): {e}", case.id)),
+        };
         durs_ms.push(t0.elapsed().as_millis() as u64);
 
         if ci < 10 {
@@ -2001,22 +2026,51 @@ fn run_laya_checkpoint(
         probs.push(cprobs);
         picks.push(cpicks);
         confs.push(cconfs);
+        served_cases.push(case);
+    }
+
+    // Every case over the bucket limit = the suite has NO servable cases:
+    // an honest ABSENCE (the caller's errors list), never an empty metrics
+    // row (the metrics tail indexes per-served-case vectors).
+    if probs.is_empty() {
+        return Err(format!(
+            "all {} case(s) exceed the ANE buckets (max {}) — no servable cases; \
+             this device row is absent for this suite (named, not fabricated)",
+            cases.len(),
+            agent.ane_bucket_max().unwrap_or(0),
+        ));
     }
 
     // Latency percentiles are computed ONCE in the shared tail
     // (assemble_laya_lane_result) — both lanes' metrics must not diverge.
-    Ok(assemble_laya_lane_result(
+    let result = assemble_laya_lane_result(
         "laya-riir",
         ckpt,
         suite.name,
-        cases,
+        served_cases.as_slice(),
         probs,
         picks,
         confs,
         durs_ms,
         determinism_ok,
         t_start.elapsed().as_secs_f64(),
-    ))
+    );
+    // The bucket-skip disclosure rides back to the caller (who pushes it
+    // into the absences section — the named-not-silent channel). `n_cases`
+    // / `n_questions` already count the SERVED set only, so the served-vs-
+    // corpus delta is visible in the table row itself.
+    let notes = if bucket_skipped_cases.is_empty() {
+        Vec::new()
+    } else {
+        vec![format!(
+            "{} (laya/{ckpt}): {} case(s) skipped over the ANE bucket limit — {:?} \
+             (a coverage limit, not a failure; the served row is the smaller set)",
+            suite.name,
+            bucket_skipped_cases.len(),
+            bucket_skipped_cases
+        )]
+    };
+    Ok((result, notes))
 }
 
 /// Shared tail of BOTH laya backends (the in-process riir backend and the
@@ -2028,7 +2082,7 @@ fn assemble_laya_lane_result(
     lane: &'static str,
     model: &str,
     suite_name: &str,
-    cases: &[SuiteCase],
+    cases: &[impl AsRef<SuiteCase>],
     probs: Vec<Vec<Vec<f64>>>,
     picks: Vec<Vec<usize>>,
     confs: Vec<Vec<f64>>,
@@ -2049,6 +2103,7 @@ fn assemble_laya_lane_result(
     let readout: Vec<(f64, bool)> = {
         let mut pairs = Vec::new();
         for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
             for (qi, _q) in case.questions.iter().enumerate() {
                 pairs.push((ev.confs[ci][qi], ev.picks[ci][qi] == case.gold[qi].idx));
             }
@@ -2067,6 +2122,7 @@ fn assemble_laya_lane_result(
         let (mut ssum, mut sn, mut bsum) = (0.0f64, 0usize, 0.0f64);
         let (mut msum, mut wsum, mut mn) = (0.0f64, 0.0f64, 0usize);
         for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
             for (qi, q) in case.questions.iter().enumerate() {
                 buckets
                     .entry(q.kind.as_str().to_string())
@@ -2363,7 +2419,7 @@ fn run_laya_checkpoint(
     _suite: &Suite,
     _ckpt: &str,
     _laya_max_questions: usize,
-) -> Result<LaneResult, String> {
+) -> Result<(LaneResult, Vec<String>), String> {
     Err("laya-riir feature off".to_string())
 }
 
@@ -2734,7 +2790,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya[{ck}]: running…");
                 match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions) {
-                    Ok(r) => {
+                    Ok((r, notes)) => {
                         eprintln!(
                             "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
                             r.hard.accuracy,
@@ -2742,6 +2798,9 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                             r.latency_p50_ms,
                             (r.seconds * 10.0).round() / 10.0
                         );
+                        // The ANE bucket-skip disclosure — named cases,
+                        // never a silently smaller served set.
+                        errors.extend(notes);
                         laya_results.insert((*ck).to_string(), r);
                     }
                     Err(e) => {
