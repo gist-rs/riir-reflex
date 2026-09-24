@@ -1,9 +1,11 @@
 # Issue 023 — the modelless centroid signal was OFF on sampled-distractor suites (massive 0.077 → 0.690)
 
 **Status:** OPEN — T1–T4 DONE (engine fix + A/B + record, Bench 007); T5
-(republish the arena `bench.json` / README three-way rows from a full
-both-lane run) is the one open row. Filed 2026-09-24 from the reflex.gist.rs
-arena TL;DR ("modelless ≥ laya on 3/14; worst massive 7.7% vs 75.0%").
+(the together-republish) is the one open row — **the 4090 half + the
+publisher's lane-update path are DONE** (recipe below); only the M3's
+~3-min modelless re-run + the one-command publish remain. Filed 2026-09-24
+from the reflex.gist.rs arena TL;DR ("modelless ≥ laya on 3/14; worst
+massive 7.7% vs 75.0%").
 
 ## Finding
 
@@ -65,9 +67,33 @@ the legacy `k == N` index rule, unchanged. `false` is the pre-023 posture.
   ⚠ The live 4090 Issue 018 run (binary built 11:04, before this fix) and the
   site's m3@77c408e record are BOTH pre-023, so the next publish is
   consistent and still carries massive 0.0767. T5 is therefore a
-  modelless-only post-023 re-run on BOTH hosts, published together (the 018
-  drift-refusal gate refuses a one-host move) — plan recorded in Issue 018
+  modelless-only post-023 re-run on BOTH hosts, published together (the
+  018 drift-refusal gate refuses a one-host move) — plan recorded in Issue 018
   § "Pre-023 binary".
+  **4090 half DONE 2026-09-24 ~15:4x (session katgpt-rs-4090-b):**
+  `.benchmarks/023_t5_4090_modelless/` (commit `10236c8`) — massive
+  **0.6900** confirmed on the second host, 13 other suites byte-identical
+  (deterministic), quiet-box re-run (0 concurrent cargo/rustc), engine
+  @8028a10, `REFLEX_BENCH_HOST=4090-windows`, `laya_feature=false`. The
+  publisher gained ordered lane-updates for this flow (reflex-site
+  `1619d32`, 7-case self-test): a modelless-only doc UPDATES the host's
+  modelless lane and carries its laya lanes over; the drift gate checks
+  the FINAL merged state pairwise — a one-host move refuses (validated on
+  the real inputs: m3 0.0767 vs 4090 0.69 on massive_intent_en REFUSED,
+  served file untouched).
+  **M3 half — the ONLY remaining step:** (1) on a quiet box:
+  `REFLEX_BENCH_HOST=m3 cargo run --release --bin harness -- --skip-laya
+  --out .benchmarks/023_t5_m3_modelless` (~3 min; expect the Bench 007
+  table values incl. massive 0.6900 — deterministic); (2) commit the
+  artifact; (3) from reflex-site main ≥ `1619d32`:
+  `py scripts/publish_bench.py data/bench.json
+  ../riir-reflex/.benchmarks/023_t5_m3_modelless/results.json
+  ../riir-reflex/.benchmarks/023_t5_4090_modelless/results.json .`
+  (the published bench.json is the PRIMARY — both hosts move together in
+  one command, `lane_sources` disclose the update runs); (4) commit +
+  `npx wrangler deploy` (Node ≥22 — the standing 018 T6 handoff); (5)
+  update the README three-way rows, close T5, verify T7 bit-identity on
+  the published doc (the gate already enforces it at publish time).
 - [x] T6 — DONE (Bench 005 Addendum: refutation STANDS, banking77 net 0,
   massive arms nothing). Re-read Bench 005's pair-head A/B under the fix
   (`--skip-laya --pair-head-ab --suites banking77,massive_intent_en`). Its

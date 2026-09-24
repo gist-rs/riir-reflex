@@ -174,6 +174,22 @@ byte-identical across the fix outside latency (Bench 007 §1).
   confirm the two post-023 modelless records are bit-identical. The expected
   values are known in advance (Bench 007 table).
 
+### T5 4090 half + publisher readiness (2026-09-24 ~15:4x, session `katgpt-rs-4090-b`)
+
+The recommendation above is half-executed: the **modelless-only post-023
+re-run on the 4090 LANDED** at `.benchmarks/023_t5_4090_modelless/`
+(`10236c8`) — massive 0.0767→**0.6900** on this host, 13 other suites
+byte-identical, quiet box (0 concurrent cargo/rustc), engine @8028a10.
+The site publisher gained the ordered lane-update path this needs
+(reflex-site `1619d32`; 7-case self-test
+`scripts/test_publish_bench.py`): the published `data/bench.json` is a
+valid PRIMARY for the re-publish, a modelless-only doc updates only that
+lane per host, and the FINAL-state drift gate refuses a one-host move —
+validated on the real inputs (m3 0.0767 vs 4090 0.69 REFUSED on
+massive_intent_en, served file untouched). The together-publish is ONE
+command once the M3's modelless doc exists — full recipe in Issue 023 T5.
+The T6 wrangler deploy handoff is unchanged.
+
 ## Out of scope
 
 - The ANE device rows (Plan 002, M3-only, sequenced first by the owner).
