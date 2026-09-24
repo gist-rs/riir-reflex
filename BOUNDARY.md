@@ -108,3 +108,7 @@ any profile** (the reference lane's deletion is contract, not cleanup;
 
 None at birth — seeded empty by Plan 603 T1.8 (the ledger fills only with
 a row + its open issue, never with silence).
+
+| ID | Surface | Target | Actual (verified) | Workaround | Issue | Disposition |
+|----|---------|--------|-------------------|------------|-------|-------------|
+| D1 | May depend on — riir-infer-laya crate row | the Crate column names the measured dep crate `riir-infer-laya` (C3 matches it exactly) | the row names the REPO `riir-infer`; C3 reads the intended, declared edge as undeclared (verified 2026-09-24, boundary-guard 145th run) | none needed — the edge is correct, only the cell is | .issues/022_boundary_riir_infer_laya_crate_row.md | fixable |
