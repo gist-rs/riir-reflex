@@ -17,7 +17,8 @@
 #   scripts/bench_preflight.sh                # refuse unless the box is fit
 #   MAX_LOAD=8 scripts/bench_preflight.sh     # raise the load ceiling
 #   SETTLE_MIN=10 scripts/bench_preflight.sh  # longer post-plug-in settle
-#   CANARY_REF_US=150 scripts/bench_preflight.sh  # judge the canary (T2)
+#   CANARY_RUNS=9 scripts/bench_preflight.sh  # more canary runs (best-of-N)
+#   CANARY_REF_US= scripts/bench_preflight.sh # unpin: print the canary, never judge
 #
 # Exit: 0 = fit to bench (the provenance line is on stdout, QUOTE IT in the
 # record); 1 = refused, reason named; 2 = the instrument itself could not read
@@ -28,12 +29,23 @@ set -eu
 MAX_LOAD="${MAX_LOAD:-6.0}"
 SETTLE_MIN="${SETTLE_MIN:-5}"
 CANARY_BIN="${CANARY_BIN:-./target/release/examples/sgemm_shape_timing}"
-# Pinned AC-plugged canary reference, microseconds, shape 317x1024x1024.
-# EMPTY until one is taken on AC on a quiet box — an unpinned canary PRINTS
-# and never judges, because a reference taken on battery would bless the
-# very state this gate exists to refuse.
-CANARY_REF_US="${CANARY_REF_US:-}"
+# Pinned AC canary reference, microseconds, shape 317x1024x1024, as the
+# BEST-OF-N statistic below (Issue 021 T2, 2026-09-24 11:50 +0700): AC,
+# powermode 2 (High Power), 47 min after plug-in, load 4.7, swap ~2.9 GB.
+# 30 single runs spread 140.3-165.6 us (18% — wider than any tolerance a
+# gate can use), while the six best-of-5 minima spread 140.3-144.3 us
+# (2.9%): contention adds time to SOME runs, a throttled clock raises the
+# FLOOR of all of them, so the minimum separates the two. Pinned at 141
+# (the minima's median). Taken at load 4.7 and not < 2 because a quiet
+# window never came — a later quiet best-of-N LOWER than this should
+# replace it (ratchet down only; a higher one is the box, not the ref).
+# The reference is a powermode-2 number and is judged ONLY in powermode 2:
+# Automatic (0) is a different arm and would be refused or blessed for
+# the wrong reason. Set CANARY_REF_US= (empty) to print without judging.
+CANARY_REF_US="${CANARY_REF_US-141}"
+CANARY_REF_POWERMODE=2
 CANARY_TOL_PCT="${CANARY_TOL_PCT:-15}"
+CANARY_RUNS="${CANARY_RUNS:-5}"
 
 fail=0
 note() { printf '%s\n' "$*"; }
@@ -123,29 +135,49 @@ fi
 # The ONLY throttle detector available without sudo on this box: run a fixed
 # kernel and read its absolute time. powermetrics needs root; there is no
 # sudo-free thermal-pressure sysctl on Apple Silicon here (measured).
+# BEST-OF-N: one run's p50 still carries whatever a sibling put on the GPU
+# during its ~0.4 s (measured single-run spread 18%); the minimum over N
+# runs is what a throttled clock moves and contention mostly does not.
 canary=""
+canary_n=0
 if [ -x "$CANARY_BIN" ]; then
-    canary=$(LAYA_DEVICE=metal "$CANARY_BIN" 2>/dev/null \
-        | awk '/317x1024x1024/{gsub("gpu_p50=","");gsub("us","");print $3}' || true)
+    i=0
+    while [ "$i" -lt "$CANARY_RUNS" ]; do
+        i=$((i + 1))
+        one=$(LAYA_DEVICE=metal "$CANARY_BIN" 2>/dev/null \
+            | awk '/317x1024x1024/{gsub("gpu_p50=","");gsub("us","");print $3}' || true)
+        [ -n "$one" ] || continue
+        canary_n=$((canary_n + 1))
+        if [ -z "$canary" ] || awk "BEGIN{exit !($one < $canary)}"; then
+            canary="$one"
+        fi
+    done
+    # A partial read is disclosed, never silently promoted to best-of-N.
+    if [ -n "$canary" ] && [ "$canary_n" -lt "$CANARY_RUNS" ]; then
+        note "warn canary       only ${canary_n}/${CANARY_RUNS} runs produced a reading"
+    fi
 fi
 if [ -z "$canary" ]; then
     note "warn canary       SKIPPED — build it first:"
     note "                  cargo build --release --features laya-riir-metal \\"
     note "                      --example sgemm_shape_timing"
 elif [ -z "$CANARY_REF_US" ]; then
-    note "info canary       ${canary} us (317x1024x1024) — NO AC REFERENCE PINNED."
-    note "                  If this run is on AC and quiet, pin it as CANARY_REF_US."
+    note "info canary       ${canary} us best-of-${canary_n} (317x1024x1024) — reference UNPINNED, not judged"
+elif [ "${pmode:-}" != "$CANARY_REF_POWERMODE" ]; then
+    note "info canary       ${canary} us best-of-${canary_n} — NOT judged: the reference is a"
+    note "                  powermode ${CANARY_REF_POWERMODE} number and this box is in powermode ${pmode:-?}"
 else
     if awk "BEGIN{exit !($canary > $CANARY_REF_US * (1 + $CANARY_TOL_PCT/100.0))}"; then
-        refuse "canary ${canary} us vs AC reference ${CANARY_REF_US} us (+${CANARY_TOL_PCT}% tol) — the GPU is throttled"
+        refuse "canary ${canary} us best-of-${canary_n} vs AC reference ${CANARY_REF_US} us (+${CANARY_TOL_PCT}% tol) — the GPU is throttled or contended"
     else
-        note "ok   canary       ${canary} us vs ref ${CANARY_REF_US} us"
+        note "ok   canary       ${canary} us best-of-${canary_n} vs ref ${CANARY_REF_US} us"
     fi
 fi
 
 # ---- provenance -----------------------------------------------------------
 prov="power=$(printf '%s' "$ps_out" | grep -o "'[A-Za-z ]*Power'" | head -1 | tr -d "'")"
-prov="$prov load=$la swap=${swap:-?}M canary=${canary:-skipped}us powermode=${pmode:-?}(${pmode_name})"
+if [ -n "$canary" ]; then canary_prov="${canary}us/best${canary_n}"; else canary_prov="skipped"; fi
+prov="$prov load=$la swap=${swap:-?}M canary=${canary_prov} powermode=${pmode:-?}(${pmode_name})"
 note ""
 note "PROVENANCE: $prov"
 

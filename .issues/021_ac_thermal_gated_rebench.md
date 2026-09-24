@@ -1,8 +1,8 @@
 # Issue 021 — re-bench the Issue 020 waves on AC, plug- and thermal-gated (the power axis nothing was recording)
 
-**Status:** OPEN — T1, T3, T4, T5, T6, T7 DONE 2026-09-24 (AC re-bench =
-Bench 006 Addendum 2); **only T2 (pin the canary reference) remains**, blocked
-on a genuinely quiet window (load < 2 never occurred this session). Filed
+**Status:** DONE — T1–T7 all landed 2026-09-24 (AC re-bench = Bench 006
+Addendum 2; T2 pinned the canary as a BEST-OF-5 statistic, 141 µs at
+powermode 2, so the gate now judges the GPU clock instead of printing it). Filed
 2026-09-24 on the owner flag *"beware thermal and unplug recently, rebench if
 need, file issue to bench again as plug and thermal gated"*.
 
@@ -72,7 +72,23 @@ reference) is the gate's arming step rather than a nicety.
       `on AC for only 1 min (< SETTLE_MIN=5)` and `load 9.88 > 6.0`, canary
       **860.9 us** against 151–181 us quiet — so the canary does move with
       GPU contention, which is the property T2 relies on.
-- [ ] **T2 — pin the AC canary reference.** ⚠ Measured 2026-09-24 (Bench
+- [x] **T2 — pin the AC canary reference.** ✅ DONE 2026-09-24 11:50,
+      by changing the STATISTIC rather than waiting for a quiet box (load <
+      2 never came). 30 single runs on AC / powermode 2 / load 4.7 spread
+      **140.3–165.6 µs (18%)** — no tolerance survives that — while the six
+      best-of-5 minima of the same 30 spread **140.3–144.3 µs (2.9%)**:
+      contention adds time to SOME runs, a throttled clock raises the floor
+      of ALL of them, and the minimum separates the two. The gate now runs
+      the canary `CANARY_RUNS` (default 5) times, judges the minimum,
+      discloses a partial read, and names `best-of-N` in the PROVENANCE
+      line. Pinned `CANARY_REF_US=141` (the minima's median); judged ONLY in
+      powermode 2 (Automatic is a different arm — printed, not judged);
+      `CANARY_REF_US=` unpins. Ratchet DOWN only: a later quiet best-of-N
+      below 141 replaces it; a higher one is the box. Arms run: live PASS
+      (144.1 vs 141), forced REFUSE (`CANARY_REF_US=100` → 140.3 refused),
+      unpinned (printed, not judged), missing binary (`canary=skipped`,
+      disclosed). ⚠ Not exercised: the powermode-mismatch arm (switching
+      powermode needs sudo). Original record: ⚠ Measured 2026-09-24 (Bench
       006 Addendum 2): 148.0 / 151.6 / 172.6 µs on AC/High Power at load
       3.8–7 — a **16% spread** against the script's 15% tolerance, so pin a
       **best-of-N** (or widen the tolerance) at the same time, or the armed
