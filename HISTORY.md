@@ -7,6 +7,41 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Bench 029 — the CUDA sgemm tile ladder: the narrow instance's
+  single-question win** (substrate: riir-infer `.issues/004`; reflex
+  artifacts at `2a61a6d`+; site lane refresh reflex-site `1a59939`).
+  THREE sgemm instances (narrow 32×64×64 / wide 64×64×32 / xwide
+  64×128×32) picked per call by **BLOCK-FIT on the SM count** — the
+  measured cliff: at m=106 narrow wins −15.7 % at n=2048 (=128 blocks,
+  exactly one per SM) and LOSES +46 % at n=2560 (=160 blocks — static
+  block scheduling strands 32 SMs at 2× work while 96 idle). The M3
+  Metal lane's m<256 floor does NOT transfer to the 128-SM 4090; the
+  block-fit arithmetic subsumes it. xwide keeps m≥256 ∧ n≥2048 PLUS the
+  block-fit cap (the multi-wave gate/up zone reverts to the proven wide
+  — its readings sat inside the new probe's measured ±8-10 % two-context
+  artifact band). Kill-switch `LAYA_CUDA_LADDER=0`. A launch defect fixed
+  in passing: the v1 form passed the staging footprint as DYNAMIC smem
+  on top of the kernels' STATIC `__shared__` — 2×24 960 B crosses the
+  48 KB default and dies `CUDA_ERROR_INVALID_VALUE`; dynamic smem is now
+  0 (the footprints live on as compile-time bounds). **Result identity:**
+  13/16 suite-lane rows bit-identical vs 028 (every single-question
+  suite); typed_decisions wobbles 1 case in 2000 per checkpoint — that
+  lane's `determinism_ok` has been false since the 026 v1 run
+  (pre-existing, on record, independent of the ladder); G5 +
+  `laya_batch_parity` + `packed_forward_equiv` + the boundary/ragged
+  `cuda_ops_smoke` arms all green at the final floors. Forward A/B
+  (fixture rows, ABAB): english −10.4 % · multilingual −14.1 % · typed
+  −8.4 %. The published row: single-question suites −6..−14 % p50
+  (emotion 14→12 · tool_fit 14→12 · routing/sensitivity/cache 16→14 ·
+  massive 20→18 · ag_news 16→15 ms), packed suites flat by the
+  conservative floor (typed 108→109 · banking77 27→28 · code 30→31 ms).
+  The probe grew a CUDA arm (`sgemm_shape_timing` — same-process
+  two-backend A/B + a `--control` artifact-band mode; the example's
+  `required-features` row dropped — its posture arms are item-level cfgs
+  with a loud fallback, so a whole-file row would green-zero the other
+  posture's lane). Open after this: CUDA graphs; the packed multi-wave
+  zone has NO measured win yet (split-K / occupancy-tuned instance is
+  the question, not another tile size).
 - **Issue 019 T1 + T2's M3-verifiable scope — the CLM comparison-lane
   adapter + the prose-rendering law, byte-pinned** (T3 remains the 4090
   window, `.issues/027`): `src/lanes/clm.rs` behind `clm-lane`

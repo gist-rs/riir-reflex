@@ -137,8 +137,183 @@ fn main() {
     }
 }
 
-#[cfg(not(all(target_os = "macos", feature = "laya-riir-metal")))]
+// ── the CUDA arm (`.issues/004` in riir-infer — the tile-ladder rung's
+// instrument on the 4090): a SAME-PROCESS two-backend A/B. The ladder
+// kill-switch is read at `Cuda::new()` from the environment, so ONE
+// binary holds BOTH postures — baseline (`LAYA_CUDA_LADDER=0` → wide
+// everywhere) and the ladder — constructed back-to-back before any timing.
+// The two backends own two CUDA contexts; rounds ALTERNATE which backend
+// goes first (position-balanced pairs — never compare across positions,
+// only within swapped pairs).
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+use riir_reflex::laya::riir::backend::{Backend, Cpu};
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+use riir_reflex::laya::riir::cuda::Cuda;
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+use std::time::Instant;
+
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+/// The CUDA lane's own population — the forward's real `matmul_w`
+/// geometries at BOTH ladder zones plus the head tail. The metal arm's
+/// SHAPES stay untouched (they are the M3 rung's measured population).
+const SHAPES_CUDA: &[(usize, usize, usize, &str)] = &[
+    (317, 1024, 1024, "O proj wide k=1024 (banking77 zone)"),
+    (317, 2624, 1024, "down proj wide k=2624 (banking77 zone)"),
+    (317, 1024, 3072, "QKV (xwide at m>=256)"),
+    (317, 1024, 5248, "gate/up fused (xwide at m>=256)"),
+    (106, 1024, 1024, "ag_news O (narrow zone)"),
+    (106, 2624, 1024, "ag_news down (narrow zone)"),
+    (106, 1024, 1536, "narrow n-crossover probe"),
+    (106, 1024, 2048, "narrow n-crossover probe"),
+    (106, 1024, 2560, "narrow n-crossover probe"),
+    (106, 1024, 3072, "ag_news QKV (narrow LOSES here — floor evidence)"),
+    (106, 1024, 5248, "ag_news gate/up (narrow LOSES here — floor evidence)"),
+    (45, 1024, 1024, "short-seq O (narrow zone)"),
+    (45, 1024, 5248, "short-seq gate/up (floor evidence)"),
+    (4, 1024, 1024, "head s1 (m=4 tail GEMM)"),
+    (4, 1024, 1, "head s3 (n=1 tail GEMM)"),
+    (1, 1028, 256, "act a0 (m=1 tail GEMM)"),
+];
+
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+const CUDA_REPS: usize = 24;
+
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+fn median(samples: &mut [u128]) -> f64 {
+    samples.sort();
+    samples[samples.len() / 2] as f64 / 1000.0 // ns → µs
+}
+
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
 fn main() {
-    eprintln!("no metal lane compiled — build with --features laya-riir-metal on macOS");
+    // `--control`: BOTH backends baseline (kill-switch held) — the pair
+    // difference is then PURE two-context/order artifact, the instrument's
+    // own control arm (a same-kernel pair that disagrees is the instrument
+    // lying, not the ladder winning).
+    let control = std::env::args().any(|a| a == "--control");
+    // SAFETY: process-global env mutation — main is single-threaded here
+    // and no other code has read LAYA_CUDA_LADDER yet. The baseline backend
+    // is constructed with the kill-switch set; without `--control` it is
+    // then removed so the ladder backend sees the default posture.
+    let base = unsafe {
+        std::env::set_var("LAYA_CUDA_LADDER", "0");
+        let b = Cuda::new().expect("cuda backend (ladder off)");
+        if !control {
+            std::env::remove_var("LAYA_CUDA_LADDER");
+        }
+        b
+    };
+    let ladder = Cuda::new().expect("cuda backend (ladder on)");
+    if control {
+        eprintln!("--control: both backends at the baseline posture — pair deltas are instrument artifact");
+    }
+    let cpu = Cpu;
+
+    // ALL weight buffers live for the whole program (the (ptr,len) weight
+    // cache contract — see the metal arm's note).
+    let weights: Vec<Vec<f32>> = SHAPES_CUDA
+        .iter()
+        .map(|&(_, k, n, _)| {
+            (0..n * k)
+                .map(|i| (i % 5) as f32 * 0.2 - 0.4)
+                .collect()
+        })
+        .collect();
+
+    for (shape_idx, &(m, k, n, label)) in SHAPES_CUDA.iter().enumerate() {
+        let a: Vec<f32> = (0..m * k).map(|i| (i % 7) as f32 * 0.125 - 0.375).collect();
+        let w = &weights[shape_idx];
+        let mut dc = vec![0f32; m * n];
+        let mut db = vec![0f32; m * n];
+        let mut dl = vec![0f32; m * n];
+        let mut sync = vec![0f32; m * n];
+
+        // Correctness: CPU vs BOTH postures (the ladder is result-identical
+        // by construction — one k-ascending FMA chain per output on every
+        // instance — so bit-identical is expected and reported).
+        cpu.matmul_w(&a, m, k, w, n, &mut dc);
+        base.begin_pass();
+        base.matmul_w(&a, m, k, w, n, &mut db);
+        base.download_into(&db, &mut sync);
+        let rel_base = rel_diff(&dc, &sync);
+        ladder.begin_pass();
+        ladder.matmul_w(&a, m, k, w, n, &mut dl);
+        ladder.download_into(&dl, &mut sync);
+        let rel_ladder = rel_diff(&dc, &sync);
+        let bit_identical = dc == sync;
+        if rel_base > 1e-3 || rel_ladder > 1e-3 {
+            panic!(
+                "shape {m}x{k}x{n}: DIVERGED base {rel_base:e} ladder {rel_ladder:e}"
+            );
+        }
+
+        // Warmup both (chain repopulation after the pass boundary).
+        for _ in 0..3 {
+            base.matmul_w(&a, m, k, w, n, &mut db);
+            ladder.matmul_w(&a, m, k, w, n, &mut dl);
+        }
+        base.download_into(&db, &mut sync);
+        ladder.download_into(&dl, &mut sync);
+
+        // Five rounds; the FIRST backend alternates per round (position
+        // pairs — the cold-GPU sequencing trap). Each round times a
+        // pipelined block of CUDA_REPS reps + one sync, per backend.
+        let mut ns_base = Vec::with_capacity(5);
+        let mut ns_ladder = Vec::with_capacity(5);
+        for round in 0..5 {
+            let base_first = round % 2 == 0;
+            for first in [base_first, !base_first] {
+                let t0 = Instant::now();
+                for _ in 0..CUDA_REPS {
+                    if first {
+                        base.matmul_w(&a, m, k, w, n, &mut db);
+                    } else {
+                        ladder.matmul_w(&a, m, k, w, n, &mut dl);
+                    }
+                }
+                if first {
+                    base.download_into(&db, &mut sync);
+                    ns_base.push(t0.elapsed().as_nanos() / CUDA_REPS as u128);
+                } else {
+                    ladder.download_into(&dl, &mut sync);
+                    ns_ladder.push(t0.elapsed().as_nanos() / CUDA_REPS as u128);
+                }
+            }
+        }
+
+        let b_us = median(&mut ns_base);
+        let l_us = median(&mut ns_ladder);
+        let delta = (l_us - b_us) / b_us * 100.0;
+        println!(
+            "matmul_w {m:>3}x{k:>4}x{n:>4}: base={b_us:>8.1}us ladder={l_us:>8.1}us ({delta:>+6.1}%) rel {rel_base:e}/{rel_ladder:e}{}  # {label}",
+            if bit_identical { ", bit-identical" } else { "" },
+        );
+        std::hint::black_box((a.as_ptr() as usize, w.as_ptr() as usize));
+    }
+}
+
+#[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
+fn rel_diff(reference: &[f32], observed: &[f32]) -> f64 {
+    let scale = reference
+        .iter()
+        .fold(0.0f32, |acc, v| acc.max(v.abs()))
+        .abs()
+        .max(1e-30) as f64;
+    reference
+        .iter()
+        .zip(observed.iter())
+        .map(|(c, d)| (*c - *d).abs() as f64)
+        .fold(0.0f64, f64::max)
+        / scale
+}
+
+#[cfg(not(any(
+    all(target_os = "macos", feature = "laya-riir-metal"),
+    all(not(target_os = "macos"), feature = "laya-riir-cuda")
+)))]
+fn main() {
+    eprintln!(
+        "no sgemm lane compiled — build with --features laya-riir-metal on macOS or laya-riir-cuda off it"
+    );
     std::process::exit(2);
 }

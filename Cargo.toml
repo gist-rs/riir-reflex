@@ -213,9 +213,13 @@ required-features = ["modelless"]
 
 # The sgemm shape-timing probe (measurement only — never a gate): the
 # kernel-rung A/B instrument over the forward's real matmul_w geometries.
+# NO required-features row: the posture arms are item-level cfgs (metal on
+# macOS, cuda off it) with a LOUD no-lane fallback main — a whole-file cfg
+# row would green-zero the other posture's lane, and `required-features`
+# cannot express the OR (the T1.1e rule governs whole-FILE gates; this
+# file always compiles a runnable main).
 [[example]]
 name = "sgemm_shape_timing"
-required-features = ["laya-riir-metal"]
 
 # The laya fixture-timing probe (measurement only — never a gate). The file
 # opens with `#![cfg(feature = "laya-riir")]`, so without this row a
