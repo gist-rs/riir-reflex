@@ -1,0 +1,762 @@
+{
+  "_meta": {
+    "gate": "T0.3: 100% of device-bearing ops ANE-preferred under ComputeUnit.CPU_AND_NE, 0 device transitions, on the compiling M3 \u2014 the tool refuses otherwise",
+    "artifact_rule": "binaries local-only (gitignored); this manifest + the log are the committed record; release scope = download-on-demand, digest-pinned (issue 017)",
+    "digest_algo": "blake3-dir-v1 (sorted relpath\\0 content\\0)",
+    "tool": "scripts/ane_convert.py",
+    "history": [
+      "2026-09-24T10:49:35+0700 english/L128 ane=1763/1763 transitions=0",
+      "2026-09-24T10:48:35+0700 english/L64 ane=1745/1745 transitions=0",
+      "2026-09-24T10:47:25+0700 multilingual/L128 ane=1387/1387 transitions=0",
+      "2026-09-24T10:46:52+0700 multilingual/L64 ane=1373/1373 transitions=0",
+      "2026-09-24T10:51:27+0700 typed/L128 ane=1763/1763 transitions=0",
+      "2026-09-24T10:50:32+0700 typed/L64 ane=1745/1745 transitions=0"
+    ]
+  },
+  "artifacts": {
+    "multilingual/L64": {
+      "path": "assets/ane/multilingual/L64.mlpackage",
+      "bytes": 221090978,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "b46a95d1d66bc19e2682878b8d7801e2895798beb54d468d979d087c1ae1fe16",
+        "files": 3,
+        "bytes": 221090978
+      },
+      "bucket_L": 64,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            64,
+            768
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_4231": {
+          "shape": [
+            1,
+            64,
+            768
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1373,
+        "device_ops": 1373,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 90
+          },
+          "ios16.sub": {
+            "ane": 89
+          },
+          "ios16.mul": {
+            "ane": 355
+          },
+          "ios16.add": {
+            "ane": 155
+          },
+          "ios16.sqrt": {
+            "ane": 45
+          },
+          "ios16.inverse": {
+            "ane": 45
+          },
+          "ios16.linear": {
+            "ane": 88
+          },
+          "slice_by_index": {
+            "ane": 198
+          },
+          "ios16.reshape": {
+            "ane": 88
+          },
+          "transpose": {
+            "ane": 88
+          },
+          "concat": {
+            "ane": 44
+          },
+          "ios16.matmul": {
+            "ane": 44
+          },
+          "ios16.softmax": {
+            "ane": 22
+          },
+          "ios16.gelu": {
+            "ane": 22
+          }
+        },
+        "all_units_observation": "device_ops=1373 ane=1373 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 768,
+        "layers": 22,
+        "heads": 12,
+        "head_dim": 64,
+        "intermediate": 1152,
+        "vocab": 256000,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 14,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 160000.0,
+        "slide_mask_folded": false
+      },
+      "weight_source": {
+        "safetensors_sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:46:52+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 18.21,
+        "load5": 16.58,
+        "load15": 18.74,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 33.5
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "multilingual/L128": {
+      "path": "assets/ane/multilingual/L128.mlpackage",
+      "bytes": 221136426,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "2e4d47246130a5b3a5619c31b5d800b57d308811faae31a11cdc8602d1d1deeb",
+        "files": 3,
+        "bytes": 221136426
+      },
+      "bucket_L": 128,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            128,
+            768
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            128
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_4260": {
+          "shape": [
+            1,
+            128,
+            768
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1387,
+        "device_ops": 1387,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 90
+          },
+          "ios16.sub": {
+            "ane": 89
+          },
+          "ios16.mul": {
+            "ane": 355
+          },
+          "ios16.add": {
+            "ane": 169
+          },
+          "ios16.sqrt": {
+            "ane": 45
+          },
+          "ios16.inverse": {
+            "ane": 45
+          },
+          "ios16.linear": {
+            "ane": 88
+          },
+          "slice_by_index": {
+            "ane": 198
+          },
+          "ios16.reshape": {
+            "ane": 88
+          },
+          "transpose": {
+            "ane": 88
+          },
+          "concat": {
+            "ane": 44
+          },
+          "ios16.matmul": {
+            "ane": 44
+          },
+          "ios16.softmax": {
+            "ane": 22
+          },
+          "ios16.gelu": {
+            "ane": 22
+          }
+        },
+        "all_units_observation": "device_ops=1387 ane=1387 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 768,
+        "layers": 22,
+        "heads": 12,
+        "head_dim": 64,
+        "intermediate": 1152,
+        "vocab": 256000,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 14,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 160000.0,
+        "slide_mask_folded": true
+      },
+      "weight_source": {
+        "safetensors_sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:47:25+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 17.6,
+        "load5": 16.58,
+        "load15": 18.66,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 33.9
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "english/L64": {
+      "path": "assets/ane/english/L64.mlpackage",
+      "bytes": 686971673,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "7a56479c4c17b353aac30a027b317cc758a5542d64684ae86e79abe4a13f8478",
+        "files": 3,
+        "bytes": 686971673
+      },
+      "bucket_L": 64,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            64,
+            1024
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_5377": {
+          "shape": [
+            1,
+            64,
+            1024
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1745,
+        "device_ops": 1745,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 114
+          },
+          "ios16.sub": {
+            "ane": 113
+          },
+          "ios16.mul": {
+            "ane": 451
+          },
+          "ios16.add": {
+            "ane": 197
+          },
+          "ios16.sqrt": {
+            "ane": 57
+          },
+          "ios16.inverse": {
+            "ane": 57
+          },
+          "ios16.linear": {
+            "ane": 112
+          },
+          "slice_by_index": {
+            "ane": 252
+          },
+          "ios16.reshape": {
+            "ane": 112
+          },
+          "transpose": {
+            "ane": 112
+          },
+          "concat": {
+            "ane": 56
+          },
+          "ios16.matmul": {
+            "ane": 56
+          },
+          "ios16.softmax": {
+            "ane": 28
+          },
+          "ios16.gelu": {
+            "ane": 28
+          }
+        },
+        "all_units_observation": "device_ops=1745 ane=1745 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 1024,
+        "layers": 28,
+        "heads": 16,
+        "head_dim": 64,
+        "intermediate": 2624,
+        "vocab": 50368,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 18,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 10000.0,
+        "slide_mask_folded": false
+      },
+      "weight_source": {
+        "safetensors_sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:48:35+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 14.73,
+        "load5": 15.77,
+        "load15": 18.17,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 30.8
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "english/L128": {
+      "path": "assets/ane/english/L128.mlpackage",
+      "bytes": 687026483,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "1b50ccf4ba6c0d8bf07fd4dd5dc9598bce32df62cd682067854249c64a31d0f2",
+        "files": 3,
+        "bytes": 687026483
+      },
+      "bucket_L": 128,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            128,
+            1024
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            128
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_5414": {
+          "shape": [
+            1,
+            128,
+            1024
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1763,
+        "device_ops": 1763,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 114
+          },
+          "ios16.sub": {
+            "ane": 113
+          },
+          "ios16.mul": {
+            "ane": 451
+          },
+          "ios16.add": {
+            "ane": 215
+          },
+          "ios16.sqrt": {
+            "ane": 57
+          },
+          "ios16.inverse": {
+            "ane": 57
+          },
+          "ios16.linear": {
+            "ane": 112
+          },
+          "slice_by_index": {
+            "ane": 252
+          },
+          "ios16.reshape": {
+            "ane": 112
+          },
+          "transpose": {
+            "ane": 112
+          },
+          "concat": {
+            "ane": 56
+          },
+          "ios16.matmul": {
+            "ane": 56
+          },
+          "ios16.softmax": {
+            "ane": 28
+          },
+          "ios16.gelu": {
+            "ane": 28
+          }
+        },
+        "all_units_observation": "device_ops=1763 ane=1763 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 1024,
+        "layers": 28,
+        "heads": 16,
+        "head_dim": 64,
+        "intermediate": 2624,
+        "vocab": 50368,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 18,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 10000.0,
+        "slide_mask_folded": true
+      },
+      "weight_source": {
+        "safetensors_sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:49:35+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 12.44,
+        "load5": 15.06,
+        "load15": 17.75,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 29.2
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "typed/L64": {
+      "path": "assets/ane/typed/L64.mlpackage",
+      "bytes": 686971673,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "0b1d0302eb69a992e83c02eee6f1e5117584841e5b3a0b9815f7a3b62a800d66",
+        "files": 3,
+        "bytes": 686971673
+      },
+      "bucket_L": 64,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            64,
+            1024
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            64
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_5377": {
+          "shape": [
+            1,
+            64,
+            1024
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1745,
+        "device_ops": 1745,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 114
+          },
+          "ios16.sub": {
+            "ane": 113
+          },
+          "ios16.mul": {
+            "ane": 451
+          },
+          "ios16.add": {
+            "ane": 197
+          },
+          "ios16.sqrt": {
+            "ane": 57
+          },
+          "ios16.inverse": {
+            "ane": 57
+          },
+          "ios16.linear": {
+            "ane": 112
+          },
+          "slice_by_index": {
+            "ane": 252
+          },
+          "ios16.reshape": {
+            "ane": 112
+          },
+          "transpose": {
+            "ane": 112
+          },
+          "concat": {
+            "ane": 56
+          },
+          "ios16.matmul": {
+            "ane": 56
+          },
+          "ios16.softmax": {
+            "ane": 28
+          },
+          "ios16.gelu": {
+            "ane": 28
+          }
+        },
+        "all_units_observation": "device_ops=1745 ane=1745 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 1024,
+        "layers": 28,
+        "heads": 16,
+        "head_dim": 64,
+        "intermediate": 2624,
+        "vocab": 50368,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 18,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 10000.0,
+        "slide_mask_folded": false
+      },
+      "weight_source": {
+        "safetensors_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:50:32+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 9.16,
+        "load5": 13.65,
+        "load15": 17.05,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 27.4
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "typed/L128": {
+      "path": "assets/ane/typed/L128.mlpackage",
+      "bytes": 687026483,
+      "digest": {
+        "algo": "blake3-dir-v1",
+        "digest": "01085c6c3ae7e007a0549665acdf60bcf8052099b0a2e95b0572ca73ca45a5de",
+        "files": 3,
+        "bytes": 687026483
+      },
+      "bucket_L": 128,
+      "inputs": {
+        "embeddings": {
+          "shape": [
+            1,
+            128,
+            1024
+          ],
+          "dtype": "float16",
+          "note": "host-side token->embedding gather (bit-exact fp16 row copy); the vocab-sized gather op does not place on the ANE"
+        },
+        "pad_bias": {
+          "shape": [
+            1,
+            1,
+            1,
+            128
+          ],
+          "dtype": "float16",
+          "note": "0.0 = attend, -1e4 = masked; host-built from n"
+        }
+      },
+      "outputs": {
+        "var_5414": {
+          "shape": [
+            1,
+            128,
+            1024
+          ],
+          "dtype": "float16"
+        }
+      },
+      "placement": {
+        "gate": "cpu_and_ne",
+        "ane_ops": 1763,
+        "device_ops": 1763,
+        "transitions": 0,
+        "histogram": {
+          "ios16.reduce_mean": {
+            "ane": 114
+          },
+          "ios16.sub": {
+            "ane": 113
+          },
+          "ios16.mul": {
+            "ane": 451
+          },
+          "ios16.add": {
+            "ane": 215
+          },
+          "ios16.sqrt": {
+            "ane": 57
+          },
+          "ios16.inverse": {
+            "ane": 57
+          },
+          "ios16.linear": {
+            "ane": 112
+          },
+          "slice_by_index": {
+            "ane": 252
+          },
+          "ios16.reshape": {
+            "ane": 112
+          },
+          "transpose": {
+            "ane": 112
+          },
+          "concat": {
+            "ane": 56
+          },
+          "ios16.matmul": {
+            "ane": 56
+          },
+          "ios16.softmax": {
+            "ane": 28
+          },
+          "ios16.gelu": {
+            "ane": 28
+          }
+        },
+        "all_units_observation": "device_ops=1763 ane=1763 gpu=0 cpu=0 transitions=0"
+      },
+      "geometry": {
+        "hidden": 1024,
+        "layers": 28,
+        "heads": 16,
+        "head_dim": 64,
+        "intermediate": 2624,
+        "vocab": 50368,
+        "norm_eps": 1e-05,
+        "window": 64,
+        "sliding_layers": 18,
+        "rope_theta_full": 160000.0,
+        "rope_theta_slide": 10000.0,
+        "slide_mask_folded": true
+      },
+      "weight_source": {
+        "safetensors_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e"
+      },
+      "mask_sentinel_fp16": -10000.0,
+      "coremltools": "9.0",
+      "torch": "2.7.0",
+      "created": "2026-09-24T10:51:27+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 8.08,
+        "load5": 12.66,
+        "load15": 16.48,
+        "power": "Now drawing from 'Battery Power'",
+        "free_ram_gb_approx": 27.5
+      },
+      "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    }
+  }
+}

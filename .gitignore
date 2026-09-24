@@ -5,5 +5,12 @@ Cargo.lock.bak
 /dist
 /.raw/
 
+# ANE artifacts (Plan 002 P0): the .mlpackage binaries stay LOCAL ONLY (3.0 GB
+# for the six; download-on-demand + digest-pinned is the ruled release scope,
+# issue 017). The committed record is assets/ane/manifest.json + conversion_log.md.
+assets/ane/**/*.mlpackage/
+assets/ane/**/*.mlmodelc/
+assets/ane/**/*.mlmodel
+
 # Local release staging (separate git repos pushed to their own remotes) + packaged artifacts
 dist/
