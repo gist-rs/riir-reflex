@@ -1,4 +1,4 @@
-# 027 — the 026 correction: CUDA flash attention (the packed-path zeros defect) + the refreshed cuda row
+# 028 — the 026 correction: CUDA flash attention (the packed-path zeros defect) + the refreshed cuda row
 
 - **Date:** 2026-09-25 · **Host:** `4090-windows` · **Reflex sha:** `6d6cd8c` (+ dirty artifacts) · **Substrate:** riir-infer `75ed138` (the flash kernel, `.issues/003` CLOSED)
 - **Posture:** `LAYA_DEVICE=cuda`, release, feature `laya-riir-cuda`, `REFLEX_BENCH_HOST=4090-windows`
@@ -15,7 +15,7 @@ riir-infer `.issues/003` (`75ed138`) fixes it with the fused flash kernel
 (the Metal one-pass online-softmax form ported to CUDA C — offsets bind at
 dispatch); this run is the corrected 4090 row.
 
-| suite · checkpoint | CPU 018 (truth) | 026 v1 (corrupted) | **027 flash** |
+| suite · checkpoint | CPU 018 (truth) | 026 v1 (corrupted) | **028 flash** |
 |---|---|---|---|
 | typed_decisions · typed | **0.7445** | 0.2690 (−47.5 pt) | **0.7415** |
 | typed_decisions · english | 0.3575 | 0.2690 | **0.3570** |
@@ -53,7 +53,7 @@ lane difference.
 
 ## 4. Latency (the flash rung, per-question p50)
 
-| suite · english | 026 v1 | **027 flash** | Δ |
+| suite · english | 026 v1 | **028 flash** | Δ |
 |---|---|---|---|
 | typed_decisions · typed | 113 ms | **108 ms** | −4.4% |
 | typed_decisions · multilingual | 65 ms | **59 ms** | −9.2% |
@@ -72,7 +72,7 @@ attack the remaining projection cost.
 
 ## 5. Artifacts + follow-ups
 
-- `.benchmarks/027_4090windows_cuda_flash/` — `results.json` + `TABLES.md`
+- `.benchmarks/028_4090windows_cuda_flash/` — `results.json` + `TABLES.md`
   (this run, host `4090-windows`).
 - The site data regeneration: the corrupted 026 typed rows must never reach
   a deploy (the M3-side `wrangler deploy` handoff is still pending — the
