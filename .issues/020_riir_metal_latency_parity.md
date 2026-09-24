@@ -373,3 +373,57 @@ box this repo does not currently have.
   was −3% under position balancing). Never publish a first-arm-first number.
 - **Box state recorded with every latency figure** (load average, free RAM),
   per the AGENTS.md rule.
+
+## Follow-up 2026-09-25 — the packed path's aliasing hazard, found and fixed
+
+Chasing the T5 residual (the v2 packed head sizing) surfaced a LIVE
+CORRECTNESS BUG in the packed path the A/B could not see: two same-shape
+questions in one case could corrupt the second question's answers — a
+shared CLS row and a stale `act_in`, act_probabilities 0.52/0.48 where the
+loop reads 1.0/0.0, at the raw-f32-bit level. The T5 A/B's "accuracy
+byte-identical" held because the rounded 4-decimal envelope and the
+fixture corpus (distinct question lengths) both masked it.
+
+Two stacked causes, both fixed substrate-side (riir-infer `2ea0197`):
+
+1. `download_into` resolved a host slice to a device buffer by
+   (base ptr, len ≥ src.len(), newest epoch) — and TIED keys fell through
+   to HashMap iteration order, randomized per process. The encoder's
+   per-forward scratch frees its host Vecs mid-case while their keys stay
+   in the map; the packed slabs reuse those addresses; the CLS download
+   then matched a dead key holding the raw token-embedding row (~1 run in
+   3, flaky by RandomState).
+2. Per-question host buffers malloc-reused addresses within the case's
+   single chain epoch, aliasing the previous question's device state
+   (the `act_in` upload path).
+
+Fixes: deterministic download resolution (newest epoch, then the TIGHTEST
+container — never iteration order); per-question slabs + a caller-owned
+`HeadScratch` allocated up front and alive for the whole case; packed
+answers' raw f32 bits now ride an always-on capture seam
+(`PACKED_ACT_BITS`). New gate: riir-infer-laya
+`tests/packed_same_shape_gate.rs` — real checkpoint, equal-shape pair,
+packed-vs-loop at the raw-bit level; 12 consecutive greens across fresh
+processes under a sweep the old code failed ~1 in 3.
+
+**T5's published numbers are unaffected**: the fix changes buffer
+lifetime, not the op stream — allocation volume per case is unchanged and
+the op order is untouched, so the Addendum 7 A/B (same-build comparison)
+stands. What the episode DOES retire: the "per-question answers are
+bit-identical to the loop" phrasing in the T5 docs — the packed encoder
+runs different-shaped GEMMs (different m → different sgemm instances →
+different reduction order), so per-row outputs agree to the
+`packed_forward_equiv` drift budget (1e-5/1e-4), not bit-for-bit; the
+invariant that actually holds is rounded-envelope equality plus the
+gate's raw-bit equality on the HEAD pipeline (which IS shape-identical
+per question).
+
+The v2 packed head (strided `matmul_kt_heads`/`matmul_heads`/
+`merge_heads`) re-sizing note: the split probe measured the head at
+~10% of a case's wall (packed: heads 43.1 ms of 447 ms at 2048 rows,
+2q) with the loop-path head at 2.5–4.5 ms/question across seq 46–205 —
+sized against dispatch count, not allocation churn (a scratch-pool rung
+built and measured 2026-09-25 moved nothing: head wall is dispatch+GPU
+bound; reverted). Batching the head across questions would remove the
+per-question dispatch cost — worth at most a few percent of multi-q case
+wall, contingent as before.
