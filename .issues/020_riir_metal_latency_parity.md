@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**; **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 rung 1** (the sgemm dispatch band) LANDED, suite-p50 row pending a preflight-clean box; **T10 rung 2** (the rope hoist) LANDED DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1` (riir-infer `5ef7442`), promotion probe pending the same window
+**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**; **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 CLOSED** — rung 1 (the dispatch band) LANDED **and its suite-p50 row PASSED 2026-09-25 (Bench 032/SUITE_AB: NEW/OLD −29…−36% p50 median on all three suites, 6/6 rounds, both load classes)**, the occupancy axis REFUTED at kernel level (bk32/bn32 both lose; code reverted), and the follow-up axes now have a measured discriminator: **the MMA-roofline probe (`riir-infer-laya/examples/sgemm_roofline.rs`) measured the narrow instance STAGING-BANDWIDTH-BOUND — shipped 3.1–4.9 TF/s vs MMA-only 5.1–10.2 TF/s (+63…+134% headroom), the gap = re-staging traffic (cell-3 B re-reads ≈ 1.6 GB ≈ the measured wall at ~400 GB/s) — so f16-B (halving the dominant B bytes) is the quantified next lever, NOT f16-MMA**; **T10 rung 2 (rope hoist) MEASURED 2026-09-25 and NOT PROMOTED (Bench 033: clean-round medians banking77 p50 −4.4% 2/3, banking77 p99 −14.3%, code_fixtures p99 −3.3%, massive flat — thinner than the rung-1/3 promotion bands; stays opt-in `LAYA_METAL_ROPE_HOIST=1`, not reverted — the attention-heavy p99 profile and a post-f16 re-price remain open doors)**
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -309,12 +309,16 @@ box this repo does not currently have.
       divergence check is bit-identical), so G5 drift is untouched; gates:
       substrate lib 41/41 + smoke 7/7 + packed gates + G5 BOTH postures +
       batch parity + clippy −D ×3 postures. **Suite-p50 row PENDING**: three
-      harness A/B attempts were confounded by sibling load (1.8–25;
-      per-round ratios 0.65–1.42 both directions; two DISCARDED per the
-      T5 lesson, the third direction-consistent but late-round-aliased) and
-      `bench_preflight.sh` currently REFUSES — re-run
-      `/tmp/t7ab/harness_ab_t7.sh` (OLD = 1e8c034 binary, NEW = landed,
-      binaries frozen) only on a box the preflight passes.
+      clippy `-D` ×3 postures. **Suite-p50 row PASSED 2026-09-25
+      (`.benchmarks/032_m3_sgemm_dispatch_band/SUITE_AB.md`)**: the frozen
+      A/B on a preflight-clean window — NEW (band) / OLD (1e8c034
+      m/n-threshold pick) medians −34.3% massive_intent_en, −29.1%
+      banking77, −35.7% code_fixtures on clean rounds 4/5/6, direction-
+      consistent 6/6 rounds in BOTH load classes (rounds 1–2 discarded on
+      the sibling ppl bench restarting; isolation verified:
+      `1e8c034..HEAD` substrate delta is exactly the band + the DEFAULT-OFF
+      rope hoist). The suite sum lands ABOVE the kernel rows' range: the
+      old pick mis-dispatched several GEMM families per question at once.
       Original rung text: the GEMM measured at 3.6–4.9 TFLOP/s, ~¼ of this
       GPU's fp32 peak, ~58% of a banking77 forward; the loss shape-specific
       (beats torch below m = 256 at 0.89–0.93×, loses above at 1.19–1.33×;
@@ -397,7 +401,8 @@ box this repo does not currently have.
             deterministic, max prob drift ≤ 5.1e-6 (gate 1e-3), top-1 1.000.
             Load 7–9, AC, powermode 2 — ratios only (Bench 006 Addendum 5).
       - [x] **Rung 2 — the rope hoist pre-pass — IMPLEMENTED riir-infer
-            `5ef7442`, DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1`.**
+            `5ef7442`, DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1` —
+            **MEASURED 2026-09-25, NOT PROMOTED (Bench 033)**.**
             `attn_rope` derives the Q/K rope ONCE per layer into a packed
             `[2, seq, d]` device scratch (grow-only in seq, the
             chain-cache-external weight-buffer lifetime class, write-first
@@ -415,12 +420,18 @@ box this repo does not currently have.
             bound its length at index 9 — the unbound-pointer class; small
             smoke shapes passed on allocation luck, full-model G5 failed
             degenerate (uniform probs, agreement 12/26). **Promotion probe
-            PENDING a preflight-clean box** (load 20.5 at the 09-25 tick
-            against the 6.0 ceiling): position-balanced flash-kernel A/B
-            (`LAYA_METAL_ROPE_HOIST=0` vs `=1`, same binary — instrument
-            archived at reflex `.benchmarks/033_rope_hoist_ab/`) decides
-            promote/demote per Feature Flag Discipline — no unmeasured
-            promotion.
+            EXECUTED 2026-09-25 on a preflight-clean window** (6
+            position-balanced rounds × 2 arms × 3 suites, one binary, the
+            env flag as the switch; rounds 1/2/5 discarded on load spikes
+            6.5–6.7 per the T5 lesson): clean-round medians ON/OFF —
+            banking77 p50 **0.956** (wins r4/r6; r3 +1.5% is inside the
+            1-ms quantization at 67–68 ms), banking77 p99 **0.857**,
+            code_fixtures p99 **0.967**, massive p50 1.000, code_fixtures
+            p50 1.000. Verdict per the BENCH.md rule: the win is real but
+            concentrated in the p99s and one round — **thinner than the
+            bands that promoted rungs 1 (10/10 at −6…−8%) and 3 (38/40 at
+            −1.7…−3.5%)** → NOT promoted, NOT reverted; stays opt-in. Full
+            table + rationale: `.benchmarks/033_rope_hoist_ab/BENCH.md`.
       - [x] **Rung 3 — one-pass online softmax — LANDED riir-infer
             `14af99f`** (taken before rung 2 because it halves the staging
             rung 2 optimizes). Row max/sum in registers, accumulator
