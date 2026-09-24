@@ -1,6 +1,6 @@
 # Issue 025 — put the `laya (python)` lane back on reflex.gist.rs/bench
 
-**Status:** OPEN — filed 2026-09-24. The M3 run is IN FLIGHT as a detached quiet-gate autofire (session riir-reflex-025). Do NOT start a second M3 harness run; read `target/pyl025/autofire.log` first.
+**Status:** OPEN — T1–T4 DONE (run 17:51–18:12, 15/15 suites, python = rust accuracy on every suite). T5 (publish + deploy + live check) is in progress.
 
 ## Finding
 
@@ -47,13 +47,30 @@ engine fix and not what the site serves.
 
 ## Tasks
 
-- [ ] T1: build the detached-worktree binary.
-- [ ] T2: quiet-gate autofire of the `--laya-python` run; record the
+- [x] T1: build the detached-worktree binary (`b2fd694`, `--features laya-riir-metal`, 31.7 s). A 5-case smoke run of the python lane passed first.
+- [x] T2: quiet-gate autofire of the `--laya-python` run; record the
   PROVENANCE lines.
-- [ ] T3: copy the run into `.benchmarks/025_m3_laya_python/` and commit it.
-- [ ] T4: publisher disclosure. On a lane update, the host row keeps its
+- [x] T3: copy the run into `.benchmarks/025_m3_laya_python/` and commit it.
+- [x] T4 (reflex-site `20ba115`): publisher disclosure. On a lane update, the host row keeps its
   ORIGINAL `laya_python_lane: "off"` string, so after the merge the page would
   say "off" beside python numbers. Set the row's `laya_python_lane` from the
   update doc when that doc contributes `py/*` lanes, and add a self-test case.
 - [ ] T5: publish, commit reflex-site, manual deploy, and live-verify that
   the page shows python bars on the m3 row.
+
+## Run record (2026-09-24)
+
+- Window 17:51:44 to 18:12:47, 21 min, 15 suites, `harness: PASSED — no absences`.
+- Start PROVENANCE, the second of two passes 60 s apart: `power=AC Power
+  load=3.63 swap=1207.50M canary=139.5us/best5 powermode=2(high)`.
+- End preflight was **rc 1**: `load=8.28 canary=147.1us/best5`. Load rose
+  during the run, so latency in the later suites may carry sibling
+  contention. Accuracy is deterministic and unaffected; read the latency
+  columns as an upper bound for this window.
+- Python accuracy equals laya (rust) accuracy on **all 15 suites and all
+  three checkpoints**, which is Issue 012's parity again, now on the post-023
+  engine.
+- Modelless massive_intent_en scored 0.6900. The publisher's pairwise drift
+  gate passed across m3 / m3-ane / 4090-windows.
+- Rust answers before python in every suite, so the latency pair is
+  same-run but NOT order-balanced.
