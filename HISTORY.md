@@ -7,6 +7,34 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Bench 030 — the float4 sgemm rung: every suite improves, the packed
+  zone's first win** (substrate: riir-infer `.issues/006`, commit
+  `aadbc07`; reflex artifacts here + the probe's new packed-zone
+  population). The `.issues/004` open question (multi-wave zone, split-K /
+  occupancy-tuned instance) reframed on measurement: the wide instance ran
+  at 15-20 % of the 4090's fp32 peak because the inner loop issues 6 smem
+  loads per 8 FMAs with the four B-fragment loads CONTIGUOUS in staging.
+  Every instance's B staging row pads to a 16 B multiple (65→68, 129→132)
+  and the four loads collapse to ONE float4 — result-identical by
+  construction, bit-identical on every probe shape. **Every suite −6.8..
+  −16.7 % p50, the PACKED suites included** (typed_decisions 109→100 /
+  59→55 / 109→99 ms, banking77 28→25, code_fixtures 31→28) — the
+  multi-wave zone's first measured win. Forward rows: english 15.1→12.9
+  (−14.6 %), multilingual 7.2→6.3 (−12.5 %), typed 15.1→12.8 (−15.2 %).
+  Result identity: 13/16 bit-identical; the three typed_decisions
+  wobblers (1-4 cases / 2000) stay in that lane's pre-existing
+  `determinism_ok: false` class — false in 026/028/029/030. Gates at the
+  landing: G5 cuda posture (top-1 1.0 ×3) + laya_batch_parity +
+  packed_forward_equiv + cuda_ops_smoke + clippy, both repos. **Also this
+  window:** CUDA graphs CLOSED NEGATIVE in the substrate (riir-infer
+  `.issues/005`: `gpu == wall` on every fixture row — the CPU submit path
+  is fully hidden; the `LAYA_CUDA_STATS` submit/wall/gpu instrument
+  ships). Site: the 4090 lane row refresh is PREPARED (this record) but
+  `wrangler deploy` remains the standing M3-side handoff — Node tooling is
+  broken on this box too. Remaining rung on record: register blocking /
+  double-buffered staging (the instances sit at ~25-30 % of fp32 peak
+  after this rung).
+
 - **Bench 029 — the CUDA sgemm tile ladder: the narrow instance's
   single-question win** (substrate: riir-infer `.issues/004`; reflex
   artifacts at `2a61a6d`+; site lane refresh reflex-site `1a59939`).

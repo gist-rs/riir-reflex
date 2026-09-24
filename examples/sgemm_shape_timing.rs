@@ -173,6 +173,21 @@ const SHAPES_CUDA: &[(usize, usize, usize, &str)] = &[
     (4, 1024, 1024, "head s1 (m=4 tail GEMM)"),
     (4, 1024, 1, "head s3 (n=1 tail GEMM)"),
     (1, 1028, 256, "act a0 (m=1 tail GEMM)"),
+    // The PACKED multi-wave zone (the `.issues/004` open question): packed
+    // m = Σ seqs per case — ag_news-class ≈ 4×106 ≈ 424, banking77-class ≈
+    // 4×317 ≈ 1268. Every projection is multi-wave on EVERY instance at
+    // these m (the ladder's block-fit cap reverts them all to wide), so
+    // the A/B columns read flat by construction and the ABSOLUTE µs is the
+    // datum: the zone's share of the packed row wall (× the per-layer op
+    // count × layers) prices the occupancy-tuned-instance rung.
+    (424, 1024, 1024, "packed O (multi-wave zone)"),
+    (424, 2624, 1024, "packed down (multi-wave zone)"),
+    (424, 1024, 3072, "packed QKV (multi-wave zone)"),
+    (424, 1024, 5248, "packed gate/up (multi-wave zone)"),
+    (1268, 1024, 1024, "packed O (multi-wave zone)"),
+    (1268, 2624, 1024, "packed down (multi-wave zone)"),
+    (1268, 1024, 3072, "packed QKV (multi-wave zone)"),
+    (1268, 1024, 5248, "packed gate/up (multi-wave zone)"),
 ];
 
 #[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
