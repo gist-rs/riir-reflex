@@ -446,6 +446,34 @@ pub fn code_fixtures_docs() -> Vec<TrainDoc> {
     docs
 }
 
+/// Load one dataset suite's RAW envelopes (test + train) — the save-corpus
+/// path's source of truth (Issue 007 P1: one corpus = ONE digest-pinned kv
+/// row). Mirrors what `prepare` feeds the suite builders, byte-for-byte.
+pub fn load_suite_envelope(
+    datasets_dir: &Path,
+    suite_name: &str,
+) -> Result<serde_json::Value, String> {
+    let spec = SUITES
+        .iter()
+        .find(|s| s.name == suite_name)
+        .ok_or_else(|| format!("unknown suite {suite_name}"))?;
+    if spec.synthetic.is_some() {
+        return Err(format!(
+            "suite {suite_name} is compiled-in (synthetic), not a dataset corpus — \
+             nothing to store"
+        ));
+    }
+    let suite_dir = datasets_dir.join(spec.name);
+    let test = load_rows(&suite_dir, "test")?;
+    let train = load_rows(&suite_dir, "train")
+        .map_err(|e| format!("suite {}: {e}", spec.name))?;
+    Ok(serde_json::json!({
+        "suite": spec.name,
+        "test_rows": test,
+        "train_rows": train,
+    }))
+}
+
 // ── result types (serde — results.json) ─────────────────────────────────
 
 #[derive(Debug, Clone, Serialize)]

@@ -79,7 +79,8 @@ publication.
 | metal + objc2 | crates.io | opt-in `laya-riir-metal` ONLY (`.issues/005`) — the Apple Metal backend of the riir-owned forward; WAS version-matched to candle's Metal lane deps — floats freely post-candle (`.issues/006` T5), G5 re-run on any bump; macOS-only BY CONSTRUCTION — never in the release feature set (the release matrix ships linux/windows) |
 | tokenizers | crates.io | opt-in `laya-riir` ONLY — the HF fast-tokenizer implementation, loads the pinned BPE JSONs directly. **v1 attempted + measured NEGATIVE** (`.issues/006` T3): 1.0.0-rc.2 refuses the pinned english/typed tokenizers (14 genuinely-missing ByteLevel byte atoms — 0.22 lazy, v1 strict); stays 0.22 until 1.0.0 stable relaxes that |
 | sha2 | crates.io | opt-in `laya-riir` ONLY — the WEIGHT pins are SHA-256 (the HF LFS oids, an external fact); the house blake3 rule yields to the pin's own hash family |
-| blake3 | crates.io | opt-in `laya-riir` ONLY — the small-file pins (house hash) + the fixture↔capture pairing check in the G5 test |
+| blake3 | crates.io | opt-in `laya-riir` OR `corpus_db` — the small-file pins (house hash) + the G5 pairing check + the corpus-row digests (Issue 007 P1) |
+| `ndb` binary (runtime, NOT cargo) | `../riir-neuron-db` `target/release/ndb` (local build) or PATH / `NDB_BIN` | opt-in `corpus_db` ONLY (Issue 007 P1) — the harness's Warm-tier store as a SUBPROCESS (`std::process`), `--json`-only, writes via stdin never argv, one-corpus-one-row, consumer-side golden pin over the CLI wire. **Zero cargo dep on the storage leaf** — the no-source-leak posture is structural; NATIVE-ONLY (never a wasm32 combo) |
 
 Explicitly NOT allowed from ANY feature combination: any game crate
 (`riir-games*`, the engine facade, the game SDK — naming none of them in

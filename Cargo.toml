@@ -93,6 +93,15 @@ laya-riir = ["dep:tokenizers", "dep:sha2", "dep:blake3", "dep:gemm", "dep:libm"]
 # the riir lane — fail loud when the feature/platform is absent. G5 parity
 # must be green at THIS posture before any riir-Metal number is published.
 laya-riir-metal = ["laya-riir", "dep:metal", "dep:objc2"]
+# Warm-tier persistence for the harness via the released `ndb` BINARY
+# (Issue 007 P1): subprocess-only — zero storage-leaf cargo deps; the only
+# new package is blake3 (already in-tree via `modelless`). NATIVE-ONLY by
+# construction — must never join a wasm32 combo (the `trace_index` rule);
+# default-OFF and never in the release set. The consumer-side golden pin
+# against the real binary lives at
+# `src/harness/corpus_db.rs::binary_wire_golden_round_trip` (loud-skip
+# without the binary; run with NDB_BIN set for the full pin).
+corpus_db = ["dep:blake3"]
 
 [[bin]]
 name = "reflex"

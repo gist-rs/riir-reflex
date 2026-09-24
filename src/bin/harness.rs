@@ -4,11 +4,18 @@
 //! ```text
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
+//!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
 //! weights in the shared cache — absent pieces are loud absences, never
 //! silent skips).
+//! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
+//! binary (table `harness_runs`, value = the exact results.json bytes) and
+//! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
+//! row — both need the `corpus_db` feature + the binary (NDB_BIN or PATH);
+//! an explicit flag without either refuses LOUD, never silently skips
+//! (Issue 007 P1).
 //! Writes `results.json` + `TABLES.md` into `--out`
 //! (default `.benchmarks/001_phase1_tables/`). Datasets come from
 //! `.raw/datasets/` (scripts/fetch_datasets.sh). Exit 0 iff every requested
@@ -29,6 +36,9 @@ fn main() {
         laya_python: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
+    let mut runs_kv = false;
+    let mut kv_dir: Option<std::path::PathBuf> = None;
+    let mut save_corpus: Vec<String> = Vec::new();
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -57,10 +67,39 @@ fn main() {
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--out needs a path"));
             }
+            "--runs-kv" => runs_kv = true,
+            "--kv-dir" => {
+                i += 1;
+                kv_dir = Some(
+                    args.get(i)
+                        .map(std::path::PathBuf::from)
+                        .unwrap_or_else(|| die("--kv-dir needs a path")),
+                );
+            }
+            "--save-corpus" => {
+                i += 1;
+                save_corpus = args
+                    .get(i)
+                    .unwrap_or_else(|| die("--save-corpus needs a comma list"))
+                    .split(',')
+                    .map(str::to_string)
+                    .collect();
+            }
             other => die(&format!("unknown flag {other}")),
         }
         i += 1;
     }
+
+    // The kv flags are EXPLICIT ops — a compile-time-missing feature is a
+    // loud refusal naming the rebuild, never an unknown-flag error.
+    if (runs_kv || !save_corpus.is_empty()) && !cfg!(feature = "corpus_db") {
+        die(
+            "--runs-kv / --save-corpus need the `corpus_db` feature — rebuild: \
+             cargo build --release --features corpus_db --bin harness",
+        );
+    }
+    #[cfg(not(feature = "corpus_db"))]
+    let _ = kv_dir;
 
     println!("harness: datasets {} · suites {:?}", opts.datasets_dir.display(), opts.suites);
     let (output, errors) = match runner::run(&opts) {
@@ -84,6 +123,23 @@ fn main() {
     println!("harness: wrote {}", json_path.display());
     println!("harness: wrote {}", md_path.display());
 
+    // Issue 007 P1: ONE run-history row per run — the exact results.json
+    // bytes under a sortable date/sha/time key. Explicit-flag failures die
+    // AFTER the files are on disk (the run happened; the persistence failed
+    // — both facts are loud).
+    #[cfg(feature = "corpus_db")]
+    if runs_kv
+        && let Err(e) = write_run_row(&output, &json_path, kv_dir.as_deref())
+    {
+        die(&e);
+    }
+    #[cfg(feature = "corpus_db")]
+    for name in &save_corpus {
+        if let Err(e) = save_corpus_row(&opts.datasets_dir, name, kv_dir.as_deref()) {
+            die(&e);
+        }
+    }
+
     if !errors.is_empty() {
         eprintln!("harness: {} absence(s)/error(s):", errors.len());
         for e in &errors {
@@ -101,6 +157,85 @@ fn main() {
             errors.len()
         );
     }
+}
+
+#[cfg(feature = "corpus_db")]
+fn write_run_row(
+    output: &riir_reflex::harness::runner::RunOutput,
+    json_path: &std::path::Path,
+    kv_dir: Option<&std::path::Path>,
+) -> Result<(), String> {
+    use riir_reflex::harness::corpus_db::{NdbRunStore, RUNS_TABLE};
+    let kv_path = kv_dir
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(default_kv_dir);
+    let store = NdbRunStore::resolve(&kv_path).map_err(|e| format!("--runs-kv: {e}"))?;
+    let version = store.probe().map_err(|e| format!("--runs-kv: {e}"))?;
+    let bytes = std::fs::read(json_path)
+        .map_err(|e| format!("--runs-kv: read {}: {e}", json_path.display()))?;
+    let key = format!(
+        "{}/{}/{}",
+        output.meta.date_utc,
+        &output.meta.git_sha[..output.meta.git_sha.len().min(8)],
+        std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0)
+    );
+    let ack = store
+        .put_row(RUNS_TABLE, &key, &bytes)
+        .map_err(|e| format!("--runs-kv: {e}"))?;
+    println!(
+        "harness: runs.kv row {key} ({} bytes, ndb {}, store {})",
+        ack.bytes,
+        version.version,
+        store.store_dir().display()
+    );
+    Ok(())
+}
+
+#[cfg(feature = "corpus_db")]
+fn save_corpus_row(
+    datasets_dir: &std::path::Path,
+    name: &str,
+    kv_dir: Option<&std::path::Path>,
+) -> Result<(), String> {
+    use riir_reflex::harness::corpus_db::NdbRunStore;
+    let kv_path = kv_dir
+        .map(std::path::Path::to_path_buf)
+        .unwrap_or_else(default_kv_dir);
+    let store = NdbRunStore::resolve(&kv_path).map_err(|e| format!("--save-corpus {name}: {e}"))?;
+    let envelope = runner::load_suite_envelope(datasets_dir, name)
+        .map_err(|e| format!("--save-corpus {name}: {e}"))?;
+    let blob = serde_json::to_vec(&envelope)
+        .map_err(|e| format!("--save-corpus {name}: serialize: {e}"))?;
+    let (ack, digest) = store
+        .put_corpus(name, &blob)
+        .map_err(|e| format!("--save-corpus {name}: {e}"))?;
+    // Read-back verification: the stored row must digest back to the pin.
+    let read_back = store
+        .get_corpus(name, &digest)
+        .map_err(|e| format!("--save-corpus {name}: verify: {e}"))?;
+    if read_back != blob {
+        return Err(format!(
+            "--save-corpus {name}: read-back digest mismatch — the stored row is \
+             not the corpus that was written; refusing to report success"
+        ));
+    }
+    println!(
+        "harness: corpus row {}/{} ({} bytes, blake3 {}…, store {})",
+        name,
+        ack.store_key,
+        ack.bytes,
+        &digest[..16],
+        store.store_dir().display()
+    );
+    Ok(())
+}
+
+#[cfg(feature = "corpus_db")]
+fn default_kv_dir() -> std::path::PathBuf {
+    std::path::PathBuf::from(".harness/ndb-data")
 }
 
 fn die(msg: &str) -> ! {

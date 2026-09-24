@@ -83,6 +83,14 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 # The Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
+
+# The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb
+# binary resolves from NDB_BIN, else PATH — build it first:
+#   (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)
+NDB_BIN=../riir-neuron-db/target/release/ndb \
+  cargo run --release --features corpus_db --bin harness -- \
+  --runs-kv --save-corpus emotion,sst5 [--kv-dir .harness/ndb-data]
+cargo test --features corpus_db --lib corpus_db -- --nocapture  # wire pins; the golden round-trip SKIPs loud without NDB_BIN
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the

@@ -1,6 +1,23 @@
 # Issue 007 — harness families + corpus on the neuron-db substrate (Warm-tier kv via the RELEASED `ndb` CLI now, latent semantics UNDECIDED)
 
-**Status:** REVISED 2026-09-22 (round 2, verdict AGREE) — owner directive ("release riir-neuron-db as binary/cli like riir-clippy new release repos and let riir-reflex use as is bc i dont want to leak db src code") — **P1 is CLI-first: consume the `ndb` binary as a subprocess, ZERO sibling cargo deps. P2 (latent semantics) is UNDECIDED between the CLI route and an opt-in compiled dep — decided by the measurement trigger, not by this issue.** Governing proposal: [riir-neuron-db Proposal 002](../../riir-neuron-db/.proposals/002_ndb_binary_only_distribution.md) (verdict-rounded with Claude: round-1 REVISE applied — value-only law + `--json` contract, local-build-first sequencing, `NDB_BIN` override; round-2 AGREE). Originally FILED 2026-09-22 as a path-dep plan; superseded same day by the owner call before any dep landed (the boundary-gap-first pattern held: no `Cargo.toml` dep ever existed).
+**Status:** P1 LANDED 2026-09-24 (this session, dedicated per the addendum —
+no table-regeneration ran alongside). `corpus_db` feature (opt-in, native-only,
+DEFAULT-OFF): `src/harness/corpus_db.rs` subprocess store (`--json`-only,
+stdin writes, one-corpus-one-row, BLAKE3 digest-pinned corpus keys,
+NDB_ASSUME_YES, NDB_PASSPHRASE/insecure-plaintext posture, NDB_BIN → PATH →
+loud-refuse resolution) + harness bin `--runs-kv` (one row per run: value =
+the exact results.json bytes) + `--save-corpus <suites>` (digest-pinned row +
+read-back verification) + the consumer-side golden pin against the REAL
+binary (`binary_wire_golden_round_trip`, loud-skip without NDB_BIN — live-
+verified 2026-09-24 against ndb 0.1.0: round-trip byte-exact, scan, wrong-
+digest refusal, not_found classification) + BOUNDARY.md runtime-dep row.
+Corpus LOAD-from-kv: DEFERRED (touches `prepare`/`load_rows` + the digest-
+pin-vs-local gate — next slice). P2 latent semantics: UNDECIDED, trigger-
+gated (below). Every default-posture gate stayed green (corpus_db off).
+
+---
+
+**Earlier status (superseded by the P1 landing above):** REVISED 2026-09-22 (round 2, verdict AGREE) — owner directive ("release riir-neuron-db as binary/cli like riir-clippy new release repos and let riir-reflex use as is bc i dont want to leak db src code") — **P1 is CLI-first: consume the `ndb` binary as a subprocess, ZERO sibling cargo deps. P2 (latent semantics) is UNDECIDED between the CLI route and an opt-in compiled dep — decided by the measurement trigger, not by this issue.** Governing proposal: [riir-neuron-db Proposal 002](../../riir-neuron-db/.proposals/002_ndb_binary_only_distribution.md) (verdict-rounded with Claude: round-1 REVISE applied — value-only law + `--json` contract, local-build-first sequencing, `NDB_BIN` override; round-2 AGREE). Originally FILED 2026-09-22 as a path-dep plan; superseded same day by the owner call before any dep landed (the boundary-gap-first pattern held: no `Cargo.toml` dep ever existed).
 **2026-09-23 owner-verdict addendum:** P1 lands in a DEDICATED session, not alongside a table-regeneration run (runner-ordering: the tables this session publishes come FROM the runner P1 would rewire; landing both in one window ships tables from a runner that no longer exists — Claude verdict, substrate-readiness grounds). The substrate-readiness measurement below converts this from "blocked on substrate" to "ready, scheduled".
 
 ## Why the substrate is right (the honest verdict)
@@ -106,7 +123,7 @@ Warm tier is consumed as the `ndb` binary via `std::process`.**
 
 ## Phases
 
-- [ ] **P1 — `corpus_db` (opt-in, native-only, DEFAULT-OFF, subprocess;
+- [x] **P1 — `corpus_db` (opt-in, native-only, DEFAULT-OFF, subprocess;
   LOCAL-BUILD FIRST, not gated on the v0.1.0 release):** resolve the
   binary via `NDB_BIN` (dev: the sibling's `cargo build -p neuron-db-cli`
   output — a path to a BINARY is still zero cargo deps; the M3 has the
@@ -118,10 +135,20 @@ Warm tier is consumed as the `ndb` binary via `std::process`.**
   compiled-in set when both exist. No dep allowlist row — a BOUNDARY.md
   **runtime-dep row** lands with the code in the same commit
   (boundary-gap-first). The flag never joins the release set (moot under
-  the CLI posture, kept as belt-and-braces). Landing P1 against the local
-  build BEFORE Proposal 002's v0.1.0 is cut is what surfaces contract
-  holes while the binary is still cheap to revise — and it proves
-  Proposal 002's G1 consumer leg on release day.
+  the CLI posture, kept as belt-and-braces). **LANDED 2026-09-24 —
+  store dir default `.harness/ndb-data` (`--kv-dir` override); corpus
+  LOAD-from-kv is the deferred remainder (below).**
+- [-] **P1 remainder — corpus LOAD-from-kv** (deferred with reason):
+  loading a suite's envelopes FROM the digest-pinned row (instead of
+  `.raw/datasets/`) touches `prepare`/`load_rows` (the run's data path)
+  and needs the digest-pin-vs-local check wired per suite ("digest-pinned
+  against the compiled-in/local set when both exist") — a runner-surgery
+  slice with its own e2e (load-from-kv run must produce byte-identical
+  metrics to the local-files run for the same digest). Write + verify
+  side is live (`--save-corpus` read-back-verifies each row); no consumer
+  exists yet, so the load path has no caller to serve — land it when the
+  first kv-only run is actually wanted (e.g. CI without the dataset
+  checkout).
 - [ ] **P2 — `latent_eval` (opt-in): UNDECIDED between two routes.**
   (a) CLI route: latent slice-disjointness gate + corpus KNN via a future
   `ndb shard` family (requires the modelless BLAKE3+DFT embedding's
