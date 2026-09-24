@@ -10,6 +10,14 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 022 CLOSED — boundary: the `riir-infer` allowlist row now names the CRATE `riir-infer-laya`.**
+  Filed at `fba613e` by the boundary-guard 145th run: `04531ae` (Issue 008 T4) landed the
+  intended, pre-declared `riir-reflex → riir-infer-laya` edge, but the § May depend on
+  row's Crate cell said `riir-infer` (the repo), and C3 matches the measured dep crate
+  exactly, so the workspace gate read a declared edge as undeclared (exit 1). One-cell
+  fix: Crate cell → `riir-infer-laya` (Location already named `../riir-infer` +
+  `crates/riir-infer-laya`); drift row D1 removed in the same commit as the issue file.
+
 - **CLM distilled — Research 001 filed + Issue 019 (the `clm` comparison lane).**
   Contrastive-LM/CLM (blog 2026-09-23, Kwok/Ré/Mirhoseini et al.; repo pinned
   @ `cca045f…`, Apache-2.0, clone deleted after pin) is the first open
