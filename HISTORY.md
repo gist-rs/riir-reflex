@@ -5,6 +5,41 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-25
+
+- **Issue 027 — the 026 bench CORRECTION: the CUDA packed-path zeros
+  defect + the flash rung** CLOSED (substrate: riir-infer `.issues/003`
+  `75ed138`; reflex artifacts at `6d6cd8c`+; site correction
+  reflex-site `faf9b50`). The 026 run's trait-default attention SLICES
+  host memory at the packed multi-question offsets — under the device
+  backends' write-first discipline those host bytes are STALE
+  (device-written only), and the chain-cache MISS uploads them, so
+  **every multi-question case's attention ran on zeros**. Corrupted
+  published rows (vs CPU 018 / m3 025, which agree): typed_decisions
+  english 0.3575→0.2690 · multilingual 0.3490→0.2690 · typed
+  **0.7445→0.2690** (−47.5 pt) · code_fixtures 0.5417→0.2917 (2 q/case);
+  every 1-question suite was byte-identical and correct. The 026
+  close-out's "accuracy byte-identical on every lane" claim was WRONG
+  for the multi-question rows — corrected there. The consumer-side G5
+  passed because its fixtures are single-question (offset zero);
+  **`laya_batch_parity` — the multi-question gate — had never been run
+  at the cuda posture**; it is now part of the cuda gate set and green
+  (top-1 1.000000 ×3 checkpoints, drift ≤ 5.1e-5). The fix is the
+  substrate flash kernel (the Metal one-pass online-softmax form ported
+  to CUDA C, offsets bind at dispatch — Metal's design, immune by
+  construction). The corrected bench
+  (`.benchmarks/027_4090windows_cuda_flash/`, host `4090-windows`):
+  typed_decisions restored to 0.357/0.350/0.7415, code_fixtures 0.5833,
+  all 1-question suites unchanged; latencies improved −4..−12%
+  (typed 113→108 · multiling 65→59 · banking77 29→27 · code_fixtures
+  34→30 · ag_news 17→16 · emotion 15→14 ms). Honest note: 2000-question
+  suites carry ±0.003 run-to-run variance (corpus-pool composition —
+  pre-existing, affects every lane; the frozen-capture gates are the
+  authority). The site correction landed BEFORE the pending M3-side
+  `wrangler deploy` — **the corrupted numbers never went live** (the
+  live site serves the pre-026 data; the deploy now publishes the
+  corrected row directly).
+
 Created retroactively 2026-09-22: four issues (001, 002, 003, 005) had
 already closed with records only in git history.
 
@@ -26,7 +61,10 @@ already closed with records only in git history.
   2.894e-6 — the metal drift class), `packed_forward_equiv` at the cuda
   posture. The refreshed row (`.benchmarks/026_4090windows_cuda/`, host
   `4090-windows`, sha `0550820`, accuracy byte-identical to the cpu row
-  on every lane): typed english 8127→114 ms · typed multilingual
+  on every lane **⚠ CORRECTED 2026-09-25 (Issue 027): this claim was
+  wrong for the MULTI-QUESTION suites — the packed path ran dead
+  attention (typed 0.7445→0.2690, code_fixtures 0.5417→0.2917); the
+  1-question suites were byte-identical and correct**): typed english 8127→114 ms · typed multilingual
   4354→65 · typed typed 8221→113 · ag_news 460→17 · banking77 1745→29 ·
   emotion 253→15 — **every suite below the m3 metal row** at the v1
   rung (default attention path; flash/tile-ladder/CUDA-graph rungs are
