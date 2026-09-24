@@ -417,3 +417,24 @@ already closed with records only in git history.
   across the two readings), accuracy bit-identical on every lane across
   all three same-day runs. Issue 013 (accuracy levers) filed;
   levers 1/3 open, lever 2 recorded dead-on-this-evidence.
+
+- **Issue 013 — modelless accuracy levers: all three levers measured, issue
+  RESOLVED + removed** (2026-09-24; instruments + verdict `d5a704f`, fmt
+  sweep `104da7a`; record: Bench 005). Lever 1: the cap is a per-suite
+  tuning knob — ag_news default 64 selection-CONFIRMED, banking77 128
+  promotion REFUSED by the stratified protocol (Bench 004). Lever 2:
+  route_scale flat, declined. Lever 3: the dataset pair-head candidate —
+  the confusion probe found real concentration (xnli 95% of errors →
+  neutral, emotion 73% → joy; centroid collapse), but the A/B REFUTED the
+  fix: diagonal-LDA heads fitted from the pair's own corpus docs, armed
+  from CAL-slice confusion (the lever-1 protocol law), fired under BOTH
+  gates, lose everywhere that matters — global net ≈ −19 questions, no
+  GOAT cell. Mechanism: the engine is not at chance on the fired subsets
+  (46–81% gold-in-pair); where it IS at chance the hashed-bag head is at
+  chance too; where the engine is strong the head is strictly worse. The
+  lane sits at its feature-class ceiling — lever 4 (a more expressive
+  embedder) recorded in the issue's final state, unstarted, owner-gated.
+  Instruments stay, report-only, default posture byte-identical: the
+  always-on `modelless.confusion` readout + `harness --pair-head-ab`
+  (both firing gates, gold-in-pair split, n_counted disclosure;
+  deterministic byte-reproduced). Full guard PASS incl. G5 parity.
