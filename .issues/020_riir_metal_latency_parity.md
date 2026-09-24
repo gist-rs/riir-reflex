@@ -8,8 +8,8 @@ wave moved `massive_intent_en` p50 by ≈ −5% (10 paired rounds) and the GEMM 
 −10% wide / −21.5% narrow, but a **same-run** head-to-head against the python
 oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
 **winning p99** — and `code_fixtures` joins them (Bench 006 Addendum 3:
-same-run p50 **+7.4%** median over 8 rounds, max **+43%**, unattributed →
-T8). Its largest remaining lever (T5, per-case question batching)
+same-run p50 **+7.4%** median over 8 rounds, max **+43%** — T8 attributed
+it to ONE long case, not a cold start). Its largest remaining lever (T5, per-case question batching)
 is IDENTIFIED from the reference's own source. Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
@@ -281,7 +281,23 @@ box this repo does not currently have.
       memory caps residency), double-buffered staging, and an f16-operand
       instance behind its own feature flag + G5 re-gate.
 
-- [ ] **T8 — attribute the `code_fixtures` max (rust ~225 ms vs python
+- [x] **T8 — attribute the `code_fixtures` max** — DONE `e2d2060`.
+      Step 1: `src/harness/latency.rs` — every lane now stamps
+      `latency_extremes {first_ms, max_ms, argmax_case}` into `results.json`
+      and the TABLES p99 cell reads `(1, max@caseN)` whenever the p99 IS the
+      max. Step 2, 3 rounds, AC, load 3.7–4.0, all quotable: **rust's max is
+      case 3 every round at exactly 231 ms**; rust's case 0 is 108–114 ms, so
+      it is **not** a residual cold cost. Python's max is its case 0 (the
+      cold start, 134–277 ms) in 2 of 3 rounds; in the round where python's
+      case 0 was warm, its max was also case 3, at **153 ms**. So the +43%
+      max is a **length-scaled** gap on one long input (case 3 =
+      `code:engine.rs:1`, the second fn span of `engine.rs` per the builder
+      order — a self-referential fixture, so its length moves when that file
+      is edited), ~1.5× python there against ~1.07× at p50: consistent with
+      a cost that grows with sequence length (attention / GEMM at larger
+      `m`), which is T5/T7's territory, not T1's. ⚠ Token length of case 3
+      not measured. Original task: (rust ~225 ms vs python
+      ~160, +43% every round, Bench 006 Addendum 3). (rust ~225 ms vs python
       ~160, +43% every round, Bench 006 Addendum 3).** The harness's p99 at
       n = 24 is the MAXIMUM (tail support 1), and `results.json` keeps no
       per-question latencies, so a first-question residual cold cost and a
