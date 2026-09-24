@@ -1,6 +1,6 @@
 # Issue 018 — the reflex bench on the 4090 (windows lane): harness run + the bench-site refresh procedure
 
-**Status:** OPEN — filed 2026-09-24 (owner directive: "add issue to reflex bench on 4090 and update reflex.gist.rs/bench"). The 4090 tasking shape per the global rule (long tasks route to the 4090 via issue). Pairs with the ANE bench plan (`.plans/002_ane_lane_bench.md`, M3-owned) — that plan adds the DEVICE axis on Apple silicon; this issue adds the PLATFORM axis on Windows/CUDA.
+**Status:** OPEN — **T1–T7 LANDED 2026-09-24 (~14:2x, session `katgpt-rs-4090-b`)**; the run is published to the site repo (`7508b7a` — bench.json carries BOTH hosts); the ONE remaining step is `npx wrangler deploy` from a Node-≥22 box with CF creds (NOT this box — see the T6 handoff note). Filed 2026-09-24 (owner directive: "add issue to reflex bench on 4090 and update reflex.gist.rs/bench"). The 4090 tasking shape per the global rule (long tasks route to the 4090 via issue). Pairs with the ANE bench plan (`.plans/002_ane_lane_bench.md`, M3-owned) — that plan adds the DEVICE axis on Apple silicon; this issue adds the PLATFORM axis on Windows/CUDA.
 
 ## Why the 4090 lane matters for the bench page
 
@@ -23,33 +23,47 @@ answers), so a windows run's value is NOT accuracy cross-checking — it is:
 
 ## The run procedure (4090 box)
 
-- [ ] T1 Sync: `riir-reflex` on the 4090 to origin/develop (bundle path if
+- [x] T1 Sync: `riir-reflex` on the 4090 to origin/develop (bundle path if
       GitHub auth hangs from that box — the carve-era lesson; ask the M3
-      for a bundle rather than debugging auth mid-task).
-- [ ] T2 Build: `cargo build --release --bin harness --features laya-riir`
+      for a bundle rather than debugging auth mid-task). *(synced clean at
+      `b60bba9`; the run completed against a worktree at `afacc3a` — see the
+      pre-023 note below.)*
+- [x] T2 Build: `cargo build --release --bin harness --features laya-riir`
       (CPU laya posture; NO metal — the feature is macOS-gated by
       construction). Record `--version` stamp + rustc + box state (RAM,
-      load, power) beside the run.
-- [ ] T3 Datasets: `scripts/fetch_datasets.sh` (once; the blake3-digested
-      manifest in `.docs/dataset_manifest.md` verifies the fetch).
-- [ ] T4 The run: `cargo run --release --features laya-riir --bin harness`
-      — full 15-suite set, uncapped (the M3 full-run precedent; ~the same
-      wall budget). The laya-python oracle lane SKIPS loudly on windows (no
-      python lane on that box per the owner directive) — its absence is
-      recorded, never fabricated.
-- [ ] T5 Publish the SECOND-HOST rows: the results.json meta gains
-      `host: "4090-windows"`; `publish_bench.py` needs a small extension to
-      MERGE per-host meta rows instead of overwriting (the healqual
-      fleet-join precedent) — that sanitizer change lands in THIS repo,
-      the merged bench.json lands in the site repo.
-- [ ] T6 Site update: commit the refreshed `data/bench.json` in
-      `../reflex-site` + `npx wrangler deploy` (manual deploy per the
-      free-tier rule) — reflex.gist.rs/bench then renders both hosts with
-      the provenance row naming each.
-- [ ] T7 Cross-host sanity: the modelless lane's ACCURACY columns must be
-      bit-identical to the M3 run per suite (the determinism claim); the
-      LATENCY columns are expected to differ and are the point. Any
-      accuracy divergence is a STOP-and-file, not a publish.
+      load, power) beside the run. *(built 11:04, 55.7 s, laya-riir cpu;
+      box state recorded in the launch block below.)*
+- [x] T3 Datasets: `scripts/fetch_datasets.sh` (once; the blake3-digested
+      manifest in `.docs/dataset_manifest.md` verifies the fetch). *(fetch
+      completed via the 429 retry loop; 243 manifest-digested files
+      blake3-verified clean; the windows python resolution rider landed as
+      `f7c22c9` — the Store-stub `python3` trap.)*
+- [x] T4 The run: full 15-suite set, uncapped. *(sibling session's live run
+      11:16:35→14:11 wall ≈ 2h57m, ~590 CPU-min at ~3.8 cores; the python
+      oracle lane honestly absent; artifacts committed at
+      `.benchmarks/018_4090windows_run/`.)*
+- [x] T5 Publish the SECOND-HOST rows. *(their publisher `3d86b84` used;
+      results.json meta carries `host: 4090-windows` via `REFLEX_BENCH_HOST`;
+      merged bench.json = m3@77c408e + 4090-windows@afacc3a; site commit
+      `7508b7a`.)*
+- [-] T6 Site update: commit the refreshed `data/bench.json` + `npx
+      wrangler deploy` — **the commit+push half is DONE (`7508b7a`); the
+      DEPLOY half is BLOCKED on this box** (wrangler wants Node ≥22, this
+      box has v20.20.0; no CF token exists here). **Handoff: run `npx
+      wrangler deploy` from the site repo (`E:\git\reflex-site` or any
+      checkout at `main` ≥ `7508b7a`) on a Node-≥22 box with CF creds — the
+      M3.** reflex.gist.rs/bench then renders both hosts. *(A population-
+      guard disclosure patch also landed: `715e8a5` — excluded/absent
+      suites render under the provenance row.)*
+- [x] T7 Cross-host sanity: modelless ACCURACY bit-identical on **all 14
+      comparable suites** (the drift gate passed; `code_fixtures`
+      population-excluded 24-vs-28; `harness_cache_reuse` modelless-absent
+      on both hosts by design). Secondary metrics (brier/nll/ece/mean_conf)
+      show 1e-9..1e-11 RELATIVE drifts on 4 suites — cross-arch f64
+      aggregation-order effects with identical answers, invisible at the
+      page's render precision; recorded here so the next reader does not
+      misread them as answer drift. Accuracy columns: bit-identical, as
+      claimed.
 
 ## Discipline
 
