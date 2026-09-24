@@ -13,7 +13,7 @@
 slice 1 LANDED 2026-09-23** (see tasks below; plan: riir-ai
 `.plans/610_riir_infer_gpu_carve_slice1.md`). Remaining: P2/T4 (encoder move — **UNBLOCKED 2026-09-24**: the harness
 sibling WIP landed, worktree clean; the old WAITING note was stale —
-Claude verdict r1), S6b/S7 (plan 610), P5/T7 (gated on T4). P4/T6 is
+Claude verdict r1), **S6b landed 2026-09-24 at honest scope (the edge-drop franchise owner-gated on the training-families home; 12/81 mirrors measured)**, S7 (plan 610), P5/T7 (gated on T4). P4/T6 is
 DONE (task row below). Owner directive 2026-09-22: *"file issue to
 check about
 metal lane against riir-ai, we maybe separate around that (riir-infer-core)
@@ -496,10 +496,19 @@ wiring.
       contract clean 23 repos / 321 edges; the retargeted bench runs
       end-to-end on Metal (prefill 29.2 tok/s). Commits: riir-infer
       `8ecbc7f`, riir-ai `50f644f3d`, riir-clippy `cda28b7e`.
-- [ ] **S6b** — the riir-train retarget (the bigger consumer: workspace dep
-      rows + the `riir-gpu/*` feature-forward lattice → the infer-gpu
-      mirrors; the riir-engine edge adjudication — TrainingProvider stays
-      engine-side or re-homes per 041's pull-gated rte answer).
+- [x] **S6b LANDED 2026-09-24 at honest scope** (the 4090 box, in a
+      `riir-train.s6b` worktree — sibling session live in the main checkout,
+      zero overlap measured; riir-train `7e0e7d74`, riir-ai `75b7630b38`).
+      Landed: patch rows re-pointed at `../riir-infer/vendor` (byte-identical
+      forks, `diff -r` rc=0) + the TrainingProvider adjudication (stays
+      engine-side; ZERO impls + ZERO engine-side consumers measured) + the
+      stale-description fixes. **The full edge-drop measured BLOCKED: only
+      12 of riir-train's 81 forwards are mirrored in infer-gpu — the 69
+      training families stay riir-ai-side BY DESIGN (riir-infer is public,
+      Research 003).** Owner-gated now: the training-families long-term home.
+      Partial swap evaluated + rejected (two vocabularies = churn). Full
+      record: plan 610's S6b row (riir-ai). Validation: default + CUDA
+      posture checks, clippy -D, boundary contract all green on the 4090.
 - [ ] **S4+** — SEAM adjudications (`forward`'s adapter slots,
       `ternary_deltanet_gpu_forward` L179), the gemma-cluster unlock
       (WallConfig re-home), then the T2.3 retarget + D4 re-narrowing
