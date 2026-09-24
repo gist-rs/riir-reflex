@@ -151,6 +151,16 @@ fn main() {
 // `LAYA_CUDA_REG4` — base = the 2-acc instances (the shipped posture the
 // ladder/float4 rungs left behind), challenger = the 4×4-fragment
 // reg4 instances at the SAME tiles.
+//
+// ⚠ THE TINY-OP FLOOR (riir-infer `.issues/009`, measured 2026-09-25): the
+// small-grid rows (the whole narrow zone + the head tails) carry a ~40 µs
+// fixed per-op launch/WDDM floor on this box — FLOPs vary 400× across them
+// while their p50s sit 41-45 µs (marginal rate ≈ the 50 TFLOP/s roofline).
+// Those rows CANNOT resolve kernel-level rungs under ~35 µs of change; a
+// narrow-zone rung must gate at the FORWARD level (paired env-flip on
+// `laya_fixture_timing`, launches amortize in the deep queue) or subtract
+// a same-kernel floor arm. Only the wide/xwide-class rows (60-750 µs) are
+// kernel-resolved here.
 #[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
 use riir_reflex::laya::riir::backend::{Backend, Cpu};
 #[cfg(all(not(target_os = "macos"), feature = "laya-riir-cuda"))]
