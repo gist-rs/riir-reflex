@@ -57,6 +57,21 @@ reference) is the gate's arming step rather than a nicety.
       run on this box refused correctly:
       `REFUSE — on BATTERY (47%)` · `PROVENANCE: power=Battery Power
       load=4.05 swap=2947.94M canary=151.2us lpm=0`.
+      ⛔ **Amended 2026-09-24 11:0x — its Low-Power check was WRONG on the
+      first AC run.** `pmset powermode` on this M3 Max is a THREE-state enum
+      (0 Automatic, 1 Low Power, 2 High Power), and this box's AC profile is
+      `powermode 2` while its battery profile is `0`. The gate read "not 0"
+      as Low Power and refused **High Power** — the best mode for a sustained
+      number — so on battery it looked right for the wrong reason, and on AC
+      it could never pass. Now: only `1` refuses, `0`/`2` pass and are named
+      in provenance (`powermode=2(high)`, replacing `lpm=`), an unknown value
+      exits 2. Same amendment **enforces** the settle window (it was printed
+      and left to a reader) and drops two usage lines (`--canary-only`,
+      `--record`) naming flags the script never implemented. First AC run
+      after the fix refused correctly on the two remaining axes:
+      `on AC for only 1 min (< SETTLE_MIN=5)` and `load 9.88 > 6.0`, canary
+      **860.9 us** against 151–181 us quiet — so the canary does move with
+      GPU contention, which is the property T2 relies on.
 - [ ] **T2 — pin the AC canary reference.** On AC, ≥ `SETTLE_MIN` minutes
       after plugging in, at load < 2, take the `317×1024×1024` canary and set
       `CANARY_REF_US` in the script. ⚠ It **must not** be taken on battery —
@@ -80,7 +95,12 @@ reference) is the gate's arming step rather than a nicety.
       column, single-suite AND in the published 15-suite order (which also
       answers Issue 020 T0 with power eliminated). This is what turns
       "−8% paired" into "rust beats the oracle at this cell".
-- [ ] **T6 — name the power axis in the rule.** AGENTS.md's box-state
+- [x] **T6 — name the power axis in the rule.** Landed 2026-09-24: a
+      sub-bullet in katgpt-rs AGENTS.md §Feature Flag Discipline G2 (the
+      GENERAL rule; the §Docs gate INSTANCE paragraph is about docs-gate CPU
+      figures and names no box-state list, so it needed no twin edit) + a
+      GOAT-gates bullet in this repo's AGENTS.md pointing at the gate.
+      Original task text: AGENTS.md's box-state
       paragraph should enumerate power source + Low Power Mode alongside free
       RAM and concurrent jobs, and point at `bench_preflight.sh`. ⚠ The same
       paragraph exists in katgpt-rs's CLAUDE.md §Feature Flag Discipline G2 —

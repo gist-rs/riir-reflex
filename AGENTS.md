@@ -495,6 +495,14 @@ a bench file's numbers ARE its artifact.
 - **G5 (laya parity):** top-1 ≥ 99.9% + p-drift ≤ 1e-3 vs the reference
   checkpoint, per checkpoint, BEFORE any published table cites laya
   numbers; a failed parity gate marks the lane PROVISIONAL everywhere.
+- **Box state is part of every latency claim (Issue 021).** Run
+  `scripts/bench_preflight.sh` before any published or quoted latency number
+  and quote its `PROVENANCE:` line in the record. It refuses on battery,
+  Low Power Mode (`powermode=1` — 2 is High Power, 0 Automatic), under
+  `SETTLE_MIN` minutes since plug-in, or over `MAX_LOAD`. Power source is a
+  first-order arm on this laptop and was recorded by nothing until
+  2026-09-24 (Bench 006 Addendum 1). General rule: katgpt-rs AGENTS.md
+  §Feature Flag Discipline G2 box-state bullet.
 
 ## Numbering Discipline
 

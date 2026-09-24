@@ -16,8 +16,8 @@
 # Usage:
 #   scripts/bench_preflight.sh                # refuse unless the box is fit
 #   MAX_LOAD=8 scripts/bench_preflight.sh     # raise the load ceiling
-#   scripts/bench_preflight.sh --canary-only  # just print the GPU clock canary
-#   scripts/bench_preflight.sh --record       # print the provenance line only
+#   SETTLE_MIN=10 scripts/bench_preflight.sh  # longer post-plug-in settle
+#   CANARY_REF_US=150 scripts/bench_preflight.sh  # judge the canary (T2)
 #
 # Exit: 0 = fit to bench (the provenance line is on stdout, QUOTE IT in the
 # record); 1 = refused, reason named; 2 = the instrument itself could not read
@@ -54,23 +54,44 @@ case "$ps_out" in
     *) note "⛔ power source unrecognised in: $ps_out"; exit 2 ;;
 esac
 
-# ---- 2. low power mode ----------------------------------------------------
-lpm=$(pmset -g 2>/dev/null | awk '/powermode/{print $2}' || true)
-if [ -z "$lpm" ]; then
-    note "warn powermode    unreadable (disclosed, not assumed)"
-elif [ "$lpm" = "0" ]; then
-    note "ok   powermode    0 (Low Power Mode off)"
-else
-    refuse "Low Power Mode is ON (powermode=$lpm) — it caps clocks by design"
-fi
+# ---- 2. power mode ---------------------------------------------------------
+# `pmset powermode` on a 14"/16" Apple Silicon MacBook Pro is a THREE-state
+# enum, not a Low-Power-Mode boolean: 0 = Automatic, 1 = Low Power, 2 = High
+# Power. The first version of this gate read "not 0" as Low Power and refused
+# the one mode that is BEST for a sustained number (measured: this box's AC
+# profile is powermode 2, its battery profile 0). Only 1 refuses; 0 and 2 are
+# both fit but are DIFFERENT arms, so the mode is named in the provenance
+# line and a canary reference is only comparable within one mode.
+pmode=$(pmset -g 2>/dev/null | awk '/powermode/{print $2}' || true)
+case "$pmode" in
+    "") note "warn powermode    unreadable (disclosed, not assumed)"; pmode_name="?" ;;
+    0)  pmode_name="auto"; note "ok   powermode    0 (Automatic)" ;;
+    1)  pmode_name="low";  refuse "Low Power Mode is ON (powermode=1) — it caps clocks by design" ;;
+    2)  pmode_name="high"; note "ok   powermode    2 (High Power)" ;;
+    *)  pmode_name="unknown"; note "⛔ powermode=$pmode is not a value this gate knows (0/1/2)"; exit 2 ;;
+esac
 
 # ---- 3. settle window since the last power transition ---------------------
 # A box plugged in one minute ago is still carrying the heat it built on
-# battery; AC is necessary, not sufficient.
+# battery; AC is necessary, not sufficient. ENFORCED, not just disclosed:
+# the first version printed the transition and left the arithmetic to a
+# reader, who is exactly the person in a hurry to bench.
 last=$(pmset -g log 2>/dev/null | grep -E "Using (AC|Batt)" | tail -1 || true)
 if [ -n "$last" ]; then
-    note "info last power transition: $(printf '%s' "$last" | cut -c1-31)"
-    note "     (require >= ${SETTLE_MIN} min on AC before trusting a sustained number)"
+    last_ts=$(printf '%s' "$last" | cut -c1-19)
+    last_kind=$(printf '%s' "$last" | grep -oE "Using (AC|Batt)" | head -1)
+    note "info last power transition: $last_ts ($last_kind)"
+    last_epoch=$(date -j -f "%Y-%m-%d %H:%M:%S" "$last_ts" +%s 2>/dev/null || true)
+    if [ -n "$last_epoch" ] && [ "$last_kind" = "Using AC" ]; then
+        on_ac_min=$(( ( $(date +%s) - last_epoch ) / 60 ))
+        if [ "$on_ac_min" -lt "$SETTLE_MIN" ]; then
+            refuse "on AC for only ${on_ac_min} min (< SETTLE_MIN=${SETTLE_MIN}) — still carrying battery-era heat"
+        else
+            note "ok   settle       on AC ${on_ac_min} min (>= ${SETTLE_MIN})"
+        fi
+    elif [ -z "$last_epoch" ]; then
+        note "warn settle window UNVERIFIED — could not parse '$last_ts'"
+    fi
 else
     note "warn no power-transition history — settle window UNVERIFIED"
 fi
@@ -124,7 +145,7 @@ fi
 
 # ---- provenance -----------------------------------------------------------
 prov="power=$(printf '%s' "$ps_out" | grep -o "'[A-Za-z ]*Power'" | head -1 | tr -d "'")"
-prov="$prov load=$la swap=${swap:-?}M canary=${canary:-skipped}us lpm=${lpm:-?}"
+prov="$prov load=$la swap=${swap:-?}M canary=${canary:-skipped}us powermode=${pmode:-?}(${pmode_name})"
 note ""
 note "PROVENANCE: $prov"
 
