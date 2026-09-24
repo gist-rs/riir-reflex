@@ -7,6 +7,50 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue 027 — the CLM T3 4090 window EXECUTED** (bench 033; reflex
+  `967415c`, site `ae79a87`): the external Contrastive-LM reference's
+  first measured cells on the arena, end-to-end in one window. The
+  serving stack (their code, our docker): vLLM `--runner pooling` over
+  Qwen3-8B (LAST-token, prefix cache, their `serve_qwen3_8b.sh` flags
+  verbatim) + `clm-serve` over the mounted `CLM_v0.1-8B` head
+  (`--no-download` provenance posture) — one container,
+  `scripts/clm_serve_4090.sh`. **The determinism pin GREEN** (8/8
+  byte-identical repeats + head mtime unchanged) after one measured
+  cold-start law: the first request after a clm-serve boot answers
+  correctly but reports `usage.input_tokens = 0` — answers byte-stable,
+  accounting not; the lane and the pin warm with one fixed throwaway
+  request (never a case's). **The serialization law bit as written**:
+  the combined attempt (laya CUDA beside resident vLLM) hung 13 min on
+  `laya[typed]` (the contention signature) and was killed — the
+  published run is clm-with-vLLM only; the 4090 laya lanes carry over
+  from bench 032 at the NEWER substrate (`lane_sources` disclose the
+  split; re-running laya at this box's older checkout would regress the
+  table). **util 0.35 does not fit a 24 GB card** (bf16 weights alone
+  14.11 GiB; 8.6 GB budget dies at cache-block allocation) — the
+  dedicated-window posture is 0.72. The harness grew the `clm` column
+  (`--clm`, feature `clm-lane`, `SuiteResult.clm`): the parity law
+  applied at the builder — THEIR `to_text` state prose (byte-pinned
+  copy), choice candidates = criterion DESCRIPTIONS under their
+  `candidates` law ("a candidate reaches the encoder exactly as the
+  caller wrote it"), score = rubric levels, noul = their default law;
+  latency = client round-trip; observed-repeat det check; `clm_request`
+  unit-pinned. **Cells (honest rows, not wins)**: typed_decisions
+  **0.3465** against laya-typed 0.7445 on the same split (modelless
+  0.3190) · xnli 0.6167 · ag_news 0.4025 · prompt_injections 0.5345 ·
+  banking77 **0.0100** · p50 ≈31 ms/case localhost (66 ms on typed's
+  5-question cases), det ✓ every suite. **The 024 leak columns rode the
+  same publish** (T4 closed): 7 dataset suites carry `leak` blocks +
+  `acc_deleaked` per lane (ag_news exact 1/near 26; massive 4/17;
+  banking77 0/17; emotion + xnli clean); `publish_bench.py` carries clm
+  lanes + leak blocks through update docs and the page renders the
+  disclosure line. Publisher tests 11/11. REMAINS: the optional AgentJev
+  gold-label row (a different server — their `jev_service`; the next
+  4090 window, 025's do-NOT-auto-start stands) + the site deploy
+  (M3-gated — no CF creds on this box; `npx wrangler deploy` from the M3
+  discharges it). Attribution: Contrastive-LM/CLM @ `cca045ff` +
+  CLM-v0.1-8B, Apache-2.0, not affiliated — a comparison lane, never a
+  product lane.
+
 - **README CUDA-row ratio refresh — 14–17× the CPU row, measured at the
   post-ladder HEAD** (doc-sync; no code change). The v1-rung claim
   ("10–12× the CPU row", landed with 026 before the flash/float4/reg4

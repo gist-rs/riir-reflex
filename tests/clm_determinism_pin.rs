@@ -144,6 +144,13 @@ fn clm_repeat_byte_identity_and_head_untouched() {
         );
     }
 
+    // WARMUP (measured 2026-09-25): the very FIRST request after a
+    // clm-serve boot answers byte-identically but reports
+    // usage.input_tokens = 0 — a server-side first-request accounting
+    // quirk, not answer nondeterminism. One throwaway request absorbs
+    // it; the pin then holds the FULL body to byte-identity.
+    raw_post(&url, &body).expect("warmup request");
+
     let lane_url = url.clone();
     const N: usize = 8;
     let mut bodies: Vec<Vec<u8>> = Vec::with_capacity(N);

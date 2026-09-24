@@ -1,7 +1,15 @@
 # Issue 027 — the CLM T3 4090 bench posture (+ the AgentJev measure-only row riding the same window)
 
-**Status:** OPEN, IN FLIGHT 2026-09-25 (session picked the lane up per the
-pick-up clause) — the Rust-side halves LANDED on `develop`:
+**Status:** THE WINDOW EXECUTED 2026-09-25 (bench 033, reflex `967415c`,
+site `ae79a87`) — the serving + measuring halves are DONE: the
+determinism pin GREEN (8/8 byte-identical + head mtime unchanged, after
+the warmup law below), the CLM cells landed on ALL 15 suites, the leak
+columns rode the publish (.issues/024 T4), the README row + site table
+carry the lane. REMAINS: the optional AgentJev gold-label row (a
+DIFFERENT server — their jev_service; the next 4090 window can run it;
+025's "do NOT auto-start" stands) and the site DEPLOY (M3-gated — this
+box has no CF creds; `npx wrangler deploy` from the M3 discharges it).
+The Rust-side halves LANDED on `develop`:
 `src/harness/runner.rs` grows the `clm` column (`--clm`, feature-gated
 `clm-lane`, the parity law in-module: THEIR `to_text` state prose +
 their candidates-as-descriptions law; the same metrics tail as every
@@ -80,6 +88,28 @@ is measurement only.
 ## Order of work
 
 1. Book a quiet 4090 window (no perf-league cycle; `nvidia-smi` clean).
+
+> **EXECUTED-WINDOW NOTES (2026-09-25, bench 033).**
+> * **The serialization law bit exactly as written**: the first
+>   combined attempt ran the laya CUDA lane BESIDE the resident vLLM
+>   (17.7 GB reserved at util 0.72) — ~13 min stuck on
+>   `laya[typed]` (3.8-thread CPU-average — kernel-compile/CPU-gemm
+>   posture, the contention signature) — and was KILLED; its cells were
+>   discarded. The published run is TWO SERIALIZED PASSES: clm with vLLM
+>   resident, laya untouched (the 4090 laya lanes carry over from bench
+>   032 at the NEWER substrate `1afd4f8`; re-running laya at this box's
+>   older checkout would regress the table — lane_sources disclose the
+>   split).
+> * **util 0.35 does not fit a 24 GB card**: the bf16 weights alone are
+>   14.11 GiB; 0.35×24.5 GB = 8.6 GB dies with "No available memory for
+>   the cache blocks". The dedicated-window posture is 0.72 (their
+>   co-existence posture assumes a bigger card).
+> * **The first-request usage quirk (the pin's cold-start finding)**:
+>   the very FIRST request after a clm-serve boot answers correctly but
+>   reports `usage.input_tokens = 0` — the answers are byte-identical,
+>   the accounting is not. The lane + the pin send one fixed warmup
+>   request first (never a case's — no cache pollution of measured
+>   latencies).
 2. Boot vLLM Qwen3-8B pooling + `clm-serve`; run the determinism pin first
    (a lane that cannot repeat byte-identically produces no cells).
 3. CLM cells (the 9 suites + 6 families), then the same-box laya-4090 cell

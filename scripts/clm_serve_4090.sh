@@ -18,9 +18,24 @@
 # for VRAM and VRAM contention reads like a config-dependent failure, the
 # Bench-649 class). Check `nvidia-smi` first.
 #
+# ⚠ GPU_UTIL on the 24 GB 4090: their script's 0.35 assumes a big card —
+# the bf16 weights ALONE are 14.11 GiB (measured 2026-09-25), which
+# busts a 0.35×24.5 GB = 8.6 GB budget with "No available memory for the
+# cache blocks". The dedicated-window posture here is 0.72 (≈17.6 GB:
+# weights + KV + eager overhead, ~6 GB card headroom). On an 80 GB card
+# their 0.35 co-existence posture stands.
+#
 # Usage:  scripts/clm_serve_4090.sh start|stop|status|logs
-# Env:    GPU_UTIL (0.35) · PORT_VLLM (8090) · PORT_CLM (8700)
+# Env:    GPU_UTIL (0.72) · PORT_VLLM (8090) · PORT_CLM (8700)
 set -eu
+
+# Git Bash on Windows mangles colon-separated -v volume specs into
+# `\Program Files\Git\...;C` — the docker calls below carry the
+# conversion disables as COMMAND-PREFIX env (a no-op on Linux). They are
+# deliberately NOT exported script-wide: `MSYS2_ARG_CONV_EXCL='*'` breaks
+# `curl -o /dev/null` (rc 23, the write-error class) and the health waits
+# would spin forever on a healthy server (measured 2026-09-25).
+NOCV=(env MSYS_NO_PATHCONV=1 MSYS2_ARG_CONV_EXCL='*')
 
 CT=clm-stack
 IMAGE=vllm/vllm-openai:nightly
@@ -28,7 +43,7 @@ REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 MODELS="$REPO_ROOT/.raw/models/Qwen3-8B"
 CLM_SRC="$REPO_ROOT/.raw/CLM"
 CKPT="$CLM_SRC/checkpoints/CLM_v0.1-8B.pt"
-GPU_UTIL="${GPU_UTIL:-0.35}"
+GPU_UTIL="${GPU_UTIL:-0.72}"
 PORT_VLLM="${PORT_VLLM:-8090}"
 PORT_CLM="${PORT_CLM:-8700}"
 
@@ -53,7 +68,7 @@ create() {
   need_paths
   # One-time: the container (the CMD is the vLLM serve line — their
   # serve_qwen3_8b.sh flags verbatim, host ports mapped for the harness).
-  docker run -d --name "$CT" \
+  "${NOCV[@]}" docker run -d --name "$CT" \
     --gpus all \
     -p "$PORT_VLLM:8090" -p "$PORT_CLM:8700" \
     -v "$MODELS":/models/Qwen3-8B:ro \
@@ -73,8 +88,8 @@ create() {
   # extras only — torch/fastapi already in the vllm image; the head is
   # CPU-scale). The :ro mount means pip needs a copy — install from the
   # mounted source with --no-deps + the two serve deps explicitly.
-  docker exec "$CT" pip install --no-deps -q fastapi uvicorn 2>/dev/null || true
-  docker exec "$CT" sh -c "cp -r /opt/CLM /tmp/CLM && pip install --no-deps -q -e /tmp/CLM" \
+  "${NOCV[@]}" docker exec "$CT" pip install --no-deps -q fastapi uvicorn 2>/dev/null || true
+  "${NOCV[@]}" docker exec "$CT" sh -c "cp -r /opt/CLM /tmp/CLM && pip install --no-deps -q -e /tmp/CLM" \
     || die "pip install of their package failed"
 }
 
@@ -86,7 +101,7 @@ start() {
   # clm-serve as a second process in the SAME container — loopback to
   # vLLM, no docker network, --no-download (the head is mounted; a boot
   # that silently fetches weights is a provenance hole).
-  docker exec -d "$CT" clm-serve \
+  "${NOCV[@]}" docker exec -d "$CT" clm-serve \
     --host 0.0.0.0 --port 8700 \
     --emb-url http://127.0.0.1:8090/v1/embeddings \
     --ckpt /opt/CLM/checkpoints/CLM_v0.1-8B.pt \

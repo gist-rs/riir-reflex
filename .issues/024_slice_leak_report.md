@@ -80,8 +80,13 @@ EXACT-string, so none of these rows trips it.
   loud skip when `.raw/datasets` is absent (UNSEEN, never a pass).
 - [x] T3: runner wiring over the real slices, plus the `leak` block in
   `results.json`.
-- [ ] T4: site columns in `bench.json`. These ride the NEXT Issue 018
-  two-host publish; do not force a separate one.
+- [x] T4: site columns in `bench.json`. These ride the NEXT Issue 018
+  two-host publish; do not force a separate one. **DONE 2026-09-25** —
+  rode the 027 window publish (bench 033, site `ae79a87`): the 7 dataset
+  suites carry `leak` blocks (exact/near counts) + `acc_deleaked` on
+  every lane row; `publish_bench.py` carries them through update docs
+  (a doc without a block never erases a previous scan) and the bench
+  page renders the per-suite disclosure line.
 - [ ] T5: a Bench write-up: per-suite leak and `acc_deleaked` delta for
   each lane.
 

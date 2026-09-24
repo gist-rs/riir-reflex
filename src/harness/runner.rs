@@ -2622,6 +2622,26 @@ fn run_clm_lane(
     let mut determinism_ok: Option<bool> = Some(true);
     let mut input_tokens: u64 = 0;
 
+    // WARMUP (measured 2026-09-25, the determinism pin's cold-start
+    // finding): the very FIRST request after a clm-serve boot answers
+    // correctly but reports usage.input_tokens = 0 — a server-side
+    // first-request accounting quirk. One throwaway FIXED request (never
+    // a case's — no cache pollution of measured latencies) absorbs the
+    // cold path before the first measured case.
+    {
+        use katgpt_core::decision_wire::Question;
+        let warm = katgpt_core::decision_wire::DecisionRequest {
+            state: "warmup: the lane's cold-path probe (discarded; not a \
+                    measured case)"
+                .to_string(),
+            questions: vec![Question::noul("warm", "Is this the warmup?")],
+        };
+        if let Err(e) = lane.decide(&warm) {
+            return Err(format!("clm warmup: {e} — is their stack serving at \
+                 CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"));
+        }
+    }
+
     for (ci, case) in cases.iter().enumerate() {
         let req = clm_request(case)?;
         let t0 = Instant::now();

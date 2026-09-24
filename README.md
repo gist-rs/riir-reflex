@@ -29,6 +29,14 @@ cargo test                                     # the gates
   measurement-only subprocess oracle lane (needs python3 + torch/
   transformers; the published tables carry both `laya (rust)` and
   `laya (python)` — issue 012).
+- `harness --clm` ADDS the CLM comparison lane (issue 027): the external
+  Contrastive-LM reference over `/v1/systemone` — their stack serves
+  (vLLM Qwen3-8B pooling + `clm-serve`; `scripts/clm_serve_4090.sh` boots
+  the docker posture), our Rust measures. Feature `clm-lane`;
+  `CLM_SERVE_URL` (default `http://127.0.0.1:8700`). First cells
+  (4090-windows, bench 033): typed_decisions 0.3465 against laya-typed
+  0.7445 on the same split — an honest loss row; p50 ≈31 ms/case
+  localhost.
 
 ## Install (binary-only distribution, Plan 606)
 
@@ -400,6 +408,12 @@ above is the verdict, and the retraction is recorded in Bench 001.)
   SHA-256-verified, never redistributed in the release archives. Their
   Apache-2.0 license governs those artifacts; attribution is repeated in
   every release archive's `THIRD_PARTY_LICENSES.md` header.
+- The **CLM** comparison lane (issue 027) measures the external
+  Contrastive-LM reference (`github.com/Contrastive-LM/CLM` @ `cca045ff` +
+  the `CLM-v0.1-8B` head over Qwen3-8B, both Apache-2.0) over HTTP —
+  served by THEIR stack, measured by ours; a comparison lane, never a
+  product lane, and never bundled. Not affiliated with, or endorsed by,
+  Contrastive-LM's authors.
 - All site copy, benchmarks, and code are original. The arena SHAPE
   (playground + measured benchmark + agent-skill download) is an
   unprotectable concept; nothing else is replicated.
