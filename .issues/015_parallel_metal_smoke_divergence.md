@@ -1,6 +1,6 @@
 # Issue 015 — parallel-Metal-instance smoke divergence (7 observations, root cause unproven)
 
-**Status:** OPEN — reproduction + containment recorded, root cause NOT diagnosed.
+**Status:** RESOLVED 2026-09-24 — root cause FOUND and fixed (`a3215da`): the smoke violated the chain-cache epoch contract (never called `begin_pass`), not GPU contention. The obs 1–7 "flake" history and the containment's cross-process reading were both this. Post-fix 45/45 green (30 parallel + 15 serialized).
 
 ## The class
 
@@ -126,6 +126,71 @@ repo's reach (an OS/driver report, not a code fix); a red there would
 re-open in-process hunting with the instance-contention hypothesis
 dead. Until such a window: serialized stays the honest posture, and
 the lock makes parallel runs safe-but-unproven rather than hazardous.
+
+## RESOLUTION (2026-09-24 ~08:0x +07, the quiet-window session) — the experiment ran and REFUTED the cross-process reading
+
+The window opened (MTLCompilerService idle, no shader-sibling captures,
+only ambient WindowServer) and the suite ran from a fresh worktree
+build at `77c408e` (post-containment code, worktree-isolated target;
+commit `77c408e`'s library is bit-identical to `8f138f3`'s — the
+intermediate commit touched only harness files):
+
+- **16/20 parallel red + 5/5 serialized red on a QUIET GPU.** The
+  opposite of the expected all-green. Cross-process GPU contention is
+  REFUTED as the primary class.
+- The reds' signature differed from the flake prose in one load-bearing
+  way: DETERMINISTIC values per batch (`matmul_heads 9.8192e0`,
+  `attn slide 37x4 w4 6.7278e-1`, identical across fresh processes),
+  always the same small set of arms per batch — a race does not do
+  that; a reproducible wrong computation does.
+- G5 parity stayed GREEN (2/2, 10.2 s) on the same binary throughout —
+  the full 88-forward model parity passes while the smoke's tiny-shape
+  arms diverge. G5 begins a pass per layer; the smoke did not.
+- Alone-vs-suite: each failing test PASSES alone in a fresh process and
+  REDS in-suite — the divergence needs the process context, not the
+  test.
+- **The trace smoking gun** (`LAYA_METAL_TRACE=1`): in a red round,
+  `matmul_kt` uploaded ONE of its two inputs (the `k` upload MISSING —
+  a silent chain-cache HIT); the green round uploaded both. A silent
+  hit serves the STALE device buffer keyed by the colliding `(ptr,
+  len, epoch)` — a DST slot from an earlier arm holds the previous
+  arm's device OUTPUT, so the op reads garbage at full scale
+  (max 2.66e1 at scale 2.57e1).
+
+**Root cause:** `chain_buf`/`chain_slot_for` key device slots by
+`(ptr, len, epoch)`; the epoch moves ONLY inside `begin_pass`
+(`metal.rs:1251`). The backend's own doc states the contract — host
+buffers are rebuilt per forward "often at recycled heap addresses with
+fresh contents — so last pass's keys must never hit" — and the forward
+honors it (`agent.rs:190`). The smoke called ops STANDALONE, never
+beginning a pass: epoch 0 forever, the key set grew across a test's
+~50 arm allocations, and any arm whose input Vec recycled an earlier
+arm's freed DST address silently read the wrong buffer. Whether a
+collision fires is a PER-PROCESS HEAP-LAYOUT LOTTERY — which alone
+reproduces every one of obs 1–7: a different op each run, deterministic
+values within a session (stable layout per binary+env),
+alone-passes/in-suite-reds, serialized reds, the 1/18-then-10/10 post-
+lock parallel record, the 07:33 7/7 green (that binary+env's layouts
+dodged the collisions), and obs 7's simultaneous two-binary red (both
+layouts collided that round). **It was never GPU contention, never
+shader-compile, never the driver — the quiet-window "confounder" WAS
+the finding.**
+
+**Fix (`a3215da`):** `m.begin_pass()` at each arm boundary in the
+smoke (fresh-fixture blocks + fused shape iterations); the two
+composed chains begin ONE pass at their start and compose
+device-side within it, exactly like a forward. Post-fix: 30/30
+parallel + 15/15 serialized green in the same window, epochs 1–13+
+visible in the trace. The containment section's decision rule ("a
+parallel red AFTER in-process isolation is evidence the class is
+cross-process") is RETIRED — a red after that lock is evidence of an
+epoch-contract violation in the caller; check the trace for the
+missing-upload signature first. The `weights` cache keeps its own
+permanent `(ptr, len)` map with NO epoch defense — deliberate for
+agent-lifetime weights, and the smoke's weight lens are distinct per
+arm today, but any future op-level consumer that passes recycled
+same-len slices as weights re-opens this class one layer over; the
+contract note in the module doc covers it.
 
 Session: m3, 2026-09-24, commits `a51ea42`/`9ed1211` (the observations
 were collected during that work; the kernel changes themselves are
