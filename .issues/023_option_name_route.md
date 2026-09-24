@@ -68,7 +68,8 @@ the legacy `k == N` index rule, unchanged. `false` is the pre-023 posture.
   modelless-only post-023 re-run on BOTH hosts, published together (the 018
   drift-refusal gate refuses a one-host move) — plan recorded in Issue 018
   § "Pre-023 binary".
-- [ ] T6 — re-read Bench 005's pair-head A/B under the fix
+- [x] T6 — DONE (Bench 005 Addendum: refutation STANDS, banking77 net 0,
+  massive arms nothing). Re-read Bench 005's pair-head A/B under the fix
   (`--skip-laya --pair-head-ab --suites banking77,massive_intent_en`). Its
   heads are armed from CAL-slice confusion, and banking77's CAL slice was
   the misaligned one, so Bench 005's correction (which voids massive

@@ -116,9 +116,9 @@ cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --ca
 # and --pair-head-ab, the fitted pair-head A/B (diagonal-LDA heads armed from
 # CAL-slice confusion, both firing gates). REFUTED as an accuracy lever
 # (global net ≈ −19 questions, no GOAT cell); the instruments stay,
-# report-only, default posture byte-identical. ⚠ Measured pre-Issue-023:
-# massive's rows are void and banking77's heads were armed from a
-# misaligned CAL slice — re-read owed (Issue 023 T6).
+# report-only, default posture byte-identical. Re-read post-Issue-023
+# (Bench 005 Addendum): the refutation STANDS — banking77 net 0, massive's
+# errors too spread to arm a pair.
 cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairhead_ab
 
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb

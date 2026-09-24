@@ -131,3 +131,33 @@ by that clustering; disclosed, not tuned around.
   `select_pairs`, `ArmedPair` / `PairHeadAb` / `PairSubsetRow` records,
   module tests (selection order/floor, separable-signal fit, the
   NaN-floor canary that caught the zero-variance defect before any run).
+
+## Addendum (2026-09-24, Issue 023 T6) — re-read under the fix: the refutation STANDS
+
+Re-run post-023 (riir-reflex `a21ed07` + the `d02f3a8` engine fix;
+katgpt-rs `e48ca088b`, riir-infer `0121a3b`), `harness --skip-laya
+--pair-head-ab`, all 14 suites, M3, 14.5 s wall. Accuracy is deterministic,
+so load does not bear on these rows. The question was whether the misaligned
+banking77 CAL slice (heads are armed from CAL-slice confusion) and the
+disabled massive centroid term had hidden a pair-head gain.
+
+| suite | top2 net (overrides) | pred net (overrides) | vs this bench |
+|---|---|---|---|
+| typed_decisions | −6 (1131) | −5 (1288) | identical |
+| ag_news | −9 (184) | −13 (400) | identical |
+| emotion | −36 (356) | +7 (396) | identical |
+| sst5 | −9 (396) | +4 (485) | identical |
+| xnli_en | −1 (300) | −10 (300) | identical |
+| banking77 | 0 (0) | 0 (5) | pred now fires 5×, net 0 |
+| massive_intent_en | 0 (0 armed) | 0 (0 armed) | nothing to arm |
+| code_fixtures | 0 (10) | 0 (11) | net 0 |
+
+- **banking77:** the re-aligned CAL slice arms 2 pairs; `top2` never fires
+  and `pred` fires 5 times without changing a single answer's correctness.
+  Its errors stay the "card linking" sink (top pair 9.0% of 277 errors).
+- **massive_intent_en:** with the centroid term live, its 93 errors are
+  **spread** (top pair 5 = 5.4%), so no CAL pair reaches the ≥ 8 support
+  floor and the A/B arms nothing — lever 3 has no surface there.
+- Global net top2 **−61**, pred **−17** questions, no GOAT cell anywhere.
+  **Lever 3 stays REFUTED on the fixed lane**; the instruments stay
+  report-only.
