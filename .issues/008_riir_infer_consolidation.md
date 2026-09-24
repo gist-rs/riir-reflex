@@ -13,7 +13,7 @@
 slice 1 LANDED 2026-09-23** (see tasks below; plan: riir-ai
 `.plans/610_riir_infer_gpu_carve_slice1.md`). Remaining: P2/T4 (encoder move — **UNBLOCKED 2026-09-24**: the harness
 sibling WIP landed, worktree clean; the old WAITING note was stale —
-Claude verdict r1), **S6b landed 2026-09-24 at honest scope (the edge-drop franchise owner-gated on the training-families home; 12/81 mirrors measured)**, S7 (plan 610), P5/T7 (gated on T4). P4/T6 is
+Claude verdict r1), **S6b landed 2026-09-24 at honest scope (the edge-drop franchise owner-gated on the training-families home; 12/81 mirrors measured)**, **S7 landed 2026-09-24 (riir-ai `498b1732b9` — dead riir-gpu-async row removed; riir-router measured NOT dead; flip residue complete by compilation)**, P5/T7 (gated on T4). P4/T6 is
 DONE (task row below). Owner directive 2026-09-22: *"file issue to
 check about
 metal lane against riir-ai, we maybe separate around that (riir-infer-core)
