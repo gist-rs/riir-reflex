@@ -45,6 +45,7 @@ use crate::engine::{
     Scratch, recommend_fused_gate,
 };
 use crate::harness::families::SynthData;
+use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
 use crate::harness::metrics::{
     CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, conformal_naive_floor, confusion_top,
     ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics,
@@ -522,6 +523,10 @@ pub struct LaneResult {
     pub latency_p50_ms: f64,
     pub latency_p99_ms: f64,
     pub latency_tail_support: usize,
+    /// First / max / argmax-case of the per-case samples (Issue 020 T8) —
+    /// the p99 is the MAX whenever tail support is 1, and this says which
+    /// case it was (case 0 = the cold-start reading). `None` on an empty lane.
+    pub latency_extremes: Option<LatencyExtremes>,
     /// Repeat-run bit-identity check (first 10 cases answered twice).
     pub determinism_ok: Option<bool>,
     pub seconds: f64,
@@ -1207,6 +1212,7 @@ struct Latency {
     p50_ms: f64,
     p99_ms: f64,
     tail_support: usize,
+    extremes: Option<LatencyExtremes>,
     determinism_ok: Option<bool>,
 }
 
@@ -1314,6 +1320,7 @@ fn eval_engine<const N: usize>(
             p50_ms: p50 as f64 / 1000.0,
             p99_ms: p99 as f64 / 1000.0,
             tail_support: support,
+            extremes: LatencyExtremes::of(&durs_us, 1000.0),
             determinism_ok,
         },
     ))
@@ -1591,6 +1598,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
                 p50_ms: 0.0,
                 p99_ms: 0.0,
                 tail_support: 0,
+                extremes: None,
                 determinism_ok: None,
             },
         )
@@ -1783,6 +1791,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         latency_p50_ms: lat.p50_ms,
         latency_p99_ms: lat.p99_ms,
         latency_tail_support: lat.tail_support,
+        latency_extremes: lat.extremes,
         determinism_ok: lat.determinism_ok,
         seconds: t_start.elapsed().as_secs_f64(),
         n_cases: suite.cases.len(),
@@ -2069,6 +2078,7 @@ fn assemble_laya_lane_result(
         latency_p50_ms: p50 as f64,
         latency_p99_ms: p99 as f64,
         latency_tail_support: support,
+        latency_extremes: LatencyExtremes::of(&durs_ms, 1.0),
         determinism_ok,
         seconds,
         n_cases: cases.len(),
@@ -2973,7 +2983,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 s.push_str("|---|---|---|---|---|---|---|---|\n");
                 for r in suite.laya.values() {
                     s.push_str(&format!(
-                        "| {} · {} | {} | {} | {} | {} | {:.1} ms | {:.1} ms ({}) | {} |\n",
+                        "| {} · {} | {} | {} | {} | {} | {:.1} ms | {} | {} |\n",
                         r.lane,
                         r.model,
                         r.hard.n,
@@ -2981,8 +2991,12 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                         fmt4(r.hard.ece),
                         fmt_opt(r.readout_ece),
                         r.latency_p50_ms,
-                        r.latency_p99_ms,
-                        r.latency_tail_support,
+                        fmt_p99_cell(
+                            r.latency_p99_ms,
+                            r.latency_tail_support,
+                            r.latency_extremes.as_ref(),
+                            1
+                        ),
                         r.determinism_ok
                             .map_or("—", |ok| if ok { "✓" } else { "✗" }),
                     ));
@@ -2998,7 +3012,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         );
         s.push_str("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n");
         s.push_str(&format!(
-            "| modelless | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2}/{:.2} | {} | {:.3} ms | {:.3} ms ({}) | {} | {} |\n",
+            "| modelless | {} | {} | {} | {} | {} | {} | {} | {} | {} | {:.2}/{:.2} | {} | {:.3} ms | {} | {} | {} |\n",
             m.hard.n,
             fmt4(m.hard.accuracy),
             fmt4(m.hard.macro_f1),
@@ -3014,14 +3028,18 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 .as_ref()
                 .map_or("—".to_string(), |a| fmt4(a.selective_accuracy)),
             m.latency_p50_ms,
-            m.latency_p99_ms,
-            m.latency_tail_support,
+            fmt_p99_cell(
+                m.latency_p99_ms,
+                m.latency_tail_support,
+                m.latency_extremes.as_ref(),
+                3
+            ),
             m.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             fmt_gate_fit(m),
         ));
         for r in suite.laya.values() {
             s.push_str(&format!(
-                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {:.1} ms ({}) | {} | — |\n",
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
                 r.lane,
                 r.model,
                 r.hard.n,
@@ -3034,8 +3052,12 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 fmt4(r.hard.acc_at_50_coverage),
                 fmt_opt(r.readout_ece),
                 r.latency_p50_ms,
-                r.latency_p99_ms,
-                r.latency_tail_support,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }

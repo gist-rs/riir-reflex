@@ -5,6 +5,8 @@
 // Box-state provenance stamped into every run's meta (Issue 021 T7).
 pub mod box_state;
 pub mod families;
+// Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
+pub mod latency;
 pub mod metrics;
 pub mod pair_heads;
 #[cfg(feature = "modelless")]
