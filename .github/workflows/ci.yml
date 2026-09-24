@@ -1,8 +1,11 @@
 name: ci
 
+# PUSH trigger is MAIN-ONLY + manual dispatch (owner call 2026-09-24, the
+# katgpt-rs 2026-09-09 convention): day-to-day work lands on `develop` with
+# NO CI; run the gates locally, or dispatch this workflow by hand.
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   workflow_dispatch:
 
 env:
