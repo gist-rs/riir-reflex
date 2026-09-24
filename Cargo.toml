@@ -103,6 +103,15 @@ corpus_db = ["dep:blake3"]
 # A REPORT, not a runtime primitive: opt-in, zero deps, native-only, never
 # in the release set. Its G1 oracle is `scripts/slice_leak_probe.py`.
 slice_leak = []
+# Issue 019 T1: the CLM comparison lane (`src/lanes/clm.rs`) — the external
+# Apache-2.0 Contrastive-LM reference served over HTTP (`clm-serve` + vLLM
+# pooling), measured in the arena's comparison tables. NEVER a product
+# lane; their stack serves, our Rust measures. Implies the wire vocabulary
+# (no new packages: std HTTP + the in-tree serde_json/preserve_order);
+# default-OFF and never in the release set. The T1 prose-rendering goldens
+# + the T2(b) stub-HTTP wire-shape test live in-module; the determinism
+# pin + the harness column ride T3 (`.issues/027`, the 4090 window).
+clm-lane = ["katgpt-core/decision_wire"]
 
 [[bin]]
 name = "reflex"

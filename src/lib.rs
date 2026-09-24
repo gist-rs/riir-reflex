@@ -90,3 +90,10 @@ pub mod laya;
 /// Ungated: the builders/metrics are pure; the runner degrades loudly when
 /// the `laya-riir` feature (or the datasets/weights) are absent.
 pub mod harness;
+
+/// The comparison-lane adapters (Issue 019): third-party decision engines
+/// measured in the arena's tables over their own wire. Opt-in `clm-lane`
+/// today; the module is empty without it. Their stack serves, our Rust
+/// measures — no new deps either way (std HTTP + the in-tree serde_json).
+#[cfg(feature = "clm-lane")]
+pub mod lanes;
