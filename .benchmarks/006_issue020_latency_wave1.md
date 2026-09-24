@@ -623,7 +623,7 @@ The new summation order moves drift by a few 1e-6 in either direction, still abo
 `metal_ops_smoke` 7/7; clippy `-p riir-infer-laya --features laya-riir-metal
 --all-targets` clean. Probe driver: `006_probes/flash_ab.py`.
 
-## Addendum 6 (2026-09-24 14:45–14:52, Issue 020 T10 rung 3 — LANDED riir-infer `14af99f`)
+## Addendum 6 (2026-09-24 14:43–14:46, Issue 020 T10 rung 3 — LANDED riir-infer `14af99f`)
 
 **One-pass online softmax in `flash_attn`.** The two-pass form's max-only
 pass re-staged every K tile (rope included) and re-ran every score MMA; now
