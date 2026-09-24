@@ -395,7 +395,14 @@ wiring.
         owner-gated. Remaining in this campaign: T4 (encoder move) +
         T7 (op-layer unification).
 - [ ] **T7** Op-layer unification (P5): A/B vs the chart numbers, G5 both
-      postures, delete the duplicate.
+      postures, delete the duplicate. **SEQUENCING CALL 2026-09-24 (this
+      session): deferred behind reflex issue 020 T5** — the T5 batched
+      forward (riir-infer `da30007`) landed first because S8/T7's A/B would
+      otherwise measure a moving target while 020's measured levers were
+      still landing; T5 is 020's largest remaining lever, owner-directed,
+      and was ungated. Nothing of S8/T7 landed. Re-open after 020's
+      publishable batched-vs-loop A/B (Bench 006 Addendum 7) settles the
+      numbers this A/B compares against.
 
 ## P3 progress (the GPU kernel migration — executing in slices, plan:
 ## riir-ai `.plans/610_riir_infer_gpu_carve_slice1.md`)
