@@ -61,6 +61,82 @@ answers), so a windows run's value is NOT accuracy cross-checking — it is:
 - The site repo (`../reflex-site`) is the ONLY place bench.json is written;
   this repo carries only results.json + the sanitizer change.
 
+## Session coordination (2026-09-24 ~11:30, two agents on this box — read before doing anything)
+
+A full 4090 run is LIVE (PID-visible, started 11:16:35,
+`--out .benchmarks/018_4090windows_run`, binary built at HEAD post-laya-move
+WITH the host_label change). Status of the supporting work:
+
+- **Datasets: FETCHED CLEAN** (rc=0, ~356 files; the 429-wall retry loop
+  finished xnli ~11:20 — the runner loads suites lazily so the 11:16 launch
+  is not compromised). Verify with `.raw/verify_datasets.py` (blake3 vs
+  the manifest).
+- **`REFLEX_BENCH_HOST=4090-windows` is REQUIRED on the run** (landed
+  `ba13bcf`): the bench-site merge keys rows by host and the site's
+  provenance row must read `4090-windows`, not this box's uname. ⚠ The live
+  run was launched WITHOUT the env visible in its command line — if its
+  results.json lands with `host: "shikuwa"`, that run's meta is
+  mislabeled for the merge; re-run with the env rather than hand-editing
+  results.json (a hand-edited provenance field is a defect by definition).
+- **T5 assets are READY in `.raw/`** (this box, shared):
+  `publish_bench_new.py` (multi-host merge + modelless-drift REFUSAL gate +
+  population guard) and `bench_index_new.html` (renders `meta.hosts` +
+  per-suite `extra_host_lanes` rows). Primary input = the site's current
+  `data/bench.json` (the m3@77c408e record — the raw 77c408e results.json
+  was never committed; the sanitizer's transforms are idempotent on it).
+- **T7 assets**: `.raw/compare_hosts.py` (modelless bit-identity, skips
+  population-mismatched suites) + the `77c408e` worktree at
+  `../riir-reflex.w018` (datasets copied in; modelless-only build ready).
+  MEASURED already: 77c408e vs HEAD are modelless-identical on the five
+  comparable family suites on this box; **`code_fixtures` is
+  repo-tree-relative at runtime** (harvests fn spans from this repo's own
+  sources — 28 questions @77c408e vs 24 post-laya-move) and is EXCLUDED
+  from cross-host merge by the population guard, never compared.
+- **Do not run anything CPU-heavy while the live run's laya rows are in
+  flight** (the serialization discipline cuts both ways). The worktree
+  modelless run (~3 min) waits for the live run to exit.
+
+### Collision disclosure (2026-09-24 ~12:1x, session `katgpt-rs-4090-b` — appended by the second agent, facts only)
+
+A DUPLICATE full harness run existed on this box for a ~10–40 min window,
+  overlapping the live run — disclosed here so the live run's owners can
+  judge its latency columns:
+
+- The live run (PID 105348, started 11:16:35 via `bench_018.bat`, which DOES
+  `set REFLEX_BENCH_HOST=4090-windows` — the stale env warning above is
+  resolved by that fact) was joined at ~11:27 by a second harness run this
+  session launched before reading this coordination section (the collision
+  the section was written to prevent — the second agent's fault, recorded
+  here for the latency record). The duplicate was last confirmed alive at
+  ~11:36 and was gone by ~12:05 with no panic output in its redirected
+  stderr and no results (kill source unobserved; OOM under two concurrent
+  laya worksets is equally consistent with the evidence). Its artifacts
+  (`.benchmarks/018_4090_windows_run/`) are REMOVED — nothing of it survives.
+- **Exposure window on the live run's numbers:** the duplicate's CPU overlap
+  ran ~11:27 → no later than ~12:05 — inside the live run's FIRST suite
+  (typed_decisions laya forwards; the live run's typed modelless rows ran
+  11:16–11:2x, clean of the duplicate). Both processes held ~1.5–1.7 GB RSS
+  with 8–16 worker threads each on 24 logical CPUs — moderate contention,
+  not saturation; the duplicate's own contended typed modelless reading was
+  +2% vs the M3 cell (0.481 vs 0.472 ms), which bounds the likely inflation
+  class. **Accuracies are unaffected** (deterministic; the duplicate's typed
+  modelless accuracy was bit-identical to the M3 cell, 0.319). If the live
+  run's typed_decisions LAYA p50s look anomalous at completion against the
+  other suites' CPU-posture scaling, the honest remedies are a disclosed
+  publish or a full re-run — never a hand-trimmed number.
+- This session's other 018 work, for the record: the windows python
+  resolution rider on `scripts/fetch_datasets.sh` (committed `24acf56`,
+  pushed — the Store-stub `python3` trap, `py -3` fallback, no-op when jq
+  exists); duplicate T5/T7 assets (a competing publisher/page design and a
+  dataset verifier) were built and then DISCARDED in favor of the landed
+  `3d86b84` site state; the deploy wall was independently confirmed
+  (wrangler wants Node ≥22, this box has v20.20.0, and no CF token exists
+  here — `.raw/wrangler_probe.txt` agrees).
+- **Handoff:** the completion lane (verify `meta.host`, publish via the
+  site's `publish_bench.py` with the site's current bench.json as primary,
+  commit reflex artifacts, record the deploy handoff) is taken by this
+  session; the live run is NOT to be re-launched by anyone while it lives.
+
 ## Out of scope
 
 - The ANE device rows (Plan 002, M3-only, sequenced first by the owner).
