@@ -126,7 +126,7 @@ already closed with records only in git history.
 - **Issue 011 — the lanes + flappy heads join the serve lane** CLOSED
   (`d1eda08`). Both boards left the abstain list at their published
   anchors, acceptance met in `tests/game_heads_serve.rs`:
-  - **lanes** — Bench 880's lossless decoded arm served at λ 0.01,
+  - **lanes** — katgpt-rs Bench 880's lossless decoded arm served at λ 0.01,
     in-corpus 84/100, head digest `7d3f1d8e…09d34` FULL (matches the
     published pin; the decoded arm is exactly lossless so the digest IS
     the structured arm's). Protocol: the JOINED-STATE path (011's option
@@ -135,7 +135,7 @@ already closed with records only in git history.
     answer i = lane i's P(safe); the lane-name fill must equal the line's
     position (a swapped turn refuses). Modelless lane only — the laya
     lane's measured per-option shape is site-side and untouched.
-  - **flappy** — Bench 882's v3 decoded arm served at λ 1, in-corpus
+  - **flappy** — katgpt-rs Bench 882's v3 decoded arm served at λ 1, in-corpus
     96/100, FULL head digest `c93d36dc…e3c5` (the family's strongest
     anchor, exact match). Protocol: state = the state context sentence +
     the option sentence (two lines), one noul question, per-option
@@ -150,7 +150,7 @@ already closed with records only in git history.
   - **Measured en route**: the fixtures' `features` column carries the
     STRUCTURED TRUE geometry; the reconstruction lawfully collapses the
     documented tails (post_rel at ±(h+1); |pre_rel| ≥ 2 clamped) — which
-    is exactly why Bench 882 pins TWO digests (`dc6bcf73…` structured,
+    is exactly why katgpt-rs Bench 882 pins TWO digests (`dc6bcf73…` structured,
     `c93d36dc…` decoded) at ONE 96/100 agreement. The lanes decoded ==
     structured per-row cross-check (881's losslessness) is kept in the
     parse; a flappy equality check would be wrong by design and is
@@ -189,7 +189,7 @@ already closed with records only in git history.
   header side deliberately unpinned — it moves when `.issues/011`'s
   engine-side serving lands). Dispatch deduped: `engine_decide` shared by
   the raw path and the head's fall-through, `json_error` the one refusal
-  shape. Unblocks reflex-site's 3-board arena layout (Plan 607 roadmap).
+  shape. Unblocks reflex-site's 3-board arena layout (katgpt-rs Plan 607 roadmap).
   Files: `src/serve.rs`, `tests/serve_lanes.rs` (+2 pins),
   `tests/engine_gates.rs` (healthz body re-pinned).
 
@@ -434,7 +434,7 @@ already closed with records only in git history.
   build-sharing.
 
 - **Issue 001 — undeclared crates.io deps (missing BOUNDARY rows)** CLOSED
-  at `8e58cc5`; the rows landed in the same window as the Plan 603 T1.4
+  at `8e58cc5`; the rows landed in the same window as the katgpt-rs Plan 603 T1.4
   verdict-review closures (`1ef3e8e`).
 
 - **Issue 009 — the threshold-recommendation surface (the jimothy steal)**

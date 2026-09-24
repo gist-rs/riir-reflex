@@ -94,7 +94,7 @@ cargo test --release --features laya-riir --lib --test laya_riir_parity   # the 
 cargo run --release --features laya-riir --example laya_fixture_timing -- riir english 3
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_fixture_timing -- riir english 3
 
-# The Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
+# The katgpt-rs Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
 
@@ -145,7 +145,7 @@ cargo test --features corpus_db --lib corpus_db -- --nocapture  # wire pins; the
   flash-path bookkeeping only) — getting either wrong showed up as
   length-correlated drift 4 orders of magnitude over the gate.
 
-## Phase 2 status (Plan 606) — LANDED 2026-09-22 (site live on reflex.gist.rs; full 5-target release matrix)
+## Phase 2 status (katgpt-rs Plan 606) — LANDED 2026-09-22 (site live on reflex.gist.rs; full 5-target release matrix)
 
 Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_site_distribution.md`):
 
@@ -165,9 +165,9 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   archives carry `reflex`; the installers accept BOTH spellings (pre-v0.2.2 pins keep
   installing `riir-reflex`), both paths live-verified.
 - **v0.2.3 live (2026-09-24)** — the THREE-BOARD release (issue 011 closed): lanes serve
-  at Bench 880's lossless decoded arm (λ 0.01, in-corpus 84/100, head digest prefix
-  `7d3f1d8e` — Bench 880 published only the prefix; the decoded arm is digest-identical
-  to the structured arm per Bench 881) and flappy at Bench 882's v3 decoded arm (λ 1,
+  at katgpt-rs Bench 880's lossless decoded arm (λ 0.01, in-corpus 84/100, head digest prefix
+  `7d3f1d8e` — katgpt-rs Bench 880 published only the prefix; the decoded arm is digest-identical
+  to the structured arm per katgpt-rs Bench 881) and flappy at katgpt-rs Bench 882's v3 decoded arm (λ 1,
   in-corpus 96/100, FULL digest `c93d36dc…e3c5`) beside the v0.2.2 Tetris head. Joined-state
   protocol: the sentence sequence rides the `state` field one per line (`noul` questions
   carry no options by wire law); request shapes in README. Release surface: GitHub release
@@ -187,7 +187,7 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   mimicked GPU flake; never contention, never the driver; obs 4's serialized red is this
   class, and G5 stayed green throughout because forwards begin a pass per layer).
 - **v0.2.2 live (2026-09-23)** — the fitted game head + Metal-default laya (Plan 001,
-  `.plans/001_game_head_serving.md`): the modelless lane answers Plan 607's Tetris spot
+  `.plans/001_game_head_serving.md`): the modelless lane answers katgpt-rs Plan 607's Tetris spot
   question from the decoded Bench-881 head (λ=1, 44/120 in+LOO anchors pinned in
   `tests/game_heads_serve.rs`; head digest `00aa6221…c6e`), boot-fitted from the verbatim
   BLAKE3-pinned fixture copy (`assets/game_heads/`); the serve edge tries the head before
@@ -221,7 +221,7 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   (sanitizes machine-local meta; the raw results.json carries `/Users/...` paths that
   must never reach the site).
 
-## Phase 1 status (Plan 603) — COMPLETE 2026-09-22
+## Phase 1 status (katgpt-rs Plan 603) — COMPLETE 2026-09-22
 
 T1.1–T1.8 all landed. The last two:
 
@@ -282,7 +282,7 @@ T1.1–T1.8 all landed. The last two:
 
 The candle reference lane (`laya` / `laya-metal` / `candle-metal` features,
 `src/laya/{agent,encoder,head}.rs`, `tests/laya_parity.rs`) is deleted. It
-birthed the goldens (Plan 603 T1.4) and took the last candle workload in
+birthed the goldens (katgpt-rs Plan 603 T1.4) and took the last candle workload in
 repo history — the 005 T5 same-session three-way chart — then died. The
 frozen captures in `tests/fixtures/` ARE the reference now; the riir lane's
 G5 gate replays against them (candle-independent, verified at the removal).
