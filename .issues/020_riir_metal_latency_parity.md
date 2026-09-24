@@ -1,0 +1,251 @@
+# Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
+
+**Status:** OPEN — **waves 1–2 LANDED and measured** ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md));
+Class B (the first-forward cliff) is **closed** at −63…−67%, Class A is
+**partially** closed at −8% end-to-end / −2…−23% at the GEMM, and its largest
+remaining lever (T5, per-case question batching) is now IDENTIFIED from the
+reference's own source. Filed 2026-09-24 from the published arena table
+(`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
+Owner directive in-session: *"rust slower than python in p99 and other case
+… make rust faster as it should in all cost."* Two independent causes are
+already measured apart; the fix waves are T1–T4 below.
+
+## The finding — where the published table loses
+
+Both lanes answer byte-identical cases; `english` is the riir Metal lane,
+`py/english` the ORIGINAL torch MPS reference run as a subprocess oracle.
+Rust-slower cells, published run:
+
+| suite | n cases | rust p50 | py p50 | Δp50 | rust p99 | py p99 | Δp99 | tail support |
+|---|---|---|---|---|---|---|---|---|
+| typed_decisions (typed) | 400 | 457 | 369 | **+23.8%** | 820 | 749 | **+9.5%** | 5 |
+| typed_decisions (english) | 400 | 421 | 353 | **+19.3%** | 678 | 618 | **+9.7%** | 5 |
+| typed_decisions (multiling.) | 400 | 211 | 153 | **+37.9%** | 375 | 320 | **+17.2%** | 5 |
+| massive_intent_en | 300 | 63 | 51 | **+23.5%** | 129 | 98 | **+31.6%** | 4 |
+| code_fixtures | 14 | 147 | 125 | **+17.6%** | 350 | 235 | **+48.9%** | 1 |
+| sst5 | 600 | 34 | 29 | **+17.2%** | 44 | 70 | −37.1% | 7 |
+| banking77 | 500 | 90 | 84 | **+7.1%** | 116 | 162 | −28.4% | 6 |
+| xnli_en | 300 | 37 | 35 | **+5.7%** | 54 | 87 | −37.9% | 4 |
+| ag_news | 400 | 38 | 37 | **+2.7%** | 64 | 98 | −34.7% | 5 |
+| harness_sensitivity | 15 | 37 | 45 | −17.8% | 243 | 125 | **+94.4%** | 1 |
+| harness_tool_fit | 12 | 27 | 68 | −60.3% | 270 | 152 | **+77.6%** | 1 |
+| harness_routing | 16 | 38 | 52 | −26.9% | 204 | 153 | **+33.3%** | 1 |
+| harness_permissions | 12 | 25 | 38 | −34.2% | 162 | 129 | **+25.6%** | 1 |
+| harness_cache_reuse | 12 | 36 | 56 | −35.7% | 156 | 153 | **+2.0%** | 1 |
+
+⛔ **The two columns are TWO DIFFERENT DEFECTS and pooling them is the trap.**
+Read the `tail support` column (this workspace's own
+`percentile_index_audit` rule: at p99, `n ≤ 100` ⇒ the reported index lands
+on `n − 1` = the **MAX**):
+
+- **Class A — steady-state p50 on mid/long sequences.** `tail support ≥ 4`,
+  so the p50 is a real median over ≥ 300 cases. rust loses 2.7–37.9%. This
+  is the kernel/dispatch cost and it is the harder half.
+- **Class B — the FIRST FORWARD.** Every `tail support = 1` row is a
+  12–16-case suite whose "p99" IS its maximum, and the maximum is case 0.
+  rust's cold call is **5–10×** its own median (270/27, 243/37, 204/38,
+  186/26); the python oracle's is **2–3×**. That ratio gap is not noise —
+  it is a structural asymmetry, named in T1.
+
+## Root cause, Class B — rust pays the device residency on the timed call
+
+`scripts/laya_python_lane.py:91` does `laya.load(shim, device=device)` and
+only THEN prints `{"ready": true}` — torch moves the whole model to MPS
+**before the handshake**, i.e. **outside** `run_laya_python_checkpoint`'s
+per-case timer (`src/harness/runner.rs:2196`).
+
+`RiirAgent::load` (`src/laya/riir/agent.rs:114-150`) builds the backend and
+leaves every weight in a host `Vec<f32>`. The device copy happens lazily in
+`Metal::weight_buf` (`src/laya/riir/metal.rs:1172-1181`) on first use — i.e.
+**inside the first `system_one`**, which the harness times
+(`src/harness/runner.rs:2143`). English geometry (`d=1024`, 28 encoder
+layers, `I=2624`, 2 head layers) is ≈ **0.5 GB of f32 projections** uploaded
+as ~120 separate `newBufferWithBytes` allocations on the critical path of
+request #1.
+
+Neither lane warms up. The asymmetry is not the harness's fairness — it is
+**ours**: the served binary has the same first-request cliff, so this is a
+product defect that the bench merely reveals.
+
+Second Class-B contributor: the MSL library is compiled **from source at
+every process start** (`src/laya/riir/metal.rs:1121-1126`,
+`new_library_with_source` over ~830 lines incl. `<metal_simdgroup_matrix>`),
+with no `.metallib` and no `build.rs` shader step.
+
+## Root cause, Class A — per-forward waste the geometry does not need
+
+Measured from the hot-path map at the english geometry, `seq ≈ 317`:
+
+1. **~341 GPU dispatches per forward, each in its OWN
+   `MTLComputeCommandEncoder`** (`metal.rs:1303-1334`): 341
+   `new_compute_command_encoder()` + `end_encoding()` pairs. A default
+   compute encoder is `MTLDispatchTypeSerial` — dispatches inside ONE
+   encoder already run in order with implicit barriers — so the per-op
+   encoder is pure driver overhead with identical semantics.
+2. **The rope tables recompute `powf` inside the position loop**
+   (`src/laya/riir/ops.rs:717-728`): `inv` depends only on `j`, yet it is
+   evaluated `seq × half` times. At `seq=317, hd=64` that is **~10 144
+   `powf` per table, up to 2 tables per forward**, on the critical path
+   between layer 0's Wqkv and its attention.
+3. **A `seq²` mask is built every forward and DISCARDED by the flash path**
+   (`encoder.rs:202-214` builds `vec![f32::MIN; seq*seq]` ≈ 402 KB + an
+   `O(seq·2·window)` fill; `metal.rs:1661` is literally `let _ = mask;`).
+4. **Per-dispatch heap churn**: a `Vec` per `run`/`run_rows` call
+   (`metal.rs:1360`, `metal.rs:1433` — ~250 of the 341 dispatches), a
+   `HashMap<&str, _>` string-hash pipeline lookup plus an ObjC
+   `thread_execution_width()` property fetch per dispatch
+   (`metal.rs:1354-1358`, `1394-1397`, `1429-1432`, `1486-1489`).
+5. **Every activation buffer is freed and re-allocated per forward** —
+   `begin_pass_impl` clears the chain cache (`metal.rs:1252`) and the host
+   scratch is rebuilt (`encoder.rs:193`, `head.rs:172-208`: ~12 `Vec`s ≈
+   24 MB per head layer).
+6. **`matmul_w` always takes the UNCOALESCED staging branch**: the weight is
+   bound as `Wᵀ` via `b_rs=1, b_cs=k` (`metal.rs:1578-1585`), so consecutive
+   lanes read `k`-strided (4 KB apart) — `metal.rs:345/462/599`. The
+   module's own BK=48 negative (`metal.rs:110-113`) already attributes the
+   wide instance's binding cost to this gather.
+7. **`ln_rows` runs one simdgroup (32 threads) per row** (`metal.rs:1440`)
+   — at `d=1024` that is 1/32 occupancy across **62 dispatches/forward**.
+8. **The head materializes the full `seq²` scores tensor** (`head.rs:188`,
+   6.4 MB × 2 layers) although `hd == 64` makes it `flash_attn`-eligible
+   modulo rope.
+9. **Three syncs per forward** (`head.rs:231`, `:253`, `:265`) where two
+   would do — the logits and the CLS row are both device-resident before
+   the first one.
+
+## Confounder recorded, NOT yet resolved
+
+An isolated single-suite re-run of `massive_intent_en` on this box measured
+rust **p50 43.0 / p99 52.0 ms** (tail support 4) — i.e. **beating the
+published python 51/98 on BOTH** — against the published rust 63/129. The
+published run is one process over 15 suites with 3 checkpoints resident and
+a torch subprocess per suite; the isolated run is a cold process on one
+suite. Until the control run (T0) lands, the published Class-A magnitudes
+are an UPPER BOUND on the real gap, not the gap. **This does not retire any
+T1–T4 item** — every root cause above is a real per-forward cost readable
+from the source, independent of which box state measured it.
+
+⛔ **The lane MOVED mid-issue.** `src/laya/` was carved out to
+`../riir-infer/crates/riir-infer-laya` by the Issue 008 consolidation while
+waves 1–2 were being gated (riir-infer `c6716a4`), which deleted the files
+this issue's fix lives in from THIS repo's working tree. The fix was
+replayed onto the new home against a byte-identical base (all six files
+`shasum`-equal to this repo's pre-carve `HEAD`) and re-gated there; G5
+parity then reported the drift **to the digit** — english 4.016e-6, typed
+9.806e-7, multilingual 3.520e-6 — proving the replay equivalent to what was
+measured here. **The code lives at riir-infer `6c56f04`;** this issue and
+[Bench 006](../.benchmarks/006_issue020_latency_wave1.md) stay here, because
+the losing table they answer is this repo's published arena.
+
+## Results — waves 1–2 (Bench 006)
+
+Position-balanced, paired, with the box load recorded per round. Every gate
+green: G5 metal 88/88 @ agreement 1.000000 / drift ≤ 4.016e-6, G5 CPU 2/2,
+`metal_ops_smoke` 7/7, `scripts/ci_feature_guard.sh` **PASSED (full)**.
+
+- **Class B — CLOSED.** First-forward latency on the five suites whose p99 IS
+  their max: **144→52, 144→47, 143→53, 145→57, 138→51 ms (−63…−67%)**, p50
+  unchanged in all five. All five were LOSING to the python oracle's p99
+  (+25.6…+94.4%); they now beat it by **2.3×–11×**.
+- **Class A — partially.** `massive_intent_en` p50 **−8% median** over four
+  valid paired rounds (−10.4 / −7.0 / −6.0 / −16.7%, NEW ahead in both
+  positions). GEMM kernel **−2…−8%** on the wide/xwide instances and
+  **−19…−24%** on the narrow `k = 2624` instance, bit-identical.
+- **`code_fixtures` is unmoved and that is correct** — its 14 cases vary
+  hugely in length, so its max is the longest CASE, not the cold call. Its
+  published +48.9% p99 loss is Class A, not Class B.
+
+⛔ **T0's answer is a MEASUREMENT DISCIPLINE, not a number.** Three separate
+attempts to measure the published Class-A gap on this box were destroyed by
+sibling load — including one 3-round run that read a confident **+24.6% /
++30.9% REGRESSION** for the arm that, paired and de-loaded, is **−8% faster**.
+The box moved from load 6 to 41.7 mid-experiment. So: the published Class-A
+magnitudes remain an UPPER BOUND measured under unrecorded box state, the
+only defensible quantity on this workstation is a **paired delta with its
+load average beside it**, and an absolute rust-vs-python cell needs a quiet
+box this repo does not currently have.
+
+## Tasks
+
+- [-] **T0 — control run.** DEFERRED, and the deferral is the finding above:
+      a 15-suite single-process control is 20+ minutes, and nothing on this
+      box holds still that long. Re-open when a quiet window exists.
+- [x] **T1 — Class B: kill the first-forward cliff.**
+  - [x] `Backend::warm_weight` / `warm_weight_2d` (default no-op) +
+        `Encoder::warm` / `Head::warm` over exactly the slices that reach a
+        weight-consuming op; called from `RiirAgent::load`.
+  - [-] Precompile the MSL to a `.metallib`. DEFERRED — measured as a
+        process-START cost (`Metal::new`), not a first-REQUEST cost, so it
+        does not touch the p99 class this issue is about. Worth doing for
+        CLI/serve startup; needs an `xcrun metal` build step and a fallback
+        for boxes without the Metal toolchain.
+  - [x] Gate: first-forward-vs-median ratio measured on a fresh agent —
+        **4.1–5.5× before, 1.4–2.0× after** on this box (the published run's
+        ratios reached 10×), i.e. inside the python oracle's own 2–3× band.
+- [x] **T2 — Class A wave 1 (pure waste, bit-identical by construction).**
+  - [x] `inv` hoisted out of `rope_tables`' position loop (`seq·half` →
+        `half` `powf` calls; 10 144 → 32 at the english geometry).
+  - [x] The `seq²` mask is skipped when the backend predicates the window
+        (`Backend::needs_window_mask`, mirroring the fused dispatch's own
+        gate so `LAYA_METAL_FLASH=0` and off-geometry `hd` still get one).
+  - [x] `(pipeline, thread_execution_width)` resolved once into `Kern`; the
+        per-dispatch operand `Vec` replaced by a stack array with an
+        asserted `MAX_RUN_BUFFERS` bound.
+  - [-] Cache the rope tables across forwards. DEFERRED — `seq` differs per
+        question, so the hit rate is low; the `powf` hoist took the cost that
+        mattered.
+- [x] **T3 — Class A wave 2 (structural, semantics-preserving).**
+  - [x] ONE `MTLComputeCommandEncoder` per command buffer instead of ~341
+        create/`endEncoding` pairs per forward (`MTLDispatchTypeSerial`
+        already orders and barriers inside an encoder).
+  - [-] Pool activation buffers + persistent host scratch. DEFERRED to T6 —
+        real (~60 MB of host `Vec`s and ~50 device buffers per forward) but
+        it needs the scratch to outlive the forward, which is a lifetime
+        change through `Encoder`/`Head`, not a local edit.
+  - [x] Collapse sync #1 and #2 — **NOT NEEDED, and the map that proposed it
+        was wrong.** `download_into` calls `sync()`, which drains everything;
+        the second `download_into` then finds nothing pending and is already
+        a bare `copy_out`. Only two of the "three syncs" are real waits.
+- [x] **T4 — Class A wave 3 (kernel), partially.**
+  - [x] Load-time transposed weight copy so `matmul_w` takes the coalesced
+        `b_cs == 1` branch. Bit-identical; device memory unchanged (the
+        untransposed form is never uploaded for a `matmul_w` operand).
+  - [-] Widen `ln_rows` past one simdgroup. DEFERRED — 62 dispatches/forward
+        at 1/32 occupancy is real, but a cross-simdgroup reduction CHANGES
+        THE SUMMATION ORDER, so it is a drift-moving rung that needs its own
+        parity read, not a free win. Sized at ~1.3–3% of the forward.
+  - [-] Route the head's MHA through a rope-free flash variant (removes the
+        only remaining `seq²` tensor, 6.4 MB × 2 layers). DEFERRED.
+- [ ] **T5 — the largest remaining Class-A lever: BATCH a case's questions
+      into ONE forward.** The reference does this and says so —
+      `.raw/laya/laya/agent.py:267` *"Evaluate typed questions across state
+      in a single, parallel forward pass"*, collated at `:291`. Ours runs one
+      forward per question (`agent.rs:224`). The published losses track
+      q/case exactly: `typed_decisions` at 5 q/case loses worst
+      (+19.3/+23.8/+37.9%), `code_fixtures` at 2 q/case +17.6%. It is also
+      where the GPU utilisation is: at `m = seq ≈ 317` the xwide GEMM launches
+      **120 threadgroups for a 40-core GPU**; at `m = 5·seq` it launches 600.
+      Needs a batch dimension with per-sequence masking through encoder +
+      head + attention, and a G5 re-capture — a project, not a rung.
+- [ ] **T6 — per-forward allocation churn.** ~60 MB of host `Vec`s rebuilt
+      per forward (`encoder.rs:193`, `head.rs:172-208`) and every activation
+      device buffer freed by the per-pass chain clear (`metal.rs:1252`).
+- [ ] **T7 — the GEMM itself.** Measured at **3.6–4.9 TFLOP/s**, ~¼ of this
+      GPU's fp32 peak, and **~58% of a banking77 forward** (52.5 ms of ~90 ms).
+      With the coalescing question now ANSWERED (it was not the binding cost
+      — T4a bought only 2–8% on the wide instances, confirming the repo's own
+      BK=48 negative), the untried axes are occupancy (24 960 B of threadgroup
+      memory caps residency), double-buffered staging, and an f16-operand
+      instance behind its own feature flag + G5 re-gate.
+
+## Gates every wave must hold
+
+- **G5 parity green at BOTH postures** (`tests/laya_riir_parity.rs`) — the
+  CPU lane is bit-identical and the Metal lane is ≤ 1e-3 drift / ≥ 99.9%
+  top-1. A latency rung that moves parity is REVERTED, not argued about.
+- `tests/metal_ops_smoke.rs` green (the ragged-shape arms).
+- **Position-balanced A/B** for every timing claim — this repo has already
+  paid for the cold-GPU artifact once (`README.md`: a 95→80 ms reading that
+  was −3% under position balancing). Never publish a first-arm-first number.
+- **Box state recorded with every latency figure** (load average, free RAM),
+  per the AGENTS.md rule.
