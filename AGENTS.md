@@ -134,6 +134,16 @@ cargo test --features corpus_db --lib corpus_db -- --nocapture  # wire pins; the
 # exactly per suite; G2 counts allocations in the warm classify loop.
 # UNSEEN without .raw/datasets; SLICE_LEAK_REQUIRE_DATA=1 makes that a failure.
 cargo test --release --features slice_leak --test slice_leak_oracle -- --nocapture
+
+# The CLM comparison lane (Issue 019, opt-in `clm-lane`): the external
+# Apache-2.0 Contrastive-LM reference served over HTTP (`clm-serve` + vLLM
+# pooling on the 4090 window, `.issues/027`), measured in the arena's
+# comparison tables. Their stack serves, our Rust measures — zero new deps
+# (std HTTP + the in-tree serde_json). The prose-rendering law is
+# byte-pinned to their sha `cca045ff` via scripts/clm_goldens.py (offline
+# one-time helper — no Python at serving time). Default-OFF, never in the
+# release set; the harness column + the determinism pin ride T3.
+cargo test --features clm-lane --lib lanes::  # the law goldens + the stub-HTTP wire pins
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the
