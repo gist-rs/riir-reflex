@@ -98,6 +98,37 @@ The device is Metal on macOS metal builds by default (v0.2.2 — the measured
 ~2× per-forward gain; `LAYA_DEVICE=cpu` opts out, an explicit env value is
 always honored verbatim).
 
+#### The ANE routing tier (opt-in, macOS + `--features laya-riir-ane`)
+
+`RIIR_REFLEX_LAYA_ANE=1` (implies the laya lane) arms the whole-graph Apple
+Neural Engine lane as a routing tier inside the serve edge. The wire gains a
+second spelling and every response's `routing.reason` names the device that
+served it:
+
+- `X-Reflex-Lane: laya` — the AUTO router. The ANE device serves when it is
+  loaded and the request fits its buckets (≤ L128); a request over every
+  bucket is the lane's documented coverage LIMIT (never a compute failure):
+  the default device serves it and the reason records the hop. A non-bucket
+  failure on a device stays on that device and fails the request (`502`) —
+  never a mid-request swap.
+- `X-Reflex-Lane: laya-ane` — EXPLICIT device. ANE only: an over-bucket
+  request answers `422` naming the bucket max (never padded up), and an
+  unavailable ANE answers `503` with the boot note.
+
+Any ANE boot failure (manifest missing, digest-gated download refused,
+compute-plan gate) is a LOUD demotion: the lane still serves on the default
+device, the reason carries the note on every response. Artifacts are
+local-only by design (macOS-only, ~1.3 GB — never in a release archive):
+`LAYA_ANE_ARTIFACTS_DIR` (else `assets/ane/`) must hold the BLAKE3-digest-
+pinned tree produced by the offline `scripts/ane_convert.py`, or set
+`RIIR_REFLEX_ANE_BASE_URL` to an artifact host carrying the
+`<key>.mlpackage/` bundles and the lane fetches-on-first-use — every
+staged download passes the same digest gate the load runs before it
+installs (nothing partial ever loads). The ANE forward is FP16: its
+authority is the decision-level G5-ANE gate (76/76 top-1, near-ties listed
+never hidden), not the Metal lane's 1e-3 p-drift bar — the device is
+ALWAYS disclosed in the reason, never silently substituted.
+
 ### The fitted game heads (Tetris + lanes + flappy, default-on)
 
 The modelless lane answers Plan 607's three game questions from the
