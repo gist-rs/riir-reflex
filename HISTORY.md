@@ -10,6 +10,22 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **Issue 025 — the `laya (python)` lane back on reflex.gist.rs/bench**
+  CLOSED. The page had shown `laya (python) — not run` on every suite. No
+  issue owned it: the lane shipped as Issue 012, but it is opt-in and every
+  run published since then left `--laya-python` off. Fixed by one M3
+  `--laya-python` run (`fda5cf4`, `.benchmarks/025_m3_laya_python/`, a
+  detached worktree at `b2fd694`, quiet-gate autofire). The run took
+  17:51 to 18:12, and all 15 suites came back with python accuracy equal to
+  rust on every suite and checkpoint. The start preflight read load 3.63;
+  the end preflight was rc 1 at load 8.28, so treat the latencies as an
+  upper bound for that window. It was published as an ordered lane-update
+  (reflex-site `2129860`, worker `210a3437`), live-verified byte-identical,
+  and the pairwise modelless drift gate passed. The publisher fix that came
+  with it is reflex-site `20ba115`: a host row's `laya_python_lane` now
+  flips from "off" when an update contributes python lanes. The python
+  oracle stays absent on the 4090 (torch-MPS only) and on m3-ane.
+
 - **Issue 021 CLOSED — the power axis nothing was recording (AC, plug- and
   thermal-gated re-bench of Issue 020).** Filed `e6aff52` on the owner flag
   *"beware thermal and unplug recently, rebench if need"*: `pmset -g log` showed
