@@ -3150,11 +3150,55 @@ fn git_sha() -> Option<String> {
 }
 
 fn hostname() -> String {
-    std::process::Command::new("uname")
+    let env_override = std::env::var("REFLEX_BENCH_HOST").ok();
+    let uname = std::process::Command::new("uname")
         .arg("-n")
         .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "unknown".to_string())
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string());
+    host_label(env_override.as_deref(), uname.as_deref())
+}
+
+/// Resolve the run's host label (Issue 018 T5). `REFLEX_BENCH_HOST`
+/// overrides the machine's `uname -n`: the bench-site merge keys rows by
+/// host, and a uname name is not self-describing there (`shikuwa` says
+/// nothing about silicon or platform; `4090-windows` does). An empty or
+/// whitespace-only override is IGNORED (falls back to uname), never an
+/// empty label — a blank host row would silently corrupt the merge key.
+fn host_label(env_override: Option<&str>, uname: Option<&str>) -> String {
+    match env_override.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(h) => h.to_string(),
+        None => match uname.map(str::trim).filter(|s| !s.is_empty()) {
+            Some(n) => n.to_string(),
+            None => "unknown".to_string(),
+        },
+    }
+}
+
+#[cfg(test)]
+mod host_label_tests {
+    //! Issue 018 T5 — the host-label override law. Pure over its inputs so
+    //! the precedence (override > uname > "unknown") and the blank-guard
+    //! are pinned without touching process env.
+
+    use super::host_label;
+
+    #[test]
+    fn override_wins_over_uname() {
+        assert_eq!(host_label(Some("4090-windows"), Some("shikuwa")), "4090-windows");
+    }
+
+    #[test]
+    fn blank_override_falls_back_to_uname() {
+        assert_eq!(host_label(Some("   "), Some("shikuwa")), "shikuwa");
+        assert_eq!(host_label(Some(""), Some("shikuwa")), "shikuwa");
+    }
+
+    #[test]
+    fn no_inputs_is_unknown_never_empty() {
+        assert_eq!(host_label(None, None), "unknown");
+        assert_eq!(host_label(None, Some("  ")), "unknown");
+    }
 }
 
 #[cfg(test)]
