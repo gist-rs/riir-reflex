@@ -10,6 +10,27 @@ already closed with records only in git history.
 
 ## 2026-09-24
 
+- **CLM distilled — Research 001 filed + Issue 019 (the `clm` comparison lane).**
+  Contrastive-LM/CLM (blog 2026-09-23, Kwok/Ré/Mirhoseini et al.; repo pinned
+  @ `cca045f…`, Apache-2.0, clone deleted after pin) is the first open
+  *contrastive* System One in the Jev lineage (katgpt-rs Research 562→573→576):
+  frozen Qwen3-8B encoder + two ~20M projection heads, bidirectional InfoNCE,
+  served behind the TypeSafe `systemone` wire `decision_wire` already speaks —
+  the cheapest lane the arena can add. Vendor numbers (reference cells until
+  OUR harness re-measures): Jev-parity zero-shot at up to 9× lower latency;
+  DeepSWE 81.6% / Terminal-Bench 2.1 87.6% as best-of-N verifier where Jev
+  sits below pass@1; T-Rex p50 16.5 vs 149.8 ms. Distill verdict YES (A−):
+  the lane (019, Gate-0 owner-gated per the Issue-017 precedent) + the
+  VectorArena disaggregation-cache pattern record + the head-only InfoNCE
+  recipe (≈1 h on a single 4090 at 60M pairs; N* ∝ D^1.02) for the corpus
+  flywheel's specialist path. Divergences held: their softmax-over-cosine and
+  zero-abstention posture NOT adopted (sigmoid-then-L1 + first-class abstain
+  stay); no runtime dep beyond the lane's HTTP adapter. Process note: the
+  first allocation collided with the sibling session's `.issues/018` (filed
+  on origin after this box's sync) — caught by the verdict reviewer pre-commit,
+  renumbered 018→019 after the ff; the dual-allocation gate clears untracked
+  allocations, so `ls .issues/ && git fetch && git log HEAD..origin/develop
+  --name-only` is the real pre-commit check on this class.
 - **Issue 014 — engine.rs local sigmoid delegates to `katgpt_core::exact_sigmoid`**
   CLOSED (substrate-first Mode 2 finding, fixed by the lane owner after the
   X-Reflex-Lane lane went quiet). The local single-branch fn deleted; the two
