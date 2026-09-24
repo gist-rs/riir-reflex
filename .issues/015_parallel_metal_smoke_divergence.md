@@ -88,6 +88,45 @@ pattern is the load-bearing signal, not the test-thread count.)
   (`std::sync::Mutex` around a shared instance, or a
   `serial_test`-style lock) so the flake dies instead of being dodged.
 
+## The containment + what it measured (2026-09-24, same day)
+
+The smoke file now SELF-SERIALIZES: every test body holds a file-wide
+`gpu_lock()` mutex, keeping per-test `Metal::new()` instances (commit
+ref: this commit — `tests/metal_ops_smoke.rs`). Results, in order:
+
+1. **A shared single instance is NOT viable — new measured datum.** The
+   first cut implemented the ask's literal sketch (`Mutex` around ONE
+   shared instance) and diverged **3/7 SERIALIZED** (max 8.2e-2;
+   merge_heads, ops_match, sliding_chain). Cause: the backend's `weights`
+   cache keys device buffers by slice `(ptr, len)` under the
+   agent-lifetime stable-address contract — tests drop scratch Vecs, the
+   allocator recycles addresses, and the shared instance serves a
+   previous test's stale weight buffer for a same-shaped one (the
+   probe-birth chain-cache trap class, one layer up; `chain` has the
+   `gen` defense, `weights` deliberately does not). Per-test instances
+   are therefore LOAD-BEARING, and the lock must wrap test BODIES, not
+   the instance.
+2. **In-process contention is eliminated by construction** — at most one
+   live instance + GPU stream at any time. Serialized: 7/7 (the
+   historical invariant).
+3. **The residual reds are now diagnostic: 1/18 parallel rounds failed
+   with the lock in place** (7/8 first batch, then 10/10; the failing
+   round's op was not captured). Per this issue's own decision rule, a
+   parallel red AFTER in-process isolation is evidence the class is
+   CROSS-PROCESS: `MTLCompilerService` + the riir-shader sibling's
+   browser/GPU captures were active on the box during the batch,
+   matching observations 4 and 7 (cross-process simultaneity on
+   unrelated kernels).
+
+**Updated ask:** the remaining experiment is a QUIET-GPU window — run
+the parallel suite while NO other GPU process is active (shader
+sibling idle, MTLCompilerService quiet). All-green there would pin the
+class to cross-process GPU scheduling/host transients beyond this
+repo's reach (an OS/driver report, not a code fix); a red there would
+re-open in-process hunting with the instance-contention hypothesis
+dead. Until such a window: serialized stays the honest posture, and
+the lock makes parallel runs safe-but-unproven rather than hazardous.
+
 Session: m3, 2026-09-24, commits `a51ea42`/`9ed1211` (the observations
 were collected during that work; the kernel changes themselves are
 exonerated — the diverging ops were untouched by them and everything
@@ -95,4 +134,6 @@ passes serialized). Observations 5–6: m3, 2026-09-24, the flash_attn
 session — observation 6's base-tree worktree run (`a386119`, no flash
 kernel) is the one that exonerates the new kernel explicitly.
 Observation 7: m3, 2026-09-24, the WBK=48 probe session (uncommitted at
-write time) — the simultaneous cross-binary flake.
+write time) — the simultaneous cross-binary flake. Containment + the
+shared-instance finding + the post-lock 1/18 reading: m3, 2026-09-24,
+the site-polish remains session (this commit).

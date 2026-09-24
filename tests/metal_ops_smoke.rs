@@ -3,11 +3,37 @@
 //! green-zero rule honest. The forward G5 gate (`laya_riir_parity`) is the
 //! standing correctness authority; this file pins OP-level equivalence so
 //! a bad kernel is diagnosable without re-deriving it from a red G5.
+//!
+//! Every test holds a file-wide GPU lock for its body (issue 015): the
+//! default parallel runner keeps its threads, but at most ONE live Metal
+//! instance + GPU stream exists at a time — the in-process instance
+//! contention the issue pins as candidate (a). Per-test `Metal::new()` is
+//! DELIBERATE, not a smell: the weights cache keys device buffers by slice
+//! `(ptr, len)` under the agent-lifetime stable-address contract, which a
+//! shared instance would violate across tests whose scratch Vecs recycle
+//! heap addresses (measured 2026-09-24: a shared-instance variant diverged
+//! 3/7 SERIALIZED on recycled-address weight hits — the probe-birth trap
+//! class, one layer up). A parallel red AFTER this change is evidence the
+//! residual class is cross-process (host/driver-level), not in-process.
 
 #![cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
 
+use std::sync::{Mutex, MutexGuard, OnceLock};
+
 use riir_reflex::laya::riir::backend::{Backend, Cpu};
 use riir_reflex::laya::riir::metal::Metal;
+
+/// Serialize test BODIES, never instances: hold the lock, build this
+/// test's own backend, drop both at body end (locals drop in reverse
+/// declaration order, so the instance is fully released before the next
+/// test acquires the lock). Deliberately poison-recovering: one test
+/// panicking must not cascade a poisoned-lock error through the rest.
+fn gpu_lock() -> MutexGuard<'static, ()> {
+    static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
+    LOCK.get_or_init(|| Mutex::new(()))
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 fn lcg() -> impl FnMut() -> f32 {
     let mut s = 0x1234_5678u32;
@@ -47,6 +73,7 @@ fn sync_out(m: &Metal, buf: &[f32]) -> Vec<f32> {
 
 #[test]
 fn metal_ops_match_cpu_op_by_op() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
 
@@ -265,6 +292,7 @@ fn metal_ops_match_cpu_op_by_op() {
 
 #[test]
 fn metal_batched_encode_cost() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let mut x = vec![1.0f32; 100];
     for _ in 0..10 {
@@ -286,6 +314,7 @@ fn metal_batched_encode_cost() {
 
 #[test]
 fn metal_merge_heads_minimal() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (9usize, 4usize, 64usize);
@@ -302,6 +331,7 @@ fn metal_merge_heads_minimal() {
 
 #[test]
 fn metal_attention_chain_matches_cpu() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (9usize, 4usize, 64usize);
@@ -376,6 +406,7 @@ fn metal_attention_chain_matches_cpu() {
 /// row).
 #[test]
 fn metal_fused_attention_matches_cpu_full() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let hd = 64usize;
@@ -409,6 +440,7 @@ fn metal_fused_attention_matches_cpu_full() {
 /// 130 (the english geometry's shape at a small window).
 #[test]
 fn metal_fused_attention_matches_cpu_sliding() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let hd = 64usize;
@@ -450,6 +482,7 @@ fn metal_fused_attention_matches_cpu_sliding() {
 /// broken after the pass fix while typed-decisions went exact.
 #[test]
 fn metal_sliding_window_chain_matches_cpu() {
+    let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (512usize, 16usize, 64usize);
