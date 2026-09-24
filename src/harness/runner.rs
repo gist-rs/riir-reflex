@@ -2797,6 +2797,10 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                     Ok(DeviceKind::Cpu) => {
                         "cpu (LAYA_DEVICE or the no-backend default)".to_string()
                     }
+                    Ok(DeviceKind::Ane) => {
+                        "ane (LAYA_DEVICE=ane — the whole-graph CoreML encoder, Plan 002)"
+                            .to_string()
+                    }
                     Err(e) => format!("unknown ({e})"),
                 }
             }
