@@ -1,6 +1,6 @@
 # AgentJev / System-One positioning — the typed-decision category grew a beat-laya challenger
 
-**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 feasibility spike stays owner-gated — do NOT auto-start.
+**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 spike is DEFERRED by verdict 2026-09-24 (named checkable reopen triggers in-file). A new optional MEASURE-only row (gold-label re-score through their own service) rides the 019 T3 4090 window (`.issues/026`) — do NOT auto-start.
 
 ## Why
 
@@ -49,15 +49,42 @@ calibration gate (G1), game heads, single-binary matrix.
       as the headline), latency table (Laya 41.53 ms faster on short inputs;
       shared-prefix 298.91 ms vs 609.65 unshared), README L174 (33,547 →
       2,551 = 92.4%).
-- [ ] (stretch, owner-gated — do NOT auto-start) lane-3 feasibility spike:
+- [-] (stretch, owner-gated — VERDICT 2026-09-24: DEFER) lane-3 feasibility spike:
       serve `aimeigaoshou/agent-jev` Apache-2.0 safetensors through
       riir-infer as a third lane — Qwen3-0.6B backbone (causal, arch family
       already in our serving stack for the big model) + the 2-layer
       permutation-equivariant set head + shared-prefix KV branching (their
       `jev_service/prefix.py` is the reference; 92.4% token-op reduction at
-      wide loads). Blocked on owner call: does reflex want a model-based
-      accuracy lane beyond laya at all. License: Apache-2.0 weights are
-      compatible with our MIT public surface (attribution required).
+      wide loads). DEFERRED per the standing owner-gated delegation
+      (reviewer verdict `#Verdict: AGREE`, round 1, 2026-09-24): riir-infer
+      has multiple arcs mid-flight (op-layer unification T7, the EXL3
+      trellis lane, the ANE lane) — a backbone port now is maximal
+      collision, and it is a multi-week arc, not a spike; `Lane::Hybrid`
+      needs A lane to sit behind, and laya already fills that seat.
+      **Reopen triggers (checkable):** riir-infer op-layer T7 AND the EXL3
+      trellis lane AND the ANE lane each closed, OR the first production
+      consumer of `Lane::Hybrid` lands. The non-goal stands: no
+      shared-prefix work without a causal decision lane to host it.
+      License: Apache-2.0 weights are compatible with our MIT public
+      surface (attribution required).
+- [ ] (optional, rides the 019 T3 4090 window `.issues/026` — do NOT
+      auto-start) the MEASURE-vs-SERVE split (Gate-0 verdict amendment 4):
+      the data point actually missing is AgentJev's **gold-label** accuracy
+      on our 400-case split — their 79.25% is teacher-argmax agreement, a
+      different protocol from our measured 74.45%. Obtainable the same way
+      019 measures CLM: their Apache-2.0 Python service runs on the 4090,
+      our Rust harness measures over HTTP — no riir-infer port, no
+      collision with the in-flight arcs. **Wire condition RESOLVED at the
+      contract level 2026-09-24** (read at the pinned sha, clone removed):
+      their service is `POST /api/evaluate` (`jev_service/contract.py`),
+      NOT the TypeSafe systemone wire — but the mapping is direct and
+      client-side only: our noul → their `type: boolean` (criteria, or the
+      default `TRUE`/`FALSE`), choice → `type: choice` (options array),
+      score → `type: score` (levels, 2..10 ordered descriptions); response
+      `{results: [{id, answers: […probabilities]}], usage: {wall_ms, …}}`
+      maps into `DecisionResponse` with no server shim. Latency column:
+      record BOTH client round-trip and their `usage.wall_ms` (server-side
+      measure), prefer client round-trip for cross-lane consistency.
 
 ## Non-goals (decided in the research verdict)
 
