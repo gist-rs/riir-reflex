@@ -84,6 +84,16 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
 
+# The corpus-cap levers (Issue 013 lever 1): --corpus-cap N pins every
+# dataset suite's per-label cap (measurement-only); --cal-select-cap [LIST]
+# is the protocol-clean alternative — accuracy per candidate on a
+# label-STRATIFIED slice of the pool region, argmax picked on that slice
+# ONLY (the registry cal slice is label-clustered — 2/4 and 2/32 labels in
+# its first 200 rows, measured), test read once at the selected cap.
+# Bench 004: ag_news default 64 CONFIRMED; banking77 128 promotion REFUSED
+# (the test-split gain did not transfer); default stays 40.
+cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --cal-select-cap
+
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb
 # binary resolves from NDB_BIN, else PATH — build it first:
 #   (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)

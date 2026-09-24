@@ -811,6 +811,114 @@ pub struct TrainDoc {
     pub text: String,
 }
 
+/// The per-row LABEL rule of [`train_docs`] — one rule, two consumers: the
+/// corpus builder and the cap-selection stratification (which must label
+/// rows exactly as the corpora would, or the round-robin buckets the wrong
+/// rows).
+#[must_use]
+pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
+    match suite {
+        "massive_intent_en" => row_str(row, "label_text").map(str::to_string),
+        "typed_decisions" => row_str(row, "workflow").map(str::to_string),
+        // mteb/banking77 carries label_text (the option-key source — the
+        // STRIPPED form, so the corpora bind to the engine's option-key
+        // domains); int label as the fallback for a PolyAI-shaped row.
+        "banking77" => match row_str(row, "label_text") {
+            Some(t) => Some(t.replace('_', " ")),
+            None => row_i64(row, "label").map(|l| l.to_string()),
+        },
+        _ => row_i64(row, "label").map(|l| l.to_string()),
+    }
+}
+
+/// The label-stratified cap-selection slices (Issue 013 lever-1 protocol
+/// plumb). The registry cal slice — the FIRST `cal_cap` train rows — is
+/// label-clustered by construction: the mirrors store rows label-grouped,
+/// so the first 200 rows span 2/4 labels for ag_news and 2/32 for
+/// banking77 (measured 2026-09-24), and cal ACCURACY on it reads
+/// chance-level, which cannot rank corpus caps (the first selection run
+/// picked cap 8 for ag_news — the sweep's worst test reading). The
+/// selection front instead round-robins one row per label per round over
+/// the rows BEYOND the cal prefix (`pool_from..`), in the engine's label
+/// order, up to `budget` rows — deterministic (fixed order, no RNG).
+///
+/// Returns the front envelope (the selection cases' source) plus the whole
+/// train envelope with the front FIRST: the builders derive their option
+/// universe from ALL rows on disk, so passing the permuted envelope keeps
+/// the selection questions' option set identical to the registry cal
+/// slice's. The rows in the front are members of the corpus pool region,
+/// so the caller must exclude their texts from the selection corpora
+/// (content-exclusion) — a selection case must never score against its
+/// own text.
+pub struct SelectionSlices {
+    /// The stratified front envelope (≤ `budget` rows).
+    pub front: Value,
+    /// front rows first, then every other train row in original order.
+    pub permuted: Value,
+    /// Rows in the front (= the `max_rows` the builders must see).
+    pub n_picks: usize,
+}
+
+#[must_use]
+pub fn stratified_selection_slices(
+    train_rows_file: &Value,
+    suite: &str,
+    labels: &[String],
+    pool_from: usize,
+    budget: usize,
+) -> SelectionSlices {
+    let rows = rows_of(train_rows_file);
+    // Per-label row indices in pool order. Rows whose label falls outside
+    // the engine's label universe (or fails the label rule) never pick —
+    // the corpora cannot contain them either.
+    let mut by_label: Vec<Vec<usize>> = vec![Vec::new(); labels.len()];
+    for (ri, row) in rows.iter().enumerate().skip(pool_from) {
+        if let Some(l) = train_row_label(suite, row)
+            && let Some(li) = labels.iter().position(|x| *x == l)
+        {
+            by_label[li].push(ri);
+        }
+    }
+    let mut cursors = vec![0usize; labels.len()];
+    let mut picks: Vec<usize> = Vec::with_capacity(budget);
+    if budget > 0 {
+        loop {
+            let mut took_any = false;
+            let mut exhausted = true;
+            for (li, idxs) in by_label.iter().enumerate() {
+                if cursors[li] < idxs.len() {
+                    exhausted = false;
+                    picks.push(idxs[cursors[li]]);
+                    cursors[li] += 1;
+                    took_any = true;
+                    if picks.len() >= budget {
+                        break;
+                    }
+                }
+            }
+            if picks.len() >= budget || !took_any || exhausted {
+                break;
+            }
+        }
+    }
+    let wrap = |idxs: &[usize]| {
+        let wrapped: Vec<Value> = idxs
+            .iter()
+            .enumerate()
+            .map(|(i, &ri)| serde_json::json!({ "row_idx": i, "row": rows[ri] }))
+            .collect();
+        serde_json::json!({ "rows": wrapped })
+    };
+    let mut rest: Vec<usize> = (0..rows.len()).filter(|ri| !picks.contains(ri)).collect();
+    let mut permuted_idx = picks.clone();
+    permuted_idx.append(&mut rest);
+    SelectionSlices {
+        front: wrap(&picks),
+        permuted: wrap(&permuted_idx),
+        n_picks: picks.len(),
+    }
+}
+
 /// Train rows per suite. Label/text rules:
 /// - `ag_news` / `emotion` / `sst5` / `banking77` / `prompt_injections`:
 ///   label = `int(label).to_string()`, text = the `text` field;
@@ -830,23 +938,16 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {
-                    label: row_i64(r, "label")?.to_string(),
+                    label: train_row_label(suite, r)?,
                     text: row_str(r, "text")?.to_string(),
                 })
             })
             .collect(),
-        // mteb/banking77 carries label_text (the option-key source — the
-        // STRIPPED form, so the corpora bind to the engine's option-key
-        // domains); int label as the fallback for a PolyAI-shaped row.
         "banking77" => rows
             .iter()
             .filter_map(|r| {
-                let label = match row_str(r, "label_text") {
-                    Some(t) => t.replace('_', " "),
-                    None => row_i64(r, "label")?.to_string(),
-                };
                 Some(TrainDoc {
-                    label,
+                    label: train_row_label(suite, r)?,
                     text: row_str(r, "text")?.to_string(),
                 })
             })
@@ -855,7 +956,7 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {
-                    label: row_str(r, "label_text")?.to_string(),
+                    label: train_row_label(suite, r)?,
                     text: row_str(r, "text")?.to_string(),
                 })
             })
@@ -864,7 +965,7 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {
-                    label: row_i64(r, "label")?.to_string(),
+                    label: train_row_label(suite, r)?,
                     text: format!("{}\n{}", row_str(r, "premise")?, row_str(r, "hypothesis")?),
                 })
             })
@@ -873,11 +974,116 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {
-                    label: row_str(r, "workflow")?.to_string(),
+                    label: train_row_label(suite, r)?,
                     text: row_str(r, "state")?.to_string(),
                 })
             })
             .collect(),
         _ => Vec::new(),
+    }
+}
+
+#[cfg(test)]
+mod selection_slice_tests {
+    //! Issue 013 lever-1 protocol plumb — the stratified selection front.
+
+    use super::stratified_selection_slices;
+
+    /// ag_news-shaped envelope: rows is a bare array of `{label, text}`.
+    fn envelope(rows: Vec<serde_json::Value>) -> serde_json::Value {
+        let wrapped: Vec<serde_json::Value> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, r)| serde_json::json!({ "row_idx": i, "row": r }))
+            .collect();
+        serde_json::json!({ "rows": wrapped })
+    }
+
+    fn grouped_rows(labels: usize, per_label: usize) -> Vec<serde_json::Value> {
+        let mut rows = Vec::new();
+        for label in 0..labels {
+            for _ in 0..per_label {
+                rows.push(serde_json::json!({
+                    "label": label,
+                    "text": format!("t{label}_{})", rows.len()),
+                }));
+            }
+        }
+        rows
+    }
+
+    fn front_labels(s: &super::SelectionSlices) -> Vec<String> {
+        s.front
+            .get("rows")
+            .and_then(serde_json::Value::as_array)
+            .unwrap()
+            .iter()
+            .map(|r| {
+                r.get("row")
+                    .unwrap()
+                    .get("label")
+                    .unwrap()
+                    .as_i64()
+                    .unwrap()
+                    .to_string()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn round_robin_interleaves_labels_in_order() {
+        let env = envelope(grouped_rows(3, 4));
+        let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
+        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 6);
+        assert_eq!(s.n_picks, 6);
+        assert_eq!(front_labels(&s), ["0", "1", "2", "0", "1", "2"]);
+    }
+
+    #[test]
+    fn pool_from_skips_the_cal_prefix() {
+        // rows 0..4 are the (label-clustered) cal prefix: label 0's WHOLE
+        // block — the banking77 situation (the prefix holds labels the
+        // pool region never sees again).
+        let env = envelope(grouped_rows(3, 4));
+        let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
+        let s = stratified_selection_slices(&env, "ag_news", &labels, 4, 9);
+        // Budget 9 is unfillable: the pool region carries only 8 rows
+        // (labels 1 and 2, 4 each) — the front takes all 8 and never a
+        // prefix row.
+        assert_eq!(s.n_picks, 8);
+        let seq = front_labels(&s);
+        assert!(!seq.iter().any(|l| l == "0"));
+        assert_eq!(seq.iter().filter(|l| *l == "1").count(), 4);
+        assert_eq!(seq.iter().filter(|l| *l == "2").count(), 4);
+    }
+
+    #[test]
+    fn rows_outside_the_label_universe_never_pick() {
+        let mut rows = grouped_rows(2, 2);
+        rows.push(serde_json::json!({ "label": 9, "text": "t9_0" }));
+        let env = envelope(rows);
+        let labels: Vec<String> = (0..2).map(|i| i.to_string()).collect();
+        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 10);
+        assert_eq!(s.n_picks, 4); // the label-9 row is unpickable
+        assert!(!front_labels(&s).iter().any(|l| l == "9"));
+    }
+
+    #[test]
+    fn permuted_envelope_preserves_every_row() {
+        let env = envelope(grouped_rows(3, 4));
+        let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
+        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 5);
+        let permuted = s.permuted.get("rows").unwrap().as_array().unwrap();
+        assert_eq!(permuted.len(), 12); // every row survives the permutation
+        // The front IS the permuted envelope's head.
+        let head: Vec<&serde_json::Value> = permuted[..s.n_picks]
+            .iter()
+            .map(|r| r.get("row").unwrap())
+            .collect();
+        let front: Vec<&serde_json::Value> = s.front.get("rows").unwrap().as_array().unwrap()
+            .iter()
+            .map(|r| r.get("row").unwrap())
+            .collect();
+        assert_eq!(head, front);
     }
 }

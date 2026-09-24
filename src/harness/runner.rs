@@ -32,7 +32,7 @@
 //! - the engine-side context is state + prompt only (wire `criteria` stays
 //!   None) — matching the modelless lane's serving path.
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
@@ -52,7 +52,7 @@ use crate::harness::metrics::{
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
     build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
-    build_xnli_en, train_docs,
+    build_xnli_en, stratified_selection_slices, train_docs,
 };
 use crate::pyjson::serialize_state;
 
@@ -535,6 +535,83 @@ pub struct LaneResult {
     /// axis support and accuracy disclosure; per-axis `null` on thin
     /// support. `None` on lanes that fit no gates (laya).
     pub threshold_recommendation: Option<FusedGateRecommendation>,
+    /// The modelless lane's effective per-label corpus cap and how it was
+    /// chosen — always disclosed so a table never reads against an unknown
+    /// corpus posture (None = the lane has no corpus: the laya lanes).
+    pub corpus_cap: Option<CorpusCapInfo>,
+}
+
+/// One cal-slice cap-selection candidate reading (Issue 013 lever-1
+/// protocol plumb).
+#[derive(Debug, Clone, Serialize)]
+pub struct CapCandidate {
+    pub cap: usize,
+    /// Forced accuracy over the cal slice with the engine built at this
+    /// corpus cap — the ONLY quantity selection reads (test is reported
+    /// once, at the selected cap, never during selection).
+    pub cal_acc: f64,
+}
+
+/// How the modelless lane's per-label corpus cap was chosen.
+#[derive(Debug, Clone, Serialize)]
+pub struct CorpusCapInfo {
+    pub effective: usize,
+    /// `registry` | `--corpus-cap override` | `cal-slice selection` |
+    /// `registry (selection n/a: self-corpora)`.
+    pub source: String,
+    /// Some = the cal-slice selection table, candidates in ascending cap
+    /// order (the registry default is always a candidate). `None` when no
+    /// selection ran.
+    pub selection: Option<Vec<CapCandidate>>,
+}
+
+/// The default cap-selection candidate ladder for `--cal-select-cap`
+/// (the Bench 003 sweep grid; the registry default joins the candidate set
+/// automatically at run time).
+pub const DEFAULT_CAL_SELECT_CAPS: &[usize] = &[8, 16, 32, 64, 128, 256, 512];
+
+/// Parse the `--cal-select-cap` value: `None` (bare flag) = the default
+/// ladder; `Some(list)` = a comma-separated candidate list. Zero is not a
+/// corpus cap (take(0) would build every domain on its self-doc fallback).
+pub fn parse_cal_select_caps(arg: Option<&str>) -> Result<Vec<usize>, String> {
+    match arg {
+        None => Ok(DEFAULT_CAL_SELECT_CAPS.to_vec()),
+        Some(s) => s
+            .split(',')
+            .map(|p| {
+                let cap = p
+                    .trim()
+                    .parse::<usize>()
+                    .map_err(|_| format!("--cal-select-cap: bad candidate {p:?}"))?;
+                if cap == 0 {
+                    return Err("--cal-select-cap: 0 is not a corpus cap".to_string());
+                }
+                Ok(cap)
+            })
+            .collect(),
+    }
+}
+
+/// The selection law over the cal readings: argmax cal accuracy; exact
+/// ties prefer the registry default, then the smallest candidate. The
+/// readings are bit-reproducible (fixed fixtures, no RNG), so ties are
+/// exact and the law is deterministic.
+#[must_use]
+fn select_cap(cands: &[CapCandidate], registry_default: usize) -> usize {
+    let Some(best) = cands.first() else {
+        return registry_default;
+    };
+    let mut best = best;
+    for c in &cands[1..] {
+        let wins = c.cal_acc > best.cal_acc
+            || (c.cal_acc == best.cal_acc
+                && (c.cap == registry_default
+                    || (best.cap != registry_default && c.cap < best.cap)));
+        if wins {
+            best = c;
+        }
+    }
+    best.cap
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -562,6 +639,9 @@ pub struct RunMeta {
     /// capped laya `n` is never read against a full-N modelless `n`.
     pub laya_max_questions: usize,
     pub datasets_dir: String,
+    /// The run's corpus-cap posture: registry defaults, an explicit
+    /// override, or the cal-slice selection protocol (Issue 013 lever 1).
+    pub corpus_cap_mode: String,
     pub corpus_protocol: String,
     pub calibration_protocol: String,
     pub floor_definition: String,
@@ -918,6 +998,102 @@ struct ModellessInput<'a> {
     /// The EFFECTIVE per-label corpus cap (registry default or the
     /// --corpus-cap override — Issue 013 lever 1's instrument).
     corpus_cap_per_label: usize,
+    /// The cap's base source when no cal-slice selection ran
+    /// ("registry" or "--corpus-cap override").
+    cap_source_base: &'static str,
+    /// Cal-slice cap-selection candidates (empty = off — run() enforces
+    /// mutual exclusion with the override).
+    cal_select_caps: &'a [usize],
+    /// The suite's raw train envelope (the selection stratification reads
+    /// the rows it buckets; `train` alone has lost the row structure).
+    train_rows: &'a Value,
+}
+
+/// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
+/// plumb): a label-STRATIFIED selection slice over the pool region (the
+/// registry cal slice is label-clustered — the mirrors store rows
+/// label-grouped — and cal accuracy on it reads chance-level, which cannot
+/// rank caps), each candidate measured on corpora that EXCLUDE the
+/// selection docs by content (a selection case must never score against
+/// its own text). The suite's own row is NOT affected: it runs the full
+/// registry pool at the selected cap, exactly the published posture.
+struct CapSelection {
+    selected: usize,
+    rows: Vec<CapCandidate>,
+}
+
+fn build_selection_measurement<const N: usize>(
+    inp: &ModellessInput<'_>,
+) -> Result<CapSelection, String> {
+    let spec = inp.spec;
+    let pool_from = spec.cal_cap.min(inp.train.len());
+    let slices = stratified_selection_slices(
+        inp.train_rows,
+        spec.name,
+        inp.labels,
+        pool_from,
+        spec.cal_cap,
+    );
+    if slices.n_picks == 0 {
+        return Err(format!(
+            "{}: cap selection produced an empty stratified slice — the train rows \
+             beyond the cal prefix carry none of the engine's labels",
+            spec.name
+        ));
+    }
+    // The selection cases: the suite's own builder over the permuted
+    // envelope (universe from ALL rows — identical option set to the
+    // registry cal slice), max_rows = the front length.
+    let sel_suite = (spec.build)(&slices.permuted, slices.n_picks);
+    let sel_state_strs: Vec<String> = sel_suite
+        .cases
+        .iter()
+        .map(|c| serialize_state(&c.state))
+        .collect();
+    // The selection docs (same train_docs rule) drive the content
+    // exclusion: pool minus these texts.
+    let sel_docs = train_docs(&slices.front, spec.name);
+    let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
+    let pool: Vec<TrainDoc> = inp.train[pool_from..]
+        .iter()
+        .filter(|d| !excluded.contains(d.text.as_str()))
+        .cloned()
+        .collect();
+    eprintln!(
+        "    cap-selection: stratified slice {} case(s) over {} label(s); selection corpora \
+         pool {} → {} doc(s) (selection docs excluded — the suite's own row below runs the \
+         FULL registry pool)",
+        sel_suite.cases.len(),
+        inp.labels.len(),
+        inp.train.len() - pool_from,
+        pool.len()
+    );
+
+    let mut cands = inp.cal_select_caps.to_vec();
+    cands.push(spec.corpus_cap_per_label);
+    cands.sort_unstable();
+    cands.dedup();
+    let mut rows = Vec::with_capacity(cands.len());
+    for &cap in &cands {
+        let mut engine = build_engine::<N>(
+            spec.name,
+            &pool,
+            inp.labels,
+            cap,
+            EngineConfig::default(),
+        )?;
+        let (ev, _) = eval_engine(&mut engine, &sel_suite.cases, &sel_state_strs, false)?;
+        let cal_acc = hard_metrics(&ev.forced_rows(&sel_suite.cases)).accuracy;
+        rows.push(CapCandidate { cap, cal_acc });
+        eprintln!("    cap-selection: cap {cap} → sel-slice acc {cal_acc:.4}");
+    }
+    let selected = select_cap(&rows, spec.corpus_cap_per_label);
+    eprintln!(
+        "    cap-selection: selected {selected} (registry default {}) — the test row below \
+         is the single test read, at the FULL registry pool",
+        spec.corpus_cap_per_label
+    );
+    Ok(CapSelection { selected, rows })
 }
 
 #[allow(clippy::too_many_lines)]
@@ -932,6 +1108,30 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let want_by_type = inp.want_by_type;
     let t_start = Instant::now();
     let default_cfg = EngineConfig::default();
+
+    // ── Cal-slice cap selection (Issue 013 lever-1 protocol plumb). The
+    // cap is picked ONLY on the stratified selection slice — the test
+    // split is read once, at the selected cap, further down — closing the
+    // protocol hole that deferred the banking77 promotion (a cap picked on
+    // test would be a test-set-selected hyperparameter). Self-corpora
+    // suites (synthetic families, code_fixtures) ignore the caps by
+    // construction; the source string below discloses the n/a instead of
+    // silently running or silently dropping the ask.
+    let selection = if inp.cal_select_caps.is_empty()
+        || spec.synthetic.is_some()
+        || spec.corpus_cap_per_label == usize::MAX
+    {
+        None
+    } else if cal_cases.is_empty() {
+        return Err(
+            "cal-slice cap selection needs a cal slice (suite cal_cap > 0)".to_string(),
+        );
+    } else {
+        Some(build_selection_measurement::<N>(inp)?)
+    };
+    let effective_cap = selection
+        .as_ref()
+        .map_or(inp.corpus_cap_per_label, |s| s.selected);
 
     // Corpus pool = the train docs AFTER the calibration slice — the cal
     // cases must not be members of their own reference corpora (a cal case
@@ -955,7 +1155,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             spec.name,
             corpus_pool,
             labels,
-            inp.corpus_cap_per_label,
+            effective_cap,
             default_cfg.clone(),
         )?;
         let mut sc: Scratch<EMBED_DIM> = Scratch::new();
@@ -1030,7 +1230,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        inp.corpus_cap_per_label,
+        effective_cap,
         cfg.clone(),
     )?;
 
@@ -1039,7 +1239,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        inp.corpus_cap_per_label,
+        effective_cap,
         cfg.clone(),
     )?;
     let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
@@ -1084,7 +1284,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        inp.corpus_cap_per_label,
+        effective_cap,
         cfg,
     )?;
     let mut moved = false;
@@ -1225,6 +1425,14 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         }
     }
 
+    let cap_source = if selection.is_some() {
+        "cal-slice selection (stratified slice; corpora exclude the selection docs)"
+    } else if spec.synthetic.is_some() || spec.corpus_cap_per_label == usize::MAX {
+        "registry (selection n/a: self-corpora)"
+    } else {
+        inp.cap_source_base
+    };
+
     Ok(LaneResult {
         lane: "modelless",
         model: "modelless".to_string(),
@@ -1252,6 +1460,11 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         score_threshold,
         distance_threshold,
         threshold_recommendation: Some(threshold_recommendation),
+        corpus_cap: Some(CorpusCapInfo {
+            effective: effective_cap,
+            source: cap_source.to_string(),
+            selection: selection.map(|s| s.rows),
+        }),
     })
 }
 
@@ -1516,6 +1729,7 @@ fn assemble_laya_lane_result(
         score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
+        corpus_cap: None, // the laya lanes have no corpus
     }
 }
 
@@ -1755,6 +1969,10 @@ struct Prepared {
     cal_cases: Vec<SuiteCase>,
     cal_state_strs: Vec<String>,
     labels: Vec<String>,
+    /// The raw train envelope (dataset suites) — the cap-selection
+    /// stratification's input. Null on the synthetic/code paths (those
+    /// suites are selection-ineligible).
+    train_rows: Value,
 }
 
 fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
@@ -1786,6 +2004,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             state_strs,
             cal_cases: d.cal_cases,
             cal_state_strs,
+            train_rows: Value::Null,
         });
     }
 
@@ -1811,6 +2030,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             state_strs,
             cal_cases,
             cal_state_strs,
+            train_rows: Value::Null,
         });
     }
 
@@ -1940,6 +2160,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         cal_cases,
         cal_state_strs,
         labels,
+        train_rows,
     })
 }
 
@@ -1968,14 +2189,33 @@ pub struct RunOptions {
     /// Override every dataset suite's per-label corpus cap (0 = the
     /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
     /// (Issue 013 lever 1); a published table must state the override or
-    /// read against the registry posture, never mix the two.
+    /// read against the registry posture, never mix the two. Mutually
+    /// exclusive with [`RunOptions::cal_select_caps`] (one pins the cap,
+    /// the other selects it).
     pub corpus_cap_override: usize,
+    /// Cal-slice cap-selection candidates (Issue 013 lever-1 protocol
+    /// plumb). Empty = off. Non-empty = for every eligible dataset suite,
+    /// accuracy is measured at each candidate (plus the registry default)
+    /// on a label-STRATIFIED selection slice drawn from the pool region —
+    /// the registry cal slice itself is label-clustered (the mirrors store
+    /// rows label-grouped) and cannot rank caps — the argmax cap is
+    /// selected on that slice ONLY, and the test split is read once at the
+    /// selected cap. The selection table rides the suite's result row.
+    /// Mutually exclusive with [`RunOptions::corpus_cap_override`].
+    pub cal_select_caps: Vec<usize>,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
 /// errors) are REPORTED in the returned output as errors — never silently
 /// dropped — and the run continues with the remaining suites.
 pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
+    if opts.corpus_cap_override != 0 && !opts.cal_select_caps.is_empty() {
+        return Err(
+            "--corpus-cap and --cal-select-cap are mutually exclusive: one pins the cap, \
+             the other selects it on the cal slice"
+                .to_string(),
+        );
+    }
     let mut results: Vec<SuiteResult> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let laya_feature = cfg!(feature = "laya-riir");
@@ -2018,6 +2258,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 } else {
                     spec.corpus_cap_per_label
                 },
+                cap_source_base: if opts.corpus_cap_override != 0 {
+                    "--corpus-cap override"
+                } else {
+                    "registry"
+                },
+                cal_select_caps: &opts.cal_select_caps,
+                train_rows: &prepared.train_rows,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -2138,6 +2385,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         laya_feature,
         laya_max_questions: opts.laya_max_questions,
         datasets_dir: opts.datasets_dir.display().to_string(),
+        corpus_cap_mode: if opts.corpus_cap_override != 0 {
+            format!(
+                "override {} (measurement-only --corpus-cap; every dataset suite) — \
+                 MEASUREMENT POSTURE, not the registry posture",
+                opts.corpus_cap_override
+            )
+        } else if !opts.cal_select_caps.is_empty() {
+            "stratified cap selection: accuracy per candidate cap (+ the registry default) on \
+             a label-stratified slice of the pool region, argmax picked on that slice ONLY, \
+             test read once at the selected cap (Issue 013 lever-1 protocol)"
+                .to_string()
+        } else {
+            "registry defaults".to_string()
+        },
         corpus_protocol: "one engine domain per label; corpus = train-split docs of that \
                           label, capped per label (registry), self-doc fallback for \
                           labels absent from the fetched train rows"
@@ -2267,6 +2528,10 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.laya_python_lane
     ));
     s.push_str(&format!(
+        "- corpus cap posture: {}\n",
+        out.meta.corpus_cap_mode
+    ));
+    s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
         out.meta.calibration_protocol,
@@ -2291,6 +2556,34 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             "## {} — {} cases / {} questions\n\n",
             suite.name, suite.n_cases, suite.n_questions
         ));
+        // The corpus-cap disclosure + the cal-slice selection table when
+        // selection ran (Issue 013 lever-1 protocol): the selection reads
+        // cal only; the suite's row below IS the single test read.
+        if let Some(m) = &suite.modelless
+            && let Some(cap) = &m.corpus_cap
+        {
+            s.push_str(&format!(
+                "**corpus cap:** {} ({})\n\n",
+                cap.effective, cap.source
+            ));
+            if let Some(rows) = &cap.selection {
+                s.push_str("| cap | cal acc |\n|---|---|\n");
+                for c in rows {
+                    let mark = if c.cap == cap.effective {
+                        " ← selected"
+                    } else {
+                        ""
+                    };
+                    s.push_str(&format!(
+                        "| {}{} | {} |\n",
+                        c.cap,
+                        mark,
+                        fmt4(c.cal_acc)
+                    ));
+                }
+                s.push('\n');
+            }
+        }
         let Some(m) = &suite.modelless else {
             if suite.laya.is_empty() {
                 s.push_str(
@@ -2601,8 +2894,76 @@ mod threshold_migration_tests {
         let scores: Vec<f32> = (0..THIN_SUPPORT_FLOOR as i32)
             .map(|i| 0.05 + i as f32 * 0.05)
             .collect();
-        let o = obs(&scores);
-        let rec = recommend_fused_gate(&o, &o, Posture::Percentile { rho: 0.30 });
+        let rec = recommend_fused_gate(&obs(&scores), &obs(&scores), Posture::Percentile { rho: 0.30 });
         assert!(rec.score.is_some() && rec.distance.is_some());
+    }
+}
+
+#[cfg(test)]
+mod cap_selection_tests {
+    //! Issue 013 lever-1 protocol plumb — the selection law + the CLI parse.
+
+    use super::{parse_cal_select_caps, select_cap, CapCandidate, DEFAULT_CAL_SELECT_CAPS};
+
+    fn cands(pairs: &[(usize, f64)]) -> Vec<CapCandidate> {
+        pairs
+            .iter()
+            .map(|&(cap, cal_acc)| CapCandidate { cap, cal_acc })
+            .collect()
+    }
+
+    #[test]
+    fn argmax_wins() {
+        let c = cands(&[(8, 0.30), (16, 0.45), (32, 0.41)]);
+        assert_eq!(select_cap(&c, 16), 16);
+        let c = cands(&[(8, 0.30), (16, 0.41), (32, 0.45)]);
+        assert_eq!(select_cap(&c, 16), 32);
+    }
+
+    #[test]
+    fn exact_tie_prefers_the_registry_default() {
+        // Default tied with a smaller and a larger candidate: default wins.
+        let c = cands(&[(8, 0.40), (40, 0.40), (128, 0.40)]);
+        assert_eq!(select_cap(&c, 40), 40);
+    }
+
+    #[test]
+    fn exact_tie_without_the_default_prefers_the_smallest() {
+        let c = cands(&[(64, 0.40), (128, 0.40), (256, 0.40)]);
+        assert_eq!(select_cap(&c, 40), 64);
+    }
+
+    #[test]
+    fn default_does_not_beat_a_strictly_better_candidate() {
+        let c = cands(&[(40, 0.40), (128, 0.50)]);
+        assert_eq!(select_cap(&c, 40), 128);
+    }
+
+    #[test]
+    fn empty_candidates_fall_back_to_the_registry_default() {
+        assert_eq!(select_cap(&[], 64), 64);
+    }
+
+    #[test]
+    fn bare_flag_parses_the_default_ladder() {
+        assert_eq!(
+            parse_cal_select_caps(None).unwrap(),
+            DEFAULT_CAL_SELECT_CAPS.to_vec()
+        );
+    }
+
+    #[test]
+    fn list_parses_and_trims() {
+        assert_eq!(
+            parse_cal_select_caps(Some(" 8 , 128 ")).unwrap(),
+            vec![8, 128]
+        );
+    }
+
+    #[test]
+    fn bad_and_zero_candidates_refuse() {
+        assert!(parse_cal_select_caps(Some("8,x")).is_err());
+        assert!(parse_cal_select_caps(Some("0")).is_err());
+        assert!(parse_cal_select_caps(Some("")).is_err());
     }
 }

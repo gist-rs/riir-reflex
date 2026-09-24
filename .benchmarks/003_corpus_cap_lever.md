@@ -65,3 +65,19 @@ answer" class the GOAT discipline refuses. The honest unblock path is a
 cal-slice selection protocol (pick the cap on calibration-slice acc, report
 test once), which needs a small runner plumb (cal-acc per cap) before any
 registry constant moves. Recorded as Issue 013's lever-1 remainder.
+
+## Correction (2026-09-25, Bench 004) — the deferral is resolved: NO
+
+The selection protocol landed (`--cal-select-cap`, label-stratified
+slice) and **refused the promotion**: on the stratified holdout, 128 reads
+.0350 (near-worst, tied with saturation), clean selection picks cap 16,
+whose test read (.4100) REGRESSES −3.6 pp against the true default.
+The +6.6 pp peak at 128 was a test-split-selected artifact — the exact
+class this deferral existed to catch. banking77's registry cap stays 40.
+Also corrected here: this table's banking77 column headed "64 (default)"
+was MISLABELED — the registry default is 40 (acc .4460, byte-identical to
+the published Bench 001 row); .4380 is the cap-64 reading, so the true
+default delta was +5.8 pp, not +6.6 pp. Full tables + the refusal verdict:
+[.benchmarks/004_cap_selection_protocol.md](004_cap_selection_protocol.md).
+(ag_news's reading stands unchanged: peak AT the default 64, now
+selection-confirmed.)

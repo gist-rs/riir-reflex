@@ -4,6 +4,7 @@
 //! ```text
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
+//!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
@@ -16,6 +17,13 @@
 //! row — both need the `corpus_db` feature + the binary (NDB_BIN or PATH);
 //! an explicit flag without either refuses LOUD, never silently skips
 //! (Issue 007 P1).
+//! `--corpus-cap N` pins every dataset suite's per-label corpus cap
+//! (measurement-only, Issue 013 lever 1). `--cal-select-cap [LIST]` is the
+//! protocol-clean alternative: cal accuracy is measured at each candidate
+//! cap (LIST, or the default ladder 8,16,32,64,128,256,512 — the registry
+//! default always joins), the argmax is picked on the CAL SLICE ONLY, and
+//! the test split is read once at the selected cap. The two are mutually
+//! exclusive (run() refuses the combination).
 //! Writes `results.json` + `TABLES.md` into `--out`
 //! (default `.benchmarks/001_phase1_tables/`). Datasets come from
 //! `.raw/datasets/` (scripts/fetch_datasets.sh). Exit 0 iff every requested
@@ -35,6 +43,7 @@ fn main() {
         skip_laya: false,
         laya_python: false,
         corpus_cap_override: 0,
+        cal_select_caps: Vec::new(),
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -67,6 +76,21 @@ fn main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--corpus-cap needs a number (0 = registry default)"));
+            }
+            "--cal-select-cap" => {
+                // Optional comma list; the bare flag = the default ladder.
+                // A following non-numeric arg (e.g. --skip-laya) stays put.
+                let list = args.get(i + 1).filter(|v| {
+                    !v.is_empty() && v.split(',').all(|p| p.trim().parse::<usize>().is_ok())
+                });
+                let parsed = match list {
+                    Some(v) => {
+                        i += 1;
+                        runner::parse_cal_select_caps(Some(v))
+                    }
+                    None => runner::parse_cal_select_caps(None),
+                };
+                opts.cal_select_caps = parsed.unwrap_or_else(|e| die(&e));
             }
             "--out" => {
                 i += 1;

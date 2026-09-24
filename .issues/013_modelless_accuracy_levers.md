@@ -26,11 +26,17 @@ modelless accuracy UP, each with its measured starting point.
    macro-F1 +3.3; ECE +6.6 WORSE, Brier/NLL flat; p50 0.50→0.875 ms).
    Deterministic: every reading byte-reproduced. Full tables + the
    promotion deferral: [.benchmarks/003_corpus_cap_lever.md](../.benchmarks/003_corpus_cap_lever.md).
-   **Promotion of banking77 64→128 DEFERRED on a protocol hole:** the
-   sweep reads the TEST split — shipping 128 ships a test-set-selected
-   hyperparameter (the selection-biased-gain class). Unblock: cal-slice
-   cap selection (cal-acc-per-cap runner plumb, pick on cal, report test
-   once), then re-measure.
+   **Promotion of banking77 64→128 was DEFERRED on a protocol hole** (the
+   sweep read the TEST split — a test-set-selected hyperparameter).
+   **RESOLVED 2026-09-25 (Bench 004): the protocol landed
+   (`--cal-select-cap`, label-stratified selection slice) and REFUSED the
+   promotion** — on the stratified holdout 128 reads .0350 (near-worst),
+   clean selection picks cap 16 whose test read regresses −3.6 pp vs the
+   true default; the test-split gain was selection noise. Registry stays
+   40. Bonus finding: ag_news's default 64 is selection-CONFIRMED (peak on
+   the stratified slice too), and Bench 003's "64 (default)" banking77
+   column was mislabeled (default is 40, .4460). Record:
+   [.benchmarks/004_cap_selection_protocol.md](../.benchmarks/004_cap_selection_protocol.md).
 2. **[-] ROUTE_SCALE sweep.** The option-rank blend scale (`ROUTE_SCALE`,
    Issue 004 T7) is now a config knob (`EngineConfig.route_scale`, default
    8.0 unchanged) with a synthetic-family probe
