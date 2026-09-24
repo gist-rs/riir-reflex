@@ -164,6 +164,35 @@ already closed with records only in git history.
   Files: `src/serve.rs`, `tests/serve_lanes.rs` (+2 pins),
   `tests/engine_gates.rs` (healthz body re-pinned).
 
+- **Issue 015 — parallel-Metal smoke divergence RESOLVED** (`a3215da`; docs
+  `00dff46`/`b4a5b10`; issue file removed per the noise-reduction rule —
+  this row is the durable record). The root cause was NEVER GPU contention,
+  shader-compile, or the driver: the smoke called ops STANDALONE without
+  `begin_pass`, so the chain-cache epoch stayed 0 forever and
+  `chain_buf`/`chain_slot_for`'s `(ptr, len, epoch)` keys silently HIT
+  across arms — a recycled same-len host address served a stale DST slot
+  holding a previous arm's device output (the `LAYA_METAL_TRACE=1` smoking
+  gun: a red round's `matmul_kt` uploaded ONE of its two inputs; the green
+  round uploaded both). Which arms collide is a PER-PROCESS HEAP-LAYOUT
+  LOTTERY — one mechanism reproducing all seven observations (different op
+  each run, deterministic values per binary+env, alone-pass/in-suite-red,
+  serialized reds, obs 7's simultaneous cross-binary red). The quiet-window
+  experiment REFUTED the cross-process reading — **the confounder WAS the
+  finding**: 16/20 parallel + 5/5 serialized red on a QUIET GPU. Fix:
+  `m.begin_pass()` at each arm boundary (the two composed chains begin ONE
+  pass and compose device-side within it, exactly like a forward); post-fix
+  **30/30 parallel + 15/15 serialized green** in the same window; G5 parity
+  never flagged the class because forwards begin a pass per layer.
+  **The containment decision rule is RETIRED**: "a parallel red after the
+  gpu_lock is evidence of cross-process contention" was wrong — a red after
+  that lock is evidence of an EPOCH-CONTRACT VIOLATION IN THE CALLER; check
+  the trace for the missing-upload signature first.
+  **Standing hazard recorded**: the `weights` cache keeps its permanent
+  `(ptr, len)` map with NO epoch defense (deliberate — agent-lifetime
+  weights), so any future op-level consumer that passes recycled same-len
+  slices as weights re-opens this class one layer over; the module doc
+  carries the contract note.
+
 ## 2026-09-23
 
 - **crates.io publication DEFERRED (owner-gates menu v2 row 2):** no
