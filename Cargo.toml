@@ -91,6 +91,10 @@ laya-riir-ane = ["laya-riir", "riir-infer-laya/laya-riir-ane"]
 # `src/harness/corpus_db.rs::binary_wire_golden_round_trip` (loud-skip
 # without the binary; run with NDB_BIN set for the full pin).
 corpus_db = ["dep:blake3"]
+# Issue 024: the near-duplicate leak report (`src/harness/slice_leak.rs`).
+# A REPORT, not a runtime primitive: opt-in, zero deps, native-only, never
+# in the release set. Its G1 oracle is `scripts/slice_leak_probe.py`.
+slice_leak = []
 
 [[bin]]
 name = "reflex"
@@ -153,6 +157,13 @@ required-features = ["modelless"]
 [[test]]
 name = "harness_families_gates"
 required-features = ["modelless"]
+
+# Issue 024 G1/G2: the Rust leak index reproduces the probe's per-suite
+# counts EXACTLY over `.raw/datasets` (loud UNSEEN skip when absent), and
+# the per-row classify loop allocates nothing once warm.
+[[test]]
+name = "slice_leak_oracle"
+required-features = ["slice_leak"]
 
 [[bench]]
 name = "decision_set_goat"

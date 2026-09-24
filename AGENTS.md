@@ -128,6 +128,12 @@ NDB_BIN=../riir-neuron-db/target/release/ndb \
   cargo run --release --features corpus_db --bin harness -- \
   --runs-kv --save-corpus emotion,sst5 [--kv-dir .harness/ndb-data]
 cargo test --features corpus_db --lib corpus_db -- --nocapture  # wire pins; the golden round-trip SKIPs loud without NDB_BIN
+
+# The near-duplicate leak index (Issue 024, opt-in `slice_leak`). G1 runs
+# scripts/slice_leak_probe.py LIVE and requires the Rust counts to match it
+# exactly per suite; G2 counts allocations in the warm classify loop.
+# UNSEEN without .raw/datasets; SLICE_LEAK_REQUIRE_DATA=1 makes that a failure.
+cargo test --release --features slice_leak --test slice_leak_oracle -- --nocapture
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the

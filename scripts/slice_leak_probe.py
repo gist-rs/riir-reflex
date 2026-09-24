@@ -99,7 +99,11 @@ def probe(suite):
             if hits and len(hits) < RARE_CAP:
                 counts.update(hits)
         best, best_i = 0.0, None
-        for i, _ in counts.most_common(5):
+        # Top-5 by (shared-shingle count desc, train index asc). An explicit
+        # tie-break: Counter.most_common orders ties by insertion, which
+        # follows str-hash-seeded set iteration, so the Rust port (Issue
+        # 024 G1) could not reproduce it exactly.
+        for i, _ in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))[:5]:
             union = len(s | train_sh[i])
             j = len(s & train_sh[i]) / union if union else 0.0
             if j > best:

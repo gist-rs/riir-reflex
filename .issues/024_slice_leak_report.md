@@ -1,6 +1,6 @@
 # Issue 024 — `slice_leak`: an in-harness near-duplicate leak report (Issue 007 P2's decided route)
 
-**Status:** OPEN — filed 2026-09-24 from Issue 007 P2's decision. The owner delegated the route call. The trigger was measured and has fired. No Rust code has landed.
+**Status:** OPEN — T1 + T2 LANDED 2026-09-24 (the index + its G1/G2 oracle gate, both green; see "T1/T2 landed" below). T3 (runner wiring + the `results.json` `leak` block) is next, and stays sequenced after Issue 023 T5 per the Notes.
 
 ## Finding (measured, `scripts/slice_leak_probe.py`, 2.3 s, M3 at load ~6, AC)
 
@@ -73,10 +73,10 @@ EXACT-string, so none of these rows trips it.
 
 ## Tasks
 
-- [ ] T1: `slice_leak.rs` index plus unit tests. Arms: a planted paraphrase
+- [x] T1: `slice_leak.rs` index plus unit tests. Arms: a planted paraphrase
   is flagged; a disjoint topic is not; the rare-cap skip holds; the
   exact-normalisation path works.
-- [ ] T2: the G1 oracle test against `scripts/slice_leak_probe.py`, with a
+- [x] T2: the G1 oracle test against `scripts/slice_leak_probe.py`, with a
   loud skip when `.raw/datasets` is absent (UNSEEN, never a pass).
 - [ ] T3: runner wiring over the real slices, plus the `leak` block in
   `results.json`.
@@ -84,6 +84,46 @@ EXACT-string, so none of these rows trips it.
   two-host publish; do not force a separate one.
 - [ ] T5: a Bench write-up: per-suite leak and `acc_deleaked` delta for
   each lane.
+
+## T1/T2 landed (2026-09-24)
+
+- `src/harness/slice_leak.rs` behind `slice_leak = []` (zero deps,
+  native-only, also builds at `--no-default-features`). Flat CSR arrays for
+  the per-row shingle sets and the inverted index, a `u64`-packed shingle
+  (≤ 8 chars), and a sorted-run top-c. `ShingleIndex::classify` returns
+  `Exact` / `Near` / `Clean`, so T3 can flag individual eval rows for
+  `acc_deleaked`. `leak_counts` returns `None` for an empty side, never a
+  zero rate. 9 unit arms: a planted paraphrase, a disjoint topic, the rare
+  cap, the exact path, short and empty text, the Python-`isspace` gap
+  (`\x1c..\x1f`), collapse-before-strip, the tie-break, and scratch reset.
+- The probe's candidate order was hash-seeded. `Counter.most_common(5)`
+  breaks ties by insertion order, which follows `str`-hash set iteration,
+  so "reproduce EXACTLY" was not well defined. The probe now sorts
+  `(count desc, index asc)` and Rust does the same. Its output is
+  byte-identical to the old one under PYTHONHASHSEED 1, 2, 3 and 7, so no
+  count in the Finding table moves.
+- `tests/slice_leak_oracle.rs` (`required-features = ["slice_leak"]`) runs
+  the probe live and parses its lines, so the oracle is the script itself
+  and not a copy of its numbers.
+  - **G1 ✅:** all 8 suites match on all 7 fields (typed_decisions
+    included: the test transcribes Python's `json.dumps` for the string
+    `state`).
+  - **G2 ✅:** 3.7–52 ms per suite against a 1 s budget, `--release`. Zero
+    allocations over 3076 warm `classify` calls on banking77, counted by a
+    per-thread global allocator.
+  - Box: M3 Max, AC, powermode 2, load 6.2, 87% memory free, sibling
+    sessions active.
+  - Without `.raw/datasets` or python3 the test prints UNSEEN, and
+    `SLICE_LEAK_REQUIRE_DATA=1` turns that into a failure.
+- Both gates were checked to fire. `DEFAULT_RARE_CAP` 200 → 100 fails G1
+  on massive_intent_en. An allocation inside `classify_near` fails G2 with
+  3072 allocations (one per non-exact row). The first G2 probe did NOT
+  fire because LLVM elided an unused `Vec::with_capacity`; the probe that
+  counts wraps it in `black_box`.
+- Clippy `-D warnings` is clean with `--features slice_leak --all-targets`,
+  with default `--all-targets`, and with `--no-default-features --features
+  slice_leak`. G3 holds by construction for T1/T2: nothing outside the
+  feature-gated module is touched.
 
 ## Notes
 

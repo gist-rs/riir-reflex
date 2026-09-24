@@ -9,6 +9,9 @@ pub mod families;
 pub mod latency;
 pub mod metrics;
 pub mod pair_heads;
+// Near-duplicate leak report (Issue 024): opt-in, zero-dep, native-only.
+#[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
+pub mod slice_leak;
 #[cfg(feature = "modelless")]
 pub mod runner;
 pub mod suites;
