@@ -1828,6 +1828,53 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
 // reference lane was deleted; `RiirAgent` serves the same envelope surface
 // `system_one`, G5-proven against the same frozen captures) ────────────────
 
+/// The checkpoint's agent at the ENV-selected posture. `LAYA_DEVICE=ane`
+/// (feature `laya-riir-ane`) routes to `RiirAgent::load_ane` with the
+/// artifact root from `LAYA_ANE_ARTIFACTS_DIR` (else `assets/ane/`) — the
+/// HARNESS is the explicit consumer choosing the constructor from the env
+/// (the substrate's own plain loader still refuses env-only ANE; an env
+/// value can never silently demote an explicitly requested lane). A
+/// missing artifact tree errors LOUD naming the remedy, never a CPU
+/// number wearing an ANE label.
+#[cfg(all(feature = "laya-riir", feature = "laya-riir-ane"))]
+fn load_laya_agent(
+    ckpt: &str,
+    ck: crate::laya::config::Checkpoint,
+) -> Result<crate::laya::riir::RiirAgent, String> {
+    use crate::laya::riir::agent::DeviceKind;
+    use crate::laya::weights::weights_root;
+    use std::path::PathBuf;
+    if DeviceKind::from_env().map_err(|e| e.to_string())? == DeviceKind::Ane {
+        let ane_root = std::env::var_os("LAYA_ANE_ARTIFACTS_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|| PathBuf::from("assets/ane"));
+        let manifest = ane_root.join("manifest.json");
+        if !manifest.exists() {
+            return Err(format!(
+                "LAYA_DEVICE=ane: no manifest at {} — run scripts/ane_convert.py first \
+                 (artifacts are local-only) or set LAYA_ANE_ARTIFACTS_DIR",
+                manifest.display()
+            ));
+        }
+        return crate::laya::riir::RiirAgent::load_ane(&weights_root(), ck, &ane_root, &manifest)
+            .map_err(|e| format!("laya ane load ({ckpt}): {e}"));
+        }
+        crate::laya::riir::RiirAgent::load(&weights_root(), ck)
+            .map_err(|e| format!("laya load ({ckpt}): {e}"))
+    }
+
+/// The no-ANE-build form: plain load (an env `ane` value is refused loud
+/// by the substrate — fail loud, never a silent fallback).
+#[cfg(all(feature = "laya-riir", not(feature = "laya-riir-ane")))]
+fn load_laya_agent(
+    ckpt: &str,
+    ck: crate::laya::config::Checkpoint,
+) -> Result<crate::laya::riir::RiirAgent, String> {
+    use crate::laya::riir::RiirAgent;
+    use crate::laya::weights::weights_root;
+    RiirAgent::load(&weights_root(), ck).map_err(|e| format!("laya load ({ckpt}): {e}"))
+}
+
 #[cfg(feature = "laya-riir")]
 fn run_laya_checkpoint(
     suite: &Suite,
@@ -1835,8 +1882,6 @@ fn run_laya_checkpoint(
     laya_max_questions: usize,
 ) -> Result<LaneResult, String> {
     use crate::laya::config::Checkpoint;
-    use crate::laya::riir::RiirAgent;
-    use crate::laya::weights::weights_root;
 
     let t_start = Instant::now();
     let ck = match ckpt {
@@ -1845,8 +1890,7 @@ fn run_laya_checkpoint(
         "typed" => Checkpoint::TypedDecisions,
         other => return Err(format!("unknown checkpoint {other}")),
     };
-    let agent =
-        RiirAgent::load(&weights_root(), ck).map_err(|e| format!("laya load ({ckpt}): {e}"))?;
+    let agent = load_laya_agent(ckpt, ck)?;
 
     // Cap the eval cases when asked (runtime trim; documented in the table
     // when used).
@@ -2808,7 +2852,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         "cpu (LAYA_DEVICE or the no-backend default)".to_string()
                     }
                     Ok(DeviceKind::Ane) => {
-                        "ane (LAYA_DEVICE=ane — the whole-graph CoreML encoder, Plan 002)"
+                        // This harness interprets LAYA_DEVICE=ane itself: it
+                        // routes the checkpoint loads to RiirAgent::load_ane
+                        // (artifacts: LAYA_ANE_ARTIFACTS_DIR else assets/ane/).
+                        // The substrate's plain loader still refuses env-only
+                        // ANE — only an explicit consumer choice selects the
+                        // lane, never a silent fallback.
+                        "ane (LAYA_DEVICE=ane → load_ane; whole-graph CoreML encoder, Plan 002)"
                             .to_string()
                     }
                     Err(e) => format!("unknown ({e})"),

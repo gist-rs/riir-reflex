@@ -73,6 +73,15 @@ laya-riir = ["riir-infer-laya/laya-riir"]
 # parity must be green at THIS posture before any riir-Metal number is
 # published.
 laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
+# The riir forward's ANE whole-graph backend — MOVED with the lane
+# (`riir-infer-laya/laya-riir-ane`, macOS target-scoped there): the
+# encoder executes the digest-pinned BC1S Core ML artifacts (Plan 002
+# P0's offline conversion, local-only), the gather + head stay host-side.
+# `LAYA_DEVICE`-free posture selection: `RiirAgent::load_ane` OWNS the
+# posture. The G5-ANE decision-level gate (`tests/laya_ane_parity.rs`)
+# is the lane's parity authority — top-1 agreement + the near-tie band;
+# p-drift is observation, never a gate (fp16 math).
+laya-riir-ane = ["laya-riir", "riir-infer-laya/laya-riir-ane"]
 # Warm-tier persistence for the harness via the released `ndb` BINARY
 # (Issue 007 P1): subprocess-only — zero storage-leaf cargo deps; the only
 # new package is blake3 (already in-tree via `modelless`). NATIVE-ONLY by
@@ -114,6 +123,15 @@ required-features = ["modelless"]
 [[test]]
 name = "laya_riir_parity"
 required-features = ["laya-riir"]
+
+# The G5-ANE gate (Plan 002 P1 T1.2): decision-level parity of the ANE
+# whole-graph lane vs the same frozen goldens — top-1 agreement + every
+# flip inside the near-tie band; p-drift printed as observation. Loud-skip
+# without the local artifacts (the conversion is a P0 offline step; the
+# release scope is download-on-demand, later).
+[[test]]
+name = "laya_ane_parity"
+required-features = ["laya-riir-ane"]
 
 # The HTTP-edge CORS seam (Phase 2 T1.2): both directions of the
 # allow-list, preflight + ACAO echo, and the closed-by-default posture.

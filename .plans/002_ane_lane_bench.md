@@ -1,6 +1,6 @@
 # Plan 002 — the ANE lane bench: laya on the Apple Neural Engine, measured on OUR box, published to reflex.gist.rs/bench
 
-**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24: T0.1–T0.5 all done; six BC1S FP16 artifacts (3 models × L64/L128) exist locally, each compute-plan-verified 100%-ANE / 0-transitions on the M3 (T0.3 gate), and the 8-prompt-per-model numerical smoke vs the frozen G5 goldens reads 24/24 top-1 agreement with max prob err 0.0077–0.0200 (OBSERVED, never gated). Artifacts are LOCAL ONLY (gitignored, ~3.0 GB); the committed record is `assets/ane/manifest.json` (BLAKE3 digest-pinned) + `assets/ane/conversion_log.md`. P1 (Rust ANE lane) UNBLOCKED — the harness sibling WIP landed and the P1 runtime can now bind the artifact shapes the manifest pins (embeddings [1,L,d] fp16 + pad_bias [1,1,1,L] fp16 → hidden_state [1,L,d] fp16). P2 (site publish) rides P1.
+**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `0121a3b`+`9b3e200`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) OPEN — the harness ANE seam is wired, T2.1's run is the remaining step.
 
 Executes the bench half of `.issues/017_ane_lane_reference_design.md` (the
 owner directive 2026-09-24: "add plan to add ane lane bench to
@@ -74,7 +74,7 @@ single-question short-prompt class reflex serves.
 
 ## P1 — the `laya-riir-ane` bench lane (M3; UNBLOCKED — P0's artifact shapes are pinned in the manifest)
 
-- [ ] T1.1 `laya-riir-ane` feature (opt-in, macOS-only, never wasm32) +
+- [x] T1.1 `laya-riir-ane` feature (opt-in, macOS-only, never wasm32) +
       objc2-core-ml runtime: load per-bucket artifact, compute-plan verify at
       load (refuse otherwise), fixed-shape FP16 in/out, logits → the
       EXISTING calibration head unchanged. Lands in the SAME commit as its
@@ -83,15 +83,71 @@ single-question short-prompt class reflex serves.
       gather — the vocab-sized gather op does not place on the ANE) +
       `pad_bias` [1,1,1,L] fp16, output `hidden_state` [1,L,d] fp16
       (per-bucket output name in the manifest; the runtime slices [:n] and
-      feeds the existing head).
-- [ ] T1.2 G5-ANE parity gate: top-1 agreement vs the frozen goldens +
+      feeds the existing head). **DONE 2026-09-24** — substrate riir-infer
+      `0121a3b` + `9b3e200` (ane.rs: blake3-dir digest verify →
+      content-addressed compile cache → CPUAndNeuralEngine load →
+      MLComputePlan gate RE-RUN at load: 100% device ops ANE + 0
+      transitions, count drift vs the manifest disclosed-not-fatal,
+      verdict-is-the-gate; AneEncoder fp16 gather with pad-token tail fill
+      exactly the reference smoke's construction, manifest-sentinel
+      pad_bias, [:n] slice → bit-exact f32 widen → the unchanged f32 head;
+      `RiirAgent::load_ane` CONSTRUCTOR-selects the posture — an env value
+      can never demote an explicitly requested lane, `LAYA_DEVICE=ane`
+      through plain `load()` is REFUSED loud). Reflex side: `laya-riir-ane`
+      forward feature + the `[[test]] laya_ane_parity` row in the SAME
+      commit (repo law).
+- [x] T1.2 G5-ANE parity gate: top-1 agreement vs the frozen goldens +
       near-tie-band report + decision-level bar calibrated on OUR goldens
-      (0.02 class); p-drift published as observation.
-- [ ] T1.3 `laya_fixture_timing --device ane` posture + the harness timing
+      (0.02 class); p-drift published as observation. **DONE 2026-09-24 —
+      GATE GREEN first run** (`tests/laya_ane_parity.rs`, release,
+      97.6 s): 76/76 in-bucket forwards top-1 = 1.000000 — english 22/22,
+      typed-decisions 22/22, multilingual 32/32; ZERO flips (zero
+      near-tie, zero hard); structural parity (markers/seq_len/bucket/
+      temperature) exact on all 76; 12 rows skipped (n > L128), 4 per
+      checkpoint, named + floored (served ≥ 3/4 corpus). Max prob err
+      (OBSERVED, the 0.02 class): english 0.0077, typed 0.0146,
+      **multilingual 0.0264 — the ml 0.0200 question ANSWERED: at full-
+      corpus scale it exceeds the 0.02 class and the decision-level gate
+      still holds at 100%** (exactly why the plan gates decisions, not
+      drift). Gates: top-1 ≥ 0.999 (the meta's `top1_agreement_min`) AND
+      every flip inside the near-tie band (golden top-2 margin < 2 ×
+      0.02); prob/logit/act/conf drift printed, never gated.
+- [x] T1.3 `laya_fixture_timing --device ane` posture + the harness timing
       table rows (ANE column beside CPU/Metal), SERIALIZED. Position-balanced
       rounds; box state (load, RAM, power) recorded beside the numbers.
-- [ ] T1.4 BOUNDARY.md allowlist rows for `objc2-core-ml` +
+      **DONE 2026-09-24** — the example gained the `ane` lane
+      (constructor-selected, artifacts root `LAYA_ANE_ARTIFACTS_DIR` else
+      `assets/ane/`; out-of-bucket rows dropped LOUDLY before the warmup —
+      a panic mid-timing would poison the run). Serialized: one device per
+      process, ANE and Metal never share a process. Preflight PASSED
+      (quote): `PROVENANCE: power=AC Power load=4.23 swap=2747.94M
+      canary=148.2us/best5 powermode=2(high)` — AC, High Power, 53 min
+      settle, load under the 6.0 ceiling. Position-balanced (round 1
+      ANE-first 5 reps, round 2 Metal-first 3 reps; row p50, the
+      comparable median):
+
+      | checkpoint | ANE p50 | Metal p50 | reading |
+      |---|---|---|---|
+      | english (BERT-large, d=1024, 28L) | 24.5 / 25.5 ms | 41.4 / 39.3 ms | **ANE ~1.54×** |
+      | typed (BERT-large, d=1024, 28L) | 25.5 / 22.6 ms | 41.5 / 33.2 ms | **ANE ~1.47×** |
+      | multilingual (mmBERT-base, d=768, 22L) | 19.3 / 14.0 ms | 15.7 / 13.6 ms | p50 ~parity, ANE wins the tail (round-2 p90 15.9 vs 18.2) |
+
+      Honesty notes: the ANE lane serves 22/25 (english), 22/25 (typed),
+      32/35 (multilingual) of the Metal lane's rows — its 4 out-of-bucket
+      rows (n > 128) are refused, so the means are NOT row-set-identical
+      (Metal's mean is dragged by ≤512-token rows the ANE never serves;
+      p50 is the comparable statistic). The load climbed 4.2→5.3 across
+      the rounds (sibling agents compiling; under the ceiling both
+      times). The harness ANE column is T2.1's re-run — the harness seam
+      is WIRED (`load_laya_agent` interprets `LAYA_DEVICE=ane` explicitly
+      and routes to `load_ane`; artifacts root env else `assets/ane/`,
+      missing tree errors loud naming the remedy).
+- [x] T1.4 BOUNDARY.md allowlist rows for `objc2-core-ml` +
       `objc2-foundation` ride T1.1's commit (the boundary contract).
+      **DONE** — riir-infer BOUNDARY.md gained the macOS target-scoped row
+      (objc2-core-ml 0.3 with `block2`, objc2-foundation 0.3, block2 0.6;
+      shared objc2 0.6 with the metal lane; never wasm32, never default;
+      any bump re-runs the consumer-side G5-ANE gate).
 
 ## P2 — publish to reflex.gist.rs/bench
 
