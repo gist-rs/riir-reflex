@@ -8,7 +8,7 @@
 //! G5-parity-pinned elsewhere; no test here needs weights).
 #![cfg(feature = "modelless")]
 
-use riir_reflex::serve::{demo_engine, serve_listener_with, LayaLane};
+use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_with};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
@@ -79,7 +79,10 @@ fn laya_off_is_fail_closed_503_naming_the_env() {
     let resp = post_decide(&addr, Some("laya"));
     assert!(resp.starts_with("HTTP/1.1 503"), "got: {resp}");
     assert!(resp.contains("RIIR_REFLEX_LAYA=1"), "got: {resp}");
-    assert!(!resp.contains("routing"), "no modelless response leaked: {resp}");
+    assert!(
+        !resp.contains("routing"),
+        "no modelless response leaked: {resp}"
+    );
 }
 
 #[test]
@@ -113,7 +116,10 @@ fn healthz_reports_laya_state() {
     assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
     assert!(resp.contains("\"status\":\"ok\""), "got: {resp}");
     assert!(resp.contains("\"modelless\":\"ready\""), "got: {resp}");
-    assert!(resp.contains("\"raw\":\"ready\""), "the raw lane is advertised: {resp}");
+    assert!(
+        resp.contains("\"raw\":\"ready\""),
+        "the raw lane is advertised: {resp}"
+    );
     assert!(resp.contains("\"laya\":\"loading\""), "got: {resp}");
 }
 
@@ -173,11 +179,17 @@ fn raw_lane_skips_the_head_and_the_default_serves_it() {
 
     let resp = post_body(&addr, &body, None);
     assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
-    assert!(resp.contains("game-head/"), "default must serve the head: {resp}");
+    assert!(
+        resp.contains("game-head/"),
+        "default must serve the head: {resp}"
+    );
 
     let resp = post_body(&addr, &body, Some("raw"));
     assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
-    assert!(!resp.contains("game-head/"), "raw must not claim the head: {resp}");
+    assert!(
+        !resp.contains("game-head/"),
+        "raw must not claim the head: {resp}"
+    );
     assert!(resp.contains("\"lane\":\"modelless\""), "got: {resp}");
     assert!(
         resp.contains("\"outcome\":null"),
@@ -238,7 +250,12 @@ mod mapping {
         }
     }
 
-    fn laya_answer(qid: &str, t: &'static str, probs: Vec<(&str, f64)>, noul: Option<f64>) -> LayaAnswer {
+    fn laya_answer(
+        qid: &str,
+        t: &'static str,
+        probs: Vec<(&str, f64)>,
+        noul: Option<f64>,
+    ) -> LayaAnswer {
         LayaAnswer {
             qid: qid.into(),
             t,
@@ -255,7 +272,12 @@ mod mapping {
     #[test]
     fn choice_maps_first_argmax_and_option_order() {
         let r = req(&[QuestionKind::Choice]);
-        let answers = vec![laya_answer("q0", "choice", vec![("a", 0.2), ("b", 0.5), ("c", 0.3)], None)];
+        let answers = vec![laya_answer(
+            "q0",
+            "choice",
+            vec![("a", 0.2), ("b", 0.5), ("c", 0.3)],
+            None,
+        )];
         let resp = map_answers(&r, &answers).expect("map");
         assert_eq!(resp.routing.lane, Lane::Laya);
         assert_eq!(resp.calibration.temperature, 1.7);
@@ -267,7 +289,12 @@ mod mapping {
     #[test]
     fn choice_ties_keep_the_earliest_index() {
         let r = req(&[QuestionKind::Choice]);
-        let answers = vec![laya_answer("q0", "choice", vec![("a", 0.4), ("b", 0.4), ("c", 0.2)], None)];
+        let answers = vec![laya_answer(
+            "q0",
+            "choice",
+            vec![("a", 0.4), ("b", 0.4), ("c", 0.2)],
+            None,
+        )];
         let resp = map_answers(&r, &answers).expect("map");
         assert_eq!(resp.answers[0].outcome, Some(Outcome::Choice { index: 0 }));
     }
@@ -291,7 +318,12 @@ mod mapping {
     #[test]
     fn score_maps_the_argmax_level() {
         let r = req(&[QuestionKind::Score]);
-        let answers = vec![laya_answer("q0", "score", vec![("0", 0.1), ("1", 0.3), ("2", 0.6)], None)];
+        let answers = vec![laya_answer(
+            "q0",
+            "score",
+            vec![("0", 0.1), ("1", 0.3), ("2", 0.6)],
+            None,
+        )];
         let resp = map_answers(&r, &answers).expect("map");
         assert_eq!(resp.answers[0].outcome, Some(Outcome::Score { level: 2 }));
     }

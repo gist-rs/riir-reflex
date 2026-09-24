@@ -22,11 +22,11 @@
 
 use serde_json::Value;
 
-use super::super::config::{load_checkpoint_configs, AgentConfig, Checkpoint};
+use super::super::config::{AgentConfig, Checkpoint, load_checkpoint_configs};
 use super::super::render::{py_round4, render_options};
-use super::super::temps::{softmax32, temp_bucket, Temperatures};
+use super::super::temps::{Temperatures, softmax32, temp_bucket};
 use super::super::tokenize::{InternalQuestion, Tok, build_sequence, to_internal};
-use super::super::types::{argmax_of, confidence_from_probs, option_keys, Answer, Forward};
+use super::super::types::{Answer, Forward, argmax_of, confidence_from_probs, option_keys};
 use super::super::weights::ensure_checkpoint;
 use super::super::{LayaError, Result};
 use super::backend::{Backend, Cpu};

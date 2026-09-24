@@ -170,7 +170,11 @@ pub fn threshold_recommendation(
                 "percentile posture requires rho in [0, 1]"
             );
             let threshold = percentile_law(observations, rho);
-            Some(finish(observations, threshold, RecommendationStatus::Fitted))
+            Some(finish(
+                observations,
+                threshold,
+                RecommendationStatus::Fitted,
+            ))
         }
         Posture::TargetAccuracy { target } => {
             assert!(
@@ -223,15 +227,13 @@ fn target_scan(observations: &[GateObservation], target: f64) -> (f32, Recommend
     let mut chosen: Option<f32> = None;
     let mut best: Option<(f32, f32)> = None; // (threshold, accuracy)
     for &t in &boundaries {
-        let (n_pass, n_correct) = observations
-            .iter()
-            .fold((0usize, 0usize), |(p, c), o| {
-                if o.score >= t {
-                    (p + 1, c + o.correct as usize)
-                } else {
-                    (p, c)
-                }
-            });
+        let (n_pass, n_correct) = observations.iter().fold((0usize, 0usize), |(p, c), o| {
+            if o.score >= t {
+                (p + 1, c + o.correct as usize)
+            } else {
+                (p, c)
+            }
+        });
         // n_pass >= 1 at every boundary: the boundary value itself passes.
         let acc = n_correct as f32 / n_pass as f32;
         if acc >= target as f32 {
@@ -315,7 +317,9 @@ mod tests {
         assert!(threshold_recommendation(&thin, Posture::Percentile { rho: 0.30 }).is_none());
         assert!(threshold_recommendation(&thin, Posture::TargetAccuracy { target: 0.9 }).is_none());
         assert!(threshold_recommendation(&enough, Posture::Percentile { rho: 0.30 }).is_some());
-        assert!(threshold_recommendation(&enough, Posture::TargetAccuracy { target: 0.1 }).is_some());
+        assert!(
+            threshold_recommendation(&enough, Posture::TargetAccuracy { target: 0.1 }).is_some()
+        );
     }
 
     #[test]
@@ -357,8 +361,9 @@ mod tests {
         for scores in cases {
             let obs = obs_from_scores(&scores, 0.5);
             for rho in [0.30, 0.5, 0.99] {
-                let got =
-                    threshold_recommendation(&obs, Posture::Percentile { rho }).unwrap().threshold;
+                let got = threshold_recommendation(&obs, Posture::Percentile { rho })
+                    .unwrap()
+                    .threshold;
                 let want = harness_quantile(&scores, rho);
                 assert_eq!(got.to_bits(), want.to_bits(), "n={}", scores.len());
             }

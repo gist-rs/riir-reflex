@@ -4,7 +4,7 @@
 //! drive-by posture. No process-global env mutation: the explicit allow-list
 //! seam (`serve_listener_with`) is the surface under test.
 
-use riir_reflex::serve::{demo_engine, serve_listener_with, LayaLane};
+use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_with};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
@@ -60,7 +60,9 @@ fn closed_by_default_preflight_is_refused_without_acao() {
     let addr = spawn(vec![]);
     let resp = roundtrip(
         &addr,
-        &format!("OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {ARENA}\r\nAccess-Control-Request-Method: POST\r\n\r\n"),
+        &format!(
+            "OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {ARENA}\r\nAccess-Control-Request-Method: POST\r\n\r\n"
+        ),
     );
     assert!(resp.starts_with("HTTP/1.1 403"), "got: {resp}");
     assert!(!resp.contains("Access-Control-Allow-Origin"), "got: {resp}");
@@ -71,12 +73,23 @@ fn listed_origin_gets_preflight_204_and_full_cors_headers() {
     let addr = spawn(vec![ARENA.to_string()]);
     let resp = roundtrip(
         &addr,
-        &format!("OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {ARENA}\r\nAccess-Control-Request-Method: POST\r\nAccess-Control-Request-Headers: content-type\r\n\r\n"),
+        &format!(
+            "OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {ARENA}\r\nAccess-Control-Request-Method: POST\r\nAccess-Control-Request-Headers: content-type\r\n\r\n"
+        ),
     );
     assert!(resp.starts_with("HTTP/1.1 204"), "got: {resp}");
-    assert!(resp.contains(&format!("Access-Control-Allow-Origin: {ARENA}")), "got: {resp}");
-    assert!(resp.contains("Access-Control-Allow-Methods: GET, POST, OPTIONS"), "got: {resp}");
-    assert!(resp.contains("Access-Control-Allow-Headers: Content-Type"), "got: {resp}");
+    assert!(
+        resp.contains(&format!("Access-Control-Allow-Origin: {ARENA}")),
+        "got: {resp}"
+    );
+    assert!(
+        resp.contains("Access-Control-Allow-Methods: GET, POST, OPTIONS"),
+        "got: {resp}"
+    );
+    assert!(
+        resp.contains("Access-Control-Allow-Headers: Content-Type"),
+        "got: {resp}"
+    );
     assert!(resp.contains("Vary: Origin"), "got: {resp}");
 }
 
@@ -85,7 +98,9 @@ fn unlisted_origin_preflight_is_refused_even_when_a_list_exists() {
     let addr = spawn(vec![ARENA.to_string()]);
     let resp = roundtrip(
         &addr,
-        &format!("OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {EVIL}\r\nAccess-Control-Request-Method: POST\r\n\r\n"),
+        &format!(
+            "OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {EVIL}\r\nAccess-Control-Request-Method: POST\r\n\r\n"
+        ),
     );
     assert!(resp.starts_with("HTTP/1.1 403"), "got: {resp}");
     assert!(!resp.contains("Access-Control-Allow-Origin"), "got: {resp}");
@@ -102,7 +117,10 @@ fn listed_origin_gets_acao_echo_on_post_decide() {
             body.len()
         ),
     );
-    assert!(resp.contains("Access-Control-Allow-Origin: https://reflex.gist.rs"), "got: {resp}");
+    assert!(
+        resp.contains("Access-Control-Allow-Origin: https://reflex.gist.rs"),
+        "got: {resp}"
+    );
     assert!(resp.contains("Vary: Origin"), "got: {resp}");
     // The engine answered underneath the CORS layer.
     assert!(resp.contains("\"answers\""), "got: {resp}");
@@ -145,8 +163,13 @@ fn allow_list_parses_comma_separated_with_trim() {
     // Second listed origin also gets the preflight.
     let resp = roundtrip(
         &addr,
-        &format!("OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {EVIL}\r\nAccess-Control-Request-Method: POST\r\n\r\n"),
+        &format!(
+            "OPTIONS /decide HTTP/1.1\r\nHost: x\r\nOrigin: {EVIL}\r\nAccess-Control-Request-Method: POST\r\n\r\n"
+        ),
     );
     assert!(resp.starts_with("HTTP/1.1 204"), "got: {resp}");
-    assert!(resp.contains(&format!("Access-Control-Allow-Origin: {EVIL}")), "got: {resp}");
+    assert!(
+        resp.contains(&format!("Access-Control-Allow-Origin: {EVIL}")),
+        "got: {resp}"
+    );
 }

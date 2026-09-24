@@ -20,8 +20,8 @@ use katgpt_core::decision_wire::{DecisionRequest, Question};
 use riir_reflex::embed::EMBED_DIM;
 use riir_reflex::engine::{DecisionEngine, EngineConfig, ExpertSpec, Scratch};
 use riir_reflex::harness::families;
-use riir_reflex::pyjson::serialize_state;
 use riir_reflex::harness::suites::{QKind, SuiteCase};
+use riir_reflex::pyjson::serialize_state;
 
 const SCALES: &[f32] = &[2.0, 4.0, 8.0, 16.0, 32.0];
 
@@ -40,7 +40,13 @@ const FAMILIES: &[(&str, usize)] = &[
 macro_rules! family_engine {
     ($n:literal, $d:expr, $scale:expr) => {{
         let d: &families::SynthData = $d;
-        assert_eq!(d.labels.len(), $n, "family {} arms {} domains", d.suite.name, $n);
+        assert_eq!(
+            d.labels.len(),
+            $n,
+            "family {} arms {} domains",
+            d.suite.name,
+            $n
+        );
         let mut cfg = EngineConfig::default();
         cfg.route_scale = $scale;
         let specs: Vec<ExpertSpec> = d
@@ -130,11 +136,7 @@ fn main() {
     }
     header.push('|');
     println!("{header}");
-    println!(
-        "|:{:-<5}{}|",
-        "-",
-        "-".repeat(FAMILIES.len() * 16)
-    );
+    println!("|:{:-<5}{}|", "-", "-".repeat(FAMILIES.len() * 16));
 
     for &scale in SCALES {
         let mut row = format!("| {:>5.1} ", scale);

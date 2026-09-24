@@ -54,7 +54,8 @@ pub fn bind_addr() -> String {
 /// A served laya-lane decision — the loaded agent behind a closure, so the
 /// edge's state machine is testable without weights (the closure exists only
 /// under the `laya-riir` feature).
-pub type LayaDecideFn = Arc<dyn Fn(&DecisionRequest) -> Result<DecisionResponse, String> + Send + Sync>;
+pub type LayaDecideFn =
+    Arc<dyn Fn(&DecisionRequest) -> Result<DecisionResponse, String> + Send + Sync>;
 
 /// The laya lane's serving state. `Off` is the default posture: the lane is
 /// opt-in (`RIIR_REFLEX_LAYA=1` starts the weights download + load in a
@@ -488,14 +489,14 @@ fn read_request(reader: &mut BufReader<TcpStream>) -> std::io::Result<Option<Req
             }
         }
     }
-Ok(Some(Req {
-    method,
-    path,
-    content_length,
-    origin,
-    lane,
-    pna_requested,
-}))
+    Ok(Some(Req {
+        method,
+        path,
+        content_length,
+        origin,
+        lane,
+        pna_requested,
+    }))
 }
 
 fn respond(
@@ -574,7 +575,8 @@ fn handle_conn<const N: usize, const D: usize>(
                 let _ = writer.flush();
             }
             None => {
-                let head = "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
+                let head =
+                    "HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
                 let _ = writer.write_all(head.as_bytes());
                 let _ = writer.flush();
             }
@@ -770,7 +772,8 @@ fn laya_edge(
             "500 Internal Server Error",
             &format!(
                 "{{\"error\":{}}}",
-                serde_json::to_string(&format!("laya lane failed to load: {e}")).unwrap_or_default()
+                serde_json::to_string(&format!("laya lane failed to load: {e}"))
+                    .unwrap_or_default()
             ),
             cors,
         ),

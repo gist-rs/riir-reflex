@@ -25,7 +25,9 @@ fn main() {
             print!("{}", riir_reflex::build_stamp::stamp());
         }
         Some(other) => {
-            eprintln!("error: unknown argument {other:?} — bare invocation serves; --version prints the build stamp");
+            eprintln!(
+                "error: unknown argument {other:?} — bare invocation serves; --version prints the build stamp"
+            );
             eprintln!("{}", riir_reflex::build_stamp::stamp());
             std::process::exit(2);
         }

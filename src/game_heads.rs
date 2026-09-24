@@ -132,7 +132,7 @@ static T_TETRIS_SPOT: [Seg; 11] = [
     Seg::Slot(2), // TETRIS_SURFACE
     Seg::Lit(", and "),
     Seg::Slot(3), // TETRIS_HEIGHT
-    Seg::Lit(""),  // separator only — the two fills are adjacent in the sentence
+    Seg::Lit(""), // separator only — the two fills are adjacent in the sentence
     Seg::Slot(4), // TETRIS_CLEARS ("" renders as nothing)
     Seg::Lit("."),
 ];
@@ -286,8 +286,8 @@ pub fn flappy_v3_decoded_features(
     let (band, offset) = (post[0], post[1]);
     let hh = h;
     let post_rel: i32 = match band {
-        0 => -(hh + 1),                         // Below: tail → boundary
-        1 => -hh,                               // SqueezeBottom: exact
+        0 => -(hh + 1), // Below: tail → boundary
+        1 => -hh,       // SqueezeBottom: exact
         2 => {
             if offset == 1 {
                 -1
@@ -295,7 +295,7 @@ pub fn flappy_v3_decoded_features(
                 -2
             }
         } // Lower: just-under exact
-        3 => 0,                                 // Middle: exact
+        3 => 0,         // Middle: exact
         4 => {
             if offset == 3 {
                 1
@@ -303,8 +303,8 @@ pub fn flappy_v3_decoded_features(
                 2
             }
         } // Upper: just-over exact
-        5 => hh,                                // SqueezeTop: exact
-        _ => hh + 1,                            // Above: tail → boundary
+        5 => hh,        // SqueezeTop: exact
+        _ => hh + 1,    // Above: tail → boundary
     };
     let pre_rel: i32 = match rel {
         0 => 2,
@@ -338,8 +338,11 @@ static LANES_DIST: [&str; 2] = ["close", "far"];
 /// One noun per obstacle class — the wording pin (`lanes_sim::obstacle_noun`).
 static LANES_NOUN: [&str; 3] = ["a barrier", "a train", "a rock"];
 
-static T_LANES_CLEAR: [Seg; 3] =
-    [Seg::Lit("The "), Seg::Slot(0), Seg::Lit(" lane is clear ahead.")];
+static T_LANES_CLEAR: [Seg; 3] = [
+    Seg::Lit("The "),
+    Seg::Slot(0),
+    Seg::Lit(" lane is clear ahead."),
+];
 static T_LANES_BLOCKED: [Seg; 7] = [
     Seg::Lit("The "),
     Seg::Slot(0), // LANES_LANE
@@ -564,8 +567,8 @@ fn parse_fixture_state(v: serde_json::Value, ln: usize, name: &'static str) -> F
         #[serde(default)]
         argmax: usize,
     }
-    let s: FixtureState = serde_json::from_value(v)
-        .unwrap_or_else(|e| panic!("{name} fixture line {}: {e}", ln + 1));
+    let s: FixtureState =
+        serde_json::from_value(v).unwrap_or_else(|e| panic!("{name} fixture line {}: {e}", ln + 1));
     FixtureStateRecord {
         state_sentence: s.state_sentence,
         options: s
@@ -595,7 +598,8 @@ fn parse_fixture_state(v: serde_json::Value, ln: usize, name: &'static str) -> F
 fn assert_features_match(name: &str, ln: usize, i: usize, raw: &[f64], fixture: &Option<Vec<f64>>) {
     if let Some(fx) = fixture {
         assert_eq!(
-            raw, fx.as_slice(),
+            raw,
+            fx.as_slice(),
             "{name} fixture line {} option {i}: decoded features != fixture features",
             ln + 1
         );
@@ -630,7 +634,10 @@ pub fn parse_corpus() -> (TetrisCorpus, Standardizer<TETRIS_DECODED_F>) {
                 )
             });
             let fills = decode_tetris_spot(&g, &o.sentence).unwrap_or_else(|e| {
-                panic!("tetris fixture line {}: option sentence refused: {e:?}", ln + 1)
+                panic!(
+                    "tetris fixture line {}: option sentence refused: {e:?}",
+                    ln + 1
+                )
             });
             raws.push(tetris_decoded_features(&fills));
             targets.push(p);
@@ -685,11 +692,11 @@ pub fn parse_lanes_corpus() -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_
             .iter()
             .enumerate()
             .map(|(i, (sentence, _, _))| {
-                let d = decode_lanes_option(&g, sentence).unwrap_or_else(|e| {
-                    panic!("lanes fixture line {} option {i}: {e:?}", ln + 1)
-                });
+                let d = decode_lanes_option(&g, sentence)
+                    .unwrap_or_else(|e| panic!("lanes fixture line {} option {i}: {e:?}", ln + 1));
                 assert_eq!(
-                    d.lane, i as u8,
+                    d.lane,
+                    i as u8,
                     "lanes fixture line {} option {i}: lane slot order drifted",
                     ln + 1
                 );
@@ -730,10 +737,7 @@ pub fn parse_lanes_corpus() -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_
 /// 882 pins TWO digests at one 96/100 agreement (structured `dc6bcf73…`,
 /// decoded `c93d36dc…`): the reconstruction is pinned by the FULL decoded
 /// digest instead. Panics on any decode drift.
-pub fn parse_flappy_v3_corpus() -> (
-    HeadCorpus<FLAPPY_V3_D>,
-    Standardizer<FLAPPY_V3_DECODED_F>,
-) {
+pub fn parse_flappy_v3_corpus() -> (HeadCorpus<FLAPPY_V3_D>, Standardizer<FLAPPY_V3_DECODED_F>) {
     let go = flappy_option_v3();
     let gs = flappy_state();
     let mut question = String::new();
@@ -750,15 +754,15 @@ pub fn parse_flappy_v3_corpus() -> (
             continue;
         }
         let s = parse_fixture_state(v, ln, "flappy");
-        let state_sentence = s.state_sentence.as_deref().unwrap_or_else(|| {
-            panic!("flappy fixture line {}: state_sentence missing", ln + 1)
-        });
+        let state_sentence = s
+            .state_sentence
+            .as_deref()
+            .unwrap_or_else(|| panic!("flappy fixture line {}: state_sentence missing", ln + 1));
         let (rel, v_vel, h) = decode_flappy_state(&gs, state_sentence)
             .unwrap_or_else(|e| panic!("flappy fixture line {}: state refused: {e:?}", ln + 1));
         for (i, (sentence, p, _fx)) in s.options.iter().enumerate() {
-            let post = decode_flappy_option_v3(&go, sentence).unwrap_or_else(|e| {
-                panic!("flappy fixture line {} option {i}: {e:?}", ln + 1)
-            });
+            let post = decode_flappy_option_v3(&go, sentence)
+                .unwrap_or_else(|e| panic!("flappy fixture line {} option {i}: {e:?}", ln + 1));
             raws.push(flappy_v3_decoded_features(post, rel, v_vel, h));
             targets.push(*p);
         }
@@ -968,9 +972,10 @@ impl FlappyHead {
     fn score_pair(&self, state_sentence: &str, option_sentence: &str) -> Option<f64> {
         let (rel, v, h) = decode_flappy_state(&self.state_grammar, state_sentence).ok()?;
         let post = decode_flappy_option_v3(&self.option_grammar, option_sentence).ok()?;
-        Some(self.fit.score_raw(&flappy_v3_decoded_features(
-            post, rel, v, h,
-        )))
+        Some(
+            self.fit
+                .score_raw(&flappy_v3_decoded_features(post, rel, v, h)),
+        )
     }
 }
 

@@ -111,9 +111,7 @@ impl Encoder {
         // config vocab (rows AND width both pinned by the shape + the
         // hidden-dependent takes below).
         let vocab_name = "encoder.embeddings.tok_embeddings.weight";
-        let tok_w = map
-            .remove(vocab_name)
-            .ok_or_else(|| missing(vocab_name))?;
+        let tok_w = map.remove(vocab_name).ok_or_else(|| missing(vocab_name))?;
         if tok_w.shape.first().copied() != Some(cfg.vocab) {
             return Err(LayaError::Config {
                 checkpoint: ckpt,
@@ -237,8 +235,7 @@ impl Encoder {
                 rope_slide
                     .get_or_insert_with(|| ops::rope_tables(seq, hd, self.cfg.rope_theta_slide))
             } else {
-                rope_full
-                    .get_or_insert_with(|| ops::rope_tables(seq, hd, self.cfg.rope_theta_full))
+                rope_full.get_or_insert_with(|| ops::rope_tables(seq, hd, self.cfg.rope_theta_full))
             };
             b.attention_forward(
                 &sc.qkv,

@@ -154,12 +154,13 @@ impl Head {
         // x = h + type_emb[qtype] (broadcast over positions) — in place on
         // the encoder's residual stream.
         let x: &mut [f32] = h;
-        let trow = self.type_emb.get(qtype * d..(qtype + 1) * d).ok_or_else(|| {
-            LayaError::Config {
+        let trow = self
+            .type_emb
+            .get(qtype * d..(qtype + 1) * d)
+            .ok_or_else(|| LayaError::Config {
                 checkpoint: "head",
                 detail: format!("qtype {qtype} outside the 3-row type embedding"),
-            }
-        })?;
+            })?;
         b.add_bias_row(x, d, trow);
         // The bias-free-LN scratch — one buffer, reused across all layers
         // (the layer loop must not allocate it).

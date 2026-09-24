@@ -54,13 +54,12 @@ fn report(name: &str, a: &[f32], b: &[f32], tol: f32) {
         .zip(b.iter())
         .map(|(x, y)| (x - y).abs())
         .fold(0.0f32, f32::max);
-    let scale = a
-        .iter()
-        .fold(0.0f32, |acc, v| acc.max(*v))
-        .abs()
-        .max(1e-9);
+    let scale = a.iter().fold(0.0f32, |acc, v| acc.max(*v)).abs().max(1e-9);
     println!("{name}: max abs {max:.4e} · scale {scale:.3e} · tol {tol:.1e}");
-    assert!(max <= tol * scale.max(1e-3), "{name}: DIVERGED max {max:.4e}");
+    assert!(
+        max <= tol * scale.max(1e-3),
+        "{name}: DIVERGED max {max:.4e}"
+    );
 }
 
 /// Sync a written slice's device result out (src = the written slice,
@@ -370,7 +369,13 @@ fn metal_attention_chain_matches_cpu() {
     let scores_got = sync_out(&m, &scoresm);
     let infs = scores_got.iter().filter(|v| !v.is_finite()).count();
     let m2 = scores_got.iter().filter(|v| **v == f32::MIN).count();
-    println!("metal scores: infs {infs} · f32::MIN count {m2} · max finite {:.4e}", scores_got.iter().filter(|v| v.is_finite()).fold(0.0f32, |a, b| a.max(*b)));
+    println!(
+        "metal scores: infs {infs} · f32::MIN count {m2} · max finite {:.4e}",
+        scores_got
+            .iter()
+            .filter(|v| v.is_finite())
+            .fold(0.0f32, |a, b| a.max(*b))
+    );
     m.merge_heads(&ctxm, seq, heads, hd, &mut mergedm);
     let merged_got = sync_out(&m, &mergedm);
 
@@ -420,10 +425,30 @@ fn metal_fused_attention_matches_cpu_full() {
         let mut oc = vec![0f32; seq * d];
         let mut om = vec![0f32; seq * d];
         c.attention_forward(
-            &qkv, &cos, &sin, scale, seq, heads, hd, usize::MAX, None, &mut sa, &mut oc,
+            &qkv,
+            &cos,
+            &sin,
+            scale,
+            seq,
+            heads,
+            hd,
+            usize::MAX,
+            None,
+            &mut sa,
+            &mut oc,
         );
         m.attention_forward(
-            &qkv, &cos, &sin, scale, seq, heads, hd, usize::MAX, None, &mut sb, &mut om,
+            &qkv,
+            &cos,
+            &sin,
+            scale,
+            seq,
+            heads,
+            hd,
+            usize::MAX,
+            None,
+            &mut sb,
+            &mut om,
         );
         report(
             &format!("attn full {seq}x{heads}"),
@@ -463,10 +488,30 @@ fn metal_fused_attention_matches_cpu_sliding() {
         let mut oc = vec![0f32; seq * d];
         let mut om = vec![0f32; seq * d];
         c.attention_forward(
-            &qkv, &cos, &sin, scale, seq, heads, hd, window, Some(&mask), &mut sa, &mut oc,
+            &qkv,
+            &cos,
+            &sin,
+            scale,
+            seq,
+            heads,
+            hd,
+            window,
+            Some(&mask),
+            &mut sa,
+            &mut oc,
         );
         m.attention_forward(
-            &qkv, &cos, &sin, scale, seq, heads, hd, window, Some(&mask), &mut sb, &mut om,
+            &qkv,
+            &cos,
+            &sin,
+            scale,
+            seq,
+            heads,
+            hd,
+            window,
+            Some(&mask),
+            &mut sb,
+            &mut om,
         );
         report(
             &format!("attn slide {seq}x{heads} w{window}"),

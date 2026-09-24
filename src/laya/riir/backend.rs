@@ -124,17 +124,7 @@ pub trait Backend {
         out: &mut [f32],
     ) {
         self.attention_forward_default(
-            qkv,
-            rope_cos,
-            rope_sin,
-            scale,
-            seq,
-            heads,
-            hd,
-            window,
-            mask,
-            scratch,
-            out,
+            qkv, rope_cos, rope_sin, scale, seq, heads, hd, window, mask, scratch, out,
         )
     }
 

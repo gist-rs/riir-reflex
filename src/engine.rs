@@ -49,8 +49,8 @@ use katgpt_core::decision_wire::{
     Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Outcome, QuestionKind, Routing,
     WireError,
 };
-use katgpt_core::exact_sigmoid;
 use katgpt_core::distance_abstain::CorpusDistanceGate;
+use katgpt_core::exact_sigmoid;
 use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 use katgpt_core::variable_rank_domain_expert::pick_domain;
 
@@ -60,9 +60,8 @@ use katgpt_core::variable_rank_domain_expert::pick_domain;
 pub mod threshold;
 
 pub use threshold::{
-    recommend_fused_gate, threshold_recommendation, FusedGateRecommendation, GateObservation,
-    Posture, RecommendationStatus, ThresholdRecommendation, ThresholdSupport,
-    THIN_SUPPORT_FLOOR,
+    FusedGateRecommendation, GateObservation, Posture, RecommendationStatus, THIN_SUPPORT_FLOOR,
+    ThresholdRecommendation, ThresholdSupport, recommend_fused_gate, threshold_recommendation,
 };
 
 /// Sigmoid temperature on raw LZ4 score deltas (i32-scale diffs; /24 puts
@@ -718,11 +717,7 @@ mod tests {
             let got = exact_sigmoid(x);
             let want = legacy(x);
             if x >= 0.0 {
-                assert_eq!(
-                    got.to_bits(),
-                    want.to_bits(),
-                    "x={x} must be bit-identical"
-                );
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
             } else if x > -87.0 {
                 let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
                 if ulps > max_ulps {

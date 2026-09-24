@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Condvar, Mutex, OnceLock};
 use std::thread;
 
-use gemm::{gemm, Parallelism};
+use gemm::{Parallelism, gemm};
 
 /// The thread count, resolved once (the profile showed `sysctl` + the env
 /// scan inside every gemm dispatch — 576+ calls per question forward).
@@ -689,9 +689,7 @@ pub fn glu_gelu_gate(fused: &[f32], rows: usize, i_sz: usize, out: &mut [f32]) {
     assert_eq!(out.len(), rows * i_sz, "glu out extent");
     let total = rows * i_sz;
     match element_pool() {
-        Some(pool) if total >= GELU_POOL_MIN_ELS => {
-            pool_glu_gelu(pool, fused, rows, i_sz, out)
-        }
+        Some(pool) if total >= GELU_POOL_MIN_ELS => pool_glu_gelu(pool, fused, rows, i_sz, out),
         _ => glu_gelu_gate_rows(fused, rows, i_sz, out),
     }
 }
@@ -736,7 +734,14 @@ pub fn rope_tables(seq: usize, hd: usize, theta: f64) -> (Vec<f32>, Vec<f32>) {
 /// duplication at `j + half` makes this the candle port's
 /// `q·cos + rotate_half(q)·sin` exactly; `a − b` is `a + (−b)` in IEEE, so
 /// the fused form is bit-identical to the add form).
-pub fn apply_rope_inplace(q: &mut [f32], seq: usize, heads: usize, hd: usize, cos: &[f32], sin: &[f32]) {
+pub fn apply_rope_inplace(
+    q: &mut [f32],
+    seq: usize,
+    heads: usize,
+    hd: usize,
+    cos: &[f32],
+    sin: &[f32],
+) {
     let half = hd / 2;
     assert_eq!(q.len(), heads * seq * hd, "q extent");
     assert_eq!(cos.len(), seq * hd, "cos extent");
@@ -782,13 +787,7 @@ pub fn split_heads(
 
 /// `[heads, seq, hd]` → `[seq, d]`: `out[s, h·hd + i] = src[h, s, i]` — the
 /// head merge (`transpose(0,1).flatten_from(1)` in the candle port).
-pub fn merge_heads(
-    src: &[f32],
-    seq: usize,
-    heads: usize,
-    hd: usize,
-    out: &mut [f32],
-) {
+pub fn merge_heads(src: &[f32], seq: usize, heads: usize, hd: usize, out: &mut [f32]) {
     let d = heads * hd;
     assert_eq!(out.len(), seq * d, "merge extent");
     for h in 0..heads {

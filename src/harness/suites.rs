@@ -17,7 +17,7 @@
 //!   true (lane-layer rendering fact; criteria stay Null here).
 
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 /// Question type (§1.1 `QTYPES`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -126,7 +126,7 @@ fn value_as_f64(v: &Value) -> Option<f64> {
 }
 
 /// Python `str()` for the JSON values gold labels arrive as.
-    /// 4. py_str: JSON-escape non-string values as the reference would — CPython
+/// 4. py_str: JSON-escape non-string values as the reference would — CPython
 /// json.dumps with ensure_ascii=False, default separators (", ", ": ") — for
 /// str values this is identity, for bools/ints short literals.
 fn py_str(v: &Value) -> String {
@@ -155,11 +155,7 @@ fn choice_q(
 ) -> SuiteQuestion {
     let mut crit = Map::new();
     for (i, k) in keys.iter().enumerate() {
-        let desc = descs
-            .as_ref()
-            .and_then(|d| d.get(i))
-            .cloned()
-            .flatten();
+        let desc = descs.as_ref().and_then(|d| d.get(i)).cloned().flatten();
         crit.insert(k.clone(), desc.map_or(Value::Null, Value::String));
     }
     SuiteQuestion {
@@ -217,7 +213,9 @@ pub fn build_banking77_mteb(rows_file: &Value, max_rows: usize) -> Suite {
         let idx = keys
             .iter()
             .position(|k| *k == label_text.replace('_', " "))
-            .unwrap_or_else(|| panic!("banking77 mteb: row label_text {label_text:?} not in key set"));
+            .unwrap_or_else(|| {
+                panic!("banking77 mteb: row label_text {label_text:?} not in key set")
+            });
         cases.push(SuiteCase {
             id: format!("banking77:{pos}"),
             state: json!({ "message": text }),
@@ -593,11 +591,16 @@ pub fn build_xnli_en(rows_file: &Value, max_rows: usize) -> Suite {
             "neutral",
             "the premise neither implies nor contradicts the hypothesis",
         ),
-        ("contradiction", "the premise implies the hypothesis is false"),
+        (
+            "contradiction",
+            "the premise implies the hypothesis is false",
+        ),
     ];
     let keys: Vec<String> = NLI_CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
-    let descs: Vec<Option<String>> =
-        NLI_CRIT.iter().map(|(_, d)| Some((*d).to_string())).collect();
+    let descs: Vec<Option<String>> = NLI_CRIT
+        .iter()
+        .map(|(_, d)| Some((*d).to_string()))
+        .collect();
     let all = rows_of(rows_file);
     let mut cases = Vec::new();
     for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
@@ -1080,7 +1083,12 @@ mod selection_slice_tests {
             .iter()
             .map(|r| r.get("row").unwrap())
             .collect();
-        let front: Vec<&serde_json::Value> = s.front.get("rows").unwrap().as_array().unwrap()
+        let front: Vec<&serde_json::Value> = s
+            .front
+            .get("rows")
+            .unwrap()
+            .as_array()
+            .unwrap()
             .iter()
             .map(|r| r.get("row").unwrap())
             .collect();

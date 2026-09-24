@@ -93,7 +93,11 @@ impl NdbError {
 
 impl std::fmt::Display for NdbError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ndb {} (exit {}): {}", self.code, self.exit, self.message)
+        write!(
+            f,
+            "ndb {} (exit {}): {}",
+            self.code, self.exit, self.message
+        )
     }
 }
 
@@ -123,7 +127,7 @@ impl NdbRunStore {
                              \x20 (run in ../riir-neuron-db), then point NDB_BIN at \
                              target/release/ndb (or install it on PATH)."
                                 .to_string(),
-                        )
+                        );
                     }
                 }
             }
@@ -214,13 +218,18 @@ impl NdbRunStore {
     /// Inventory: keys + lengths (the one-corpus-one-row law keeps this cheap).
     pub fn scan(&self) -> Result<Vec<RowMeta>, NdbError> {
         let out = self.run_json(&["scan"], true, None)?;
-        let rows = out.get("rows").and_then(|v| v.as_array()).ok_or_else(|| {
-            NdbError::usage("scan: no rows array in --json output")
-        })?;
+        let rows = out
+            .get("rows")
+            .and_then(|v| v.as_array())
+            .ok_or_else(|| NdbError::usage("scan: no rows array in --json output"))?;
         Ok(rows
             .iter()
             .map(|r| RowMeta {
-                table: r.get("table").and_then(|v| v.as_str()).unwrap_or("?").into(),
+                table: r
+                    .get("table")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("?")
+                    .into(),
                 key: r.get("key").and_then(|v| v.as_str()).unwrap_or("?").into(),
                 bytes: r.get("bytes").and_then(|v| v.as_u64()).unwrap_or(0) as usize,
                 visibility: r
@@ -395,7 +404,11 @@ mod tests {
         .unwrap();
         assert_eq!(v.get("version").unwrap().as_str().unwrap(), "0.1.0");
         assert_eq!(
-            v.get("compiled_features").unwrap().as_array().unwrap().len(),
+            v.get("compiled_features")
+                .unwrap()
+                .as_array()
+                .unwrap()
+                .len(),
             2
         );
         assert!(v.get("shippable").unwrap().as_bool().unwrap());
@@ -427,12 +440,14 @@ mod tests {
     fn error_wire_golden_maps_code_and_exit() {
         // The classified-failure path run_json implements: ok:false + the
         // child's exit code surface together as one typed error.
-        let parsed: serde_json::Value = serde_json::from_str(
-            r#"{"v":1,"ok":false,"code":"not_found","error":"no row t/k"}"#,
-        )
-        .unwrap();
+        let parsed: serde_json::Value =
+            serde_json::from_str(r#"{"v":1,"ok":false,"code":"not_found","error":"no row t/k"}"#)
+                .unwrap();
         assert_eq!(parsed.get("ok").and_then(|v| v.as_bool()), Some(false));
-        assert_eq!(parsed.get("code").and_then(|v| v.as_str()), Some("not_found"));
+        assert_eq!(
+            parsed.get("code").and_then(|v| v.as_str()),
+            Some("not_found")
+        );
         // An ok answer is NOT an error.
         let ok: serde_json::Value =
             serde_json::from_str(r#"{"v":1,"ok":true,"version":"x"}"#).unwrap();
@@ -452,8 +467,7 @@ mod tests {
     #[test]
     fn resolve_prefers_the_ndb_bin_override() {
         let store =
-            NdbRunStore::resolve_with(Some(std::ffi::OsStr::new("/opt/ndb")), "/tmp/kv")
-                .unwrap();
+            NdbRunStore::resolve_with(Some(std::ffi::OsStr::new("/opt/ndb")), "/tmp/kv").unwrap();
         assert_eq!(store.binary, PathBuf::from("/opt/ndb"));
         assert_eq!(store.store_dir(), Path::new("/tmp/kv"));
     }
@@ -474,8 +488,8 @@ mod tests {
 
     #[test]
     fn binary_wire_golden_round_trip() {
-        let store_dir = std::env::temp_dir()
-            .join(format!("reflex_corpus_db_pin_{}", std::process::id()));
+        let store_dir =
+            std::env::temp_dir().join(format!("reflex_corpus_db_pin_{}", std::process::id()));
         let Ok(store) = NdbRunStore::resolve(&store_dir) else {
             eprintln!(
                 "SKIP: ndb binary not found (NDB_BIN unset, not on PATH) — build it: \
@@ -488,11 +502,16 @@ mod tests {
             "ndb version {} (features: {:?})",
             version.version, version.compiled_features
         );
-        assert!(!version.version.is_empty(), "version stamp must be non-empty");
+        assert!(
+            !version.version.is_empty(),
+            "version stamp must be non-empty"
+        );
 
         // put → get round trip through stdin (the write law).
         let value = br#"{"runs":1,"suite":"pin","acc":0.5}"#;
-        let ack = store.put_row(RUNS_TABLE, "pin/round_trip", value).expect("put");
+        let ack = store
+            .put_row(RUNS_TABLE, "pin/round_trip", value)
+            .expect("put");
         assert_eq!(ack.visibility, "pub", "harness rows are public");
         assert_eq!(ack.bytes, value.len());
         let got = store.get_row(RUNS_TABLE, "pin/round_trip").expect("get");
@@ -514,7 +533,10 @@ mod tests {
         let read_back = store.get_corpus("pin_suite", &digest).expect("get_corpus");
         assert_eq!(read_back, corpus, "corpus round trip must be byte-exact");
         let err = store
-            .get_corpus("pin_suite", "0000000000000000000000000000000000000000000000000000000000000000")
+            .get_corpus(
+                "pin_suite",
+                "0000000000000000000000000000000000000000000000000000000000000000",
+            )
             .unwrap_err();
         assert!(
             err.message.contains("digest") || err.code == "not_found",

@@ -70,7 +70,9 @@ use std::ffi::c_void;
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use metal::{Buffer, CommandBuffer, CommandQueue, ComputePipelineState, Device, MTLResourceOptions, MTLSize};
+use metal::{
+    Buffer, CommandBuffer, CommandQueue, ComputePipelineState, Device, MTLResourceOptions, MTLSize,
+};
 use objc2::rc::autoreleasepool;
 
 use super::super::{LayaError, Result};
@@ -86,8 +88,8 @@ use super::backend::{AttnScratch, Backend};
 /// pass, untracked meant kernel N+1 read stale memory written by kernel N
 /// — a timing-dependent race the G5 gate caught. The tracked cost is part
 /// of the honest baseline.
-const RESOURCE_OPTIONS: MTLResourceOptions = MTLResourceOptions::StorageModeShared
-    .union(MTLResourceOptions::HazardTrackingModeTracked);
+const RESOURCE_OPTIONS: MTLResourceOptions =
+    MTLResourceOptions::StorageModeShared.union(MTLResourceOptions::HazardTrackingModeTracked);
 
 /// sgemm tile geometry — MUST mirror the MSL constants in the instances
 /// below; the `metal_ops_smoke` ragged-shape arms exercise every edge path
@@ -1116,7 +1118,9 @@ impl Metal {
             return Err(rt("LAYA_DEVICE=metal: no Metal device on this host"));
         };
         let queue = device.new_command_queue();
-        let msl = format!("{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_SGEMM_XWIDE}{MSL_FLASH}{MSL_TAIL}");
+        let msl = format!(
+            "{MSL_HEAD}{MSL_SGEMM_NARROW}{MSL_SGEMM_WIDE}{MSL_SGEMM_XWIDE}{MSL_FLASH}{MSL_TAIL}"
+        );
         let lib = device
             .new_library_with_source(&msl, &metal::CompileOptions::new())
             .map_err(|e| rt(format!("MSL compile failed: {e}")))?;
@@ -1545,16 +1549,12 @@ impl Backend for Metal {
             (&bb, (b_off * 4) as u64),
             (&ob, (dst_off * 4) as u64),
             &[
-                m as u32,
-                n as u32,
-                k as u32,
-                k as u32, // a_rs
+                m as u32, n as u32, k as u32, k as u32, // a_rs
                 1,        // a_cs
                 n as u32, // b_rs
                 1,        // b_cs
                 0,        // batch strides (batch = 1)
-                0,
-                0,
+                0, 0,
             ],
             m as u32,
             n as u32,
@@ -1576,16 +1576,12 @@ impl Backend for Metal {
             (&wb, 0),
             (&ob, 0),
             &[
-                m as u32,
-                n as u32,
-                k as u32,
-                k as u32, // a_rs
+                m as u32, n as u32, k as u32, k as u32, // a_rs
                 1,        // a_cs
                 1,        // b_rs — B = Wᵀ, W row-major [n, k]
                 k as u32, // b_cs
                 0,        // batch strides (batch = 1)
-                0,
-                0,
+                0, 0,
             ],
             m as u32,
             n as u32,
@@ -1618,16 +1614,12 @@ impl Backend for Metal {
             (&kb, (k_off * 4) as u64),
             (&ob, (dst_off * 4) as u64),
             &[
-                m as u32,
-                m as u32,
-                hd as u32,
-                hd as u32, // a_rs
+                m as u32, m as u32, hd as u32, hd as u32, // a_rs
                 1,         // a_cs
                 1,         // b_rs — B = Kᵀ, K row-major [m, hd]
                 hd as u32, // b_cs
                 0,         // batch strides (batch = 1)
-                0,
-                0,
+                0, 0,
             ],
             m as u32,
             m as u32,
@@ -1725,10 +1717,10 @@ impl Backend for Metal {
                 m as u32,
                 m as u32,
                 hd as u32,
-                hd as u32,      // a_rs
-                1,              // a_cs
-                1,              // b_rs — B = Kᵀ, K row-major [m, hd]
-                hd as u32,      // b_cs
+                hd as u32,       // a_rs
+                1,               // a_cs
+                1,               // b_rs — B = Kᵀ, K row-major [m, hd]
+                hd as u32,       // b_cs
                 (m * hd) as u32, // a_bs
                 (m * hd) as u32, // b_bs
                 (m * m) as u32,  // c_bs

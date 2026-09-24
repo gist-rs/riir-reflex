@@ -13,10 +13,10 @@
 #![cfg(feature = "modelless")]
 
 use riir_reflex::game_heads::{
-    head_digest, loo_select, parse_corpus, GameHeads, TETRIS_D, TETRIS_FIXTURE_BLAKE3,
-    FLAPPY_V3_FIXTURE_BLAKE3, LANES_FIXTURE_BLAKE3,
+    FLAPPY_V3_FIXTURE_BLAKE3, GameHeads, LANES_FIXTURE_BLAKE3, TETRIS_D, TETRIS_FIXTURE_BLAKE3,
+    head_digest, loo_select, parse_corpus,
 };
-use riir_reflex::serve::{demo_engine, serve_listener_heads, LayaLane};
+use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_heads};
 
 /// The published Bench 881 decoded-arm anchors (katgpt-rs, measured
 /// 2026-09-23 on the M3 Max, release profile). The fit recipe is pinned by
@@ -80,7 +80,10 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
         .zip(corpus.argmaxes.iter())
         .filter(|(p, a)| p == a)
         .count();
-    assert_eq!(loo_agree, ANCHOR_LOO, "LOO agreement drifted from Bench 881");
+    assert_eq!(
+        loo_agree, ANCHOR_LOO,
+        "LOO agreement drifted from Bench 881"
+    );
 
     let head = fitter.fit_into(&corpus.rows, &corpus.targets, lambda);
     let mut in_agree = 0usize;
@@ -119,8 +122,7 @@ use std::sync::{Arc, Mutex};
 
 fn first_fixture_sentence() -> (String, usize) {
     for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl").lines() {
-        let v: serde_json::Value =
-            serde_json::from_str(line).expect("fixture line parses");
+        let v: serde_json::Value = serde_json::from_str(line).expect("fixture line parses");
         if v["state_id"] == "_meta" {
             continue;
         }
@@ -209,7 +211,13 @@ fn a_fixture_question_is_answered_from_the_head() {
         resp.routing.lane,
         katgpt_core::decision_wire::Lane::Modelless
     );
-    assert!(resp.routing.reason.as_deref().unwrap_or("").starts_with("game-head/"));
+    assert!(
+        resp.routing
+            .reason
+            .as_deref()
+            .unwrap_or("")
+            .starts_with("game-head/")
+    );
 }
 
 #[test]
@@ -217,14 +225,22 @@ fn a_non_noul_or_foreign_question_falls_through() {
     let heads = GameHeads::build();
     let (sentence, _) = first_fixture_sentence();
     // A foreign question: the head's semantic is pinned; refuse.
-    assert!(heads.respond(&spot_request(&sentence, "Should I flap?")).is_none());
+    assert!(
+        heads
+            .respond(&spot_request(&sentence, "Should I flap?"))
+            .is_none()
+    );
     // A non-noul kind: refuse.
     let mut req = spot_request(&sentence, heads.question());
     req.questions[0].kind = QuestionKind::Choice;
     req.questions[0].options = vec!["a".into(), "b".into()];
     assert!(heads.respond(&req).is_none());
     // A grammar-invalid state: refuse (falls through to the engine).
-    assert!(heads.respond(&spot_request("hello world", heads.question())).is_none());
+    assert!(
+        heads
+            .respond(&spot_request("hello world", heads.question()))
+            .is_none()
+    );
 }
 
 #[test]
@@ -238,7 +254,10 @@ fn the_wire_serves_the_head_and_abstains_off_grammar() {
     assert_eq!(code, 200, "body: {out}");
     let v: serde_json::Value = serde_json::from_str(&out).expect("json");
     let a = &v["answers"][0];
-    assert!(a["outcome"].is_object(), "a spot question must be answered: {out}");
+    assert!(
+        a["outcome"].is_object(),
+        "a spot question must be answered: {out}"
+    );
     assert!(a["probabilities"][0].is_number());
 
     // Off-grammar input: the head declines, the cosine engine abstains —
@@ -247,7 +266,10 @@ fn the_wire_serves_the_head_and_abstains_off_grammar() {
     let (code, out) = post_decide(body);
     assert_eq!(code, 200, "body: {out}");
     let v: serde_json::Value = serde_json::from_str(&out).expect("json");
-    assert!(v["answers"][0]["outcome"].is_null(), "expected abstain: {out}");
+    assert!(
+        v["answers"][0]["outcome"].is_null(),
+        "expected abstain: {out}"
+    );
 }
 
 // ══ the lanes head (Bench 880 lossless decoded arm, issue 011 path 1) ══
@@ -290,7 +312,10 @@ fn lanes_fixture_bytes_match_the_published_blake3() {
     let (lambda, digest, n) = heads.lanes_fit();
     assert_eq!(n, LANES_OPTIONS, "lanes corpus option count drifted");
     assert_eq!(lambda, LANES_ANCHOR_LAMBDA, "lanes LOO-selected λ drifted");
-    assert!(digest.starts_with(LANES_HEAD_PREFIX), "lanes head digest drifted from the Bench 880 anchor prefix: {digest}");
+    assert!(
+        digest.starts_with(LANES_HEAD_PREFIX),
+        "lanes head digest drifted from the Bench 880 anchor prefix: {digest}"
+    );
 }
 
 #[test]
@@ -388,10 +413,22 @@ fn the_wire_serves_the_lanes_joined_turn() {
     for (i, a) in resp.answers.iter().enumerate() {
         assert!(a.outcome.is_some(), "a fixture lane is never abstained");
         let p = a.probabilities[0] as f64;
-        assert!((p - expected[i]).abs() < 1e-6, "lane {i}: served p != head p");
+        assert!(
+            (p - expected[i]).abs() < 1e-6,
+            "lane {i}: served p != head p"
+        );
     }
-    assert_eq!(resp.routing.lane, katgpt_core::decision_wire::Lane::Modelless);
-    assert!(resp.routing.reason.as_deref().unwrap_or("").starts_with("game-head/lanes"));
+    assert_eq!(
+        resp.routing.lane,
+        katgpt_core::decision_wire::Lane::Modelless
+    );
+    assert!(
+        resp.routing
+            .reason
+            .as_deref()
+            .unwrap_or("")
+            .starts_with("game-head/lanes")
+    );
 
     // Protocol strictness: wrong question count, a lane sentence out of its
     // pinned position, and off-grammar lines all fall through.
@@ -431,7 +468,10 @@ fn first_flappy_pair() -> (String, Vec<String>, usize) {
         }
         let opts = v["options"].as_array().expect("options array");
         return (
-            v["state_sentence"].as_str().expect("state sentence").to_string(),
+            v["state_sentence"]
+                .as_str()
+                .expect("state sentence")
+                .to_string(),
             opts.iter()
                 .map(|o| o["sentence"].as_str().expect("sentence").to_string())
                 .collect(),
@@ -452,7 +492,10 @@ fn flappy_fixture_bytes_match_the_published_blake3() {
 fn flappy_fit_hits_the_published_anchors_exactly() {
     let heads = GameHeads::build();
     let (lambda, digest, n) = heads.flappy_fit();
-    assert_eq!(lambda, FLAPPY_ANCHOR_LAMBDA, "flappy LOO-selected λ drifted");
+    assert_eq!(
+        lambda, FLAPPY_ANCHOR_LAMBDA,
+        "flappy LOO-selected λ drifted"
+    );
     assert_eq!(n, FLAPPY_OPTIONS, "flappy corpus option count drifted");
     assert_eq!(
         digest, FLAPPY_V3_DECODED_HEAD_ANCHOR,
@@ -549,13 +592,17 @@ fn the_wire_serves_the_flappy_pair() {
         assert!(resp.answers[0].outcome.is_some());
         let expected = heads.score_flappy(&state_sentence, opt).expect("scores");
         assert!((resp.answers[0].probabilities[0] as f64 - expected).abs() < 1e-6);
-        assert_eq!(resp.routing.lane, katgpt_core::decision_wire::Lane::Modelless);
-        assert!(resp
-            .routing
-            .reason
-            .as_deref()
-            .unwrap_or("")
-            .starts_with("game-head/flappy"));
+        assert_eq!(
+            resp.routing.lane,
+            katgpt_core::decision_wire::Lane::Modelless
+        );
+        assert!(
+            resp.routing
+                .reason
+                .as_deref()
+                .unwrap_or("")
+                .starts_with("game-head/flappy")
+        );
         let _ = i;
     }
 

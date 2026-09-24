@@ -67,8 +67,8 @@ fn families_are_registered_with_the_right_lanes() {
         assert!(synthetic, "{name} must be an in-process synthetic suite");
         assert!(modelless, "{name} is modelless by default (Issue 004)");
     }
-    let (synthetic, modelless) = runner::suite_lanes("harness_cache_reuse")
-        .expect("harness_cache_reuse registered");
+    let (synthetic, modelless) =
+        runner::suite_lanes("harness_cache_reuse").expect("harness_cache_reuse registered");
     assert!(synthetic);
     assert!(
         !modelless,
@@ -81,9 +81,12 @@ fn families_are_registered_with_the_right_lanes() {
 #[test]
 fn modelless_families_meet_count_coverage_and_disjointness_floors() {
     for name in MODELLESS_FAMILIES {
-        let def = families::family_def(name)
-            .unwrap_or_else(|| panic!("{name} has no FamilyDef"));
-        assert!(def.eval.len() >= 12, "{name}: eval slice {} < 12", def.eval.len());
+        let def = families::family_def(name).unwrap_or_else(|| panic!("{name} has no FamilyDef"));
+        assert!(
+            def.eval.len() >= 12,
+            "{name}: eval slice {} < 12",
+            def.eval.len()
+        );
         assert!(
             def.cal.len() >= 16,
             "{name}: cal slice {} < 16 — the fused-gate thresholds cannot fit \
@@ -103,8 +106,14 @@ fn modelless_families_meet_count_coverage_and_disjointness_floors() {
             );
             let cal_n = def.cal.iter().filter(|t| t.gold == gi).count();
             let eval_n = def.eval.iter().filter(|t| t.gold == gi).count();
-            assert!(cal_n >= 2, "{name}: class {label} has {cal_n} cal cases (< 2)");
-            assert!(eval_n >= 2, "{name}: class {label} has {eval_n} eval cases (< 2)");
+            assert!(
+                cal_n >= 2,
+                "{name}: class {label} has {cal_n} cal cases (< 2)"
+            );
+            assert!(
+                eval_n >= 2,
+                "{name}: class {label} has {eval_n} eval cases (< 2)"
+            );
         }
         // Gold indexes in range.
         for t in def.cal.iter().chain(def.eval.iter()) {
@@ -152,8 +161,15 @@ fn synthdata_gold_and_options_agree() {
                         .criteria
                         .as_object()
                         .unwrap_or_else(|| panic!("{name}: choice criteria must be an object"));
-                    assert!(g.idx < keys.len(), "{name}: gold {} out of option range", g.idx);
-                    assert!(g.gold_score.is_none(), "{name}: choice carries no gold_score");
+                    assert!(
+                        g.idx < keys.len(),
+                        "{name}: gold {} out of option range",
+                        g.idx
+                    );
+                    assert!(
+                        g.gold_score.is_none(),
+                        "{name}: choice carries no gold_score"
+                    );
                 }
                 QKind::Score => {
                     let levels = q
@@ -189,10 +205,14 @@ fn synthdata_gold_and_options_agree() {
 
 /// Build the family engine exactly the way the runner does (domain order =
 /// label order; corpus = that label's docs).
-fn family_engine<const N: usize>(
-    d: &families::SynthData,
-) -> DecisionEngine<N, EMBED_DIM> {
-    assert_eq!(d.labels.len(), N, "family {} arms {} domains", d.suite.name, N);
+fn family_engine<const N: usize>(d: &families::SynthData) -> DecisionEngine<N, EMBED_DIM> {
+    assert_eq!(
+        d.labels.len(),
+        N,
+        "family {} arms {} domains",
+        d.suite.name,
+        N
+    );
     let specs: Vec<ExpertSpec> = d
         .labels
         .iter()

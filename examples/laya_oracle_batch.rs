@@ -55,7 +55,9 @@ fn main() {
                 ckpt_name = args[i].clone();
             }
             other => {
-                eprintln!("unknown arg {other:?} — usage: --dump <p> --out <p> [--checkpoint english|typed-decisions|multilingual]");
+                eprintln!(
+                    "unknown arg {other:?} — usage: --dump <p> --out <p> [--checkpoint english|typed-decisions|multilingual]"
+                );
                 std::process::exit(1);
             }
         }
@@ -79,12 +81,15 @@ fn main() {
         .expect("read manifest")
         .lines()
         .map(serde_json::from_str)
-        .collect::<Result< _, _>>()
+        .collect::<Result<_, _>>()
         .expect("parse manifest JSONL");
 
     let root = weights_root();
     let agent = RiirAgent::load(&root, ckpt).expect("load checkpoint (weights resolve under ~/.cache/riir-reflex/laya, LAYA_WEIGHTS_DIR/LAYA_HOME override)");
-    eprintln!("loaded {ckpt_name} — posture: {} (LAYA_DEVICE)", agent.device());
+    eprintln!(
+        "loaded {ckpt_name} — posture: {} (LAYA_DEVICE)",
+        agent.device()
+    );
 
     let mut buf = String::new();
     let mut n_options = 0usize;

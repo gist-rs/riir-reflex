@@ -51,8 +51,7 @@ pub fn from_bytes(bytes: &[u8], ckpt: &'static str) -> Result<HashMap<String, We
     if bytes.len() < 8 {
         return Err(bad(format!("{} bytes: no header length", bytes.len())));
     }
-    let header_len =
-        u64::from_le_bytes(bytes[..8].try_into().expect("8 bytes")) as usize;
+    let header_len = u64::from_le_bytes(bytes[..8].try_into().expect("8 bytes")) as usize;
     let data_start = 8usize
         .checked_add(header_len)
         .ok_or_else(|| bad("header length overflow".into()))?;
@@ -73,9 +72,9 @@ pub fn from_bytes(bytes: &[u8], ckpt: &'static str) -> Result<HashMap<String, We
         if name == "__metadata__" {
             continue;
         }
-        let dtype = entry["dtype"].as_str().ok_or_else(|| {
-            bad(format!("{name}: missing dtype"))
-        })?;
+        let dtype = entry["dtype"]
+            .as_str()
+            .ok_or_else(|| bad(format!("{name}: missing dtype")))?;
         let shape: Vec<usize> = entry["shape"]
             .as_array()
             .ok_or_else(|| bad(format!("{name}: missing shape")))?
@@ -102,12 +101,12 @@ pub fn from_bytes(bytes: &[u8], ckpt: &'static str) -> Result<HashMap<String, We
                 end.saturating_sub(begin)
             )));
         }
-        let abs_begin = data_start.checked_add(begin).ok_or_else(|| {
-            bad(format!("{name}: data offset overflow"))
-        })?;
-        let abs_end = data_start.checked_add(end).ok_or_else(|| {
-            bad(format!("{name}: data offset overflow"))
-        })?;
+        let abs_begin = data_start
+            .checked_add(begin)
+            .ok_or_else(|| bad(format!("{name}: data offset overflow")))?;
+        let abs_end = data_start
+            .checked_add(end)
+            .ok_or_else(|| bad(format!("{name}: data offset overflow")))?;
         if bytes.len() < abs_end {
             return Err(bad(format!(
                 "{name}: data ends at {abs_end} but the file has {} bytes",
