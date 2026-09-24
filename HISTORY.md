@@ -7,6 +7,22 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **README CUDA-row ratio refresh — 14–17× the CPU row, measured at the
+  post-ladder HEAD** (doc-sync; no code change). The v1-rung claim
+  ("10–12× the CPU row", landed with 026 before the flash/float4/reg4
+  rungs) was stale in the conservative direction. Same-binary env-flip
+  pairs on this box (release, `laya-riir-cuda`, `LAYA_DEVICE=cpu` vs
+  `=cuda`, 2–3 alternating pairs per fixture, row p50): english
+  211.4/12.6 = **16.8×** (pair range 16.1–17.5) · typed 205.2/12.7 =
+  **16.1×** · multilingual 93.1/6.65 = **14.0×**. CUDA row p50
+  12.6/12.7/6.5 ms sits below the M3 Metal row (28.3/28.3/12.2) on every
+  fixture. Box state: AC · GPU idle of compute (GUI apps only, the
+  exempt class) · a sibling agent's CPU-only tokenization running
+  throughout · the sibling's riir-infer WIP verified behavior-neutral
+  for the laya lane (opt-in feature + visibility derives; the lane's
+  dep closure untouched) — the binary measured is HEAD-equivalent.
+  Build isolated at `CARGO_TARGET_DIR=/tmp/reflex_ratio_target`.
+
 - **Bench 030 — the float4 sgemm rung: every suite improves, the packed
   zone's first win** (substrate: riir-infer `.issues/006`, commit
   `aadbc07`; reflex artifacts here + the probe's new packed-zone

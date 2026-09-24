@@ -96,9 +96,13 @@ applied temperature in `calibration`. This is what powers the live games at
 
 The device is the build's own posture: Metal on macOS metal builds (v0.2.2
 — the measured ~2× per-forward gain), CUDA on non-macOS builds compiled
-with `--features laya-riir-cuda` (the 4090 lane — 10–12× the CPU row and
-below the M3 Metal row; G5-green at the cuda posture). `LAYA_DEVICE=cpu`
-opts out; an explicit env value is always honored verbatim.
+with `--features laya-riir-cuda` (the 4090 lane — 14–17× the CPU row on the
+same box and below the M3 Metal row on every fixture, post the 028/030/031
+rung ladder [flash · float4 · reg4]; measured 2026-09-25 same-binary
+env-flip pairs: english 16.8× · typed 16.1× · multilingual 14.0×, CUDA row
+p50 12.6/12.7/6.5 ms vs Metal 28.3/28.3/12.2; G5-green at the cuda posture).
+`LAYA_DEVICE=cpu` opts out; an explicit env value is always honored
+verbatim.
 
 #### The ANE routing tier (opt-in, macOS + `--features laya-riir-ane`)
 
