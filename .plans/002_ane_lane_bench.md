@@ -1,5 +1,7 @@
 # Plan 002 — the ANE lane bench: laya on the Apple Neural Engine, measured on OUR box, published to reflex.gist.rs/bench
 
+**Status:** COMPLETE 2026-09-24 — P0 + P1 + P2 all done (P2 landed inside the Issue 023 T5 together-republish, reflex-site `3ab373f`); serve-router wiring stays issue 017's (its task list owns it, per the non-goal below).
+
 **Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `78a91c3`+`5c8ec2a`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) RUN DONE, site push pending: T2.1's two harness runs LANDED
 (reflex `afacc3a`+`5f574a6`) — hosts m3 (fresh Metal primary, 15 suites clean,
 post-blend engine) + m3-ane (12 ANE rows; bucket skips named per case;
@@ -160,18 +162,28 @@ single-question short-prompt class reflex serves.
       shared objc2 0.6 with the metal lane; never wasm32, never default;
       any bump re-runs the consumer-side G5-ANE gate).
 
-## P2 — publish to reflex.gist.rs/bench
+## P2 — publish to reflex.gist.rs/bench — COMPLETE 2026-09-24
 
-- [ ] T2.1 Re-run the harness timing tables with the ANE column (the same
-      `results.json` shape; new `device: ane` rows sanitized by
-      `publish_bench.py` — extend its sanitizer for the artifact digests if
-      they appear in meta).
-- [ ] T2.2 `python3 ../reflex-site/scripts/publish_bench.py
-      .benchmarks/001_phase1_tables/results.json ../reflex-site` + commit +
-      `npx wrangler deploy` in the site repo (manual deploy per the
-      free-tier rule; no secrets in the repo).
-- [ ] T2.3 The bench page's lane legend gains the ANE row explanation
-      (decision-level gate wording — near-ties listed, never hidden).
+- [x] T2.1 Re-run the harness timing tables with the ANE column. **DONE**
+      (`5f574a6`): hosts m3 (metal, 15 suites clean) + m3-ane (12 served ANE
+      rows; banking77/massive_intent honestly absent — ANE bucket coverage)
+      at one HEAD; the publish drift gate REFUSED the stale pre-blend
+      primary on the first attempt (the gate working as designed), resolved
+      by re-running the primary post-023. Preflight PROVENANCE quoted in
+      the bench commit.
+- [x] T2.2 Publish + commit + deploy. **DONE 2026-09-24** — landed as part
+      of the Issue 023 T5 together-republish (reflex-site `3ab373f`,
+      worker `cde063c2`, live-verified: massive 0.69 on m3 + m3-ane +
+      4090-windows, three hosts). Composition: primary = the fresh m3
+      metal run @8028a10, extras = m3-ane join + 4090-windows join (Issue
+      018 full run) + the two T5 modelless-only updates; final-state drift
+      gate passed pairwise. code_fixtures now the uniform post-laya-move
+      population (nq 24).
+- [x] T2.3 The bench page's ANE device-row FAQ. **DONE** (reflex-site
+      `a67d2a1`): decision-level gate wording — top-1 ≥ 99.9% vs the
+      frozen captures, every flip inside the near-tie band listed never
+      hidden, p-drift observation-only; lane blurb notes the per-run
+      device.
 
 ## Non-goals
 
