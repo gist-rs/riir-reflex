@@ -7,7 +7,9 @@ is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: t
 wave moved `massive_intent_en` p50 by ≈ −5% (10 paired rounds) and the GEMM by
 −10% wide / −21.5% narrow, but a **same-run** head-to-head against the python
 oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
-**winning p99**. Its largest remaining lever (T5, per-case question batching)
+**winning p99** — and `code_fixtures` joins them (Bench 006 Addendum 3:
+same-run p50 **+7.4%** median over 8 rounds, max **+43%**, unattributed →
+T8). Its largest remaining lever (T5, per-case question batching)
 is IDENTIFIED from the reference's own source. Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
@@ -278,6 +280,15 @@ box this repo does not currently have.
       BK=48 negative), the untried axes are occupancy (24 960 B of threadgroup
       memory caps residency), double-buffered staging, and an f16-operand
       instance behind its own feature flag + G5 re-gate.
+
+- [ ] **T8 — attribute the `code_fixtures` max (rust ~225 ms vs python
+      ~160, +43% every round, Bench 006 Addendum 3).** The harness's p99 at
+      n = 24 is the MAXIMUM (tail support 1), and `results.json` keeps no
+      per-question latencies, so a first-question residual cold cost and a
+      single long input are indistinguishable from the output. Step 1:
+      persist per-question latency (index + ms) per lane in `results.json`
+      — cheap, and it turns every max-class p99 in the table into something a
+      reader can attribute. Step 2: read the argmax question on both lanes.
 
 ## Gates every wave must hold
 

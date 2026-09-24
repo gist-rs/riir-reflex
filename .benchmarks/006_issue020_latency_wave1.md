@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — unattributed, Issue 020 T8)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -400,3 +400,47 @@ scripts/bench_preflight.sh     # quote PROVENANCE
 # paired rounds: alternate BASE/NEW order per round, wait for load < 4 before
 # EVERY run, log load + power per row; same-run h2h: --laya-python
 ```
+
+## Addendum 3 (2026-09-24 11:55–12:05) — the owed same-run `code_fixtures` cell
+
+Addendum 2 quoted `code_fixtures` p50 **79** (15-suite run) against the
+published **147** rust / **125** python and marked the python comparison
+*owed*. Paid here. Build: DETACHED worktrees at riir-reflex `122276b` +
+riir-infer `0121a3b` (committed HEADs — a sibling's uncommitted riir-infer
+`agent.rs` edit is excluded by construction), own `CARGO_TARGET_DIR`,
+`--release --features laya-riir-metal`, `harness --suites code_fixtures
+--laya-python`, AC / powermode 2. Box state is the harness's own T7 stamp
+per run: rounds 1–3 **NOT quotable** (load 6.7–8.7, a sibling build), round 4
+start-refused / end-quotable, rounds 5–8 **quotable** (load 5.1–5.5). Rust
+answers before python in every round — the harness cannot alternate lane
+order, so this is position-UNbalanced and disclosed as such.
+
+| round | load | rust p50 / max | python p50 / max | Δp50 |
+|---|---|---|---|---|
+| 1 | 8.68 | 81 / 231 | 75 / 161 | +8.0% |
+| 2 | 7.86 | 79 / 229 | 82 / 161 | −3.7% |
+| 3 | 6.70 | 80 / 230 | 77 / 163 | +3.9% |
+| 4 | 6.13 | 77 / 223 | 70 / 152 | +10.0% |
+| 5 | 5.51 | 77 / 224 | 67 / 152 | +14.9% |
+| 6 | 5.16 | 78 / 223 | 71 / 166 | +9.9% |
+| 7 | 5.45 | 77 / 224 | 75 / 151 | +2.7% |
+| 8 | 5.13 | 78 / 224 | 73 / 165 | +6.8% |
+
+(n = 24 questions per lane, so the harness's "p99" has tail support **1** —
+it is the MAXIMUM, printed here as max. Accuracy identical, 0.5417 both.)
+
+- ⛔ **Rust LOSES p50 on `code_fixtures`: median paired +7.4%, 7 of 8
+  rounds** (quotable rounds 5–8 alone: +2.7…+14.9%, same sign). Rust is
+  rock-steady at 77–81 ms; python moves 67–82. The published 147→79 rust
+  improvement is real; the claim *"every harness suite now below the
+  published python column"* is **retracted for `code_fixtures`** — that column
+  (125) was a different box state, and same-run python is ~74.
+- ⛔ **The max is worse by a median +43%** (rust 223–231 vs python 151–166),
+  every round, well outside either lane's spread. **Unattributed**:
+  `results.json` does not persist per-question latencies, so whether the max
+  is the first question (a residual cold cost the Issue 020 T1 fix did not
+  reach on this suite) or a specific long input cannot be read off this run.
+  Filed as Issue 020 T8 rather than guessed at.
+- ⚑ This is the third suite (after `massive_intent_en`, `banking77`) where
+  the same-run p50 sign is rust-loses by 5–15%. Class A's shape is consistent;
+  T5 (question batching — `code_fixtures` is 2 q/case) remains the lever.
