@@ -167,10 +167,11 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   joined-turn answered — BYTE-IDENTICAL to the darwin-arm64 answer on the M3 for the
   same request). Carries the Metal BK64+xwide lane (`a51ea42`: ag_news 34→29 ms
   beats the python oracle, xwide n-floor + cold-GPU-sequencing traps recorded in the
-  landing) and issue 015 (the parallel-Metal smoke flake — observation 4 is this
-  release's own pre-flight: one serialized red minutes after sibling GPU work, then
-  stable greens; kernel changes exonerated, G5 never flagged, serving is single-instance
-  serialized by construction).
+  landing) and issue 015 (the parallel-Metal smoke flake — RESOLVED 2026-09-24 `a3215da`: the
+  root cause was the smoke violating the chain-cache epoch contract (never `begin_pass`),
+  so recycled-address inputs silently hit stale device slots — a heap-layout lottery that
+  mimicked GPU flake; never contention, never the driver; obs 4's serialized red is this
+  class, and G5 stayed green throughout because forwards begin a pass per layer).
 - **v0.2.2 live (2026-09-23)** — the fitted game head + Metal-default laya (Plan 001,
   `.plans/001_game_head_serving.md`): the modelless lane answers Plan 607's Tetris spot
   question from the decoded Bench-881 head (λ=1, 44/120 in+LOO anchors pinned in
