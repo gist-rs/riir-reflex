@@ -1,6 +1,6 @@
 # Issue 017 — ANE lane reference design (laya-apple distill; owner hint 2026-09-24)
 
-**Status:** OPEN — reference design distilled from tc3oliver/laya-apple v1.0; Phase-0 feasibility + owner gates pending. No code landed.
+**Status:** OPEN — reference design distilled from tc3oliver/laya-apple v1.0; **gate 1 RATIFIED at feasibility+bench scope 2026-09-24 (owner directive in-session; release-scope artifact question stays open)**; Phase-0 feasibility PARTIAL (Plan 002: conversion harness landed, weight-mapped trace pending); no Rust code landed.
 
 **Source pin:** `tc3oliver/laya-apple` @ `128a19302c616173617d1d8d4b152e2f667c618c` (Apache-2.0), benchmarks/v1.0.md + docs/support-matrix.md + docs/no-silent-fallback.md. Measured on **Apple M4 Max / macOS 26.6.2 / coremltools 9.0 / MLX 0.32.2** — their own routing.json says "thresholds are not validated elsewhere". Distilled 2026-09-24 (riir-clippy distill verdict: MARGINAL C corpus / LANE INTEL HIGH).
 
@@ -37,7 +37,7 @@ The owner hint: "reflex may need ane lane btw". laya-apple v1.0 is the first pro
 
 ## Tasks
 
-- [ ] Owner gate 1: is an ANE lane wanted at all (new artifact class `.mlpackage` in release archives vs download-on-demand; the no-Python boundary formally ratified for the offline-conversion step)?
+- [x] Owner gate 1: is an ANE lane wanted at all (new artifact class `.mlpackage` in release archives vs download-on-demand; the no-Python boundary formally ratified for the offline-conversion step)? — **RATIFIED 2026-09-24 at the feasibility + bench scope** (owner directive in-session: "add plan to add ane lane bench to reflex.gist.rs/bench and do that first"): Plan 002 exists, the offline-conversion boundary holds (`scripts/ane_convert.py`, never at serving time). STILL OPEN at release scope: whether `.mlpackage` artifacts ride the release archives or download-on-demand — that question gates P3 (serve wiring), not the bench.
 - [ ] Phase 0 feasibility: offline coremltools conversion of laya + laya-multilingual (BC1S FP16, buckets {64,96,128} + {256} ml), compute-plan verify passes on the M3.
 - [ ] `laya-riir-ane` feature + objc2-core-ml runtime path (same commit as the gate row).
 - [ ] BOUNDARY.md allowlist row for the new deps — `objc2-core-ml` + `objc2-foundation` (the allowlist currently carries `metal` + `objc2` only); rides the SAME feature commit per the boundary contract.
