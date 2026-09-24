@@ -1,5 +1,16 @@
 # Bench 005 — Issue 013 lever 3: the confusion probe and the fitted pair-head A/B (both REFUTED)
 
+> ⛔ **Correction (Issue 023, Bench 007, 2026-09-24):** this bench's closing
+> verdict — *"the modelless lane sits at its feature-class ceiling"* — was
+> measured with the option-rank centroid signal **disabled** on
+> massive_intent_en (k = 20 options ≠ N = 59 domains, so the `k == N` guard
+> never armed it) and with a **misaligned** banking77 CAL slice. Fixed by
+> name-resolving options to domains: massive 0.0767 → **0.6900**. The
+> pair-head refutation stands for the suites whose raw eval was aligned
+> (every suite but massive — byte-identical there); massive's rows here are
+> void. Lever 4 (a new embedder) is not the next lever until the fixed lane
+> is re-read.
+
 **Status:** COMPLETE 2026-09-24 · run commit = this landing · M3 (macOS,
 release, modelless lane only `--skip-laya`) · all 14 suites, fixtures
 `.raw/datasets/` · DETERMINISTIC: the full A/B run re-ran byte-identical

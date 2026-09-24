@@ -1,5 +1,15 @@
 # Bench 004 — Issue 013 lever 1 remainder: the stratified cap-selection protocol (and the refusal it produced)
 
+> ⛔ **Correction (Issue 023, Bench 007 §3, 2026-09-24):** the banking77
+> selection slice below was read with the option-rank centroid term
+> **index-misaligned** (train-row label order ≠ domain order): its
+> sel-slice accuracies (0.035–0.080 re-measured on the base binary) are an
+> instrument artifact, so the banking77 refusal was adjudicated on a broken
+> slice. Re-run under the fix: selection transfers (256 → test 0.4560 vs
+> 0.4460 default) and promotion is still **declined**, now on perf/sec
+> (2× p50 for +1.0 pt) rather than on non-transfer. ag_news is unaffected
+> (byte-identical).
+
 **Status:** COMPLETE 2026-09-24 · run commit = this landing · M3 (macOS,
 release, modelless lane only `--skip-laya`) · fixtures `.raw/datasets/`
 ag_news + banking77 · DETERMINISTIC: the selection run re-ran

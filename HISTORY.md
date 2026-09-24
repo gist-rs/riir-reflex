@@ -492,6 +492,9 @@ already closed with records only in git history.
   chance too; where the engine is strong the head is strictly worse. The
   lane sits at its feature-class ceiling — lever 4 (a more expressive
   embedder) recorded in the issue's final state, unstarted, owner-gated.
+  ⛔ CORRECTED by Issue 023 (Bench 007): the "ceiling" was read with the
+  centroid signal OFF on massive (k ≠ N guard) and index-misaligned on the
+  banking77 CAL slice — name-resolved routing moves massive 0.077 → 0.690.
   Instruments stay, report-only, default posture byte-identical: the
   always-on `modelless.confusion` readout + `harness --pair-head-ab`
   (both firing gates, gold-in-pair split, n_counted disclosure;

@@ -183,6 +183,15 @@ pub struct EngineConfig {
     /// it ranks options. Default 8.0 is the landing value; a promoted change
     /// needs the measured sweep at parity everywhere else (the GOAT shape).
     pub route_scale: f32,
+    /// Resolve each option to its domain BY NAME (Issue 023): when every
+    /// option string names a domain, the option's route term is the state's
+    /// cosine to THAT domain's centroid, whatever the option order or
+    /// arity. Off (or any option unresolved) → the legacy rule: route terms
+    /// only when `k == N`, aligned by INDEX. Without it a sampled-distractor
+    /// suite (massive: 20 of 59 labels per question) never sees the centroid
+    /// signal and ranks options by the drafter delta alone — measured
+    /// ~1.5x chance.
+    pub option_name_route: bool,
 }
 
 impl Default for EngineConfig {
@@ -194,6 +203,7 @@ impl Default for EngineConfig {
             cal_capacity: 512,
             cal_min_obs: 64,
             route_scale: 8.0,
+            option_name_route: true,
         }
     }
 }
@@ -425,7 +435,32 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // issue 013), not a silent constant. Stack-local;
             // zero-alloc law holds.
             let mut route_terms = [0.0f32; N];
-            let route_active = k == N;
+            // Option → domain index. By NAME first (Issue 023): exact
+            // byte-equality of the option string with a domain name, on a
+            // stack array (k ≤ N is necessary for every option to resolve
+            // to a distinct domain; duplicates are refused by `validate`).
+            // Only a FULL resolution arms it — a partial map would give some
+            // options a centroid term and others none, a bias not a signal.
+            let mut opt_dom = [0usize; N];
+            let by_name = self.cfg.option_name_route
+                && !matches!(q.kind, QuestionKind::Noul)
+                && k <= N
+                && q.options.iter().zip(opt_dom.iter_mut()).all(|(o, slot)| {
+                    match self.experts.iter().position(|e| e.name == *o) {
+                        Some(d) => {
+                            *slot = d;
+                            true
+                        }
+                        None => false,
+                    }
+                });
+            if !by_name && k == N {
+                // Legacy index alignment (pick index ↔ domain index).
+                for (i, slot) in opt_dom.iter_mut().enumerate() {
+                    *slot = i;
+                }
+            }
+            let route_active = by_name || k == N;
             if route_active {
                 let mut q_state = [0.0f32; D];
                 self.embedder.embed_into(req.state.as_bytes(), &mut q_state);
@@ -438,11 +473,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 }
             }
             sc.scores.clear();
-            // The route terms align 1:1 with the options exactly when
-            // `route_active` (that condition IS k == N); a plain index here
-            // trips needless_range_loop, so the terms are consumed from an
-            // iterator the loop only advances under the same condition.
-            let mut terms = route_terms.iter().copied();
+            // Each option's route term is its RESOLVED domain's cosine
+            // (`opt_dom`: by name, or the identity map under the legacy
+            // k == N rule).
+            let mut terms = opt_dom[..k.min(N)].iter().map(|&d| route_terms[d]);
             for i in 0..k {
                 sc.cand.clear();
                 match q.kind {
@@ -459,7 +493,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 if route_active {
                     score += terms
                         .next()
-                        .expect("route terms align with options when k == N");
+                        .expect("route terms resolve for every option when route_active");
                 }
                 sc.scores.push(score);
             }
@@ -655,6 +689,109 @@ mod tests {
         );
         assert_eq!(resp.calibration.method, "none");
         assert!(resp.routing.reason.as_deref().unwrap().contains("ops=1"));
+    }
+
+    /// Issue 023: a sampled-distractor question (k < N, shuffled option
+    /// order) must rank by the state's cosine to each option's NAMED domain.
+    /// Four topical domains, a 2-option question naming the last two in
+    /// reverse order; the state is the `billing` topic, so the pick must be
+    /// the option spelled `billing` — at its own index, not the domain's.
+    fn four_topics() -> Vec<DomainExpert<EMBED_DIM>> {
+        vec![
+            one_domain(
+                "deploy",
+                "deploy the server to staging and verify the rollout",
+            ),
+            one_domain("weather", "rain forecast sunny cloudy temperature tomorrow"),
+            one_domain("music", "play the song album playlist artist track"),
+            one_domain(
+                "billing",
+                "refund the customer invoice balance billing account",
+            ),
+        ]
+    }
+
+    fn subset_request() -> DecisionRequest {
+        DecisionRequest {
+            state: "please refund my invoice, the billing balance is wrong".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                vec!["billing".to_string(), "music".to_string()],
+                None,
+            )],
+        }
+    }
+
+    #[test]
+    fn option_name_route_ranks_a_shuffled_subset_by_named_centroid() {
+        let mut eng: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let mut sc = Scratch::new();
+        sc.prepare(1);
+        eng.solve_into(&subset_request(), &mut sc).unwrap();
+        let p = &sc.probs[sc.slots[0].prob_lo..sc.slots[0].prob_lo + 2];
+        assert_eq!(
+            sc.slots[0].pick, 0,
+            "billing (option 0) must win, probs {p:?}"
+        );
+        assert!(
+            p[0] > p[1] + 0.05,
+            "a real centroid margin, not a tie: {p:?}"
+        );
+    }
+
+    #[test]
+    fn option_name_route_off_is_the_legacy_posture() {
+        // Off: k (2) != N (4) → no route term, drafter delta only — the
+        // pre-023 behavior, pinned so the knob's flag-off side is real.
+        let cfg = EngineConfig {
+            option_name_route: false,
+            ..EngineConfig::default()
+        };
+        let mut off: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), cfg).unwrap();
+        let mut on: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let (mut a, mut b) = (Scratch::new(), Scratch::new());
+        off.solve_into(&subset_request(), &mut a).unwrap();
+        on.solve_into(&subset_request(), &mut b).unwrap();
+        assert_ne!(
+            a.probs, b.probs,
+            "the knob must change the distribution on a k < N question"
+        );
+    }
+
+    #[test]
+    fn option_name_route_is_identity_when_options_are_domains_in_order() {
+        // k == N with options spelled as the domains in domain order: name
+        // resolution IS the identity map, so both postures are bit-identical.
+        let req = DecisionRequest {
+            state: "play my playlist from that artist".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                ["deploy", "weather", "music", "billing"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                None,
+            )],
+        };
+        let cfg_off = EngineConfig {
+            option_name_route: false,
+            ..EngineConfig::default()
+        };
+        let mut off: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), cfg_off).unwrap();
+        let mut on: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let (mut a, mut b) = (Scratch::new(), Scratch::new());
+        off.solve_into(&req, &mut a).unwrap();
+        on.solve_into(&req, &mut b).unwrap();
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        assert_eq!(bits(&a.probs), bits(&b.probs));
+        assert_eq!(b.slots[0].pick, 2, "music");
     }
 
     #[test]

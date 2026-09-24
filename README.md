@@ -133,7 +133,7 @@ scripts/binary_leak_scan.sh target/aarch64-apple-darwin/dist/reflex
 
 | gate | verdict | where |
 |---|---|---|
-| G1 calibration (beats raw + conformal-naive floor) | PASS 7/14 · FAIL 2 (ag_news, massive_intent) · NO CLAIM 5 (the synthetic families — their cal windows sit below the calibrator's 64-obs fit floor, so no calibration claim is made; reported NO CLAIM since `bb2370a`, matching the calibration_protocol promise, never a FAIL) | `.benchmarks/001_phase1_tables/TABLES.md` |
+| G1 calibration (beats raw + conformal-naive floor) | PASS 8/14 · FAIL 1 (ag_news) — massive FAIL → PASS with Issue 023 (Bench 007; TABLES.md re-reads it at the next full run) · NO CLAIM 5 (the synthetic families — their cal windows sit below the calibrator's 64-obs fit floor, so no calibration claim is made; reported NO CLAIM since `bb2370a`, matching the calibration_protocol promise, never a FAIL) | `.benchmarks/001_phase1_tables/TABLES.md` |
 | G2 latency (p99 ≤ 1 ms per decision set) | PASS — p99 0.06 ms per 8-question set | `benches/decision_set_goat.rs` |
 | G3 no regression | PASS — consumes katgpt-rs, never edits it | boundary gate |
 | G4 alloc (hot path alloc-free, canary-armed) | PASS — 0 allocs post-warmup | `benches/decision_set_goat.rs` |
@@ -163,9 +163,13 @@ the three-way table below for the current rows):
 | sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 88 ms |
 | prompt_injections | 116 | 0.4397 | **0.6983** | 0.1 ms | 88 ms |
 | xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 99 ms |
-| massive_intent_en | 300 | 0.0767 | **0.7500** | 0.1 ms | 159 ms |
+| massive_intent_en | 300 | 0.6900 ¹ | **0.7500** | 0.1 ms | 159 ms |
 | banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 249 ms |
 | code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
+
+¹ Issue 023 (Bench 007): was 0.0767 — the option-rank centroid signal
+was off on this sampled-distractor suite. Modelless-only re-read; the
+laya columns are unchanged (deterministic lanes).
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,
@@ -292,9 +296,12 @@ above is the verdict, and the retraction is recorded in Bench 001.)
 
 - **The modelless lane is corpus-bound by design**: near-chance to
   well-below-laya on out-of-domain text classification (ag_news 0.510 vs
-  0.950, massive 0.077 vs 0.750) — the zero-shot breadth loss is
-  structural, not a bug (plan caveat 4). banking77 is the near-parity
-  exception (0.446 vs 0.498) since the option-rank blend (Issue 004 T7).
+  0.950) — the zero-shot breadth loss is structural (plan caveat 4).
+  massive (0.690 vs 0.750) and banking77 (0.446 vs 0.498) are the
+  near-parity rows. ⛔ massive's former 0.077 was NOT structural — it was
+  a BUG: the centroid signal was armed only when option count == domain
+  count, so a 20-of-59 sampled-distractor question never saw it (Issue 023,
+  Bench 007). Read a near-chance row as an instrument question first.
   Its native territory (typed decision sets over workflow states, code
   spans) is where the substrate is meant to live. Its G1 calibration
   reads 7 PASS / 2 FAIL / 5 NO CLAIM in the current tables: where the
