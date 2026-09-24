@@ -1,6 +1,6 @@
 # Issue 027 — the CLM T3 4090 bench posture (+ the AgentJev measure-only row riding the same window)
 
-**Status:** THE WINDOW EXECUTED 2026-09-25 (bench 033, reflex `967415c`,
+**Status:** THE WINDOW EXECUTED 2026-09-25 (bench 034 post-renumber, reflex `967415c`,
 site `ae79a87`) — the serving + measuring halves are DONE: the
 determinism pin GREEN (8/8 byte-identical + head mtime unchanged, after
 the warmup law below), the CLM cells landed on ALL 15 suites, the leak
@@ -89,7 +89,7 @@ is measurement only.
 
 1. Book a quiet 4090 window (no perf-league cycle; `nvidia-smi` clean).
 
-> **EXECUTED-WINDOW NOTES (2026-09-25, bench 033).**
+> **EXECUTED-WINDOW NOTES (2026-09-25, bench 034 post-renumber).**
 > * **The serialization law bit exactly as written**: the first
 >   combined attempt ran the laya CUDA lane BESIDE the resident vLLM
 >   (17.7 GB reserved at util 0.72) — ~13 min stuck on

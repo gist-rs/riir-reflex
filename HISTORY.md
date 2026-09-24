@@ -7,8 +7,13 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
-- **Issue 027 — the CLM T3 4090 window EXECUTED** (bench 033; reflex
-  `967415c`, site `ae79a87`): the external Contrastive-LM reference's
+- **Issue 027 — the CLM T3 4090 window EXECUTED** (bench 034,
+  renumbered from 033 in the same-window dual-allocation with the
+  sibling's rope-hoist instrument `033_rope_hoist_ab` (landed at origin
+  first — numbers are never reused, the renumber consumes 034 exactly
+  like a fresh allocation); reflex `967415c`+`16c6589`+`b67eeb8`, site
+  `ae79a87` — the site commit's "bench(033)" spelling predates the
+  renumber, disambiguated HERE): the external Contrastive-LM reference's
   first measured cells on the arena, end-to-end in one window. The
   serving stack (their code, our docker): vLLM `--runner pooling` over
   Qwen3-8B (LAST-token, prefix cache, their `serve_qwen3_8b.sh` flags

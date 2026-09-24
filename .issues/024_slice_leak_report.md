@@ -82,7 +82,7 @@ EXACT-string, so none of these rows trips it.
   `results.json`.
 - [x] T4: site columns in `bench.json`. These ride the NEXT Issue 018
   two-host publish; do not force a separate one. **DONE 2026-09-25** —
-  rode the 027 window publish (bench 033, site `ae79a87`): the 7 dataset
+  rode the 027 window publish (bench 034 post-renumber, site `ae79a87`): the 7 dataset
   suites carry `leak` blocks (exact/near counts) + `acc_deleaked` on
   every lane row; `publish_bench.py` carries them through update docs
   (a doc without a block never erases a previous scan) and the bench
