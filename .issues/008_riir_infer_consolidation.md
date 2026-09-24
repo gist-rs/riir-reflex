@@ -367,6 +367,43 @@ wiring.
       HEAD TOO — stash-verified, box-state not slice); clippy -D at all
       postures both crates. Commits: riir-infer `0c2f3b4`, riir-ai
       `027aef2d6`, riir-train `f5bfe3f9`.
+- [x] **S4a + S4b + S5 LANDED 2026-09-23** (the 4090 box; full records in
+      plan 610): S4a the qwen-attention + deltanet CLEAN kernels (12 files);
+      S4b the qwen38/cudarc SEAM cluster + the deltanet-forward family +
+      ane_prefill (31 files ~45k LOC) — the two S4 adjudications RESOLVED
+      (backward.rs → riir-train-gpu as `cudarc_backward_kernels`; the L179
+      gated training pair stripped, zero external callers) — **the T2.3
+      retarget UNBLOCKED** (`TernaryDeltanetGpuForward` re-exported at
+      `riir_gpu::`); S5 the gemma-cluster unlock (wall_config re-homed to
+      infer-core; gemma2/gemma4/llama + cluster riders, 17 files ~13.6k
+      LOC). A concurrent M3 S4b landing was reconciled at riir-infer
+      `4f354f5` (the Issue-825 class; the twin-landing lesson: fetch before
+      EVERY slice commit). Post-S5 owner pass fixed the Issue-1001 d2f
+      threshold (eb3438f) + restored the S5 gemma block lost in the S4b
+      rebase (d058f48).
+- [x] **S6a LANDED 2026-09-24** (the M3 box; the T2.3 clippy retarget + two
+      carve riders — full record in plan 610): riir-clippy's
+      `ternary_inference` lane consumes `riir-infer-core` + `riir-infer-gpu`
+      directly — its two riir-ai inference edges are GONE (the first
+      consumer fully off riir-ai for inference; the 041 T-B candidate).
+      Riders: `tokenizer.rs` moved riir-engine → infer-core (the bench's
+      BpeTokenizer; gguf_loader-resident; sentencepiece row follows; engine
+      same-path re-export, zero consumer edits) and `speculative_decode/`
+      moved riir-gpu → infer-gpu (the modelless CPU-side drafters; module
+      path re-exported, maglev lanes unchanged); infer-gpu root gains the
+      item re-exports making the consumer swap textual. The arc-swap
+      genlock row STAYS in riir-clippy, measured: riir-rag's OPTIONAL
+      riir-engine dep is feature-resolved BEFORE pruning, so the row is
+      load-bearing for every posture until the rag embedder edge itself
+      retargets. D4 re-narrowing landed for this consumer (riir-ai BOUNDARY
+      CANONICAL row → riir-rag only, per 041's T2.x bundling). Boundary
+      contract clean 23 repos / 321 edges; the retargeted bench runs
+      end-to-end on Metal (prefill 29.2 tok/s). Commits: riir-infer
+      `8ecbc7f`, riir-ai `50f644f3d`, riir-clippy `cda28b7e`.
+- [ ] **S6b** — the riir-train retarget (the bigger consumer: workspace dep
+      rows + the `riir-gpu/*` feature-forward lattice → the infer-gpu
+      mirrors; the riir-engine edge adjudication — TrainingProvider stays
+      engine-side or re-homes per 041's pull-gated rte answer).
 - [ ] **S4+** — SEAM adjudications (`forward`'s adapter slots,
       `ternary_deltanet_gpu_forward` L179), the gemma-cluster unlock
       (WallConfig re-home), then the T2.3 retarget + D4 re-narrowing
