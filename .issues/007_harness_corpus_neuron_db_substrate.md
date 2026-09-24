@@ -1,6 +1,6 @@
-# Issue 007 — harness families + corpus on the neuron-db substrate (Warm-tier kv via the RELEASED `ndb` CLI now, latent semantics UNDECIDED)
+# Issue 007 — harness families + corpus on the neuron-db substrate (Warm-tier kv via the RELEASED `ndb` CLI now, latent semantics DECIDED: in-harness, Issue 024)
 
-**Status:** P1 LANDED 2026-09-24 (this session, dedicated per the addendum —
+**Status:** P2 DECIDED 2026-09-24 (neither neuron-db route; in-harness `slice_leak` report filed as Issue 024). P1 LANDED 2026-09-24 (this session, dedicated per the addendum —
 no table-regeneration ran alongside). `corpus_db` feature (opt-in, native-only,
 DEFAULT-OFF): `src/harness/corpus_db.rs` subprocess store (`--json`-only,
 stdin writes, one-corpus-one-row, BLAKE3 digest-pinned corpus keys,
@@ -12,8 +12,8 @@ binary (`binary_wire_golden_round_trip`, loud-skip without NDB_BIN — live-
 verified 2026-09-24 against ndb 0.1.0: round-trip byte-exact, scan, wrong-
 digest refusal, not_found classification) + BOUNDARY.md runtime-dep row.
 Corpus LOAD-from-kv: DEFERRED (touches `prepare`/`load_rows` + the digest-
-pin-vs-local gate — next slice). P2 latent semantics: UNDECIDED, trigger-
-gated (below). Every default-posture gate stayed green (corpus_db off).
+pin-vs-local gate — next slice). P2 latent semantics: DECIDED 2026-09-24,
+the trigger measured as fired (P2 below). Every default-posture gate stayed green (corpus_db off).
 
 ---
 
@@ -42,7 +42,8 @@ compiled-in Rust + an overwritten `results.json`:
    recompiling — with the compiled-in set staying as the hermetic gate
    floor (below).
 
-3. **Latent semantics (the owner's stated goal) — P2, UNDECIDED.** Latent
+3. **Latent semantics (the owner's stated goal) — P2, DECIDED 2026-09-24
+   (in-harness report, Issue 024; see Phases).** Latent
    slice-disjointness + corpus KNN over `ShardIndex`; today the
    self-inclusion-leak law is EXACT-string equality
    (`tests/harness_families_gates.rs`), so a cal case that is a
@@ -149,7 +150,36 @@ Warm tier is consumed as the `ndb` binary via `std::process`.**
   exists yet, so the load path has no caller to serve — land it when the
   first kv-only run is actually wanted (e.g. CI without the dataset
   checkout).
-- [ ] **P2 — `latent_eval` (opt-in): UNDECIDED between two routes.**
+- [x] **P2 — DECIDED 2026-09-24 (owner delegated the call): NEITHER route
+  for the leak gate; (b) REJECTED outright; (a) kept only as a scale-gated
+  reopen.** The trigger was MEASURED rather than awaited
+  (`scripts/slice_leak_probe.py`, 2.3 s on a load-6 M3, zero deps): test
+  rows with a >= 0.8 char-4-gram Jaccard (or exact) twin in the fetched
+  train slice — ag_news **6.8%** (the same wire story from two outlets),
+  banking77 **3.2%**, massive **2.9%** (13 exact, **2** of them
+  label-conflicting), prompt_injections 1.7%, emotion/sst5/xnli ~0, and
+  ~98% of the pairs share the label. typed_decisions' 12.75% is a
+  fixed-JSON-schema TEMPLATE artifact, not a paraphrase leak. So the
+  trigger has FIRED, and what it asks for is a **report**, not storage:
+  - Why not (a): a leak check over <= 4000 x 3000 rows is an in-memory
+    inverted index that finishes in seconds. `ndb shard` + relocating
+    the DFT embedding into the storage leaf is a cross-repo proposal
+    whose only gain would be persistence and KNN at a scale this corpus
+    does not have.
+  - Why not (b): a compiled `riir-neuron-db` dep breaks the CLI-only
+    posture this issue is built on, adds a boundary row, and buys
+    nothing the in-harness index does not already give.
+  - What lands instead: **Issue 024**, an in-harness `slice_leak` report
+    (opt-in feature, modelless). The probe's counts are its known-answer
+    oracle.
+  - ⚠ Scope: the references use these same public test splits, so the
+    leak affects them as well. It does NOT void our comparison against
+    published numbers. It DOES inflate absolute accuracy for any
+    retrieval/centroid lane, which is why it becomes a disclosed column
+    rather than a filter.
+  - Reopen (a) only if the harness corpus outgrows memory (full-split
+    fetch, or cross-run corpus KNN is actually wanted).
+- **P2 (superseded text, kept for the record) — `latent_eval` (opt-in): UNDECIDED between two routes.**
   (a) CLI route: latent slice-disjointness gate + corpus KNN via a future
   `ndb shard` family (requires the modelless BLAKE3+DFT embedding's
   relocation from riir-rag into the storage leaf — its own proposal
@@ -180,6 +210,7 @@ The harness grows a third lane (arena server-side outcomes) that needs
 cross-process durability → P1 moves up. A near-duplicate leak is
 measured in the wild (two slices sharing a paraphrase) → P2's route
 decision opens (and with it, neuron-db Proposal 002 Phase 4 iff the CLI
-route wins). The CLI proves measurably burdensome in CI beyond
+route wins). **FIRED and DECIDED 2026-09-24:** see P2 above. The
+remaining (a) reopen is scale only: a corpus larger than memory. The CLI proves measurably burdensome in CI beyond
 `NDB_ASSUME_YES` → the `--no-identity` posture decision opens
 neuron-db-side.
