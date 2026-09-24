@@ -3059,6 +3059,9 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                     Ok(DeviceKind::Metal) => {
                         "metal (LAYA_DEVICE or the build's macOS default)".to_string()
                     }
+                    Ok(DeviceKind::Cuda) => {
+                        "cuda (LAYA_DEVICE or the build's non-macOS CUDA default)".to_string()
+                    }
                     Ok(DeviceKind::Cpu) => {
                         "cpu (LAYA_DEVICE or the no-backend default)".to_string()
                     }

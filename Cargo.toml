@@ -82,6 +82,14 @@ laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
 # is the lane's parity authority — top-1 agreement + the near-tie band;
 # p-drift is observation, never a gate (fp16 math).
 laya-riir-ane = ["laya-riir", "riir-infer-laya/laya-riir-ane"]
+# The riir forward's OWN CUDA backend (.issues/002 there — the 4090 lane):
+# cudarc 0.19 + nvrtc runtime PTX compile, non-macOS TARGET-SCOPED in the
+# lane crate (inert on macOS instead of a dep-tree failure). Non-macOS
+# builds that compile it DEFAULT to the cuda posture at runtime
+# (`LAYA_DEVICE=cpu` opts out); `LAYA_DEVICE=cuda` is honored verbatim.
+# G5 parity must be green at THIS posture before any riir-CUDA number is
+# published.
+laya-riir-cuda = ["laya-riir", "riir-infer-laya/laya-riir-cuda"]
 # Warm-tier persistence for the harness via the released `ndb` BINARY
 # (Issue 007 P1): subprocess-only — zero storage-leaf cargo deps; the only
 # new package is blake3 (already in-tree via `modelless`). NATIVE-ONLY by

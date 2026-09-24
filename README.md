@@ -94,9 +94,11 @@ the arena's per-lane claims. Responses carry `routing.lane: "laya"` + the
 applied temperature in `calibration`. This is what powers the live games at
 [reflex.gist.rs/arena](https://reflex.gist.rs/arena/).
 
-The device is Metal on macOS metal builds by default (v0.2.2 — the measured
-~2× per-forward gain; `LAYA_DEVICE=cpu` opts out, an explicit env value is
-always honored verbatim).
+The device is the build's own posture: Metal on macOS metal builds (v0.2.2
+— the measured ~2× per-forward gain), CUDA on non-macOS builds compiled
+with `--features laya-riir-cuda` (the 4090 lane — 10–12× the CPU row and
+below the M3 Metal row; G5-green at the cuda posture). `LAYA_DEVICE=cpu`
+opts out; an explicit env value is always honored verbatim.
 
 #### The ANE routing tier (opt-in, macOS + `--features laya-riir-ane`)
 
