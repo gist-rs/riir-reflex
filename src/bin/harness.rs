@@ -6,11 +6,17 @@
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
+//!                                      [--clm]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
 //! weights in the shared cache — absent pieces are loud absences, never
 //! silent skips).
+//! `--clm` adds the CLM comparison lane (Issue 019 T3 / `.issues/027`):
+//! the external Contrastive-LM reference over `/v1/systemone` (their stack
+//! serving at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`). Needs the
+//! `clm-lane` feature; an unreachable server is a loud absence, never a
+//! silent skip.
 //! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
 //! binary (table `harness_runs`, value = the exact results.json bytes) and
 //! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
@@ -42,6 +48,7 @@ fn main() {
         laya_max_questions: 0,
         skip_laya: false,
         laya_python: false,
+        clm: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
@@ -72,6 +79,7 @@ fn main() {
             "--skip-laya" => opts.skip_laya = true,
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--laya-python" => opts.laya_python = true,
+            "--clm" => opts.clm = true,
             "--corpus-cap" => {
                 i += 1;
                 opts.corpus_cap_override = args
@@ -134,6 +142,17 @@ fn main() {
     }
     #[cfg(not(feature = "corpus_db"))]
     let _ = kv_dir;
+
+    // The clm flag is an EXPLICIT lane request — a compile-time-missing
+    // feature is a loud refusal naming the rebuild (the build-stamp law),
+    // never a silent column of absences.
+    if opts.clm && !cfg!(feature = "clm-lane") {
+        die(
+            "--clm needs the `clm-lane` feature — rebuild: cargo build --release \
+             --features clm-lane --bin harness (and their stack serving at \
+             CLM_SERVE_URL, default http://127.0.0.1:8700 — .issues/027)",
+        );
+    }
 
     println!(
         "harness: datasets {} · suites {:?}",

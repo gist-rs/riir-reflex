@@ -1,12 +1,24 @@
 # Issue 027 — the CLM T3 4090 bench posture (+ the AgentJev measure-only row riding the same window)
 
-**Status:** OPEN — filed 2026-09-24 from the 019 Gate-0 ratification (commit
-`87b4779`; verdict `#Verdict: AGREE`); **RENUMBERED 026→027 same day** —
-upstream dual-allocated 026 while this was in flight (the 4090 CUDA-lane
-bench issue, closed + removed at `6d6cd8c`); numbers are never reused, the
-renumber consumes 027 exactly like a fresh allocation (`/.highwater` = 27).
-This is the 4090-WINDOW issue: nothing
-here runs on the M3. The lane that picks this up will not have the filing
+**Status:** OPEN, IN FLIGHT 2026-09-25 (session picked the lane up per the
+pick-up clause) — the Rust-side halves LANDED on `develop`:
+`src/harness/runner.rs` grows the `clm` column (`--clm`, feature-gated
+`clm-lane`, the parity law in-module: THEIR `to_text` state prose +
+their candidates-as-descriptions law; the same metrics tail as every
+lane + the observed-repeat determinism check),
+`tests/clm_determinism_pin.rs` (amendment 1's pin: 8-repeat
+byte-identity + head-mtime-unchanged, loud UNSEEN without
+`CLM_SERVE_URL`), `scripts/clm_serve_4090.sh` (the boot script: one
+docker container — vLLM `--runner pooling` at their exact
+`serve_qwen3_8b.sh` flags + `clm-serve` over the mounted head,
+`--no-download` provenance posture). The serving window waits on the GPU
+(no-concurrency rule). Filed 2026-09-24 from the 019 Gate-0 ratification
+(commit `87b4779`; verdict `#Verdict: AGREE`); **RENUMBERED 026→027 same
+day** — upstream dual-allocated 026 while this was in flight (the 4090
+CUDA-lane bench issue, closed + removed at `6d6cd8c`); numbers are never
+reused, the renumber consumes 027 exactly like a fresh allocation
+(`/.highwater` = 27). This is the 4090-WINDOW issue: nothing here runs on
+the M3. The lane that picks this up will not have the filing
 conversation — everything it needs is in-file.
 
 ## ⛔ First lines — the no-concurrency rule (binds before anything else)

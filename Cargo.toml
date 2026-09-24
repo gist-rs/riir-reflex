@@ -190,6 +190,15 @@ required-features = ["modelless"]
 name = "slice_leak_oracle"
 required-features = ["slice_leak"]
 
+# Issue 027 amendment 1 — the CLM determinism pin: N-repeat BYTE-identity
+# of the served response over a fixed mixed-kind request + the head
+# file's mtime unchanged across the run. Loud UNSEEN skip when
+# CLM_SERVE_URL is unset (never a blind pass) — the pin belongs to the
+# 4090 window where their stack serves.
+[[test]]
+name = "clm_determinism_pin"
+required-features = ["clm-lane"]
+
 [[bench]]
 name = "decision_set_goat"
 path = "benches/decision_set_goat.rs"

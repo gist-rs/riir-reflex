@@ -977,6 +977,13 @@ pub struct SuiteResult {
     /// checkpoint name → result (empty when compiled without `laya` or the
     /// lane was disabled — the table prints the honest absence).
     pub laya: BTreeMap<String, LaneResult>,
+    /// Issue 019 T3 (`.issues/027`): the CLM comparison lane's row — the
+    /// external Contrastive-LM reference over `/v1/systemone`, measured
+    /// client-side on this box. Absent (never a fabricated row) when the
+    /// lane did not run (flag off / feature off / server unreachable —
+    /// the absences section names it).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clm: Option<LaneResult>,
     /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
     /// the slices THIS run served. Absent (not a zero rate) when the
     /// `slice_leak` feature is off or the suite is out of scope.
@@ -1027,6 +1034,10 @@ pub struct RunMeta {
     /// Whether the laya-python (torch reference) oracle lane ran, and its
     /// measurement caveats when it did.
     pub laya_python_lane: String,
+    /// Whether the CLM comparison lane ran (Issue 019 T3 / .issues/027),
+    /// and its serving posture when it did (the external reference over
+    /// `/v1/systemone` — comparison lane, never a product lane).
+    pub clm_lane: String,
     /// Power source / power mode / load / swap at run start AND end, with a
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
@@ -2497,6 +2508,210 @@ fn run_laya_checkpoint(
     Err("laya-riir feature off".to_string())
 }
 
+// ── the CLM comparison lane (Issue 019 T3 / .issues/027) ─────────────
+//
+// PARITY LAW (what reaches THEIR encoder, byte-for-byte their reference
+// protocol — `src/lanes/clm.rs` pins the law copies):
+//   * state  = their `to_text(state)` prose (our copy is byte-pinned, so
+//     the pre-rendered string IS what their server would render from the
+//     raw object — `to_text(str)` is identity on their side);
+//   * choice candidates = the criterion DESCRIPTION when one is given,
+//     else the key (their `candidates` law: "a candidate reaches the
+//     encoder exactly as the caller wrote it");
+//   * score candidates  = the rubric level texts;
+//   * noul candidates   = their default law (per-side descriptions are
+//     inexpressible on our wire — the documented adapter divergence).
+// Each lane applies its OWN pinned rendering law over the same case
+// content (the laya lane prefixes `key: desc`; CLM embeds the bare
+// description — the systems are compared, not their prompt formats).
+
+/// The `/v1/systemone` request for one harness case, built under THEIR
+/// rendering law (see the parity note above). The question ORDER and the
+/// option ORDER are the harness criteria's insertion order — the same
+/// label order every lane scores against.
+#[cfg(feature = "clm-lane")]
+fn clm_request(case: &SuiteCase) -> Result<katgpt_core::decision_wire::DecisionRequest, String> {
+    use crate::lanes::clm;
+    use katgpt_core::decision_wire::Question;
+    let mut questions = Vec::with_capacity(case.questions.len());
+    for q in &case.questions {
+        let question = match q.kind {
+            QKind::Choice => {
+                let obj = q.criteria.as_object().ok_or_else(|| {
+                    format!("case {}: choice criteria must be an object", q.qid)
+                })?;
+                // THEIR candidates law: the description when present, else
+                // the key (their `crit[k] in (None, "")` fallback).
+                let options: Vec<String> = obj
+                    .iter()
+                    .map(|(k, v)| match v {
+                        Value::Null => k.clone(),
+                        Value::String(s) if s.is_empty() => k.clone(),
+                        Value::String(s) => s.clone(),
+                        other => clm::to_text(other),
+                    })
+                    .collect();
+                Question::choice(q.qid.as_str(), q.instructions.as_str(), options, None)
+            }
+            QKind::Score => {
+                let levels: Vec<String> = q
+                    .criteria
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .map(|v| match v {
+                                Value::String(s) => s.clone(),
+                                other => other.to_string(),
+                            })
+                            .collect()
+                    })
+                    .ok_or_else(|| {
+                        format!("case {}: score criteria must be an array", q.qid)
+                    })?;
+                Question::score(q.qid.as_str(), q.instructions.as_str(), levels)
+            }
+            QKind::Noul => Question::noul(q.qid.as_str(), q.instructions.as_str()),
+        };
+        questions.push(question);
+    }
+    Ok(katgpt_core::decision_wire::DecisionRequest {
+        state: clm::to_text(&case.state),
+        questions,
+    })
+}
+
+/// One rendered answer row for the observed-repeat determinism check —
+/// the SAME law as the laya lane's `render` (6-decimal probabilities,
+/// pick, confidence), so a nondeterministic server shows up identically
+/// in both lanes' `det` columns.
+#[cfg(feature = "clm-lane")]
+fn clm_repeat_render(
+    answers: &[katgpt_core::decision_wire::Answer],
+) -> String {
+    answers
+        .iter()
+        .map(|a| {
+            format!(
+                "{:?}|{:?}|{:.6}",
+                a.outcome, a.probabilities, a.confidence
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(";")
+}
+
+/// Run the CLM comparison lane over one suite: every case → one
+/// `/v1/systemone` round trip, latency = CLIENT round trip (the
+/// cross-lane consistency law — the same wall-clock every other lane's
+/// p50 reports), `usage.input_tokens` summed for the run log.
+#[cfg(feature = "clm-lane")]
+fn run_clm_lane(
+    suite: &Suite,
+    leak_flags: Option<&[bool]>,
+) -> Result<(LaneResult, u64), String> {
+    use crate::lanes::clm::{ClmLane, DEFAULT_MODEL};
+    use katgpt_core::decision_wire::Outcome;
+
+    let t_start = Instant::now();
+    let lane = ClmLane::default();
+    let cases = &suite.cases;
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let req = clm_request(case)?;
+        let t0 = Instant::now();
+        let (resp, usage) = lane
+            .decide(&req)
+            .map_err(|e| format!("clm round trip ({}): {e}", case.id))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        input_tokens += usage.input_tokens;
+
+        // Observed-repeat check, first 10 cases (the laya lane's law): a
+        // lane that cannot repeat byte-identically flags its det column.
+        if ci < 10 {
+            let (resp2, _) = lane
+                .decide(&req)
+                .map_err(|e| format!("clm determinism rerun ({}): {e}", case.id))?;
+            if clm_repeat_render(&resp.answers) != clm_repeat_render(&resp2.answers) {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(case.questions.len());
+        let mut cpicks = Vec::with_capacity(case.questions.len());
+        let mut cconfs = Vec::with_capacity(case.questions.len());
+        for (q, ans) in case.questions.iter().zip(resp.answers.iter()) {
+            let (p, pick) = match q.kind {
+                // `map_response` returns probabilities in OUR option order
+                // — the criteria insertion order — which IS the label
+                // order the gold indexes score against.
+                QKind::Choice => {
+                    let idx = match ans.outcome.as_ref() {
+                        Some(Outcome::Choice { index }) => *index as usize,
+                        _ => 0,
+                    };
+                    (
+                        ans.probabilities.iter().map(|p| f64::from(*p)).collect(),
+                        idx,
+                    )
+                }
+                QKind::Score => {
+                    let lvl = match ans.outcome.as_ref() {
+                        Some(Outcome::Score { level }) => *level as usize,
+                        _ => 0,
+                    };
+                    (
+                        ans.probabilities.iter().map(|p| f64::from(*p)).collect(),
+                        lvl,
+                    )
+                }
+                // LABEL space: [p_no, p_yes], gold idx 1 = true (the same
+                // convention every lane's noul row reports).
+                QKind::Noul => {
+                    let p_yes = f64::from(ans.probabilities.first().copied().unwrap_or(0.5));
+                    (vec![1.0 - p_yes, p_yes], usize::from(p_yes >= 0.5))
+                }
+            };
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(f64::from(ans.confidence));
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+
+    let result = assemble_laya_lane_result(
+        "clm",
+        DEFAULT_MODEL,
+        suite.name,
+        cases,
+        leak_flags,
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    );
+    Ok((result, input_tokens))
+}
+
+/// The feature-off stub: an explicit `--clm` is a LOUD refusal naming the
+/// rebuild, never a silent absence (the build-stamp law).
+#[cfg(not(feature = "clm-lane"))]
+fn run_clm_lane(
+    _suite: &Suite,
+    _leak_flags: Option<&[bool]>,
+) -> Result<(LaneResult, u64), String> {
+    Err("clm-lane feature off — rebuild with --features clm-lane to measure the CLM reference".to_string())
+}
+
 // ── prepared suite + run ────────────────────────────────────────────────
 
 struct Prepared {
@@ -2514,11 +2729,11 @@ struct Prepared {
 
 fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     if let Some(synth) = spec.synthetic {
-        if !spec.modelless_lane && !cfg!(feature = "laya-riir") {
+        if !spec.modelless_lane && !cfg!(feature = "laya-riir") && !cfg!(feature = "clm-lane") {
             return Err(format!(
                 "{}: SKIPPED \u{2014} LLM-lane only (Issue 004 T3): the modelless lane has \
                  no KV cache, so a modelless answer here would be a fake task; \
-                 compile with --features laya-riir to run this family",
+                 compile with --features laya-riir (or clm-lane) to run this family",
                 spec.name
             ));
         }
@@ -2746,6 +2961,14 @@ pub struct RunOptions {
     /// engine top-2 matches an armed pair. Report-only (a result-row
     /// record, never a gate); the test split is read once. Default off.
     pub pair_head_ab: bool,
+    /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
+    /// the external Contrastive-LM reference answered over HTTP
+    /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
+    /// — their stack serves, our Rust measures (comparison lane, never a
+    /// product lane). Needs the `clm-lane` feature; an explicit flag
+    /// without it, or an unreachable server, is a LOUD error, never a
+    /// silent skip. Default off.
+    pub clm: bool,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
@@ -2989,12 +3212,42 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         }
 
+        // CLM comparison lane (Issue 019 T3 / .issues/027): the external
+        // Contrastive-LM reference over `/v1/systemone` — their stack
+        // serves, our Rust measures. Same cases, their rendering law, the
+        // same metrics tail.
+        let clm_result = if opts.clm {
+            eprintln!("    clm: running…");
+            match run_clm_lane(&prepared.suite, leak_flags_ref) {
+                Ok((r, input_tokens)) => {
+                    eprintln!(
+                        "    clm: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s · {} input tokens",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0,
+                        input_tokens
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    // Loud absence, never a silent skip (the same law as
+                    // the laya lanes' errors).
+                    errors.push(format!("{} (clm): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
             n_questions,
             modelless,
             laya: laya_results,
+            clm: clm_result,
             leak: leak_block,
         });
     }
@@ -3091,6 +3344,15 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --laya-python to add the reference lane)".to_string()
         },
+        clm_lane: if opts.clm {
+            "on — the external Contrastive-LM reference over /v1/systemone \
+             (clm-serve; comparison lane, Apache-2.0, not affiliated): same cases, \
+             their rendering law, latency = client round-trip; determinism = the \
+             observed-repeat check"
+                .to_string()
+        } else {
+            "off (pass --clm to add the comparison lane; .issues/027)".to_string()
+        },
         divergences: vec![
             "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
              both lanes see byte-identical questions, which is the integrity that matters"
@@ -3177,6 +3439,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         "- laya-python lane: {}\n",
         out.meta.laya_python_lane
     ));
+    s.push_str(&format!("- clm lane: {}\n", out.meta.clm_lane));
     s.push_str(&format!(
         "- corpus cap posture: {}\n",
         out.meta.corpus_cap_mode
@@ -3242,10 +3505,10 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                      answered below.\n\n",
                 );
             }
-            if !suite.laya.is_empty() {
+            if !suite.laya.is_empty() || suite.clm.is_some() {
                 s.push_str("| lane · model | n | acc | ECE(maxp) | readout-ECE | p50 | p99 (support) | det |\n");
                 s.push_str("|---|---|---|---|---|---|---|---|\n");
-                for r in suite.laya.values() {
+                for r in suite.laya.values().chain(suite.clm.iter()) {
                     s.push_str(&format!(
                         "| {} · {} | {} | {} | {} | {} | {:.1} ms | {} | {} |\n",
                         r.lane,
@@ -3302,6 +3565,32 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             fmt_gate_fit(m),
         ));
         for r in suite.laya.values() {
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
+        if let Some(r) = &suite.clm {
+            // Same shape as a laya row — the CLM reference is a comparison
+            // lane with the same metrics surface (no abstain, no gates).
             s.push_str(&format!(
                 "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
                 r.lane,
@@ -3402,6 +3691,30 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                     fmt_opt(r.score_mae),
                     fmt_opt(r.within_1)
                 ));
+            }
+            if let Some(r) = &suite.clm {
+                s.push_str(&format!(
+                    "**typed-decisions extras ({}·{}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
+                    r.lane,
+                    r.model,
+                    fmt_opt(r.soft_acc),
+                    fmt_opt(r.brier_soft),
+                    fmt_opt(r.score_mae),
+                    fmt_opt(r.within_1)
+                ));
+                if let Some(by) = &r.by_question_type {
+                    for (t, h) in by {
+                        s.push_str(&format!(
+                            "| {}·{} | {t} | {} | {} | {} | {} |\n",
+                            r.lane,
+                            r.model,
+                            h.n,
+                            fmt4(h.accuracy),
+                            fmt4(h.ece),
+                            fmt4(h.mean_confidence)
+                        ));
+                    }
+                }
             }
         }
         if suite.name == "sst5"
@@ -3711,5 +4024,75 @@ mod cap_selection_tests {
         assert!(parse_cal_select_caps(Some("8,x")).is_err());
         assert!(parse_cal_select_caps(Some("0")).is_err());
         assert!(parse_cal_select_caps(Some("")).is_err());
+    }
+}
+
+#[cfg(all(test, feature = "clm-lane"))]
+mod clm_request_tests {
+    //! Issue 019 T3 — the CLM lane's harness-side request builder applies
+    //! THEIR rendering law over OUR case shape: the state prose via the
+    //! byte-pinned `to_text`, choice candidates = the criterion
+    //! DESCRIPTIONS (their `candidates` law), score candidates = the
+    //! rubric levels, noul = no options.
+    use super::*;
+    use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
+    use serde_json::json;
+
+    fn case(state: Value, questions: Vec<SuiteQuestion>) -> SuiteCase {
+        let n = questions.len();
+        SuiteCase {
+            id: "t".to_string(),
+            state,
+            questions,
+            gold: vec![crate::harness::suites::GoldAnswer {
+                idx: 0,
+                soft: vec![],
+                gold_score: None,
+            }; n],
+        }
+    }
+
+    #[test]
+    fn choice_options_are_the_descriptions_in_label_order() {
+        let mut crit = serde_json::Map::new();
+        crit.insert("world".to_string(), Value::String("world news".into()));
+        crit.insert("sports".to_string(), Value::Null); // no desc → the key
+        let q = SuiteQuestion {
+            qid: "topic".to_string(),
+            kind: QKind::Choice,
+            instructions: "What is the topic?".to_string(),
+            criteria: Value::Object(crit),
+        };
+        let req = clm_request(&case(json!({ "article": "x" }), vec![q])).unwrap();
+        assert_eq!(req.state, "article: x"); // their to_text prose law
+        assert_eq!(req.questions.len(), 1);
+        assert_eq!(req.questions[0].options, vec!["world news", "sports"]); // descs, keys-as-fallback
+        assert_eq!(req.questions[0].kind.as_str(), "choice");
+    }
+
+    #[test]
+    fn score_options_are_the_rubric_levels() {
+        let q = SuiteQuestion {
+            qid: "sentiment".to_string(),
+            kind: QKind::Score,
+            instructions: "How positive?".to_string(),
+            criteria: json!(["negative", "neutral", "positive"]),
+        };
+        let req = clm_request(&case(json!("plain state"), vec![q])).unwrap();
+        // A bare-string state passes through their to_text unchanged.
+        assert_eq!(req.state, "plain state");
+        assert_eq!(req.questions[0].options, vec!["negative", "neutral", "positive"]);
+    }
+
+    #[test]
+    fn noul_carries_no_options() {
+        let q = SuiteQuestion {
+            qid: "holds".to_string(),
+            kind: QKind::Noul,
+            instructions: "Is it true?".to_string(),
+            criteria: Value::Null,
+        };
+        let req = clm_request(&case(json!(1), vec![q])).unwrap();
+        assert!(req.questions[0].options.is_empty());
     }
 }
