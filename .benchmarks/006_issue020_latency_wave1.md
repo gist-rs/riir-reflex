@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — unattributed, Issue 020 T8)** · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -444,3 +444,10 @@ it is the MAXIMUM, printed here as max. Accuracy identical, 0.5417 both.)
 - ⚑ This is the third suite (after `massive_intent_en`, `banking77`) where
   the same-run p50 sign is rust-loses by 5–15%. Class A's shape is consistent;
   T5 (question batching — `code_fixtures` is 2 q/case) remains the lever.
+- ✅ **Attributed (Issue 020 T8, `e2d2060`, 3 more rounds, AC, load 3.7–4.0,
+  all quotable):** with `latency_extremes` stamped, rust's max is **case 3
+  at 231 ms in every round** while its case 0 reads 108–114 ms, so it is
+  **not** a residual cold cost. Python's max is its cold case 0 (134–277 ms)
+  in 2 of 3 rounds, and its case 3 reads **153 ms** when visible. The +43%
+  is therefore one long input (`code:engine.rs:1`) on which rust is ~1.5×
+  python, against ~1.07× at p50 — a sequence-length-scaled cost.
