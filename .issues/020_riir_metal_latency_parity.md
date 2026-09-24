@@ -270,31 +270,45 @@ box this repo does not currently have.
 - [ ] **T6 — per-forward allocation churn.** ~60 MB of host `Vec`s rebuilt
       per forward (`encoder.rs:193`, `head.rs:172-208`) and every activation
       device buffer freed by the per-pass chain clear (`metal.rs:1252`).
-- [ ] **T7 — the GEMM itself.** Measured at **3.6–4.9 TFLOP/s**, ~¼ of this
-      GPU's fp32 peak, and **~58% of a banking77 forward** (52.5 ms of ~90 ms).
-      With the coalescing question now ANSWERED (it was not the binding cost
-      — T4a bought only 2–8% on the wide instances, confirming the repo's own
-      BK=48 negative), the untried axes are occupancy (24 960 B of threadgroup
-      memory caps residency), double-buffered staging, and an f16-operand
-      instance behind its own feature flag + G5 re-gate.
-      **Located, T9:** the loss is **shape-specific**. Rust's encoder GEMM
-      beats torch MPS below m = 256 (0.89–0.93×) and loses above it
-      (1.19–1.33×). At m = 283 it drops to 2.8–3.5 TF/s, against about 4.0–4.4
-      at 188 and at 512. So the first rung is the wide/xwide pick at
-      256 ≤ m < ~400 (tile padding at m = 283 is 283/320 on BM 64), before any
-      new kernel.
-      **Candidate measured, NOT landed (Bench 006 Addendum 5):**
-      `XWIDE_N_MIN` 2048 → 1024 (xwide for the n = 1024 projections too).
-      Per-length probe: −5…−6% at 512 tokens (12/12), −2…−5% at 283/461,
-      but +1…2% at 321–427. Through the real harness (6 paired rounds,
-      order alternated, accuracy identical every round): rounds 1–3 read
-      0.77–0.93 B/A wall, but the load was FALLING 14.5 → 3.9 inside them
-      and `massive_intent_en` (mostly short inputs, largely untouched by
-      the change) read 0.88 there too — a load-trend artifact. At stable load
-      5–6 (rounds 4–6): banking77 0.976 / 1.000 / 0.950, code_fixtures
-      1.000 / 0.985 / 1.030. Inside noise → not landed. Re-run only on a
-      box where `bench_preflight.sh` passes; the probe env switch lives in
-      `.benchmarks/006_probes/` (never committed to the substrate).
+- [x] **T7 — the GEMM itself — Rung 1 LANDED 2026-09-25: the dispatch BAND
+      predicate** (substrate `metal.rs`, [Bench 032](../.benchmarks/032_m3_sgemm_dispatch_band/BENCH.md)).
+      The pick was never swept per instance — this rung swept it: every
+      hot-path family (encoder projections at m 231–512 AND packed scale
+      1024–2048, head MHA at batch = 16, small-m 1–188) × all three
+      instances × 3 position-rotated postures, load 2.9–5.6, win
+      consistency 3-for-3 on 24/28 band cells. The old thresholds
+      (`WIDE_M_MIN`/`XWIDE_N_MIN`) were measured backwards on most of the
+      hot path — wide won ZERO cells — and the landed predicate is one
+      mechanism: **xwide iff 24 < ⌈m/64⌉·⌈n/128⌉·batch ≤ 40 AND k ≥ 128**
+      (xwide's fat single wave only pays when it mostly fills but does not
+      spill one wave, over enough k to amortize the staging); **narrow
+      otherwise; wide never picked** (kernel stays compiled, unpicked).
+      Headline: o/wo @ m 231–317 −14…−18% (xwide band), wi −10…−22% and
+      o/wo @ m ≥ 370 + packed scale −5…−27% (narrow), head MHA @ m ≥ 283
+      −13…−29% (narrow; wide lost its whole upper range), small-m kept
+      narrow. One known regression: qkv@317 +6.9% — swamped ≈ −3.9
+      ms/question net at banking77's m ≈ 317. The instances are
+      result-identical (instance-independent k-ascending chain — the probe's
+      divergence check is bit-identical), so G5 drift is untouched; gates:
+      substrate lib 41/41 + smoke 7/7 + packed gates + G5 BOTH postures +
+      batch parity + clippy −D ×3 postures. **Suite-p50 row PENDING**: three
+      harness A/B attempts were confounded by sibling load (1.8–25;
+      per-round ratios 0.65–1.42 both directions; two DISCARDED per the
+      T5 lesson, the third direction-consistent but late-round-aliased) and
+      `bench_preflight.sh` currently REFUSES — re-run
+      `/tmp/t7ab/harness_ab_t7.sh` (OLD = 1e8c034 binary, NEW = landed,
+      binaries frozen) only on a box the preflight passes.
+      Original rung text: the GEMM measured at 3.6–4.9 TFLOP/s, ~¼ of this
+      GPU's fp32 peak, ~58% of a banking77 forward; the loss shape-specific
+      (beats torch below m = 256 at 0.89–0.93×, loses above at 1.19–1.33×;
+      at m = 283 2.8–3.5 TF/s vs 4.0–4.4 at 188/512 — the BM-64 padding
+      valley). The earlier XWIDE_N_MIN candidate (Bench 006 Addendum 5,
+      inside noise, not landed) is SUPERSEDED: its n-threshold question is
+      answered by the band — xwide at n ≥ 2048 loses everywhere except the
+      qkv@317 cell. Remaining untried axes for a later rung: occupancy
+      (24 960 B threadgroup memory caps residency), double-buffered
+      staging, f16 operands behind a flag + G5 re-gate + the Issue-750-T3
+      lossy law.
 
 - [x] **T8 — attribute the `code_fixtures` max** — DONE `e2d2060`.
       Step 1: `src/harness/latency.rs` — every lane now stamps
