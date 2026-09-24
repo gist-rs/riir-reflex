@@ -1,6 +1,6 @@
 # Plan 002 — the ANE lane bench: laya on the Apple Neural Engine, measured on OUR box, published to reflex.gist.rs/bench
 
-**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `0121a3b`+`9b3e200`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) OPEN — the harness ANE seam is wired, T2.1's run is the remaining step.
+**Status:** IN PROGRESS — P0 COMPLETE 2026-09-24 (six BC1S FP16 artifacts, 100%-ANE/0-transitions, smoke 24/24). **P1 COMPLETE 2026-09-24**: T1.1–T1.4 all done — substrate runtime landed (riir-infer `78a91c3`+`5c8ec2a`, digest verify + compile cache + load-time MLComputePlan re-gate), `RiirAgent::load_ane` constructor-selects the posture (env-only ANE refused), G5-ANE gate GREEN first run (76/76 in-bucket top-1 = 1.000, zero flips; max prob err english 0.0077 / typed 0.0146 / multilingual 0.0264 — **the ml 0.0200 question answered: exceeds the 0.02 class at full-corpus scale, decision gate still 100%**), serialized position-balanced timing on AC/powermode-2 preflight: **ANE ~1.5× the Metal lane on english (24.5-25.5 vs 39.3-41.4 ms p50) + typed (22.6-25.5 vs 33.2-41.5), p50-parity on multilingual with the ANE tail win**. P2 (site publish) OPEN — the harness ANE seam is wired, T2.1's run is the remaining step.
 
 Executes the bench half of `.issues/017_ane_lane_reference_design.md` (the
 owner directive 2026-09-24: "add plan to add ane lane bench to
@@ -84,7 +84,7 @@ single-question short-prompt class reflex serves.
       `pad_bias` [1,1,1,L] fp16, output `hidden_state` [1,L,d] fp16
       (per-bucket output name in the manifest; the runtime slices [:n] and
       feeds the existing head). **DONE 2026-09-24** — substrate riir-infer
-      `0121a3b` + `9b3e200` (ane.rs: blake3-dir digest verify →
+      `78a91c3` + `5c8ec2a` (ane.rs: blake3-dir digest verify →
       content-addressed compile cache → CPUAndNeuralEngine load →
       MLComputePlan gate RE-RUN at load: 100% device ops ANE + 0
       transitions, count drift vs the manifest disclosed-not-fatal,
