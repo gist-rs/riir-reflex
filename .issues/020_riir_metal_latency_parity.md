@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**; **T7 rung 1** (the sgemm dispatch band) LANDED, suite-p50 row pending a preflight-clean box; **T10 rung 2** (the rope hoist) LANDED DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1` (riir-infer `5ef7442`), promotion probe pending the same window
+**Status:** OPEN — **waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed)**; **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 rung 1** (the sgemm dispatch band) LANDED, suite-p50 row pending a preflight-clean box; **T10 rung 2** (the rope hoist) LANDED DEFAULT-OFF behind `LAYA_METAL_ROPE_HOIST=1` (riir-infer `5ef7442`), promotion probe pending the same window
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -267,9 +267,26 @@ box this repo does not currently have.
       **Evidence, T9:** on `code_fixtures` case 3 the 1q → 2q step is
       flat at every length (1.6–1.8× total at 2q against 1.25–1.45× at 1q),
       so batching is the single largest remaining gap on that suite too.
-- [ ] **T6 — per-forward allocation churn.** ~60 MB of host `Vec`s rebuilt
-      per forward (`encoder.rs:193`, `head.rs:172-208`) and every activation
-      device buffer freed by the per-pass chain clear (`metal.rs:1252`).
+- [x] **T6 — per-forward allocation churn — CLOSED NEGATIVE 2026-09-25, measured
+      before building (the head scratch-pool rung's discipline).** The sizing
+      probe `riir-infer-laya/tests/metal_host_gpu_split.rs` (#[ignore]d,
+      required-features row, run with `--ignored --nocapture`) splits one
+      encoder forward at the real english geometry into `enq` (the wall of
+      `forward_packed` alone — it contains no sync, so that is the WHOLE host
+      side: dispatch encoding + the chain uploads/slots + the ~60 MB host
+      `Vec` churn) and `sync` (`download_into`'s drain — the GPU side).
+      Measured 2026-09-25, AC, load 11–12 falling, 88% RAM free, one sibling
+      CPU bench ~6 cores, no GPU consumers: **seq188 enq p50 0.80 ms / sync
+      p50 48.7 ms (min 36.1) — host share 1.6% · seq512 enq 1.45 ms / sync
+      141.6 ms (min 132.6) — 1.0% · packed2x256 enq 1.37 ms / sync 135.2 ms
+      (min 130.7) — 1.0%.** The host reading is load-INFLATED (CPU contention
+      inflates the host, never the GPU), so a quiet box only shrinks it — the
+      verdict is robust in the recorded direction. Allocation pooling can
+      shrink only part of a 1.0–1.6% host share (dispatch encoding stays),
+      which cannot move case wall; the per-pass chain clear stays. The 09-25
+      follow-up's head-side scratch-pool rung (built, measured, moved
+      nothing, reverted) was the same verdict at the head's scale — T6's
+      premise is dead at the encoder's too.
 - [x] **T7 — the GEMM itself — Rung 1 LANDED 2026-09-25: the dispatch BAND
       predicate** (substrate `metal.rs`, [Bench 032](../.benchmarks/032_m3_sgemm_dispatch_band/BENCH.md)).
       The pick was never swept per instance — this rung swept it: every
