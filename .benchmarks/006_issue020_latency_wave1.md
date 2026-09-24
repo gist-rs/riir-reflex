@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** + **Addendum 4 (Issue 020 T9: case 3 = 512 tokens; its gap is mostly T5 batching (1q→2q step flat at every length) + GEMM at m≥256 (T7); attention ≈ even in total — the earlier "13→42 ms non-GEMM jump" is retracted as a two-instrument subtraction artifact; load 6–11, ratios only)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -451,3 +451,104 @@ it is the MAXIMUM, printed here as max. Accuracy identical, 0.5417 both.)
   in 2 of 3 rounds, and its case 3 reads **153 ms** when visible. The +43%
   is therefore one long input (`code:engine.rs:1`) on which rust is ~1.5×
   python, against ~1.07× at p50 — a sequence-length-scaled cost.
+
+## Addendum 4 (2026-09-24 12:20–12:46, Issue 020 T9): what makes case 3 slow, and it is mostly not length
+
+**Box state, recorded because it limits what can be quoted:** AC, `powermode
+2` (High Power), 88% memory free, **load 6–11 throughout**. The riir-reflex
+`bench_preflight.sh` gate **refused** on load. So every figure below is either
+a **paired, interleaved ratio** or a **within-run breakdown**. None is an
+absolute cell, and none replaces a published number. Probes are built from
+committed code only (detached worktrees at riir-reflex `fba613e` and riir-infer
+`0121a3b`, their own target dir); sources are archived in
+[`006_probes/`](006_probes/README.md).
+
+**Case 3 is 512 tokens**, the english checkpoint's cap: a 48-line fn span, so
+it is the longest input the suite can produce.
+
+### A. Rust vs python on the SAME input cut to different lengths (10 rounds, interleaved, lane order alternated)
+
+Ratio is rust ÷ python, round-trip timed identically for both lanes by one driver.
+
+| tokens | 1 question | 2 questions (the suite's real shape) | rust head share |
+|---|---|---|---|
+| 92 | 1.29× | 1.77× | 11% |
+| 188 | 1.21× | 1.61× | 10% |
+| 283 | 1.41× | 1.76× | 9% |
+| 370 | 1.45× | 1.82× | 9% |
+| 512 | 1.45× | 1.64× | 8% |
+
+- **2 questions:** flat at 1.6–1.8× at **every** length. That is **batching**
+  (python runs both questions in one forward, rust runs two). It is **T5**, not
+  length.
+- **1 question:** grows from about 1.25× (≤ 188 tokens) to about 1.45×
+  (≥ 283 tokens). That growth is the only length-dependent part, and it is all
+  in the encoder (the head stays at 8–11% of rust's time).
+- ⚠ At load 7–9 these are worse than Addendum 3's load-4 cells (about 1.07×
+  p50, 1.5× case 3). Rust's case-3 time rose 21% under the load against
+  python's 11%. That suggests rust is more load-sensitive, but it is
+  **unconfirmed**.
+
+### B. Encoder GEMM, rust vs torch MPS (4 projection shapes × 28 layers)
+
+| tokens | rust | torch | rust ÷ torch |
+|---|---|---|---|
+| 92 | 19.4 ms | 21.8 ms | 0.89× |
+| 188 | 34.5 ms | 37.1 ms | 0.93× |
+| 283 | 65.0 ms | 48.7 ms | 1.33× |
+| 512 | 93.1 ms | 78.1 ms | 1.19× |
+
+Rust **wins below m = 256 and loses above it**. At 283 it drops to 2.8–3.5
+TF/s, against 4.0–4.4 at 188 and at 512. That is the wide/xwide geometry that
+switches in at m ≥ 256 (in-forward dispatch counts at 512 tokens: 64
+`sgemm_wide` + 60 `sgemm_xwide`, 4 narrow). This goes to **T7**, now with a
+located shape.
+
+### C. Attention, per kernel, in the forward (`LAYA_KTIME=1`, 7 rounds)
+
+Each dispatch is committed and waited alone, so every row also pays about
+0.1–0.2 ms per call (60 `add` calls read 13–15 ms, nearly all overhead). Read
+the **deltas** and the split, not the absolutes.
+
+| tokens | flash_attn total | 10 full-attention layers | 18 sliding layers | sgemm (all) |
+|---|---|---|---|---|
+| 188 | 10.6 | 3.5 | 5.4 | 58.3 |
+| 283 | 13.9 | 5.5 | 7.0 | 81.9 |
+| 370 | 16.2 | 7.7 | 7.5 | 95.5 |
+| 461 | 22.7 | 12.1 | 8.8 | 112.0 |
+| 512 | 24.2 | 13.5 | 9.2 | 114.8 |
+
+- **Full-attention layers (0, 3, …, 27) scale quadratically.** From 283 to 512
+  tokens, after taking out about 0.2 ms × 10 dispatches: 3.5 → 11.5 ms =
+  **3.3×** against (512/283)² = 3.27×. **Sliding layers scale linearly**
+  (the fused kernel walks only the ±64 window).
+- **torch SDPA at the same shape** (`[1, 16, S, 64]`, load 11, so a range and
+  not a figure): full attention at 512 tokens is **0.59 ms/layer (1.8 TF/s)**
+  against rust's roughly **1.15 ms/layer (≈ 0.9 TF/s)**. That is 2× slower per
+  full-attention layer. But the reference runs **all 28 layers** at seq² (HF
+  ModernBERT's `sdpa` path applies the sliding window as a mask), where rust
+  walks only the window on 18 of them. Model totals at 512 tokens: rust ≈
+  11.5 + ~5.6 ≈ **17 ms**, torch ≈ **15 ms**. **Attention is about even. It is
+  not what makes case 3 slow.**
+- ⛔ **Retracted: the previous session's "non-GEMM encoder time jumps
+  13 → 42 ms from 283 to 512 tokens, superlinear".** That residual was
+  (unserialized encoder wall) minus (a **standalone** GEMM timing), which is
+  two instruments subtracted. The standalone GEMM at 283 read slow, which is
+  §B's anomaly, and that pushed the residual down. Measured **in the
+  forward**, non-GEMM growth from 283 to 512 is about **12 ms, 10 of it
+  flash_attn** (8 of that in the full-attention layers). The other kernels are
+  flat within noise.
+
+### Verdict
+
+Case 3's 1.5–1.8× gap, in order of size:
+1. **Question batching (T5).** It accounts for the whole 1q → 2q step
+   (~1.25–1.45× → ~1.6–1.8×) at every length. By far the largest lever.
+2. **GEMM at m ≥ 256 (T7).** Rust's GEMM goes from winning (0.89–0.93×) to
+   losing (1.19–1.33×) exactly where the wide/xwide geometry takes over.
+3. **Full-attention flash_attn efficiency (new T10, small).** It runs at about
+   half of torch's per-layer throughput, but it is only 10 layers, and the
+   window walk on the other 18 more than offsets it. Worth about 5–6 ms at
+   512 tokens. Low priority.
+
+Re-quote §A/§B/§C as absolutes only after `bench_preflight.sh` passes.

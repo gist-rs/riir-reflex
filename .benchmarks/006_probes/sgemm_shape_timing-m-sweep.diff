@@ -1,0 +1,31 @@
+diff --git a/examples/sgemm_shape_timing.rs b/examples/sgemm_shape_timing.rs
+index 07f119e..f0d267d 100644
+--- a/examples/sgemm_shape_timing.rs
++++ b/examples/sgemm_shape_timing.rs
+@@ -69,12 +69,24 @@ fn main() {
+     // program: the weight cache is permanent and keyed by (ptr, len), so a
+     // dropped weight whose address a later same-len weight reuses would hit
+     // STALE device content. Live-and-distinct allocations cannot alias.
+-    let weights: Vec<Vec<f32>> = SHAPES
++    // PROBE-ONLY (never committed): SGEMM_M="92,188,..." sweeps the four
++    // encoder shapes at each m.
++    let shapes: Vec<(usize, usize, usize, &str)> = match std::env::var("SGEMM_M") {
++        Ok(v) => v
++            .split(',')
++            .flat_map(|m| {
++                let m: usize = m.parse().unwrap();
++                [(m, 1024, 3072, "qkv"), (m, 1024, 1024, "o"), (m, 1024, 5248, "wi"), (m, 2624, 1024, "wo")]
++            })
++            .collect(),
++        Err(_) => SHAPES.to_vec(),
++    };
++    let weights: Vec<Vec<f32>> = shapes
+         .iter()
+         .map(|&(_, k, n, _)| (0..n * k).map(|i| (i % 5) as f32 * 0.2 - 0.4).collect())
+         .collect();
+ 
+-    for (shape_idx, &(m, k, n, label)) in SHAPES.iter().enumerate() {
++    for (shape_idx, &(m, k, n, label)) in shapes.iter().enumerate() {
+         // Fresh activations per shape; begin_pass mirrors the forward's
+         // pass boundary (chain map cleared, epoch bumped) so every shape
+         // uploads into fresh slots — no cross-shape slot aliasing.

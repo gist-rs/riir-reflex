@@ -10,7 +10,7 @@ oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
 **winning p99** — and `code_fixtures` joins them (Bench 006 Addendum 3:
 same-run p50 **+7.4%** median over 8 rounds, max **+43%** — T8 attributed
 it to ONE long case, not a cold start). Its largest remaining lever (T5, per-case question batching)
-is IDENTIFIED from the reference's own source. Filed 2026-09-24 from the published arena table
+is IDENTIFIED from the reference's own source. **T9 (Bench 006 Addendum 4):** case 3 = 512 tokens; its gap is T5 batching first, GEMM at m ≥ 256 (T7) second, and attention is about even in total (new small T10). Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
 … make rust faster as it should in all cost."* Two independent causes are
@@ -270,6 +270,9 @@ box this repo does not currently have.
       **120 threadgroups for a 40-core GPU**; at `m = 5·seq` it launches 600.
       Needs a batch dimension with per-sequence masking through encoder +
       head + attention, and a G5 re-capture — a project, not a rung.
+      **Evidence, T9:** on `code_fixtures` case 3 the 1q → 2q step is
+      flat at every length (1.6–1.8× total at 2q against 1.25–1.45× at 1q),
+      so batching is the single largest remaining gap on that suite too.
 - [ ] **T6 — per-forward allocation churn.** ~60 MB of host `Vec`s rebuilt
       per forward (`encoder.rs:193`, `head.rs:172-208`) and every activation
       device buffer freed by the per-pass chain clear (`metal.rs:1252`).
@@ -280,6 +283,12 @@ box this repo does not currently have.
       BK=48 negative), the untried axes are occupancy (24 960 B of threadgroup
       memory caps residency), double-buffered staging, and an f16-operand
       instance behind its own feature flag + G5 re-gate.
+      **Located, T9:** the loss is **shape-specific**. Rust's encoder GEMM
+      beats torch MPS below m = 256 (0.89–0.93×) and loses above it
+      (1.19–1.33×). At m = 283 it drops to 2.8–3.5 TF/s, against about 4.0–4.4
+      at 188 and at 512. So the first rung is the wide/xwide pick at
+      256 ≤ m < ~400 (tile padding at m = 283 is 283/320 on BM 64), before any
+      new kernel.
 
 - [x] **T8 — attribute the `code_fixtures` max** — DONE `e2d2060`.
       Step 1: `src/harness/latency.rs` — every lane now stamps
@@ -295,16 +304,36 @@ box this repo does not currently have.
       order — a self-referential fixture, so its length moves when that file
       is edited), ~1.5× python there against ~1.07× at p50: consistent with
       a cost that grows with sequence length (attention / GEMM at larger
-      `m`), which is T5/T7's territory, not T1's. ⚠ Token length of case 3
-      not measured. Original task: (rust ~225 ms vs python
-      ~160, +43% every round, Bench 006 Addendum 3). (rust ~225 ms vs python
-      ~160, +43% every round, Bench 006 Addendum 3).** The harness's p99 at
-      n = 24 is the MAXIMUM (tail support 1), and `results.json` keeps no
-      per-question latencies, so a first-question residual cold cost and a
-      single long input are indistinguishable from the output. Step 1:
-      persist per-question latency (index + ms) per lane in `results.json`
-      — cheap, and it turns every max-class p99 in the table into something a
-      reader can attribute. Step 2: read the argmax question on both lanes.
+      `m`), which is T5/T7's territory, not T1's. Case 3's token length and
+      what it costs: T9.
+
+- [x] **T9 — case 3's length and what it costs** — DONE (Bench 006
+      Addendum 4; probes in `.benchmarks/006_probes/`). Load 6–11, so ratios
+      and within-run breakdowns only. **Case 3 is 512 tokens** (the english
+      cap). Its gap is **mostly not length**:
+      - Rust ÷ python at 2 questions is flat at **1.6–1.8× at every length**
+        from 92 to 512 tokens. That is T5 batching.
+      - At 1 question, the gap grows from about 1.25× (≤ 188 tokens) to about
+        1.45× (≥ 283). That growth is the only length-dependent part, and it
+        is all in the encoder.
+      - The encoder GEMM wins below m = 256 (0.89–0.93× torch) and loses above
+        it (1.19–1.33×). That goes to T7.
+      - Attention is **about even in total** (rust ≈ 17 ms, torch ≈ 15 ms at
+        512). Rust's full-attention layers are 2× slower than torch SDPA, but
+        its sliding layers walk only the window where the reference runs seq²
+        with a mask. That becomes T10.
+      - ⛔ The earlier "13 → 42 ms superlinear non-GEMM jump" was a
+        two-instrument subtraction artifact. In the forward, non-GEMM growth
+        from 283 to 512 tokens is about 12 ms, 10 of it flash_attn.
+- [ ] **T10 — full-attention `flash_attn` throughput** (small, low priority).
+      On the 10 full-attention layers the fused kernel runs about **1.15
+      ms/layer at 512 tokens (≈ 0.9 TF/s)**, against torch SDPA's
+      **0.59 ms/layer (1.8 TF/s)**. Those layers scale quadratically as
+      expected, so the loss is **efficiency, not complexity**. Suspects, from
+      reading the kernel: two passes per query block, and K re-staged with
+      rope applied on every key tile. Hoisting rope-K into one pre-pass per
+      layer (it is O(seq·d), shared by every query block) is the cheap first
+      rung. Ceiling: about 5–6 ms per 512-token forward. G5 re-gate needed.
 
 ## Gates every wave must hold
 

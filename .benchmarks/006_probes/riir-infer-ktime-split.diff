@@ -1,0 +1,117 @@
+diff --git a/crates/riir-infer-laya/src/laya/riir/agent.rs b/crates/riir-infer-laya/src/laya/riir/agent.rs
+index 1761c52..a391ff0 100644
+--- a/crates/riir-infer-laya/src/laya/riir/agent.rs
++++ b/crates/riir-infer-laya/src/laya/riir/agent.rs
+@@ -309,6 +309,7 @@ impl RiirAgent {
+         // on a thread with no Cocoa runloop (a no-op wrapper without the
+         // metal feature — one code path for both postures). The ANE lane's
+         // Core ML calls drain their autoreleased temporaries here too.
++        let t_split = std::time::Instant::now();
+         let out = pass_pool(|| -> Result<HeadOutput> {
+             self.backend.begin_pass();
+             let mut hidden = match &self.enc {
+@@ -316,8 +317,19 @@ impl RiirAgent {
+                 #[cfg(all(target_os = "macos", feature = "laya-riir-ane"))]
+                 EncoderStack::Ane(e) => e.forward(&ids)?,
+             };
+-            self.head
+-                .forward(self.backend.as_ref(), &mut hidden, q.qtype, &markers)
++            // PROBE-ONLY (never committed): force a drain after the
++            // encoder so enc/head wall time can be split.
++            if split_on() {
++                let d = hidden.len() / ids.len();
++                let mut row = vec![0f32; d];
++                self.backend.download_into(&hidden[..d], &mut row);
++                SPLIT_ENC_NS.fetch_add(t_split.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
++            }
++            let t_head = std::time::Instant::now();
++            let r = self.head
++                .forward(self.backend.as_ref(), &mut hidden, q.qtype, &markers);
++            SPLIT_HEAD_NS.fetch_add(t_head.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
++            r
+         })?;
+         let k = markers.len();
+         let t = self.temps.for_question(q.qtype, k);
+@@ -386,3 +398,12 @@ impl RiirAgent {
+         Ok(out)
+     }
+ }
++
++/// PROBE-ONLY split-timing counters (never committed).
++pub static SPLIT_ENC_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++/// PROBE-ONLY.
++pub static SPLIT_HEAD_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++fn split_on() -> bool {
++    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ON.get_or_init(|| std::env::var("LAYA_SPLIT").as_deref() == Ok("1"))
++}
+diff --git a/crates/riir-infer-laya/src/laya/riir/metal.rs b/crates/riir-infer-laya/src/laya/riir/metal.rs
+index ceee85f..f7afd31 100644
+--- a/crates/riir-infer-laya/src/laya/riir/metal.rs
++++ b/crates/riir-infer-laya/src/laya/riir/metal.rs
+@@ -189,6 +189,24 @@ const _: () = {
+     assert!(FLASH_STAGING_BYTES <= 32768);
+ };
+ 
++/// PROBE (Issue 020 follow-up, not for commit): per-kernel serialized wall.
++pub static KTIME: Mutex<Vec<(&'static str, u64, u64)>> = Mutex::new(Vec::new());
++fn ktime_on() -> bool {
++    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ON.get_or_init(|| std::env::var("LAYA_KTIME").as_deref() == Ok("1"))
++}
++pub static KFLASH: Mutex<Vec<u64>> = Mutex::new(Vec::new());
++fn ktime_add(name: &'static str, ns: u64) {
++    if name == "flash_attn" {
++        KFLASH.lock().unwrap().push(ns);
++    }
++    let mut v = KTIME.lock().unwrap();
++    match v.iter_mut().find(|e| e.0 == name) {
++        Some(e) => { e.1 += ns; e.2 += 1; }
++        None => v.push((name, ns, 1)),
++    }
++}
++
+ /// Debug trace flag (`LAYA_METAL_TRACE=1`): log every chain-cache miss.
+ fn trace_enabled() -> bool {
+     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+@@ -1363,6 +1381,11 @@ impl Metal {
+         tiles: Option<&[(u64, u64)]>,
+         threadgroups: bool,
+     ) -> Result<()> {
++        let kt = ktime_on();
++        if kt {
++            self.sync();
++        }
++        let t0 = std::time::Instant::now();
+         autoreleasepool(|_| {
+             let mut st = self.pending.lock().expect("pending cb poison");
+             if st.open.is_none() {
+@@ -1400,13 +1423,27 @@ impl Metal {
+                 enc.dispatch_threads(grid, tpg);
+             }
+             pending.encodes += 1;
+-            if pending.encodes >= MAX_ENCODERS_PER_CB {
++            if kt {
++                let done = st.open.take().expect("checked above");
++                done.enc.end_encoding();
++                done.cb.commit();
++                done.cb.wait_until_completed();
++            } else if pending.encodes >= MAX_ENCODERS_PER_CB {
+                 let done = st.open.take().expect("checked above");
+                 done.enc.end_encoding();
+                 done.cb.commit();
+                 st.committed.push(done.cb);
+             }
+         });
++        if kt {
++            let name = self
++                .pipelines
++                .iter()
++                .find(|(_, k)| std::ptr::eq(&k.p, p))
++                .map(|(n, _)| *n)
++                .unwrap_or("?");
++            ktime_add(name, t0.elapsed().as_nanos() as u64);
++        }
+         Ok(())
+     }
+ 
