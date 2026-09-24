@@ -915,6 +915,9 @@ struct ModellessInput<'a> {
     cal_state_strs: &'a [String],
     labels: &'a [String],
     want_by_type: bool,
+    /// The EFFECTIVE per-label corpus cap (registry default or the
+    /// --corpus-cap override — Issue 013 lever 1's instrument).
+    corpus_cap_per_label: usize,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -952,7 +955,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             spec.name,
             corpus_pool,
             labels,
-            spec.corpus_cap_per_label,
+            inp.corpus_cap_per_label,
             default_cfg.clone(),
         )?;
         let mut sc: Scratch<EMBED_DIM> = Scratch::new();
@@ -1027,7 +1030,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        spec.corpus_cap_per_label,
+        inp.corpus_cap_per_label,
         cfg.clone(),
     )?;
 
@@ -1036,7 +1039,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        spec.corpus_cap_per_label,
+        inp.corpus_cap_per_label,
         cfg.clone(),
     )?;
     let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
@@ -1081,7 +1084,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         spec.name,
         corpus_pool,
         labels,
-        spec.corpus_cap_per_label,
+        inp.corpus_cap_per_label,
         cfg,
     )?;
     let mut moved = false;
@@ -1962,6 +1965,11 @@ pub struct RunOptions {
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
+    /// Override every dataset suite's per-label corpus cap (0 = the
+    /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
+    /// (Issue 013 lever 1); a published table must state the override or
+    /// read against the registry posture, never mix the two.
+    pub corpus_cap_override: usize,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
@@ -2005,6 +2013,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 cal_state_strs: &prepared.cal_state_strs,
                 labels: &prepared.labels,
                 want_by_type: spec.name == "typed_decisions",
+                corpus_cap_per_label: if opts.corpus_cap_override != 0 {
+                    opts.corpus_cap_override
+                } else {
+                    spec.corpus_cap_per_label
+                },
             };
             macro_rules! dispatch {
                 ($n:literal) => {

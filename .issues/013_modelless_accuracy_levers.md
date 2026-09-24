@@ -18,11 +18,19 @@ modelless accuracy UP, each with its measured starting point.
 
 ## Levers (in expected-yield order)
 
-1. **[ ] Bigger per-label corpora.** The routing corpus is capped per label
-   (`corpus_cap_per_label`); the dataset suites build it from the fetched
-   train rows. Measure acc vs cap on ag_news + banking77 (the two with the
-   most headroom vs laya) before touching anything: if the curve is flat by
-   cap 32, this lever is dead and says so.
+1. **[x] Bigger per-label corpora.** MEASURED 2026-09-24 — the premise
+   inverts: the cap is a per-suite tuning knob, not a bigger-is-better
+   lever. ag_news: peak AT the default 64 (.5100; declining after — 512 is
+   −4.75 pp). banking77: interior peak at 128 (.5040, +6.6 pp over the
+   default; saturation ≥256 reads .4560; acc@50cov +6.8, AURC −5.3,
+   macro-F1 +3.3; ECE +6.6 WORSE, Brier/NLL flat; p50 0.50→0.875 ms).
+   Deterministic: every reading byte-reproduced. Full tables + the
+   promotion deferral: [.benchmarks/003_corpus_cap_lever.md](../.benchmarks/003_corpus_cap_lever.md).
+   **Promotion of banking77 64→128 DEFERRED on a protocol hole:** the
+   sweep reads the TEST split — shipping 128 ships a test-set-selected
+   hyperparameter (the selection-biased-gain class). Unblock: cal-slice
+   cap selection (cal-acc-per-cap runner plumb, pick on cal, report test
+   once), then re-measure.
 2. **[-] ROUTE_SCALE sweep.** The option-rank blend scale (`ROUTE_SCALE`,
    Issue 004 T7) is now a config knob (`EngineConfig.route_scale`, default
    8.0 unchanged) with a synthetic-family probe

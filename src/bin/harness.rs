@@ -34,6 +34,7 @@ fn main() {
         laya_max_questions: 0,
         skip_laya: false,
         laya_python: false,
+        corpus_cap_override: 0,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -60,6 +61,13 @@ fn main() {
             }
             "--skip-laya" => opts.skip_laya = true,
             "--laya-python" => opts.laya_python = true,
+            "--corpus-cap" => {
+                i += 1;
+                opts.corpus_cap_override = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--corpus-cap needs a number (0 = registry default)"));
+            }
             "--out" => {
                 i += 1;
                 out_dir = args
