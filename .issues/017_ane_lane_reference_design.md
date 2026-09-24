@@ -40,6 +40,7 @@ The owner hint: "reflex may need ane lane btw". laya-apple v1.0 is the first pro
 - [ ] Owner gate 1: is an ANE lane wanted at all (new artifact class `.mlpackage` in release archives vs download-on-demand; the no-Python boundary formally ratified for the offline-conversion step)?
 - [ ] Phase 0 feasibility: offline coremltools conversion of laya + laya-multilingual (BC1S FP16, buckets {64,96,128} + {256} ml), compute-plan verify passes on the M3.
 - [ ] `laya-riir-ane` feature + objc2-core-ml runtime path (same commit as the gate row).
+- [ ] BOUNDARY.md allowlist row for the new deps — `objc2-core-ml` + `objc2-foundation` (the allowlist currently carries `metal` + `objc2` only); rides the SAME feature commit per the boundary contract.
 - [ ] G5-ANE parity gate: top-1 agreement vs our frozen goldens + near-tie-band report + decision-level prob-err bar calibrated on OUR fixtures; p-drift published as OBSERVED, never gated at 1e-3.
 - [ ] `laya_fixture_timing --device ane` posture + serialized A/B vs Metal on the M3; record absolute numbers + the box state.
 - [ ] serve.rs routing + no-silent-fallback wiring (reasons recorded, explicit-device refusal outside buckets).
