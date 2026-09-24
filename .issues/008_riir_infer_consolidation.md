@@ -509,9 +509,10 @@ wiring.
       Partial swap evaluated + rejected (two vocabularies = churn). Full
       record: plan 610's S6b row (riir-ai). Validation: default + CUDA
       posture checks, clippy -D, boundary contract all green on the 4090.
-- [ ] **S4+** — SEAM adjudications (`forward`'s adapter slots,
-      `ternary_deltanet_gpu_forward` L179), the gemma-cluster unlock
-      (WallConfig re-home), then the T2.3 retarget + D4 re-narrowing
-      riders, then the residue re-export completion. (S4 ready-notes
-      pre-adjudicated in plan 610: the qwen38/cudarc cluster + the
-      ternary_deltanet_forward cluster + the deltanet CLEAN kernels.)
+- [x] **S4+** — DELIVERED IN FULL across S4a+S4b+S5 (the SEAM adjudications
+      — backward.rs → riir-train-gpu, the L179 pair stripped — and the
+      gemma-cluster WallConfig re-home), S6a (the T2.3 clippy retarget +
+      D4 re-narrowing for riir-clippy) and S6b (the riir-train patch-row
+      re-point + adjudications; the full edge-drop owner-gated on the
+      training-families home), with S7 completing the flip residue. The
+      remaining open item of this issue is T7 only.
