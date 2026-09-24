@@ -15,6 +15,25 @@
 //! 3/7 SERIALIZED on recycled-address weight hits — the probe-birth trap
 //! class, one layer up). A parallel red AFTER this change is evidence the
 //! residual class is cross-process (host/driver-level), not in-process.
+//!
+//! Every test also opens each independent arm with `m.begin_pass()`
+//! (issue 015, ROOT CAUSE FOUND 2026-09-24 quiet-window run): the chain
+//! cache keys device slots by `(ptr, len, EPOCH)`, and the epoch only
+//! moves inside `begin_pass` — a standalone op run that never begins a
+//! pass keeps epoch 0 and an ever-growing key set, so an arm's input
+//! whose Vec recycles an earlier arm's freed `(ptr, len)` (a DST slot is
+//! the poison: it holds the previous arm's device OUTPUT) silently hits
+//! the stale buffer and the op reads garbage. Whether a collision fires
+//! is a per-process heap-layout lottery — that alone reproduced every
+//! recorded symptom: a different op each run, deterministic values within
+//! a session, alone-passes/in-suite-reds, serialized reds, and the
+//! "cross-process" reading the quiet-window experiment was designed to
+//! test (16/20 parallel + 5/5 serialized reds on a QUIET GPU were this,
+//! not contention — the trace showed the diverging arm's input upload
+//! MISSING, the silent-hit signature). The composed chains (attention
+//! chain / sliding chain) begin ONE pass at their start and compose
+//! device-side within it, exactly like a forward; sync_out between arms
+//! is safe (download syncs, slots stay keyed).
 
 #![cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
 
@@ -95,6 +114,13 @@ fn metal_ops_match_cpu_op_by_op() {
         (300, 100, 2124),
         (512, 64, 2048),
     ] {
+        // Each op consumes fresh host fixtures, so every arm is its own
+        // pass (issue 015): begin_pass bumps the chain-cache epoch and
+        // clears last pass's (ptr, len) keys — without it, an arm's input
+        // that recycles an earlier arm's freed address silently hits the
+        // stale slot and the op reads the previous arm's device output as
+        // its input (layout-dependent, hence the historic "flake").
+        m.begin_pass();
         let a = vec_of(mm * k);
         let b = vec_of(k * n);
         let mut dc = vec![0f32; mm * n];
@@ -127,6 +153,7 @@ fn metal_ops_match_cpu_op_by_op() {
         let mut sc = vec![0f32; mm * mm];
         let mut sm = vec![0f32; mm * mm];
         c.matmul_kt(&q, 0, mm, hd, &k, 0, &mut sc, 0);
+        m.begin_pass();
         m.matmul_kt(&q, 0, mm, hd, &k, 0, &mut sm, 0);
         report("matmul_kt", &sc, &sync_out(&m, &sm), 1e-3);
     }
@@ -137,6 +164,7 @@ fn metal_ops_match_cpu_op_by_op() {
     // with a ragged n tail.
     {
         let (seq, heads, hd) = (300usize, 2usize, 64usize);
+        m.begin_pass();
         let q = vec_of(heads * seq * hd);
         let k = vec_of(heads * seq * hd);
         let mut sc = vec![0f32; heads * seq * seq];
@@ -155,6 +183,7 @@ fn metal_ops_match_cpu_op_by_op() {
     }
     {
         let (seq, heads, hd) = (37usize, 4usize, 64usize);
+        m.begin_pass();
         let q = vec_of(heads * seq * hd);
         let k = vec_of(heads * seq * hd);
         let mut sc = vec![0f32; heads * seq * seq];
@@ -181,6 +210,7 @@ fn metal_ops_match_cpu_op_by_op() {
 
     // Elementwise.
     let n = 1000;
+    m.begin_pass();
     let x = vec_of(n);
     let y = vec_of(n);
     let mut xc = x.clone();
@@ -192,6 +222,7 @@ fn metal_ops_match_cpu_op_by_op() {
     report("add", &xc, &sync_out(&m, &xm), 1e-6);
 
     let (d, rows) = (64usize, 15usize);
+    m.begin_pass();
     let xb = vec_of(rows * d);
     let bias = vec_of(d);
     let mut xc = xb.clone();
@@ -219,6 +250,7 @@ fn metal_ops_match_cpu_op_by_op() {
     report("gelu_erf (libm vs A&S)", &xc, &sync_out(&m, &xm), 1e-4);
 
     let (r2, i_sz) = (5usize, 32usize);
+    m.begin_pass();
     let fused = vec_of(r2 * 2 * i_sz);
     let mut oc = vec![0f32; r2 * i_sz];
     let mut om = vec![0f32; r2 * i_sz];
@@ -228,6 +260,7 @@ fn metal_ops_match_cpu_op_by_op() {
 
     // LN + softmax (reduction order differs by design — loose tol).
     let w = vec_of(d);
+    m.begin_pass();
     let mut oc = vec![0f32; rows * d];
     let mut om = vec![0f32; rows * d];
     let mut sq = Vec::new();
@@ -244,6 +277,7 @@ fn metal_ops_match_cpu_op_by_op() {
 
     // rope / split / merge / gather (exact-ish data movement).
     let (seq, heads, hd) = (9usize, 4usize, 64usize);
+    m.begin_pass();
     let q = vec_of(heads * seq * hd);
     let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
     let mut qc = q.clone();
@@ -277,6 +311,7 @@ fn metal_ops_match_cpu_op_by_op() {
     report("gather_rows", &oc3, &sync_out(&m, &om3), 1e-6);
 
     // download_into across syncs: the epoch bump must not lose the buffer.
+    m.begin_pass();
     let a0 = vec_of(16); // m*k = 2*8
     let w0 = vec_of(16); // n*k = 2*8
     let mut dm = vec![0f32; 4]; // m*n
@@ -293,6 +328,7 @@ fn metal_ops_match_cpu_op_by_op() {
 fn metal_batched_encode_cost() {
     let _gpu = gpu_lock();
     let m = Metal::new().expect("metal backend");
+    m.begin_pass();
     let mut x = vec![1.0f32; 100];
     for _ in 0..10 {
         m.scale(&mut x, 1.0);
@@ -317,6 +353,7 @@ fn metal_merge_heads_minimal() {
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (9usize, 4usize, 64usize);
+    m.begin_pass();
     // fresh src, no chained split
     let src = vec_of(heads * seq * hd);
     let mut oc2 = vec![0f32; seq * heads * hd];
@@ -334,6 +371,8 @@ fn metal_attention_chain_matches_cpu() {
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (9usize, 4usize, 64usize);
+    m.begin_pass();
+    let c = Cpu;
     let d = heads * hd;
     let qkv = vec_of(seq * 3 * d);
     let mut q = vec![0f32; heads * seq * hd];
@@ -416,6 +455,7 @@ fn metal_fused_attention_matches_cpu_full() {
     let c = Cpu;
     let hd = 64usize;
     for (seq, heads) in [(1usize, 4usize), (9, 4), (37, 4), (64, 2), (129, 2)] {
+        m.begin_pass();
         let d = heads * hd;
         let qkv = vec_of(seq * 3 * d);
         let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
@@ -470,6 +510,7 @@ fn metal_fused_attention_matches_cpu_sliding() {
     let c = Cpu;
     let hd = 64usize;
     for (seq, heads, window) in [(64usize, 4usize, 8usize), (37, 4, 4), (130, 2, 16)] {
+        m.begin_pass();
         let d = heads * hd;
         let qkv = vec_of(seq * 3 * d);
         let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
@@ -531,6 +572,7 @@ fn metal_sliding_window_chain_matches_cpu() {
     let m = Metal::new().expect("metal backend");
     let c = Cpu;
     let (seq, heads, hd) = (512usize, 16usize, 64usize);
+    m.begin_pass();
     let d = heads * hd;
     let qkv = vec_of(seq * 3 * d);
     let (cos, sin) = riir_reflex::laya::riir::ops::rope_tables(seq, hd, 160_000.0);
