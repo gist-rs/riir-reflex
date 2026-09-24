@@ -128,6 +128,14 @@ required-features = ["modelless"]
 name = "laya_riir_parity"
 required-features = ["laya-riir"]
 
+# The batched-system_one gate (issue 020 T5): the packed multi-question
+# forward replays the SAME expected capture at the SAME gates. Whole-file
+# #![cfg(feature = "laya-riir")] — this row keeps a feature-less
+# selection skipping it loudly instead of printing a green zero.
+[[test]]
+name = "laya_batch_parity"
+required-features = ["laya-riir"]
+
 # The G5-ANE gate (Plan 002 P1 T1.2): decision-level parity of the ANE
 # whole-graph lane vs the same frozen goldens — top-1 agreement + every
 # flip inside the near-tie band; p-drift printed as observation. Loud-skip
