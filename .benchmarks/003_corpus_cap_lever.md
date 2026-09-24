@@ -81,3 +81,17 @@ default delta was +5.8 pp, not +6.6 pp. Full tables + the refusal verdict:
 [.benchmarks/004_cap_selection_protocol.md](004_cap_selection_protocol.md).
 (ag_news's reading stands unchanged: peak AT the default 64, now
 selection-confirmed.)
+
+## Correction II (2026-09-24, Issue 023 / Bench 007 §3) — the refusal above was an instrument artifact
+
+The Bench 004 refusal this section cites was adjudicated on a banking77
+selection slice whose option-rank centroid term was **index-misaligned**
+(calibration rows list labels in first-appearance order, not domain
+order), so its sel-slice accuracies (0.035–0.080) were near chance by
+construction, not a finding about cap 128. Re-run with the fix
+(`d02f3a8`): the selection slice reads 0.45–0.515, selection picks
+**256**, and its test read is **.4560** against the default's .4460 —
+the gain transfers. Promotion is still **declined**, now on perf/sec
+(+1.0 pt for ~2× p50), so the registry cap stays 40. This table's test
+readings (above) were not affected: the test split's domain order
+matches its label order. Detail: [Bench 007 §3](007_option_name_route.md).

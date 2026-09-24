@@ -104,8 +104,11 @@ cargo run --release --bin harness                       # both-lane tables → .
 # label-STRATIFIED slice of the pool region, argmax picked on that slice
 # ONLY (the registry cal slice is label-clustered — 2/4 and 2/32 labels in
 # its first 200 rows, measured), test read once at the selected cap.
-# Bench 004: ag_news default 64 CONFIRMED; banking77 128 promotion REFUSED
-# (the test-split gain did not transfer); default stays 40.
+# Bench 004: ag_news default 64 CONFIRMED; banking77 default stays 40.
+# ⚠ Bench 004's banking77 refusal was read on an index-misaligned CAL slice
+# (Issue 023); re-run under the fix (Bench 007 §3) the selection TRANSFERS
+# (256 → test .4560 vs .4460) and promotion is declined on perf/sec (2× p50
+# for +1.0 pt), not on non-transfer.
 cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --cal-select-cap
 
 # The accuracy-lever probes (Issue 013, all levers VERDICTED — Bench 003/004/005):
@@ -113,7 +116,9 @@ cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --ca
 # and --pair-head-ab, the fitted pair-head A/B (diagonal-LDA heads armed from
 # CAL-slice confusion, both firing gates). REFUTED as an accuracy lever
 # (global net ≈ −19 questions, no GOAT cell); the instruments stay,
-# report-only, default posture byte-identical.
+# report-only, default posture byte-identical. ⚠ Measured pre-Issue-023:
+# massive's rows are void and banking77's heads were armed from a
+# misaligned CAL slice — re-read owed (Issue 023 T6).
 cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairhead_ab
 
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb

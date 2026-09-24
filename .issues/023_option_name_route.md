@@ -68,3 +68,16 @@ the legacy `k == N` index rule, unchanged. `false` is the pre-023 posture.
   modelless-only post-023 re-run on BOTH hosts, published together (the 018
   drift-refusal gate refuses a one-host move) — plan recorded in Issue 018
   § "Pre-023 binary".
+- [ ] T6 — re-read Bench 005's pair-head A/B under the fix
+  (`--skip-laya --pair-head-ab --suites banking77,massive_intent_en`). Its
+  heads are armed from CAL-slice confusion, and banking77's CAL slice was
+  the misaligned one, so Bench 005's correction (which voids massive
+  only) may under-state the damage: banking77's pair-head rows were
+  also fitted on broken confusion. CPU-only and ~minutes, but needs a build;
+  run when no sibling latency A/B is in flight. Record as a Bench 005
+  addendum and update the AGENTS.md lever-3 line either way.
+- [x] T7 — stale-verdict sweep: Bench 003's correction (still citing
+  Bench 004's refusal as a finding) gains Correction II; AGENTS.md's
+  lever-1/lever-3 comment lines no longer state the pre-023 verdicts as
+  standing. Bench 001's `route_scale` "FLAT" (lever 2) stands — it was
+  read on the synthetic families, byte-identical under the fix.
