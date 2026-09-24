@@ -246,6 +246,24 @@ already closed with records only in git history.
   weights), so any future op-level consumer that passes recycled same-len
   slices as weights re-opens this class one layer over; the module doc
   carries the contract note.
+- **Issue 018 CLOSED — the 4090-windows bench lane is LIVE end-to-end (run,
+  publish, deploy, verified).** Filed 2026-09-24 on the owner directive
+  ("add issue to reflex bench on 4090 and update reflex.gist.rs/bench");
+  executed by session `katgpt-rs-4090-b`. T1–T7 landed same-day: the full
+  15-suite run @`afacc3a` (reflex `40828a0`, site `7508b7a` — the
+  4090-windows host row; modelless accuracy bit-identical to m3 on all 14
+  comparable suites, `code_fixtures` population-excluded; latencies the
+  per-host story — typed laya english 421 ms metal vs 8127 ms cpu), plus the
+  post-023 modelless-only update run @`8028a10` (reflex `10236c8`, quiet-box,
+  massive_intent_en 0.0767 → 0.6900 confirmed on the second host, 13 other
+  suites byte-identical). The ONE step left open at the last update — T6's
+  `npx wrangler deploy` from a Node≥22 box with CF creds (a handoff, not
+  this box) — was **discharged by the Issue-023-T5 together-republish
+  deploy** (site `3ab373f`, worker `cde063c2`). **Live verification from
+  the 4090 box 2026-09-24:** `https://reflex.gist.rs/data/bench.json`
+  git-hashes `e5055982` — byte-identical to the repo file at `3ab373f`;
+  three hosts served (m3 / m3-ane / 4090-windows) with `lane_sources`
+  disclosing both post-023 modelless update runs.
 
 ## 2026-09-23
 
