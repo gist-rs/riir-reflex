@@ -20,6 +20,28 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
+      - name: checkout the public sibling (path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: katopz/katgpt-rs
+          ref: develop
+          path: katgpt-rs
+      - name: place the sibling at the layout path
+        run: |
+          mkdir -p "${{ github.workspace }}/../katgpt-rs"
+          cp -R "${{ github.workspace }}/katgpt-rs/." \
+                "${{ github.workspace }}/../katgpt-rs/"
+      - name: checkout the lane substrate sibling (path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: gist-rs/riir-infer
+          ref: develop
+          path: riir-infer
+      - name: place the sibling at the layout path
+        run: |
+          mkdir -p "${{ github.workspace }}/../riir-infer"
+          cp -R "${{ github.workspace }}/riir-infer/." \
+                "${{ github.workspace }}/../riir-infer/"
 
       - uses: dtolnay/rust-toolchain@stable
 

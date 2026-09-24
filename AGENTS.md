@@ -14,11 +14,22 @@ conflict with prose in this file, BOUNDARY.md wins.
   contribution** (NOT game runtime, NOT code healing)? NO → it belongs in
   another repo; file there.
 - **Read it before** adding any dep, crate, module — the default build stays
-  ONE code-level dep (`katgpt-core`); `serde_json` is the HTTP/JSON edge
-  only; the laya lane's deps (`tokenizers`/`sha2`/`blake3`/`gemm`/`libm`,
-  + `metal`/`objc2` on macOS) join ONLY behind `laya-riir` /
-  `laya-riir-metal` (candle was removed entirely — `.issues/006`, owner
-  directive), each in the same commit as its G5 parity `[[test]]` row.
+  ONE foreign code-level dep (`katgpt-core`); `serde_json` is the HTTP/JSON
+  edge only.
+- **The laya lane is SUBSTRATE-SIDE** (`.issues/008` T4, 2026-09-24): the
+  lane + its deps (`tokenizers`/`sha2`/`gemm`/`libm`, + macOS
+  target-scoped `metal`/`objc2`) live in `../riir-infer`'s
+  `riir-infer-laya` crate; reflex consumes it via the `src/laya/mod.rs`
+  `pub use` shim behind the SAME `laya-riir` / `laya-riir-metal` feature
+  names (public API unchanged) and keeps the CONSUMER-side G5 parity gate
+  + frozen fixture captures. The `riir-infer-laya` dep itself is
+  non-optional (the UNGATED Python-JSON writer moved with the lane — the
+  harness consumes it at default features), but compiles to just that
+  writer until a forwarding feature lights the lane. A lane dep bump (or
+  any lane change) re-runs G5 at both postures before a number is
+  published.
+- **No candle anywhere** (`.issues/006`, owner directive): stands — and
+  now trivially, the lane that could have carried it moved substrate-side.
 - **No Python anywhere** (owner directive): no sidecar, no `uv`, no HF
   transformers — the laya lane is the native-Rust port.
 - **Enforcement** is not prose: `../riir-ai/scripts/ci_boundary_contract.sh`
@@ -55,7 +66,10 @@ dated amendment, owner directive 2026-09-22).
 
 ```
 /git/riir-reflex      ← this repo
-/git/katgpt-rs        ← katgpt-core (the ONE code-level dep, non-optional)
+/git/katgpt-rs        ← katgpt-core (the ONE foreign code-level dep, non-optional)
+/git/riir-infer       ← the laya lane substrate (`crates/riir-infer-laya`, path dep —
+                        always resolved: the ungated pyjson writer moved there; the
+                        lane itself lights up behind laya-riir / laya-riir-metal)
 /git/riir-ai          ← NOT a dep (boundary counter-case: katgpt-rs Proposal 017)
 ```
 

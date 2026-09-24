@@ -25,12 +25,24 @@ jobs:
           mkdir -p "${{ github.workspace }}/../katgpt-rs"
           cp -R "${{ github.workspace }}/katgpt-rs/." \
                 "${{ github.workspace }}/../katgpt-rs/"
+      - name: checkout the lane substrate sibling (path dep)
+        uses: actions/checkout@v4
+        with:
+          repository: gist-rs/riir-infer
+          ref: develop
+          path: riir-infer
+      - name: place the sibling at the layout path
+        run: |
+          mkdir -p "${{ github.workspace }}/../riir-infer"
+          cp -R "${{ github.workspace }}/riir-infer/." \
+                "${{ github.workspace }}/../riir-infer/"
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: cargo check (the shipped release set)
         # modelless + laya-riir = the release feature set. NOT
         # --all-features: the laya-riir-metal arm is macOS-only by
-        # construction (Apple frameworks) and never ships on linux.
+        # construction (Apple frameworks, target-scoped in the substrate
+        # lane crate) and never ships on linux.
         run: cargo check --features laya-riir
       - name: cargo clippy (all targets)
         run: cargo clippy --all-targets -- -D warnings

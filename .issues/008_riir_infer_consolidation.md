@@ -246,7 +246,7 @@ wiring.
       Cargo.lock byte-identical (path deps record no source); registered
       as the 23rd contract repo (katgpt-rs bd2ce3cca); 4090 synced
       (E:/git/riir-infer).
-- [ ] **T4** Encoder-lane move (P2): reflex `src/laya` → riir-infer; the
+- [x] **T4** Encoder-lane move (P2): reflex `src/laya` → riir-infer; the
       reflex shim; G5 green from the new home (same fixtures, same
       gates); the tokenizers **0.22** pin lands in riir-infer's manifest
       (006 T3: the v1 bump is deferred on a measured negative — the
@@ -271,6 +271,81 @@ wiring.
       record cites the riir-infer commit SHA; riir-infer commit
       messages stay sanitized (no internal numbers / sibling names /
       box references) and REBASE onto the squashed line, never merge.
+      — **LANDED 2026-09-24**: riir-infer `c6716a4` + reflex (this
+      commit).
+      **Layout:** new lane crate `crates/riir-infer-laya` (the
+      gpu-crate member pattern — lane-free consumers never resolve the
+      tokenizers/gemm tree). Moved: the whole `src/laya/` tree
+      (substrate: config/lang/render/router/temps/tokenize/types/weights
+      + the `riir/` forward: agent/backend/encoder/head/metal/ops/weights
+      — 16 files, byte-faithful at reflex-HEAD content) + `src/pyjson.rs`
+      (the UNGATED Python-JSON writer — one DRY home, now
+      substrate-side; the reflex file is a re-export shim so the
+      ungated harness keeps compiling at default features — the reason
+      the reflex dep is NON-OPTIONAL) + `tests/metal_ops_smoke.rs`
+      (PROMOTED into the lane crate per its own "delete or promote
+      before the lane lands" note; one dead shadowed binding fixed —
+      never before compiled under `-D warnings`). Reflex keeps:
+      `src/laya/mod.rs` (glob `pub use` shim — every
+      `crate::laya::*` / `riir_reflex::laya::*` path unchanged), the G5
+      parity test + frozen fixtures (CONSUMER-side gate), the harness,
+      the examples. Features forward: `laya-riir =
+      ["riir-infer-laya/laya-riir"]`, `laya-riir-metal = ["laya-riir",
+      "riir-infer-laya/laya-riir-metal"]`; `RELEASE_FEATURES` stamp
+      unchanged. CI: both reflex workflows gain the `gist-rs/riir-infer`
+      sibling checkout (the path dep is always resolved now).
+      **Costs:** (a) DONE — metal 0.31 + objc2 are
+      `[target.'cfg(target_os = "macos")'.dependencies]` optional rows
+      in the lane manifest; every metal code site is
+      `cfg(all(target_os = "macos", feature = "laya-riir-metal"))`
+      (already the shape reflex carried); `--all-features` clippy green
+      on macOS, structurally clean for ubuntu (the gpu-crate pattern).
+      (b) DONE — the moved lane adopts **metal 0.31** (one workspace
+      version with the gpu crate; reflex's graph now has ONE metal,
+      transitive). **The bump needed ZERO API fixes** — the owned-API
+      surface (Device/CommandQueue/ComputePipelineState/
+      MTLResourceOptions/CompileOptions/new_library_with_source) held
+      0.29→0.31; acceptance below. (c) DONE — riir-infer BOUNDARY.md
+      carries the lane dep rows + the consumer row (`gist-rs/riir-reflex`,
+      one-way, zero back-edge) IN c6716a4 (the first commit); fence
+      gate self-ref exemption extended to the third own crate;
+      359 .rs walked, 0 findings 0 pins.
+      **Gates (M3, `CARGO_TARGET_DIR` isolated):** riir-infer: clippy
+      `-D` green at default / laya-riir / laya-riir-metal /
+      `--all-features`; fence green; lane lib tests 7/7 (pyjson);
+      `metal_ops_smoke` 7/7 on metal 0.31; workspace test suite green.
+      reflex (via shim): clippy `-D` green at default / laya-riir /
+      laya-riir-metal; `cargo test --workspace` green (38+3+8+14+7+33
+      +7+9, 0 failed). **G5 from the new home, BOTH postures (the
+      acceptance):** CPU — english 26/26, typed 26/26, multilingual
+      36/36 = 88/88 forwards, top-1 agreement **1.000000** (gate
+      ≥ 0.999), worst prob drift **3.013e-6** (gate ≤ 1e-3); METAL —
+      88/88, top-1 **1.000000**, worst drift **4.016e-6** (~250×
+      headroom; the metal 0.31 bump HOLDS). Box state: M3 Max, macOS,
+      aarch64, release profile; load 13.99-18.31 (shared box,
+      concurrent agent sessions), RAM 88% free, ON BATTERY 56%
+      (discharging) — correctness gates, duration-only sensitivity.
+      ⚠ **Sibling-WIP handoff:** a concurrent session's uncommitted
+      issue-018 Metal-latency work sat on exactly the moved files while
+      this landed. It was NEVER stashed or committed by this session:
+      the move carried reflex-HEAD content, the WIP was snapshotted to
+      `/tmp/t4_reflex_wip_snapshot/` (full patch + per-file copies),
+      and the session then re-applied its work onto the LANE CRATE
+      itself (uncommitted edits in riir-infer's working tree observed
+      mid-move — the right home; those edits are theirs to land). The
+      snapshot also lives DURABLE, untracked, at
+      `.issues/020_wip_snapshot_t4move/` in this repo (the /tmp copy is
+      reboot-volatile) — the issue-020 session's commit 86a11d3
+      recorded its Class-B measurements as CLOSED while the closing
+      code was still uncommitted working-tree state; that code is what
+      this snapshot preserves. Applies onto
+      `crates/riir-infer-laya/src/laya/` with path adjustments if the
+      live tree loses it.
+      Follow-ups recorded, not done here: the lane's default weights
+      cache path still names this repo
+      (`~/.cache/riir-reflex/laya` — kept so the 2.2 GB local cache
+      stays valid; LAYA_WEIGHTS_DIR/LAYA_HOME override); T7 (op-layer
+      unification) remains open.
 - [x] **T5** Fence gate (P4 precondition): the CI grep gate red on
       cognition/game/router imports + the public-docs checklist (no
       workspace narrative ships). — LANDED 2026-09-23:

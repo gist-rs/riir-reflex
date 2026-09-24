@@ -22,45 +22,24 @@ serde_json = { version = "1", features = ["preserve_order"] }
 # via katgpt-core's non-optional serde — no new package; edge-only by law).
 serde = { version = "1", features = ["derive"] }
 
-# ── laya lane (opt-in `laya-riir`; the candle reference lane was removed by
-# .issues/006, owner directive 2026-09-22 — no candle dep anywhere) ────────
-# The HF fast-tokenizer implementation as a Rust crate — loads the pinned
-# BPE tokenizer.json files directly (the capture ran the same library via
-# transformers' fast backend). **v1 attempted + measured NEGATIVE
-# (`.issues/006` T3, 2026-09-22):** 1.0.0-rc.2 refuses the pinned
-# english/typed tokenizers at load — their GPT-2-family vocabs genuinely
-# lack 14 ByteLevel byte atoms (`j`, `}`, `~`, `²`…), which 0.22 tolerates
-# lazily; the v1 loader validates all 256 up front (and needs the tk-convert
-# v1→v2 in-memory pass besides). Reopen trigger: tokenizers 1.0.0 stable (or
-# an rc relaxing the byte-atom strictness) — re-run G5 at both postures
-# then. The candle-unification rationale for the 0.22 pin died with the
-# candle lane; the version itself stays on measured grounds.
-tokenizers = { version = "0.22", optional = true }
-# SHA-256: the WEIGHT pins are SHA-256 (the HF LFS oids) — verification
-# target, not a house-hash choice; blake3 pins the small files (house law).
-sha2 = { version = "0.10", optional = true }
+# ── laya lane (opt-in `laya-riir`) — MOVED substrate-side (the
+# consolidation issue's encoder-lane move): the lane + its deps now live
+# in the inference substrate repo's `riir-infer-laya` crate; reflex
+# consumes it via a `pub use` shim (`src/laya/mod.rs`, public API
+# unchanged) and keeps the consumer-side G5 parity gate + fixtures. The
+# dep is NON-OPTIONAL because the UNGATED Python-JSON byte writer moved
+# with the lane (the harness consumes it at default features) — its lane
+# deps (tokenizers/gemm/metal/...) ride the crate's OWN opt-in features,
+# so the default build compiles only the writer, never that tree.
+# `default-features = false` is explicit: nothing of the lane lights up
+# until the forwarding features below.
+riir-infer-laya = { path = "../riir-infer/crates/riir-infer-laya", default-features = false }
+# blake3: the small-file house hash for the MODELLESS engine — the fixture
+# digests, the G5 pairing check, the corpus-row digests (the `modelless` +
+# `corpus_db` features below). The LANE's hash-family rationale (SHA-256
+# weight pins, blake3 small-file pins) moved with the lane; its manifest
+# carries it now.
 blake3 = { version = "1", optional = true }
-# The GEMM kernel for the riir-owned forward (`.issues/002`): pure Rust, 0.18
-# line. Was version-matched to candle's CPU backend to share one build — the
-# match rationale died with the candle lane (.issues/006 T5); the version may
-# float now, and ANY bump re-runs G5 at both postures before publishing (the
-# gate law: bit-parity is verified, never assumed across gemm releases).
-gemm = { version = "0.18", optional = true, features = ["rayon"] }
-# libm::erff for the riir gelu (`.issues/003`): the same crate + version
-# candle-core's CPU gelu called — bit-identical gelu, so the G5 drift budget
-# is spent on op order, not an erf approximation (the A&S f64 path measured
-# 1.4e-2–3.5e-2 prob drift). This pin is NUMERICS, not build-sharing — it
-# stays pinned with the candle lane gone (.issues/006 T5).
-libm = { version = "0.2", optional = true }
-# The Apple Metal backend of the riir-owned forward (`laya-riir-metal`,
-# `.issues/005`): MSL kernels transcribed from candle's metal-kernel approach
-# (their A&S erf included — copy, don't invent). `objc2` supplies the
-# autoreleasepool every dispatch drains into. macOS-only by construction —
-# never in the release feature set (the release matrix ships linux/windows).
-# Version-matching to candle's lock died with the candle lane (.issues/006
-# T5); float freely, G5 re-run on any bump.
-metal = { version = "0.29", optional = true }
-objc2 = { version = "0.6", optional = true }
 [features]
 # The Proposal 014 Phase-1 modelless decision engine (Plan 603 T1.3) is the
 # product of this repo and ships default-on the way an application crate's
@@ -81,18 +60,19 @@ modelless = [
     "katgpt-core/template_decode",
     "dep:blake3",
 ]
-# The riir-OWNED forward — the ONE laya backend since the candle removal
-# (.issues/006, owner directive 2026-09-22 "no candle at all cost"): the
-# model math over our own flat-Vec tensor code; `gemm` is the ONE kernel dep
-# (`.issues/002`). Owns the laya substrate outright (tokenizers / config /
-# weights-download / render — the any(laya, laya-riir) split died with the
-# candle lane).
-laya-riir = ["dep:tokenizers", "dep:sha2", "dep:blake3", "dep:gemm", "dep:libm"]
-# The riir forward's OWN Metal backend (.issues/005, owner directive: the
-# fair three-way compare is all-Metal): `LAYA_DEVICE=metal` is HONORED by
-# the riir lane — fail loud when the feature/platform is absent. G5 parity
-# must be green at THIS posture before any riir-Metal number is published.
-laya-riir-metal = ["laya-riir", "dep:metal", "dep:objc2"]
+# The riir-OWNED forward — the ONE laya backend (the candle reference
+# lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
+# substrate-side (the encoder-lane move): the model math + the whole lane
+# substrate live in the inference substrate's `riir-infer-laya` crate;
+# this feature simply forwards. `gemm` is the ONE kernel dep there.
+laya-riir = ["riir-infer-laya/laya-riir"]
+# The riir forward's OWN Metal backend — MOVED with the lane
+# (`riir-infer-laya/laya-riir-metal`, where the dep is macOS
+# TARGET-SCOPED, so the feature is inert on Linux/Windows instead of a
+# dep-tree failure). `LAYA_DEVICE=metal` is HONORED by the lane; G5
+# parity must be green at THIS posture before any riir-Metal number is
+# published.
+laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
 # Warm-tier persistence for the harness via the released `ndb` BINARY
 # (Issue 007 P1): subprocess-only — zero storage-leaf cargo deps; the only
 # new package is blake3 (already in-tree via `modelless`). NATIVE-ONLY by
@@ -126,19 +106,14 @@ required-features = ["modelless"]
 name = "game_heads_serve"
 required-features = ["modelless"]
 
-# The riir-owned backend's G5 gate (twin of the deleted candle lane's
-# `laya_parity`, `.issues/006`): the SAME fixture corpus + expected capture
-# over `RiirAgent` — no number from the lane is published before this is
-# green. The frozen captures in tests/fixtures/ ARE the reference now.
+# The substrate lane's G5 gate (CONSUMER-SIDE — the lane moved to the
+# inference substrate, this gate stays): the SAME fixture corpus +
+# expected capture over `RiirAgent`, replayed through the shim. No number
+# from the lane is published before this is green. The frozen captures in
+# tests/fixtures/ ARE the reference now.
 [[test]]
 name = "laya_riir_parity"
 required-features = ["laya-riir"]
-
-# TEMPORARY debug harness (`.issues/005` T4 debugging) — delete or promote
-# before the lane lands.
-[[test]]
-name = "metal_ops_smoke"
-required-features = ["laya-riir-metal"]
 
 # The HTTP-edge CORS seam (Phase 2 T1.2): both directions of the
 # allow-list, preflight + ACAO echo, and the closed-by-default posture.
@@ -188,10 +163,10 @@ required-features = ["modelless"]
 name = "sgemm_shape_timing"
 required-features = ["laya-riir-metal"]
 
-# The laya parity test is GEMM-bound inside the riir forward's `gemm` calls;
-# the local code is only orchestration. Optimizing DEPENDENCIES in the dev
-# profile keeps a plain `cargo test --features laya-riir` within minutes
-# instead of ~an hour of opt-0 matmuls, without touching local-code
+# The laya parity test is GEMM-bound inside the substrate lane's `gemm`
+# calls; the local code is only orchestration. Optimizing DEPENDENCIES in
+# the dev profile keeps a plain `cargo test --features laya-riir` within
+# minutes instead of ~an hour of opt-0 matmuls, without touching local-code
 # debuggability.
 [profile.dev.package."*"]
 opt-level = 2
