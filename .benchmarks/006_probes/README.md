@@ -18,3 +18,16 @@ To re-run, put each file back where it ran from:
 Build and run in a DETACHED worktree with its own `CARGO_TARGET_DIR`
 (Addendum 2's discipline), for example:
 `LAYA_DEVICE=metal cargo build --release --features laya-riir-metal --example laya_seq_sweep`.
+
+## Addendum 5 (T7 pick candidate + T10 rung 1)
+
+- `riir-infer-gemm-pick-probe.diff` — probe-only env switches
+  `LAYA_GEMM_FORCE`, `LAYA_XWIDE_N_MIN`, `LAYA_GEMM_WAVE` plus the KTIME/split
+  counters, on top of riir-infer `0121a3b`; it ALSO carries the T10 rung-1
+  kernel edit, which landed separately as riir-infer `0ec88a9`. Never commit
+  the probe half.
+- `harness_ab.sh` + `harness_ab_report.py` → `harness_ab.out` — the 6-round
+  paired harness A/B of `LAYA_XWIDE_N_MIN=1024` (verdict: inside noise, not landed).
+- `flash_par_patch.py` — the T10 rung-1 source transform (applied → `0ec88a9`).
+- `flash_ab.py` → `flash_ab.out` — two-binary paired encoder A/B + serialized
+  flash_attn per-kernel pass.

@@ -1,0 +1,228 @@
+diff --git a/crates/riir-infer-laya/src/laya/riir/agent.rs b/crates/riir-infer-laya/src/laya/riir/agent.rs
+index 1761c52..a391ff0 100644
+--- a/crates/riir-infer-laya/src/laya/riir/agent.rs
++++ b/crates/riir-infer-laya/src/laya/riir/agent.rs
+@@ -309,6 +309,7 @@ impl RiirAgent {
+         // on a thread with no Cocoa runloop (a no-op wrapper without the
+         // metal feature — one code path for both postures). The ANE lane's
+         // Core ML calls drain their autoreleased temporaries here too.
++        let t_split = std::time::Instant::now();
+         let out = pass_pool(|| -> Result<HeadOutput> {
+             self.backend.begin_pass();
+             let mut hidden = match &self.enc {
+@@ -316,8 +317,19 @@ impl RiirAgent {
+                 #[cfg(all(target_os = "macos", feature = "laya-riir-ane"))]
+                 EncoderStack::Ane(e) => e.forward(&ids)?,
+             };
+-            self.head
+-                .forward(self.backend.as_ref(), &mut hidden, q.qtype, &markers)
++            // PROBE-ONLY (never committed): force a drain after the
++            // encoder so enc/head wall time can be split.
++            if split_on() {
++                let d = hidden.len() / ids.len();
++                let mut row = vec![0f32; d];
++                self.backend.download_into(&hidden[..d], &mut row);
++                SPLIT_ENC_NS.fetch_add(t_split.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
++            }
++            let t_head = std::time::Instant::now();
++            let r = self.head
++                .forward(self.backend.as_ref(), &mut hidden, q.qtype, &markers);
++            SPLIT_HEAD_NS.fetch_add(t_head.elapsed().as_nanos() as u64, std::sync::atomic::Ordering::Relaxed);
++            r
+         })?;
+         let k = markers.len();
+         let t = self.temps.for_question(q.qtype, k);
+@@ -386,3 +398,12 @@ impl RiirAgent {
+         Ok(out)
+     }
+ }
++
++/// PROBE-ONLY split-timing counters (never committed).
++pub static SPLIT_ENC_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++/// PROBE-ONLY.
++pub static SPLIT_HEAD_NS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
++fn split_on() -> bool {
++    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ON.get_or_init(|| std::env::var("LAYA_SPLIT").as_deref() == Ok("1"))
++}
+diff --git a/crates/riir-infer-laya/src/laya/riir/metal.rs b/crates/riir-infer-laya/src/laya/riir/metal.rs
+index ceee85f..d92acc5 100644
+--- a/crates/riir-infer-laya/src/laya/riir/metal.rs
++++ b/crates/riir-infer-laya/src/laya/riir/metal.rs
+@@ -189,6 +189,24 @@ const _: () = {
+     assert!(FLASH_STAGING_BYTES <= 32768);
+ };
+ 
++/// PROBE (Issue 020 follow-up, not for commit): per-kernel serialized wall.
++pub static KTIME: Mutex<Vec<(&'static str, u64, u64)>> = Mutex::new(Vec::new());
++fn ktime_on() -> bool {
++    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
++    *ON.get_or_init(|| std::env::var("LAYA_KTIME").as_deref() == Ok("1"))
++}
++pub static KFLASH: Mutex<Vec<u64>> = Mutex::new(Vec::new());
++fn ktime_add(name: &'static str, ns: u64) {
++    if name == "flash_attn" {
++        KFLASH.lock().unwrap().push(ns);
++    }
++    let mut v = KTIME.lock().unwrap();
++    match v.iter_mut().find(|e| e.0 == name) {
++        Some(e) => { e.1 += ns; e.2 += 1; }
++        None => v.push((name, ns, 1)),
++    }
++}
++
+ /// Debug trace flag (`LAYA_METAL_TRACE=1`): log every chain-cache miss.
+ fn trace_enabled() -> bool {
+     static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+@@ -771,15 +789,19 @@ kernel void flash_attn(
+         // optimization — within a tile a key is live for a row only when
+         // |q − k| ≤ window (the reference's mask row; out-of-window keys
+         // are exp(f32::MIN − m) = 0 there, so skipping them is exact).
+-        if (lid < 32u) {
+-            const uint q = q0 + lid;
+-            float m = st[lid];
+-            for (uint c = 0u; c < wk; ++c) {
+-                const uint k = t + c;
+-                const uint dk = (k > q) ? (k - q) : (q - k);
+-                if (dk <= window) { m = max(m, ts[lid * FTKS + c]); }
+-            }
+-            st[lid] = m;
++        // One simdgroup per row (sg = row), one lane per key: the tile's
++        // [32][32] scores are exactly 32 simdgroups × 32 lanes, so the
++        // row max is one simd_max instead of a 32-key serial loop on 32 of
++        // the 1024 threads (Issue 020 T10). Max is order-independent —
++        // bit-identical to the serial form.
++        {
++            const uint c = lid & 31u;
++            const uint q = q0 + sg;
++            const uint k = t + c;
++            const uint dk = (k > q) ? (k - q) : (q - k);
++            const float v = (c < wk && dk <= window) ? ts[sg * FTKS + c] : -3.402823466e+38f;
++            const float mt = simd_max(v);
++            if (c == 0u) { st[sg] = max(st[sg], mt); }
+         }
+     }
+     if (lid < 32u) { st[32u + lid] = 0.0f; }
+@@ -830,19 +852,22 @@ kernel void flash_attn(
+             simdgroup_store(sf, ts + sgr * 8u * FTKS + sgc * 8u, FTKS);
+         }
+         threadgroup_barrier(mem_flags::mem_threadgroup);
+-        if (lid < 32u) {
+-            const float m = st[lid];
+-            const uint q = q0 + lid;
+-            float acc = 0.0f;
+-            for (uint c = 0u; c < wk; ++c) {
+-                const uint k = t + c;
+-                const uint dk = (k > q) ? (k - q) : (q - k);
+-                float p = 0.0f;
+-                if (dk <= window) { p = precise::exp(ts[lid * FTKS + c] - m); }
+-                ts[lid * FTKS + c] = p;
+-                acc += p;
+-            }
+-            l_reg += acc;
++        // Same row-per-simdgroup map: each lane exponentiates ONE score and
++        // the row sum is a simd_sum. Every lane of simdgroup `sg` carries
++        // row sg's running l. Padding keys (c ≥ wk) and out-of-window keys
++        // write p = 0 — exact, as before (their V rows are staged zero and
++        // l skips them). Only the l summation ORDER changes (tree vs
++        // serial), inside the G5 drift budget.
++        {
++            const uint c = lid & 31u;
++            const float m = st[sg];
++            const uint q = q0 + sg;
++            const uint k = t + c;
++            const uint dk = (k > q) ? (k - q) : (q - k);
++            float p = 0.0f;
++            if (c < wk && dk <= window) { p = precise::exp(ts[sg * FTKS + c] - m); }
++            ts[sg * FTKS + c] = p;
++            l_reg += simd_sum(p);
+         }
+         threadgroup_barrier(mem_flags::mem_threadgroup);
+         // acc += P × V over this tile's 32 keys (padding columns hold
+@@ -855,8 +880,8 @@ kernel void flash_attn(
+             simdgroup_multiply_accumulate(acc, fa, fb, acc);
+         }
+     }
+-    // Publish the per-row l (each lane < 32 owns row `lid`'s register).
+-    if (lid < 32u) { st[32u + lid] = l_reg; }
++    // Publish the per-row l (lane 0 of simdgroup `sg` owns row sg's).
++    if ((lid & 31u) == 0u) { st[32u + sg] = l_reg; }
+ 
+     // Drain: the accumulator frag → the ta front (Q is dead), then the
+     // per-row 1/l normalize + the merged-heads store [seq, d].
+@@ -1363,6 +1388,11 @@ impl Metal {
+         tiles: Option<&[(u64, u64)]>,
+         threadgroups: bool,
+     ) -> Result<()> {
++        let kt = ktime_on();
++        if kt {
++            self.sync();
++        }
++        let t0 = std::time::Instant::now();
+         autoreleasepool(|_| {
+             let mut st = self.pending.lock().expect("pending cb poison");
+             if st.open.is_none() {
+@@ -1400,13 +1430,27 @@ impl Metal {
+                 enc.dispatch_threads(grid, tpg);
+             }
+             pending.encodes += 1;
+-            if pending.encodes >= MAX_ENCODERS_PER_CB {
++            if kt {
++                let done = st.open.take().expect("checked above");
++                done.enc.end_encoding();
++                done.cb.commit();
++                done.cb.wait_until_completed();
++            } else if pending.encodes >= MAX_ENCODERS_PER_CB {
+                 let done = st.open.take().expect("checked above");
+                 done.enc.end_encoding();
+                 done.cb.commit();
+                 st.committed.push(done.cb);
+             }
+         });
++        if kt {
++            let name = self
++                .pipelines
++                .iter()
++                .find(|(_, k)| std::ptr::eq(&k.p, p))
++                .map(|(n, _)| *n)
++                .unwrap_or("?");
++            ktime_add(name, t0.elapsed().as_nanos() as u64);
++        }
+         Ok(())
+     }
+ 
+@@ -1555,8 +1599,32 @@ impl Metal {
+         n: u32,
+         batch: u32,
+     ) -> Result<()> {
+-        let (name, bm, bn, staging, threads) = if m as usize >= WIDE_M_MIN {
+-            if n as usize >= XWIDE_N_MIN {
++        // PROBE-ONLY: LAYA_GEMM_FORCE=narrow|wide|xwide.
++        static FORCE: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
++        let force = FORCE.get_or_init(|| std::env::var("LAYA_GEMM_FORCE").ok());
++        let (name, bm, bn, staging, threads) = if let Some(f) = force.as_deref() {
++            match f {
++                "narrow" => ("sgemm", 32u64, 64u64, NARROW_STAGING_BYTES, NARROW_THREADS),
++                "wide" => ("sgemm_wide", 64, 64, WIDE_STAGING_BYTES, WIDE_THREADS),
++                _ => ("sgemm_xwide", 64, 128, XWIDE_STAGING_BYTES, XWIDE_THREADS),
++            }
++        } else if m as usize >= WIDE_M_MIN {
++            static XN: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
++            let xn = *XN.get_or_init(|| {
++                std::env::var("LAYA_XWIDE_N_MIN").ok().and_then(|v| v.parse().ok()).unwrap_or(XWIDE_N_MIN)
++            });
++            static WAVE: std::sync::OnceLock<Option<u64>> = std::sync::OnceLock::new();
++            let wave = *WAVE.get_or_init(|| std::env::var("LAYA_GEMM_WAVE").ok().and_then(|v| v.parse().ok()));
++            let pick_x = match wave {
++                Some(c) => {
++                    let rows = u64::from(m).div_ceil(64);
++                    let tx = rows * u64::from(n).div_ceil(128) * u64::from(batch);
++                    let tw = rows * u64::from(n).div_ceil(64) * u64::from(batch);
++                    tx.div_ceil(c) * 2 <= tw.div_ceil(c)
++                }
++                None => n as usize >= xn,
++            };
++            if pick_x {
+                 (
+                     "sgemm_xwide",
+                     64u64,

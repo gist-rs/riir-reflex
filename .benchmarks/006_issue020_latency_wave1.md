@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** + **Addendum 4 (Issue 020 T9: case 3 = 512 tokens; its gap is mostly T5 batching (1q→2q step flat at every length) + GEMM at m≥256 (T7); attention ≈ even in total — the earlier "13→42 ms non-GEMM jump" is retracted as a two-instrument subtraction artifact; load 6–11, ratios only)** · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** + **Addendum 4 (Issue 020 T9: case 3 = 512 tokens; its gap is mostly T5 batching (1q→2q step flat at every length) + GEMM at m≥256 (T7); attention ≈ even in total — the earlier "13→42 ms non-GEMM jump" is retracted as a two-instrument subtraction artifact; load 6–11, ratios only)** + **Addendum 5 (T10 rung 1 LANDED riir-infer `0ec88a9`: encoder −6…−8%, 10/10 paired wins, G5 green; T7 `XWIDE_N_MIN=1024` harness A/B inside noise at stable load → NOT landed)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -552,3 +552,73 @@ Case 3's 1.5–1.8× gap, in order of size:
    512 tokens. Low priority.
 
 Re-quote §A/§B/§C as absolutes only after `bench_preflight.sh` passes.
+
+## Addendum 5 (2026-09-24 12:58–13:25, Issue 020 T7 candidate + T10 rung 1)
+
+**Box state:** AC (battery 100%, charged), `powermode 2` (High Power),
+~9 GB free + ~24 GB inactive of 64 GB, 5+ concurrent agent sessions (a
+sibling ANE/Metal timing session and cargo builds among them). **Load 3.9–14.5**
+across the session. `bench_preflight.sh` would refuse on load, so every figure
+below is a **paired, interleaved ratio**, never an absolute cell.
+
+### A. T7 candidate — `XWIDE_N_MIN` 2048 → 1024, through the real harness
+
+Same binary, the probe env switch `LAYA_XWIDE_N_MIN` (probe-only, never
+committed), suites `massive_intent_en,banking77,code_fixtures`, 6 rounds,
+arm order alternated per round. Accuracy was **identical in both arms every
+round** (0.750 / 0.498 / 0.5417).
+
+| suite | wall B/A per round (1 … 6) | median | p50 B/A per round | median |
+|---|---|---|---|---|
+| banking77 | 0.773 0.847 0.795 0.976 1.000 0.950 | 0.898 | 0.795 0.796 0.743 0.966 0.966 0.921 | 0.859 |
+| code_fixtures | 0.815 0.929 0.829 1.000 0.985 1.030 | 0.957 | 0.772 0.862 0.729 1.052 1.020 0.902 | 0.882 |
+| massive_intent_en | 0.880 1.056 1.000 1.023 1.018 0.996 | 1.009 | 0.833 1.019 1.018 1.017 1.000 1.000 | 1.009 |
+
+Load per run: 9.7→14.5, 14.5→12.2 | 12.2→8.3, 8.3→5.5 | 5.5→4.4, 4.4→3.9 |
+3.9→5.7, 5.7→5.8 | 5.8→6.0, 6.0→5.3 | 5.3→5.9, 5.9→7.0.
+
+- ⛔ **The medians are not the finding.** Rounds 1–3 ran while the load FELL
+  from 14.5 to 3.9, so the second arm of each pair ran on a quieter box. The
+  control shows it: `massive_intent_en`, whose inputs are mostly below the
+  m ≥ 256 threshold the change touches, read **0.88 in round 1**.
+- At **stable load 5–6 (rounds 4–6)** the change is inside noise:
+  banking77 0.95–1.00, code_fixtures 0.985–1.03.
+- **Verdict: NOT landed.** It stays a measured candidate for a quiet-box
+  re-run. The per-length probe's −5…−6% at 512 tokens is real but is offset
+  by +1…2% at 321–427, and the suites mix lengths.
+
+### B. T10 rung 1 — flash_attn row softmax on one simdgroup per row (LANDED riir-infer `0ec88a9`)
+
+Two resident lanes (base binary vs patched binary, same probe tree,
+`english` checkpoint), 3 warm-up passes, 10 rounds, length order shuffled
+and pair order alternated per round; load 8.2–8.7.
+
+| tokens | encoder base | encoder patched | paired B/A median | B wins | flash_attn A → B (`LAYA_KTIME`, serialized) | B/A |
+|---|---|---|---|---|---|---|
+| 188 | 39.4 | 37.0 | **0.935** | 10/10 | 8.97 → 7.12 | 0.794 |
+| 283 | 65.0 | 60.7 | **0.938** | 10/10 | 12.31 → 8.76 | 0.712 |
+| 370 | 82.0 | 76.5 | **0.939** | 10/10 | 15.26 → 10.77 | 0.706 |
+| 512 | 106.3 | 98.4 | **0.924** | 10/10 | 22.95 → 14.25 | 0.621 |
+
+(ms columns are load-8 medians — read the ratios.) The encoder saving at
+512 (≈ 8 ms) matches the kernel's own saving, so the win is the kernel, not
+a second effect. It is larger than Addendum 4 §C's "5–6 ms ceiling" for the
+whole of T10, because that ceiling was sized against torch's per-layer
+throughput on the 10 full-attention layers. This rung also speeds up the 18
+sliding-window layers, which run the same serial softmax.
+
+**G5** (`tests/laya_riir_parity.rs`, `LAYA_DEVICE=metal`, 3 runs per arm,
+alternated; riir-infer at `0121a3b` for BOTH arms because riir-reflex
+`origin/develop` already needs its `DeviceKind::Ane` — `metal.rs` is
+byte-identical between `0121a3b` and the commit's parent `b70fee8`):
+deterministic across runs within each arm.
+
+| checkpoint | top-1 (both arms) | prob drift base | prob drift patched | gate |
+|---|---|---|---|---|
+| english | 26/26 | 4.02e-6 | 1.90e-6 | ≤ 1e-3 |
+| typed-decisions | 26/26 | 9.81e-7 | 2.65e-6 | ≤ 1e-3 |
+| multilingual | 36/36 | 3.52e-6 | 5.10e-6 | ≤ 1e-3 |
+
+The new summation order moves drift by a few 1e-6 in either direction, still about 200× under the gate.
+`metal_ops_smoke` 7/7; clippy `-p riir-infer-laya --features laya-riir-metal
+--all-targets` clean. Probe driver: `006_probes/flash_ab.py`.

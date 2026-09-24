@@ -10,7 +10,7 @@ oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
 **winning p99** — and `code_fixtures` joins them (Bench 006 Addendum 3:
 same-run p50 **+7.4%** median over 8 rounds, max **+43%** — T8 attributed
 it to ONE long case, not a cold start). Its largest remaining lever (T5, per-case question batching)
-is IDENTIFIED from the reference's own source. **T9 (Bench 006 Addendum 4):** case 3 = 512 tokens; its gap is T5 batching first, GEMM at m ≥ 256 (T7) second, and attention is about even in total (new small T10). Filed 2026-09-24 from the published arena table
+is IDENTIFIED from the reference's own source. **T9 (Bench 006 Addendum 4):** case 3 = 512 tokens; its gap is T5 batching first, GEMM at m ≥ 256 (T7) second, and attention is about even in total (new small T10). **T10 rung 1 LANDED** (riir-infer `0ec88a9`, Bench 006 Addendum 5): flash_attn's row softmax on one simdgroup per row — encoder −6…−8% at 188–512 tokens, 10/10 paired wins, G5 green. The T7 `XWIDE_N_MIN` 2048 → 1024 pick was A/B'd through the harness and is **NOT landed** (inside noise at stable load). Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
 … make rust faster as it should in all cost."* Two independent causes are
@@ -289,6 +289,18 @@ box this repo does not currently have.
       at 188 and at 512. So the first rung is the wide/xwide pick at
       256 ≤ m < ~400 (tile padding at m = 283 is 283/320 on BM 64), before any
       new kernel.
+      **Candidate measured, NOT landed (Bench 006 Addendum 5):**
+      `XWIDE_N_MIN` 2048 → 1024 (xwide for the n = 1024 projections too).
+      Per-length probe: −5…−6% at 512 tokens (12/12), −2…−5% at 283/461,
+      but +1…2% at 321–427. Through the real harness (6 paired rounds,
+      order alternated, accuracy identical every round): rounds 1–3 read
+      0.77–0.93 B/A wall, but the load was FALLING 14.5 → 3.9 inside them
+      and `massive_intent_en` (mostly short inputs, largely untouched by
+      the change) read 0.88 there too — a load-trend artifact. At stable load
+      5–6 (rounds 4–6): banking77 0.976 / 1.000 / 0.950, code_fixtures
+      1.000 / 0.985 / 1.030. Inside noise → not landed. Re-run only on a
+      box where `bench_preflight.sh` passes; the probe env switch lives in
+      `.benchmarks/006_probes/` (never committed to the substrate).
 
 - [x] **T8 — attribute the `code_fixtures` max** — DONE `e2d2060`.
       Step 1: `src/harness/latency.rs` — every lane now stamps
@@ -326,6 +338,16 @@ box this repo does not currently have.
         two-instrument subtraction artifact. In the forward, non-GEMM growth
         from 283 to 512 tokens is about 12 ms, 10 of it flash_attn.
 - [ ] **T10 — full-attention `flash_attn` throughput** (small, low priority).
+      - [x] **Rung 1 — parallel row softmax — LANDED riir-infer `0ec88a9`.**
+            Both softmax steps ran serially on 32 of 1024 threads; now one
+            simdgroup per row (`simd_max` bit-identical, `simd_sum` changes
+            only the l order). Encoder paired patched/base **0.935 / 0.938 /
+            0.939 / 0.924** at 188 / 283 / 370 / 512 tokens, **10/10** wins
+            each; flash_attn kernel alone 0.79 → 0.62. G5 3×/arm
+            deterministic, max prob drift ≤ 5.1e-6 (gate 1e-3), top-1 1.000.
+            Load 7–9, AC, powermode 2 — ratios only (Bench 006 Addendum 5).
+      - [ ] Rung 2 — hoist rope-K into one pre-pass per layer.
+      - [ ] Rung 3 — one-pass online softmax (drop the pass-1 max walk).
       On the 10 full-attention layers the fused kernel runs about **1.15
       ms/layer at 512 tokens (≈ 0.9 TF/s)**, against torch SDPA's
       **0.59 ms/layer (1.8 TF/s)**. Those layers scale quadratically as

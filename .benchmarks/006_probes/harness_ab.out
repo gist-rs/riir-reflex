@@ -1,0 +1,19 @@
+round 1 arm A load_start 9.70 load_end 14.47
+round 1 arm B load_start 14.47 load_end 12.20
+round 2 arm B load_start 12.20 load_end 8.34
+round 2 arm A load_start 8.34 load_end 5.53
+round 3 arm A load_start 5.53 load_end 4.37
+round 3 arm B load_start 4.37 load_end 3.92
+round 4 arm B load_start 3.92 load_end 5.74
+round 4 arm A load_start 5.74 load_end 5.81
+round 5 arm A load_start 5.81 load_end 6.00
+round 5 arm B load_start 6.00 load_end 5.31
+round 6 arm B load_start 5.31 load_end 5.94
+round 6 arm A load_start 5.94 load_end 7.02
+DONE
+
+| suite | acc A=B? | A p50 (med) | B p50 (med) | paired B/A p50 | A wall s | B wall s | paired B/A wall | B wins wall |
+|---|---|---|---|---|---|---|---|---|
+| banking77 | True | 93.5 | 84.0 | 0.859 | 52.2 | 48.6 | 0.898 | 5/6 |
+| code_fixtures | True | 105.5 | 102.5 | 0.882 | 6.9 | 6.8 | 0.957 | 4/6 |
+| massive_intent_en | True | 58.5 | 59.0 | 1.009 | 22.1 | 22.4 | 1.009 | 2/6 |
