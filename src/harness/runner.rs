@@ -2031,13 +2031,19 @@ fn run_laya_checkpoint(
 
     // Every case over the bucket limit = the suite has NO servable cases:
     // an honest ABSENCE (the caller's errors list), never an empty metrics
-    // row (the metrics tail indexes per-served-case vectors).
+    // row (the metrics tail indexes per-served-case vectors). Only the ANE
+    // lane can produce skips, so the bucket-max read is gated on the SAME
+    // cfg the agent's `ane_bucket_max()` carries (macos + feature) — a
+    // narrower gate here would fail to compile on the non-macos ane arm.
     if probs.is_empty() {
+        #[cfg(all(target_os = "macos", feature = "laya-riir-ane"))]
+        let max_bucket = agent.ane_bucket_max().unwrap_or(0);
+        #[cfg(not(all(target_os = "macos", feature = "laya-riir-ane")))]
+        let max_bucket = 0;
         return Err(format!(
             "all {} case(s) exceed the ANE buckets (max {}) — no servable cases; \
              this device row is absent for this suite (named, not fabricated)",
-            cases.len(),
-            agent.ane_bucket_max().unwrap_or(0),
+            cases.len(), max_bucket,
         ));
     }
 
