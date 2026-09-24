@@ -1,7 +1,11 @@
-# Issue 026 — the CLM T3 4090 bench posture (+ the AgentJev measure-only row riding the same window)
+# Issue 027 — the CLM T3 4090 bench posture (+ the AgentJev measure-only row riding the same window)
 
 **Status:** OPEN — filed 2026-09-24 from the 019 Gate-0 ratification (commit
-`87b4779`; verdict `#Verdict: AGREE`). This is the 4090-WINDOW issue: nothing
+`87b4779`; verdict `#Verdict: AGREE`); **RENUMBERED 026→027 same day** —
+upstream dual-allocated 026 while this was in flight (the 4090 CUDA-lane
+bench issue, closed + removed at `6d6cd8c`); numbers are never reused, the
+renumber consumes 027 exactly like a fresh allocation (`/.highwater` = 27).
+This is the 4090-WINDOW issue: nothing
 here runs on the M3. The lane that picks this up will not have the filing
 conversation — everything it needs is in-file.
 

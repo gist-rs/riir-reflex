@@ -1,6 +1,6 @@
 # AgentJev / System-One positioning — the typed-decision category grew a beat-laya challenger
 
-**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 spike is DEFERRED by verdict 2026-09-24 (named checkable reopen triggers in-file). A new optional MEASURE-only row (gold-label re-score through their own service) rides the 019 T3 4090 window (`.issues/026`) — do NOT auto-start.
+**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 spike is DEFERRED by verdict 2026-09-24 (named checkable reopen triggers in-file). A new optional MEASURE-only row (gold-label re-score through their own service) rides the 019 T3 4090 window (`.issues/027`; renumbered from 026 — upstream dual-allocated 026) — do NOT auto-start.
 
 ## Why
 
@@ -67,7 +67,7 @@ calibration gate (G1), game heads, single-binary matrix.
       shared-prefix work without a causal decision lane to host it.
       License: Apache-2.0 weights are compatible with our MIT public
       surface (attribution required).
-- [ ] (optional, rides the 019 T3 4090 window `.issues/026` — do NOT
+- [ ] (optional, rides the 019 T3 4090 window `.issues/027` [renumbered from 026] — do NOT
       auto-start) the MEASURE-vs-SERVE split (Gate-0 verdict amendment 4):
       the data point actually missing is AgentJev's **gold-label** accuracy
       on our 400-case split — their 79.25% is teacher-argmax agreement, a
