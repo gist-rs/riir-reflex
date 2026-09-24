@@ -20,8 +20,11 @@ use std::process::Command;
 use std::time::Instant;
 
 use riir_reflex::harness::slice_leak::{
-    LeakClass, LeakCounts, LeakParams, QueryScratch, ShingleIndex, leak_counts,
+    LeakClass, LeakCounts, LeakParams, QueryScratch, ShingleIndex, eval_case_text, leak_counts,
+    scan_eval,
 };
+use riir_reflex::harness::suites as suites;
+use riir_reflex::harness::suites::train_docs;
 use serde_json::Value;
 
 // ── Per-thread allocation counter (the test harness runs tests on threads).
@@ -358,4 +361,171 @@ fn py_dumps_matches_python_for_the_escape_classes() {
         &mut out,
     );
     assert_eq!(out, r#"{"a": "x", "b": [1, true, null]}"#);
+}
+
+// ── Issue 024 T3: the runner wiring — the SAME scan the runner performs,
+// driven over BUILT cases (the pub builders + `train_docs` + `eval_case_text`
+// + `scan_eval`). These arms need no `modelless` compile — that is the
+// point: the wiring's data path is exercised without the engine.
+
+/// The RAW dataset envelope (the builders' input shape), shard-merged in
+/// sorted-filename order — the same order the probe and `rows_of` read.
+fn load_raw(suite: &Path, split: &str) -> Value {
+    let prefix = format!("{split}-");
+    let mut files: Vec<PathBuf> = std::fs::read_dir(suite)
+        .map(|d| d.filter_map(|e| e.ok().map(|e| e.path())).collect())
+        .unwrap_or_default();
+    files.retain(|p| {
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .is_some_and(|n| n.starts_with(&prefix) && n.ends_with(".json"))
+    });
+    files.sort();
+    let mut rows = Vec::new();
+    for f in files {
+        let text = std::fs::read_to_string(&f).expect("read dataset shard");
+        let v: Value = serde_json::from_str(&text).expect("parse dataset shard");
+        rows.extend(
+            v.get("rows")
+                .and_then(Value::as_array)
+                .cloned()
+                .unwrap_or_default(),
+        );
+    }
+    serde_json::json!({ "rows": rows })
+}
+
+/// The builder each registry suite names (the same builder `prepare`
+/// dispatches to; the massive option seed never touches the utterance
+/// text, so the leak scan is seed-independent).
+fn build_suite(name: &str, rows: &Value, max_rows: usize) -> Option<Vec<suites::SuiteCase>> {
+    use suites::*;
+    let cases = match name {
+        "ag_news" => build_ag_news(rows, max_rows).cases,
+        "banking77" => build_banking77_mteb(rows, max_rows).cases,
+        "emotion" => build_emotion(rows, max_rows).cases,
+        "massive_intent_en" => build_massive_intent_en(rows, max_rows, 0).cases,
+        "prompt_injections" => build_prompt_injections(rows, max_rows).cases,
+        "sst5" => build_sst5(rows, max_rows).cases,
+        "xnli_en" => build_xnli_en(rows, max_rows).cases,
+        _ => return None,
+    };
+    Some(cases)
+}
+
+#[test]
+fn t3_runner_wiring_reproduces_the_probe_over_built_cases() {
+    let root = datasets();
+    if !root.is_dir() {
+        return unseen(".raw/datasets is absent");
+    }
+    let Some(expected) = run_probe() else {
+        return unseen("python3 is not runnable");
+    };
+    let mut checked = 0usize;
+    for (suite, want) in &expected {
+        // typed_decisions is out of scope by design (templated rows) — its
+        // absence from the wiring report is the assertion.
+        if suite == "typed_decisions" {
+            continue;
+        }
+        let dir = root.join(suite);
+        let test_rows = load_raw(&dir, "test");
+        let train_rows = load_raw(&dir, "train");
+        // max_rows = 0 = ALL rows: the probe's query set, so the counts
+        // must come out EQUAL, not merely at-or-below. A smaller cap (the
+        // registry posture) is the bound arm below.
+        let cases = build_suite(suite, &test_rows, 0)
+            .unwrap_or_else(|| panic!("{suite}: no builder — the wiring cannot scan it"));
+        let texts: Option<Vec<String>> = cases
+            .iter()
+            .map(|c| eval_case_text(suite, c))
+            .collect();
+        let texts = texts
+            .unwrap_or_else(|| panic!("{suite}: an eval case's dataset text was not recoverable"));
+        assert_eq!(
+            texts.len(),
+            cases.len(),
+            "{suite}: extraction dropped a case — the flags would mis-align"
+        );
+        let train_docs_v = train_docs(&train_rows, suite);
+        let refs: Vec<&str> = train_docs_v.iter().map(|d| d.text.as_str()).collect();
+        let t0 = Instant::now();
+        let scan = scan_eval(&refs, &texts, LeakParams::default())
+            .unwrap_or_else(|| panic!("{suite}: empty scan side, but the probe measured it"));
+        let dt = t0.elapsed();
+        eprintln!(
+            "{suite:20} exact={:4} near={}/{}  [{:.1} ms]",
+            scan.exact,
+            scan.near,
+            scan.near_scanned,
+            dt.as_secs_f64() * 1e3
+        );
+        assert_eq!(
+            scan.exact, want.exact,
+            "{suite}: the wiring's EXACT count disagrees with the probe"
+        );
+        assert_eq!(
+            scan.near, want.near,
+            "{suite}: the wiring's NEAR count disagrees with the probe"
+        );
+        assert_eq!(scan.flags.len(), cases.len(), "{suite}: flag/case mis-align");
+        #[cfg(not(debug_assertions))]
+        assert!(
+            dt.as_secs_f64() <= 1.0,
+            "{suite}: T3 scan budget 1 s, took {dt:?}"
+        );
+        checked += 1;
+    }
+    assert!(
+        checked >= 7,
+        "only {checked} dataset suites were wired-checked; the checkout has at least 7 \
+         in-scope ones (typed_decisions excluded) — a walk regression"
+    );
+}
+
+#[test]
+fn t3_registry_cap_keeps_the_report_at_or_below_the_probe_bound() {
+    // The registry caps ag_news at 400 eval cases (vs the probe's full
+    // split), so the runner posture's counts must sit AT OR BELOW the
+    // probe's — the direction Issue 024 names. ANY cap satisfies the
+    // bound; 400 mirrors the live registry row.
+    let root = datasets();
+    let dir = root.join("ag_news");
+    if !dir.is_dir() {
+        return unseen(".raw/datasets/ag_news is absent");
+    }
+    let Some(expected) = run_probe() else {
+        return unseen("python3 is not runnable");
+    };
+    let want = expected
+        .get("ag_news")
+        .unwrap_or_else(|| panic!("the probe never measured ag_news"));
+    let test_rows = load_raw(&dir, "test");
+    let train_rows = load_raw(&dir, "train");
+    let cases = suites::build_ag_news(&test_rows, 400).cases;
+    let texts: Vec<String> = cases
+        .iter()
+        .map(|c| eval_case_text("ag_news", c).expect("ag_news text extraction"))
+        .collect();
+    let train_docs_v = train_docs(&train_rows, "ag_news");
+    let refs: Vec<&str> = train_docs_v.iter().map(|d| d.text.as_str()).collect();
+    let scan = scan_eval(&refs, &texts, LeakParams::default())
+        .expect("ag_news scan sides are non-empty");
+    assert!(
+        scan.exact <= want.exact,
+        "runner exact {} > probe bound {}",
+        scan.exact,
+        want.exact
+    );
+    assert!(
+        scan.near <= want.near,
+        "runner near {} > probe bound {}",
+        scan.near,
+        want.near
+    );
+    eprintln!(
+        "ag_news (registry cap 400): exact {} <= {} · near {} <= {} — bound holds",
+        scan.exact, want.exact, scan.near, want.near
+    );
 }

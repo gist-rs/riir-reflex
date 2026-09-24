@@ -434,3 +434,98 @@ fn argmax_first(probs: &[f64]) -> (usize, f64) {
     }
     (best, probs[best])
 }
+
+/// Issue 024 T3: hard accuracy over the eval rows whose CASE carries no
+/// leak flag — the same forced-row walk [`hard_metrics`] reads, restricted
+/// to the unflagged cases. `rows` = the flattened forced rows in case
+/// order (the order `forced_rows` produced); `flagged_case` = one flag per
+/// case, `true` = the case is leak-flagged and is DROPPED (the same
+/// semantics `scan_eval`'s flags carry — one meaning everywhere, so no
+/// call site can silently invert it); `questions_per_case` = one question
+/// count per case (their sum MUST equal `rows.len()` — the alignment
+/// assertion, never a silent mis-walk). `None` when zero rows remain:
+/// nothing measured, never a fabricated rate.
+#[must_use]
+pub fn subset_accuracy(
+    rows: &[(usize, Vec<f64>)],
+    flagged_case: &[bool],
+    questions_per_case: &[usize],
+) -> Option<f64> {
+    assert_eq!(
+        flagged_case.len(),
+        questions_per_case.len(),
+        "subset_accuracy: {} leak flags vs {} case question counts — the \
+         flags and the case set disagree",
+        flagged_case.len(),
+        questions_per_case.len()
+    );
+    assert_eq!(
+        questions_per_case.iter().sum::<usize>(),
+        rows.len(),
+        "subset_accuracy: the case question counts sum to {} but {} forced \
+         rows were handed over — the walk would silently mis-align",
+        questions_per_case.iter().sum::<usize>(),
+        rows.len()
+    );
+    let (mut kept, mut correct) = (0usize, 0usize);
+    let mut row = 0usize;
+    for (ci, &q) in questions_per_case.iter().enumerate() {
+        let keep = !flagged_case[ci];
+        for _ in 0..q {
+            let (gold, probs) = &rows[row];
+            if keep {
+                kept += 1;
+                correct += usize::from(*gold == argmax_first(probs).0);
+            }
+            row += 1;
+        }
+    }
+    (kept > 0).then(|| correct as f64 / kept as f64)
+}
+
+#[cfg(test)]
+mod subset_accuracy_tests {
+    use super::subset_accuracy;
+
+    fn rows() -> Vec<(usize, Vec<f64>)> {
+        // 3 cases of 1/2/1 questions; picks correct/WRONG/WRONG/correct.
+        vec![
+            (0, vec![0.9, 0.1]), // case 0: correct (pick 0)
+            (0, vec![0.2, 0.8]), // case 1 q0: WRONG (gold 0, pick 1)
+            (1, vec![0.8, 0.2]), // case 1 q1: WRONG (gold 1, pick 0)
+            (1, vec![0.3, 0.7]), // case 2: correct (pick 1)
+        ]
+    }
+
+    #[test]
+    fn drops_only_the_flagged_cases() {
+        // Flag case 1 (both its rows are wrong) → 2/2 correct among kept.
+        let got = subset_accuracy(&rows(), &[false, true, false], &[1, 2, 1]);
+        assert_eq!(got, Some(1.0));
+        // Flag nothing → 2/4.
+        let got = subset_accuracy(&rows(), &[false, false, false], &[1, 2, 1]);
+        assert_eq!(got, Some(0.5));
+        // Flag a CORRECT case (0) → the kept set drops to 1/3 — the de-leaked
+        // read is allowed to be LOWER (the flag is a disclosure, not a boost).
+        let got = subset_accuracy(&rows(), &[true, false, false], &[1, 2, 1]);
+        assert_eq!(got, Some(1.0 / 3.0));
+    }
+
+    #[test]
+    fn everything_flagged_is_none_never_a_zero() {
+        let got = subset_accuracy(&rows(), &[true, true, true], &[1, 2, 1]);
+        assert_eq!(got, None);
+    }
+
+    #[test]
+    #[should_panic(expected = "mis-align")]
+    fn misaligned_counts_refuse_loudly() {
+        let _ = subset_accuracy(&rows(), &[false, true], &[1, 2]);
+    }
+
+    #[test]
+    #[should_panic(expected = "disagree")]
+    fn flag_and_case_count_mismatch_refuses() {
+        let _ = subset_accuracy(&rows(), &[false, false, false], &[1, 2]);
+    }
+}

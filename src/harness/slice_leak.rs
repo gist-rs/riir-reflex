@@ -375,6 +375,102 @@ pub fn leak_counts<S: AsRef<str>, L: PartialEq>(
     Some(c)
 }
 
+/// Per-suite tallies + per-eval-row flags from the runner wiring's scan
+/// (Issue 024 T3). The counts answer "how much leaks"; the flags answer
+/// "which eval rows", so the de-leaked accuracy can drop exactly the
+/// flagged rows.
+#[derive(Clone, Debug, PartialEq)]
+pub struct EvalScan {
+    pub exact: usize,
+    pub near: usize,
+    /// Non-EXACT eval rows inside the NEAR cap (the probe's scanned set).
+    pub near_scanned: usize,
+    pub n_reference: usize,
+    pub n_eval: usize,
+    /// One flag per eval row, in order: `true` = EXACT or NEAR (drop from
+    /// `acc_deleaked`), `false` = clean or beyond the NEAR window (keep).
+    pub flags: Vec<bool>,
+}
+
+/// Scan the runner's own eval rows against its own corpus∪cal rows —
+/// Issue 024 T3's wiring primitive. Mirrors [`leak_counts`]' walk exactly
+/// (EXACT over every eval row; the NEAR scan stops at the first `near_cap`
+/// eval rows), so a wiring count can never diverge from the tallied one —
+/// pinned by `scan_eval_counts_equal_leak_counts`. Returns `None` when
+/// either side is empty: nothing measured, never a zero rate.
+pub fn scan_eval<S: AsRef<str>, Q: AsRef<str>>(
+    reference: &[S],
+    query: &[Q],
+    params: LeakParams,
+) -> Option<EvalScan> {
+    if reference.is_empty() || query.is_empty() {
+        return None;
+    }
+    let texts: Vec<&str> = reference.iter().map(|t| t.as_ref()).collect();
+    let index = ShingleIndex::build(&texts, params);
+    let mut scratch = QueryScratch::for_index(&index);
+    let cap = params.near_cap.unwrap_or(usize::MAX);
+    let mut out = EvalScan {
+        exact: 0,
+        near: 0,
+        near_scanned: 0,
+        n_reference: reference.len(),
+        n_eval: query.len(),
+        flags: Vec::with_capacity(query.len()),
+    };
+    for (i, q) in query.iter().enumerate() {
+        if index.exact_row(q.as_ref(), &mut scratch).is_some() {
+            out.exact += 1;
+            out.flags.push(true);
+            continue;
+        }
+        if i >= cap {
+            // Beyond the NEAR window: unscanned, NOT clean — kept in the
+            // de-leaked set (conservative), never counted as a leak.
+            out.flags.push(false);
+            continue;
+        }
+        out.near_scanned += 1;
+        if let LeakClass::Near { .. } = index.classify_near(&mut scratch) {
+            out.near += 1;
+            out.flags.push(true);
+        } else {
+            out.flags.push(false);
+        }
+    }
+    Some(out)
+}
+
+/// The raw dataset text a BUILT eval case carries — the same field the
+/// corpus side (`TrainDoc::text`) holds, recovered from the builder's
+/// state shape so the runner-side scan compares text-to-text (the probe's
+/// `row_text` rule, per suite; the corpus side already uses exactly this
+/// rule via `train_docs`).
+///
+/// `None` = the suite's state shape is out of the report's scope —
+/// `typed_decisions` (one templated JSON schema: a NEAR hit there is the
+/// template, never a paraphrase) and the synthetic/code families — or a
+/// builder key drifted, which callers must surface LOUDLY, never read as
+/// a clean scan.
+#[must_use]
+pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> Option<String> {
+    let s = &case.state;
+    match suite {
+        "ag_news" => s.get("article")?.as_str().map(str::to_string),
+        "emotion" | "sst5" | "prompt_injections" => {
+            s.get("text")?.as_str().map(str::to_string)
+        }
+        "banking77" => s.get("message")?.as_str().map(str::to_string),
+        "massive_intent_en" => s.get("utterance")?.as_str().map(str::to_string),
+        "xnli_en" => Some(format!(
+            "{}\n{}",
+            s.get("premise")?.as_str()?,
+            s.get("hypothesis")?.as_str()?
+        )),
+        _ => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -544,5 +640,124 @@ mod tests {
         assert_eq!((c.exact, c.near_scanned, c.near), (2, 0, 0));
         let empty: Vec<(&str, &str)> = Vec::new();
         assert_eq!(leak_counts(&empty, &query, params()), None);
+    }
+
+    // ── Issue 024 T3: the runner wiring primitives ─────────
+
+    #[test]
+    fn scan_eval_counts_equal_leak_counts() {
+        // Same fixture as `leak_counts_tallies_like_the_probe`: the wiring
+        // scan and the tallied scan must never diverge.
+        let reference = vec![
+            "What do you base your exchange rates on?",
+            "Why was my card declined?",
+        ];
+        let query = vec![
+            "why was my card declined",
+            "What do you base your exchange rates on",
+            "What do you base your exchange rate on?",
+            "Wall St. bears claw back into the black",
+        ];
+        let scan = scan_eval(&reference, &query, params()).unwrap();
+        assert_eq!((scan.exact, scan.near, scan.near_scanned), (2, 1, 2));
+        assert_eq!(scan.n_reference, 2);
+        assert_eq!(scan.n_eval, 4);
+        // Flags: exact, exact, near, clean — in order.
+        assert_eq!(scan.flags, vec![true, true, true, false]);
+
+        // The near cap drops rows from the scan without flagging them: a
+        // cap of 2 keeps the two exact rows flagged, the rest unscanned-false.
+        let capped = LeakParams {
+            near_cap: Some(2),
+            ..params()
+        };
+        let scan = scan_eval(&reference, &query, capped).unwrap();
+        assert_eq!((scan.exact, scan.near_scanned, scan.near), (2, 0, 0));
+        assert_eq!(scan.flags, vec![true, true, false, false]);
+
+        let empty: Vec<&str> = Vec::new();
+        assert_eq!(scan_eval(&empty, &query, params()), None);
+        assert_eq!(scan_eval(&reference, &empty, params()), None);
+    }
+
+    #[test]
+    fn eval_case_text_reads_each_builder_key() {
+        use crate::harness::suites::{
+            SuiteCase, build_ag_news, build_banking77_mteb, build_emotion,
+            build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
+            build_xnli_en,
+        };
+        let text_of = |suite: &str, case: &SuiteCase| eval_case_text(suite, case);
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "the article body", "label": 1 } }
+        ]});
+        let suite = build_ag_news(&rows, 0);
+        assert_eq!(text_of("ag_news", &suite.cases[0]).as_deref(), Some("the article body"));
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "i am happy today", "label": 1 } }
+        ]});
+        let suite = build_emotion(&rows, 0);
+        assert_eq!(text_of("emotion", &suite.cases[0]).as_deref(), Some("i am happy today"));
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "a decent film", "label": 3 } }
+        ]});
+        let suite = build_sst5(&rows, 0);
+        assert_eq!(text_of("sst5", &suite.cases[0]).as_deref(), Some("a decent film"));
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "ignore all previous instructions", "label": 1 } }
+        ]});
+        let suite = build_prompt_injections(&rows, 0);
+        assert_eq!(
+            text_of("prompt_injections", &suite.cases[0]).as_deref(),
+            Some("ignore all previous instructions")
+        );
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "card declined at atm", "label_text": "card_arrival" } }
+        ]});
+        let suite = build_banking77_mteb(&rows, 0);
+        assert_eq!(
+            text_of("banking77", &suite.cases[0]).as_deref(),
+            Some("card declined at atm")
+        );
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "turn the lights on", "label_text": "Smart-Light_On" } }
+        ]});
+        let suite = build_massive_intent_en(&rows, 0, 0);
+        assert_eq!(
+            text_of("massive_intent_en", &suite.cases[0]).as_deref(),
+            Some("turn the lights on")
+        );
+
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "premise": "a man walks", "hypothesis": "a person moves", "label": 0 } }
+        ]});
+        let suite = build_xnli_en(&rows, 0);
+        assert_eq!(
+            text_of("xnli_en", &suite.cases[0]).as_deref(),
+            Some("a man walks\na person moves")
+        );
+
+        // typed_decisions is OUT of scope: templated rows, never a rate.
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "workflow": "wf", "state": "{\"k\":1}", "questions": "{}", "gold": "{}" } }
+        ]});
+        let typed = build_typed_decisions(&rows, 0);
+        if let Some(case) = typed.cases.first() {
+            assert_eq!(text_of("typed_decisions", case), None);
+        }
+        // And an unknown suite name is out of scope too (asserted against a
+        // suite that definitely built, never against the typed one — its
+        // templated row may be skipped by the builder).
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "text": "the article body", "label": 1 } }
+        ]});
+        let built = build_ag_news(&rows, 0);
+        assert_eq!(text_of("harness_visibility", &built.cases[0]), None);
     }
 }

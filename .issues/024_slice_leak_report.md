@@ -1,6 +1,6 @@
 # Issue 024 — `slice_leak`: an in-harness near-duplicate leak report (Issue 007 P2's decided route)
 
-**Status:** OPEN — T1 + T2 LANDED 2026-09-24 (the index + its G1/G2 oracle gate, both green; see "T1/T2 landed" below). T3 (runner wiring + the `results.json` `leak` block) is next, and stays sequenced after Issue 023 T5 per the Notes.
+**Status:** OPEN — T1 + T2 LANDED 2026-09-24 (the index + its G1/G2 oracle gate, both green; see "T1/T2 landed" below). **T3 LANDED 2026-09-24** (runner wiring + the `results.json` `leak` block; record below). T4 (site columns) rides the NEXT Issue 018 two-host publish; T5 (the Bench write-up) needs the next full multi-lane run's numbers.
 
 ## Finding (measured, `scripts/slice_leak_probe.py`, 2.3 s, M3 at load ~6, AC)
 
@@ -78,12 +78,84 @@ EXACT-string, so none of these rows trips it.
   exact-normalisation path works.
 - [x] T2: the G1 oracle test against `scripts/slice_leak_probe.py`, with a
   loud skip when `.raw/datasets` is absent (UNSEEN, never a pass).
-- [ ] T3: runner wiring over the real slices, plus the `leak` block in
+- [x] T3: runner wiring over the real slices, plus the `leak` block in
   `results.json`.
 - [ ] T4: site columns in `bench.json`. These ride the NEXT Issue 018
   two-host publish; do not force a separate one.
 - [ ] T5: a Bench write-up: per-suite leak and `acc_deleaked` delta for
   each lane.
+
+## T3 landed (2026-09-24)
+
+- **Runner wiring** (`src/harness/runner.rs`, all under
+  `cfg(all(feature = "slice_leak", not(wasm32)))` at the run() boundary):
+  after `prepare()`, the scan runs over the slices the run ACTUALLY
+  serves — reference = the train split (the corpora draw from
+  `train[cal_cap..]`, the calibration slice IS `train[..cal_cap]`; the
+  union is the whole split — the probe's exact reference side), query =
+  the BUILT eval cases whose raw dataset text is recovered by
+  `eval_case_text` (the per-suite builder-key rule: `article` / `text` /
+  `message` / `utterance` / premise+"\n"+hypothesis — the same field
+  `train_docs` reads corpus-side, so the scan compares text-to-text).
+  A missing key (state-shape drift) is a LOUD `errors.push` + no leak
+  block, never a clean scan. Scope: dataset suites only —
+  `typed_decisions` (templated) and the synthetic/code families are out;
+  the scan prints one `leak:` line per suite. Semantics = the probe's
+  (EXACT over all eval rows, NEAR over the first `near_cap`=2000), so
+  the runner counts sit at or below the probe's train-vs-test bound by
+  construction (the registry test caps only shrink the query side).
+- **Schema** (additive, both `skip_serializing_if = None`):
+  `SuiteResult.leak: Option<SuiteLeak>` (`threshold` / `n_reference` /
+  `n_eval` / `exact` / `near` — counts, never a rate) and
+  `LaneResult.acc_deleaked: Option<f64>` on every lane (modelless +
+  laya riir + laya-python — the assembler threads it; the ANE bucket
+  skips remap the flags through the served original indices so the
+  served slice and the mask stay index-aligned, asserted).
+- **`subset_accuracy`** (`metrics.rs`, pure): the hard walk restricted
+  to the unflagged cases, `flagged_case` semantics (true = drop — ONE
+  meaning shared with `scan_eval`'s flags so no call site can invert
+  it), alignment asserted both ways, `None` when every row is flagged.
+- **The live arithmetic check caught a real inversion bug.** The first
+  wiring passed the flags straight into a keep-semantics parameter:
+  prompt_injections measured `acc_deleaked = 0.5` over `kept=2` — the
+  scan had KEPT exactly the two LEAKED rows. The headline's own numbers
+  refuted it (51/116 = 0.4397 cannot yield 57/114): kept-correct can
+  never exceed total-correct, so the flag semantics had to be inverted
+  somewhere. Fixed by making the API carry the flag semantics directly
+  (the drop-semantics rename + the negate inside). Post-fix:
+  `acc_deleaked = 50/114 = 0.43860` — one flagged row was correct, one
+  wrong; the de-leaked read is honestly LOWER than the headline on this
+  suite. Lesson: a subset metric must reconcile arithmetically against
+  its own headline before it is believed.
+- **New primitive `scan_eval`** (`slice_leak.rs`): the per-row-flag
+  form of `leak_counts` (`EvalScan` = counts + flags), pinned equal to
+  `leak_counts` by a unit arm on the same fixture; rows beyond the NEAR
+  window are UNSCANNED (kept in the de-leaked set, conservatively),
+  never counted as clean.
+- **Gates (M3, AC, release):** the two new oracle arms —
+  `t3_runner_wiring_reproduces_the_probe_over_built_cases` (all 7
+  in-scope suites, built via the pub builders at max_rows=0 = the
+  probe's query set: counts EQUAL the probe exactly — ag_news 1/26,
+  banking77 4/61, massive 13/49, prompt 0/2, sst5 1/0, emotion 0/0,
+  xnli 0/0; per-suite scan 3.6–54 ms against the 1 s budget) and
+  `t3_registry_cap_keeps_the_report_at_or_below_the_probe_bound`
+  (ag_news at the registry cap 400: exact 1 ≤ 1, near 26 ≤ 26). Lib
+  67/0 (`--features slice_leak`), full workspace suite green at BOTH
+  default and slice_leak postures, clippy `-D warnings` clean at
+  default / `slice_leak` / `--no-default-features --features
+  slice_leak` `--all-targets`. **G3 verified empirically**: feature OFF
+  vs ON runs of `--suites prompt_injections` — the OFF output carries
+  no leak keys, and stripping the two leak fields from the ON output
+  leaves the suites arrays equal except the timing fields (which vary
+  between any two runs).
+- ⚠ **Not validated here**: the laya-lane `acc_deleaked` path compiled
+  but could not be clippy-verified at landing — the riir-infer sibling
+  checkout carries live ANE-lane WIP (uncommitted type churn in
+  `riir-infer-laya`), so the reflex `--features laya-riir` clippy lane
+  is red on the SIBLING'S tree, not on this change (reflex-side files
+  are clean at every posture; the laya plumbing mirrors the modelless
+  path through the same `subset_accuracy`). Re-run the laya clippy
+  postures once the sibling lane lands.
 
 ## T1/T2 landed (2026-09-24)
 

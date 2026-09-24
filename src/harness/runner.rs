@@ -48,7 +48,7 @@ use crate::harness::families::SynthData;
 use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
 use crate::harness::metrics::{
     CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, conformal_naive_floor, confusion_top,
-    ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics,
+    ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics, subset_accuracy,
 };
 use crate::harness::pair_heads::{
     ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
@@ -554,6 +554,12 @@ pub struct LaneResult {
     /// (present only when the `--pair-head-ab` arm ran). None otherwise,
     /// and on the laya lanes.
     pub pair_head_ab: Option<(PairHeadAb, PairHeadAb)>,
+    /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
+    /// the same forced-row walk `hard` reads, restricted to the unflagged
+    /// cases. None = feature off / suite out of scope / every row flagged
+    /// (an absence, never a fabricated rate).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub acc_deleaked: Option<f64>,
 }
 
 /// One cal-slice cap-selection candidate reading (Issue 013 lever-1
@@ -971,6 +977,29 @@ pub struct SuiteResult {
     /// checkpoint name → result (empty when compiled without `laya` or the
     /// lane was disabled — the table prints the honest absence).
     pub laya: BTreeMap<String, LaneResult>,
+    /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
+    /// the slices THIS run served. Absent (not a zero rate) when the
+    /// `slice_leak` feature is off or the suite is out of scope.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub leak: Option<SuiteLeak>,
+}
+
+/// Issue 024 T3 — the per-suite leak block (results.json, additive).
+/// Reference side = the train split the run's corpora/calibration draw
+/// from; query side = the built eval cases. Counts are ROWS, never a
+/// rate — rates belong to the site layer (T4). Semantics are the probe's
+/// (`scripts/slice_leak_probe.py`): EXACT over every eval row, the NEAR
+/// scan over the first `near_cap` eval rows — so these counts sit at or
+/// below the probe's train-vs-test bound by construction (the registry
+/// test caps can only shrink the query side).
+#[derive(Debug, Clone, Serialize)]
+pub struct SuiteLeak {
+    /// The NEAR-twin Jaccard threshold (`LeakParams::default` → 0.8).
+    pub threshold: f64,
+    pub n_reference: usize,
+    pub n_eval: usize,
+    pub exact: usize,
+    pub near: usize,
 }
 
 #[derive(Debug, Serialize)]
@@ -1369,6 +1398,10 @@ struct ModellessInput<'a> {
     /// Run the Issue-013 lever-3 pair-head A/B arm (report-only; pairs are
     /// armed from CAL-slice confusion, heads fitted from corpus docs).
     pair_head_ab: bool,
+    /// Issue 024 T3: one leak flag per eval case (true = the case has an
+    /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
+    /// None = the `slice_leak` feature is off or the suite is out of scope.
+    leak_flags: Option<&'a [bool]>,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -1636,6 +1669,12 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     // ── metrics assembly (label space; noul [no, yes]) ──
     let forced = raw_eval.forced_rows(&suite.cases);
     let hard = hard_metrics(&forced);
+    // Issue 024 T3: the same walk restricted to the unflagged cases. None
+    // (feature off / out of scope) stays an absence in results.json.
+    let acc_deleaked = inp.leak_flags.and_then(|keep| {
+        let per_case: Vec<usize> = suite.cases.iter().map(|c| c.questions.len()).collect();
+        subset_accuracy(&forced, keep, &per_case)
+    });
     let readout_pairs_raw = raw_eval.readout_pairs(&suite.cases);
     let readout_pairs_cal = cal_eval_test.readout_pairs(&suite.cases);
     let readout_ece_raw = ece_of(&readout_pairs_raw);
@@ -1798,6 +1837,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         latency_p50_ms: lat.p50_ms,
         latency_p99_ms: lat.p99_ms,
         latency_tail_support: lat.tail_support,
+        acc_deleaked,
         latency_extremes: lat.extremes,
         determinism_ok: lat.determinism_ok,
         seconds: t_start.elapsed().as_secs_f64(),
@@ -1887,6 +1927,9 @@ fn run_laya_checkpoint(
     suite: &Suite,
     ckpt: &'static str,
     laya_max_questions: usize,
+    // Issue 024 T3: one leak flag per suite.cases entry (the caller's full
+    // eval scan). None = feature off / suite out of scope.
+    leak_flags: Option<&[bool]>,
 ) -> Result<(LaneResult, Vec<String>), String> {
     use crate::laya::config::Checkpoint;
 
@@ -1927,6 +1970,7 @@ fn run_laya_checkpoint(
     // `served_cases` is the slice the metrics tail walks — Eval's vectors
     // are per-SERVED-case, so the assembler must never see the full set.
     let mut served_cases: Vec<&SuiteCase> = Vec::with_capacity(cases.len());
+    let mut served_orig: Vec<usize> = Vec::with_capacity(cases.len());
     let mut bucket_skipped_cases: Vec<&str> = Vec::new();
 
     for (ci, case) in cases.iter().enumerate() {
@@ -2027,6 +2071,10 @@ fn run_laya_checkpoint(
         picks.push(cpicks);
         confs.push(cconfs);
         served_cases.push(case);
+        // The case walk is over `cases` — a PREFIX of suite.cases when the
+        // question cap trimmed it — so the enumerate index IS the
+        // suite.cases index the leak flags are keyed on.
+        served_orig.push(ci);
     }
 
     // Every case over the bucket limit = the suite has NO servable cases:
@@ -2049,11 +2097,17 @@ fn run_laya_checkpoint(
 
     // Latency percentiles are computed ONCE in the shared tail
     // (assemble_laya_lane_result) — both lanes' metrics must not diverge.
+    // The leak flags are remapped through the bucket skips so the served
+    // slice and the keep-mask stay index-aligned (subset_accuracy asserts
+    // exactly that).
+    let served_flags: Option<Vec<bool>> = leak_flags
+        .map(|f| served_orig.iter().map(|&i| f[i]).collect());
     let result = assemble_laya_lane_result(
         "laya-riir",
         ckpt,
         suite.name,
         served_cases.as_slice(),
+        served_flags.as_deref(),
         probs,
         picks,
         confs,
@@ -2089,6 +2143,10 @@ fn assemble_laya_lane_result(
     model: &str,
     suite_name: &str,
     cases: &[impl AsRef<SuiteCase>],
+    // Issue 024 T3: one leak flag per SERVED case (aligned with `cases` —
+    // the caller maps the full-suite flags through bucket skips / trims).
+    // None = feature off / suite out of scope.
+    leak_flags: Option<&[bool]>,
     probs: Vec<Vec<Vec<f64>>>,
     picks: Vec<Vec<usize>>,
     confs: Vec<Vec<f64>>,
@@ -2106,6 +2164,10 @@ fn assemble_laya_lane_result(
     };
     let forced = ev.forced_rows(cases);
     let hard = hard_metrics(&forced);
+    let acc_deleaked = leak_flags.and_then(|keep| {
+        let per_case: Vec<usize> = cases.iter().map(|c| c.as_ref().questions.len()).collect();
+        subset_accuracy(&forced, keep, &per_case)
+    });
     let readout: Vec<(f64, bool)> = {
         let mut pairs = Vec::new();
         for (ci, case) in cases.iter().enumerate() {
@@ -2189,6 +2251,7 @@ fn assemble_laya_lane_result(
         seconds,
         n_cases: cases.len(),
         n_questions: ev.n_questions(),
+        acc_deleaked,
         score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
@@ -2211,6 +2274,9 @@ fn run_laya_python_checkpoint(
     suite: &Suite,
     ckpt: &str,
     laya_max_questions: usize,
+    // Issue 024 T3: one leak flag per suite.cases entry. The served set is
+    // a PREFIX of suite.cases (the trim law), so the flags stay aligned.
+    leak_flags: Option<&[bool]>,
 ) -> Result<LaneResult, String> {
     use std::io::{BufRead, BufReader, Write};
     use std::process::{ChildStdin, Command, Stdio};
@@ -2359,6 +2425,7 @@ fn run_laya_python_checkpoint(
         ckpt,
         suite.name,
         cases,
+        leak_flags.map(|f| &f[..cases.len()]),
         probs,
         picks,
         confs,
@@ -2425,6 +2492,7 @@ fn run_laya_checkpoint(
     _suite: &Suite,
     _ckpt: &str,
     _laya_max_questions: usize,
+    _leak_flags: Option<&[bool]>,
 ) -> Result<(LaneResult, Vec<String>), String> {
     Err("laya-riir feature off".to_string())
 }
@@ -2716,6 +2784,82 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             prepared.labels.len()
         );
 
+        // Issue 024 T3: the corpus∪cal → eval near-duplicate scan over the
+        // slices THIS run serves (feature `slice_leak`). Reference side =
+        // the train split (the corpora draw from train[cal_cap..], the
+        // calibration slice IS train[..cal_cap] — the union is the whole
+        // split, the probe's exact reference); query side = the built eval
+        // cases, whose raw dataset text is recovered by the same rule the
+        // corpus side uses. Everything stays None when the feature is off
+        // or the suite is out of scope — G3 keeps results.json identical.
+        #[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
+        let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = {
+            let in_scope = spec.synthetic.is_none()
+                && spec.name != "typed_decisions"
+                && spec.name != "code_fixtures";
+            if !in_scope {
+                (None, None)
+            } else {
+                let queries: Option<Vec<String>> = prepared
+                    .suite
+                    .cases
+                    .iter()
+                    .map(|c| super::slice_leak::eval_case_text(spec.name, c))
+                    .collect();
+                match queries {
+                    Some(queries) => {
+                        let refs: Vec<&str> =
+                            prepared.train.iter().map(|d| d.text.as_str()).collect();
+                        match super::slice_leak::scan_eval(
+                            &refs,
+                            &queries,
+                            super::slice_leak::LeakParams::default(),
+                        ) {
+                            Some(scan) => {
+                                eprintln!(
+                                    "    leak: exact {} / near {} over {} eval rows \
+                                     ({} reference rows, J >= {:.2})",
+                                    scan.exact,
+                                    scan.near,
+                                    scan.n_eval,
+                                    scan.n_reference,
+                                    super::slice_leak::LeakParams::default().near_j
+                                );
+                                (
+                                    Some(SuiteLeak {
+                                        threshold: super::slice_leak::LeakParams::default().near_j,
+                                        n_reference: scan.n_reference,
+                                        n_eval: scan.n_eval,
+                                        exact: scan.exact,
+                                        near: scan.near,
+                                    }),
+                                    Some(scan.flags),
+                                )
+                            }
+                            None => (None, None),
+                        }
+                    }
+                    None => {
+                        // A builder key drifted: the scan would silently
+                        // compare against a shorter query set — surfaced,
+                        // never read as clean.
+                        errors.push(format!(
+                            "{}: leak report SKIPPED — an eval case's dataset text was \
+                             not recoverable from its built state (state-shape drift)",
+                            spec.name
+                        ));
+                        (None, None)
+                    }
+                }
+            }
+        };
+        #[cfg(any(
+            not(feature = "slice_leak"),
+            target_arch = "wasm32"
+        ))]
+        let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = (None, None);
+        let leak_flags_ref: Option<&[bool]> = leak_flags.as_deref();
+
         // Modelless lane (const-generic dispatch over the domain count).
         // Skipped entirely for LLM-only families (Issue 004 T3) — an honest
         // None, never a fabricated row.
@@ -2742,6 +2886,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 cal_select_caps: &opts.cal_select_caps,
                 train_rows: &prepared.train_rows,
                 pair_head_ab: opts.pair_head_ab,
+                leak_flags: leak_flags_ref,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -2795,7 +2940,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         if !opts.skip_laya {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya[{ck}]: running…");
-                match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions) {
+                match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions, leak_flags_ref) {
                     Ok((r, notes)) => {
                         eprintln!(
                             "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
@@ -2824,7 +2969,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         if opts.laya_python {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya-python[{ck}]: running…");
-                match run_laya_python_checkpoint(&prepared.suite, ck, opts.laya_max_questions) {
+                match run_laya_python_checkpoint(&prepared.suite, ck, opts.laya_max_questions, leak_flags_ref) {
                     Ok(r) => {
                         eprintln!(
                             "    laya-python[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
@@ -2850,6 +2995,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             n_questions,
             modelless,
             laya: laya_results,
+            leak: leak_block,
         });
     }
 
