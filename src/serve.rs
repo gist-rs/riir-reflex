@@ -51,15 +51,45 @@ pub fn bind_addr() -> String {
 
 // ── the laya comparison lane over HTTP (opt-in) ──────────────────────────
 
+/// The route a `/decide` request takes through the laya lane — the wire's
+/// `X-Reflex-Lane` spelling resolved. `laya` is the auto-router: the ANE
+/// device when loaded and the request fits its buckets, the default device
+/// otherwise — every choice and every hop recorded in `routing.reason`.
+/// `laya-ane` is EXPLICIT-device: ANE only, out-of-bucket is a loud 422
+/// (never a pad up, never a silent hop — the laya-apple doctrine).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayaRoute {
+    Auto,
+    AneExplicit,
+}
+
+/// The typed serve-edge error — the edge maps each variant to its own
+/// status: `Bucket` → 422 (a coverage LIMIT, the substrate's own variant
+/// surfaced — never silently absorbed), `Unavailable` → 503, `Other` →
+/// 502 (the request failed on the device that owned it).
+#[derive(Debug)]
+pub enum LayaServeError {
+    Bucket {
+        checkpoint: &'static str,
+        seq: usize,
+        max: usize,
+    },
+    Unavailable(String),
+    Other(String),
+}
+
 /// A served laya-lane decision — the loaded agent behind a closure, so the
 /// edge's state machine is testable without weights (the closure exists only
-/// under the `laya-riir` feature).
-pub type LayaDecideFn =
-    Arc<dyn Fn(&DecisionRequest) -> Result<DecisionResponse, String> + Send + Sync>;
+/// under the `laya-riir` feature; the ROUTER it runs is
+/// [`laya_serve::route_job`]).
+pub type LayaDecideFn = Arc<
+    dyn Fn(&DecisionRequest, LayaRoute) -> Result<DecisionResponse, LayaServeError> + Send + Sync,
+>;
 
 /// The laya lane's serving state. `Off` is the default posture: the lane is
-/// opt-in (`RIIR_REFLEX_LAYA=1` starts the weights download + load in a
-/// background thread at boot), and the edge answers `X-Reflex-Lane: laya`
+/// opt-in (`RIIR_REFLEX_LAYA=1`, or `RIIR_REFLEX_LAYA_ANE=1` for the lane
+/// WITH ANE routing — starts the weights download + load in a background
+/// thread at boot), and the edge answers `X-Reflex-Lane: laya`/`laya-ane`
 /// requests FAIL-CLOSED in every non-ready state — never a silent modelless
 /// fallback, because a silently-served wrong lane would poison the arena's
 /// per-lane claims (every published table scopes to the lane that produced
@@ -93,11 +123,91 @@ fn laya_requested() -> bool {
         .unwrap_or(false)
 }
 
-/// Start the background laya loader when `RIIR_REFLEX_LAYA` is set. Loud in
-/// every posture: loading/ready/failed here, feature-missing logged when the
-/// binary was built without `laya-riir`.
+/// `RIIR_REFLEX_LAYA_ANE` truthiness — implies the laya lane (one env
+/// turns the whole lane on with ANE routing; fetch-on-first-use + the
+/// load-time compute-plan gate run inside the loader). The ANE lane is an
+/// OPT-IN routing tier: without the env the lane serves the default
+/// device byte-identically to before.
+fn ane_lane_requested() -> bool {
+    std::env::var("RIIR_REFLEX_LAYA_ANE")
+        .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes"))
+        .unwrap_or(false)
+}
+
+/// Boot the ANE routing half: fetch-on-first-use (`ensure_artifacts` —
+/// present entries untouched, downloads digest-gated) then the explicit
+/// `load_ane` (constructor-selected; its load-time compute-plan gate
+/// re-verifies the whole-graph placement). ANY failure is a LOUD demotion
+/// to the default device with the reason recorded on every response —
+/// never a boot failure, never a silent swap (the laya-apple doctrine:
+/// "a corrupt/failed ANE artifact is dropped with a warning and its
+/// requests go to the other device WITH the reason recorded").
+#[cfg(all(target_os = "macos", feature = "laya-riir", feature = "laya-riir-ane"))]
+fn ane_setup() -> (Option<crate::laya::riir::RiirAgent>, Option<String>) {
+    use crate::laya::config::Checkpoint;
+    use crate::laya::riir::ane::ensure_artifacts;
+    use crate::laya::riir::RiirAgent;
+    use crate::laya::weights::weights_root;
+    if !ane_lane_requested() {
+        return (None, None);
+    }
+    let ane_root = std::env::var_os("LAYA_ANE_ARTIFACTS_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("assets/ane"));
+    let boot = || -> Result<crate::laya::riir::RiirAgent, String> {
+        let manifest = ane_root.join("manifest.json");
+        if !manifest.exists() {
+            return Err(format!(
+                "no ane manifest at {} — run scripts/ane_convert.py (offline, \
+                 one-time) or set LAYA_ANE_ARTIFACTS_DIR",
+                manifest.display()
+            ));
+        }
+        let base = std::env::var("RIIR_REFLEX_ANE_BASE_URL").ok();
+        ensure_artifacts(&ane_root, base.as_deref()).map_err(|e| e.to_string())?;
+        RiirAgent::load_ane(&weights_root(), Checkpoint::English, &ane_root, &manifest)
+            .map_err(|e| e.to_string())
+    };
+    match boot() {
+        Ok(agent) => {
+            let max = agent
+                .ane_bucket_max()
+                .map(|m| m.to_string())
+                .unwrap_or_else(|| "?".into());
+            eprintln!("[riir-reflex] laya lane: ane routing armed (buckets ≤ L{max})");
+            (Some(agent), None)
+        }
+        Err(e) => {
+            let note = format!("ane unavailable: {e} — serving the default device");
+            eprintln!("[riir-reflex] laya lane: {note}");
+            (None, Some(note))
+        }
+    }
+}
+
+/// The no-ANE build's posture: the env is honored with a LOUD demotion
+/// note (recorded on every auto-route response) — the lane still serves.
+#[cfg(all(feature = "laya-riir", not(all(
+    target_os = "macos",
+    feature = "laya-riir-ane"
+))))]
+fn ane_setup() -> (Option<crate::laya::riir::RiirAgent>, Option<String>) {
+    if !ane_lane_requested() {
+        return (None, None);
+    }
+    let note = "RIIR_REFLEX_LAYA_ANE=1 but this build has no ANE lane \
+                (needs macOS + --features laya-riir-ane) — serving the default device"
+        .to_string();
+    eprintln!("[riir-reflex] laya lane: {note}");
+    (None, Some(note))
+}
+
+/// Start the background laya loader when `RIIR_REFLEX_LAYA` (or the ANE
+/// spelling, which implies the lane) is set. Loud in every posture:
+/// loading/ready/failed here, feature-missing logged when the binary was
+/// built without `laya-riir`.
 fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
-    if !laya_requested() {
+    if !(laya_requested() || ane_lane_requested()) {
         return;
     }
     #[cfg(feature = "laya-riir")]
@@ -114,7 +224,7 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
                 root.display()
             );
             let t0 = std::time::Instant::now();
-            // `RiirAgent` is !Send (the Metal/objc backend), so the agent is
+            // `RiirAgent` is !Send (the Metal/objc backend), so the agents are
             // loaded AND served on this ONE thread; clients get a Send + Sync
             // channel handle. Forwards are serialized (one model, one forward
             // at a time) — also the right posture when a game fires ~34 spot
@@ -127,25 +237,45 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
                     return;
                 }
             };
+            let (ane, ane_note) = ane_setup();
             let (tx, rx) = std::sync::mpsc::channel::<laya_serve::LayaJob>();
-            let f: LayaDecideFn = Arc::new(move |req| {
+            let f: LayaDecideFn = Arc::new(move |req, route| {
                 let (rtx, rrx) = std::sync::mpsc::sync_channel(1);
                 tx.send(laya_serve::LayaJob {
                     req: req.clone(),
+                    route,
                     resp_tx: rtx,
                 })
-                .map_err(|_| "laya lane worker stopped".to_string())?;
+                .map_err(|_| LayaServeError::Other("laya lane worker stopped".into()))?;
                 rrx.recv()
-                    .map_err(|_| "laya lane worker dropped the reply".to_string())?
+                    .map_err(|_| LayaServeError::Other("laya lane worker dropped the reply".into()))?
             });
             *laya.lock().unwrap() = LayaLane::Ready(f);
-            eprintln!(
-                "[riir-reflex] laya lane: ready (english, device {}, {} s)",
-                agent.device(),
-                t0.elapsed().as_secs()
-            );
+            match (&ane, ane_note.as_deref()) {
+                (Some(_), _) => eprintln!(
+                    "[riir-reflex] laya lane: ready (english, ane + default {} routed, {} s)",
+                    agent.device(),
+                    t0.elapsed().as_secs()
+                ),
+                (None, Some(note)) => eprintln!(
+                    "[riir-reflex] laya lane: ready (english, device {}, {} s) — {note}",
+                    agent.device(),
+                    t0.elapsed().as_secs()
+                ),
+                (None, None) => eprintln!(
+                    "[riir-reflex] laya lane: ready (english, device {}, {} s)",
+                    agent.device(),
+                    t0.elapsed().as_secs()
+                ),
+            }
             while let Ok(job) = rx.recv() {
-                let out = laya_serve::decide(&agent, &job.req);
+                let out = laya_serve::route_job(
+                    &agent,
+                    ane.as_ref(),
+                    ane_note.as_deref(),
+                    job.req,
+                    job.route,
+                );
                 let _ = job.resp_tx.send(out);
             }
             eprintln!("[riir-reflex] laya lane: worker stopped (all clients gone)");
@@ -155,7 +285,8 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
     {
         let _ = laya;
         eprintln!(
-            "[riir-reflex] RIIR_REFLEX_LAYA=1 but this build has no laya lane — rebuild with --features laya-riir"
+            "[riir-reflex] RIIR_REFLEX_LAYA=1 (or RIIR_REFLEX_LAYA_ANE=1) but this build has \
+             no laya lane — rebuild with --features laya-riir"
         );
     }
 }
@@ -163,19 +294,24 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
 /// The Ready closure's body lives in [`laya_serve`] (feature-gated).
 #[cfg(feature = "laya-riir")]
 pub mod laya_serve {
+    use super::{LayaRoute, LayaServeError};
     use crate::laya::riir::RiirAgent;
     use crate::laya::types::Answer as LayaAnswer;
+    use crate::laya::LayaError;
     use katgpt_core::decision_wire::{
         Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Question, QuestionKind,
         Routing,
     };
     use serde_json::Value;
 
-    /// One queued decision: the request plus the one-shot reply channel (the
-    /// worker owns the !Send agent; clients stay Send + Sync).
+    /// One queued decision: the request, the resolved route, and the
+    /// one-shot reply channel (the worker owns the !Send agents; clients
+    /// stay Send + Sync).
     pub struct LayaJob {
         pub req: DecisionRequest,
-        pub resp_tx: std::sync::mpsc::SyncSender<Result<DecisionResponse, String>>,
+        pub route: LayaRoute,
+        pub resp_tx:
+            std::sync::mpsc::SyncSender<Result<DecisionResponse, LayaServeError>>,
     }
 
     /// wire → laya qdef `criteria`: an explicit wire `criteria` JSON string
@@ -275,11 +411,17 @@ pub mod laya_serve {
         })
     }
 
-    /// Serve one laya-lane decision (the Ready closure's body): wire → laya
-    /// qdefs, one `system_one` call, laya answers → wire.
-    pub fn decide(agent: &RiirAgent, req: &DecisionRequest) -> Result<DecisionResponse, String> {
+    /// Serve one laya-lane decision (the router's forward): wire → laya
+    /// qdefs, one `system_one` call, laya answers → wire. The error stays
+    /// TYPED ([`LayaError`]) so the coverage-limit variant survives to the
+    /// router — a stringified Bucket could not be told apart from a real
+    /// failure, and the two demand opposite handling.
+    pub fn decide(
+        agent: &RiirAgent,
+        req: &DecisionRequest,
+    ) -> Result<DecisionResponse, LayaError> {
         req.validate()
-            .map_err(|e| format!("invalid request: {e}"))?;
+            .map_err(|e| LayaError::Question(format!("invalid request: {e}")))?;
         let state = Value::String(req.state.clone());
         let mut questions: Vec<(String, Value)> = Vec::with_capacity(req.questions.len());
         for q in &req.questions {
@@ -291,10 +433,89 @@ pub mod laya_serve {
             }
             questions.push((q.id.clone(), Value::Object(def)));
         }
-        let answers = agent
-            .system_one(&state, &questions)
-            .map_err(|e| e.to_string())?;
-        map_answers(req, &answers)
+        let answers = agent.system_one(&state, &questions)?;
+        map_answers(req, &answers).map_err(LayaError::Question)
+    }
+
+    fn map_edge_err(e: LayaError) -> LayaServeError {
+        match e {
+            LayaError::Bucket {
+                checkpoint,
+                seq,
+                max,
+            } => LayaServeError::Bucket {
+                checkpoint,
+                seq,
+                max,
+            },
+            other => LayaServeError::Other(other.to_string()),
+        }
+    }
+
+    /// The no-silent-fallback router (the laya-apple doctrine, serve-edge
+    /// form): the route is decided BEFORE the request runs, every device
+    /// choice and every hop lands in `routing.reason`, and a non-Bucket
+    /// failure on a device fails the request ON that device — never a
+    /// mid-request swap. `Auto`: the ANE device when loaded and the request
+    /// fits its buckets; the Bucket coverage LIMIT is the designed loud hop
+    /// to the default device. `AneExplicit`: ANE only — out-of-bucket is a
+    /// loud [`LayaServeError::Bucket`] (422), never a pad up.
+    pub fn route_job(
+        local: &RiirAgent,
+        ane: Option<&RiirAgent>,
+        ane_note: Option<&str>,
+        req: DecisionRequest,
+        route: LayaRoute,
+    ) -> Result<DecisionResponse, LayaServeError> {
+        match route {
+            LayaRoute::AneExplicit => {
+                let Some(ane) = ane else {
+                    return Err(LayaServeError::Unavailable(
+                        ane_note.map_or_else(
+                            || "the ANE device is not loaded in this lane".to_string(),
+                            str::to_string,
+                        ),
+                    ));
+                };
+                decide(ane, &req)
+                    .map(|mut resp| {
+                        resp.routing.reason = Some("requested lane=laya-ane (device ane)".into());
+                        resp
+                    })
+                    .map_err(map_edge_err)
+            }
+            LayaRoute::Auto => {
+                let mut hop: Option<String> = None;
+                if let Some(ane) = ane {
+                    match decide(ane, &req) {
+                        Ok(mut resp) => {
+                            resp.routing.reason = Some("requested lane=laya (device ane)".into());
+                            return Ok(resp);
+                        }
+                        Err(e @ LayaError::Bucket { .. }) => {
+                            hop = Some(format!(
+                                "seq over every ane bucket ({e}) — served on {}",
+                                local.device()
+                            ));
+                        }
+                        Err(e) => return Err(LayaServeError::Other(e.to_string())),
+                    }
+                }
+                let mut resp =
+                    decide(local, &req).map_err(|e| LayaServeError::Other(e.to_string()))?;
+                let mut reason = format!("requested lane=laya (device {})", local.device());
+                if let Some(note) = ane_note {
+                    reason.push_str(" — ");
+                    reason.push_str(note);
+                }
+                if let Some(hop) = hop {
+                    reason.push_str(" — ");
+                    reason.push_str(&hop);
+                }
+                resp.routing.reason = Some(reason);
+                Ok(resp)
+            }
+        }
     }
 }
 
@@ -609,20 +830,27 @@ fn handle_conn<const N: usize, const D: usize>(
             reader.read_exact(&mut body)?;
             let parsed: Result<DecisionRequest, _> = serde_json::from_slice(&body);
             if let Some(other) = &req.lane
-                && !matches!(other.as_str(), "modelless" | "laya" | "raw")
+                && !matches!(other.as_str(), "modelless" | "laya" | "laya-ane" | "raw")
             {
                 json_error(
                     &mut writer,
                     "400 Bad Request",
-                    &format!("unknown lane {other:?} (supported: modelless, raw, laya)"),
+                    &format!(
+                        "unknown lane {other:?} (supported: modelless, raw, laya, laya-ane)"
+                    ),
                     cors.as_deref(),
                 );
                 return Ok(());
             }
             match parsed {
                 Ok(parsed_req) => {
-                    if req.lane.as_deref() == Some("laya") {
-                        laya_edge(&mut writer, &laya, &parsed_req, cors.as_deref());
+                    let laya_route = match req.lane.as_deref() {
+                        Some("laya") => Some(LayaRoute::Auto),
+                        Some("laya-ane") => Some(LayaRoute::AneExplicit),
+                        _ => None,
+                    };
+                    if let Some(route) = laya_route {
+                        laya_edge(&mut writer, &laya, &parsed_req, route, cors.as_deref());
                         return Ok(());
                     }
                     // The raw lane (`X-Reflex-Lane: raw`): the client asks
@@ -727,25 +955,53 @@ fn engine_decide<const N: usize, const D: usize>(
     }
 }
 
-/// The `X-Reflex-Lane: laya` edge: fail-closed in every non-ready state (a
-/// silent modelless fallback would serve the WRONG lane under the arena's
-/// per-lane claims), and the loaded agent's decision when ready.
+/// The `X-Reflex-Lane: laya`/`laya-ane` edge: fail-closed in every
+/// non-ready state (a silent modelless fallback would serve the WRONG lane
+/// under the arena's per-lane claims), and the router's decision when
+/// ready. Each typed error carries its OWN status: Bucket → 422 (the
+/// explicit-device coverage limit — never padded), Unavailable → 503,
+/// Other → 502 (the request failed on the device that owned it).
 fn laya_edge(
     writer: &mut TcpStream,
     laya: &Arc<Mutex<LayaLane>>,
     req: &DecisionRequest,
+    route: LayaRoute,
     cors: Option<&str>,
 ) {
     let state = laya.lock().unwrap().clone();
     match state {
-        LayaLane::Ready(f) => match f(req) {
+        LayaLane::Ready(f) => match f(req, route) {
             Ok(resp) => json_response(
                 writer,
                 "200 OK",
                 &serde_json::to_string(&resp).unwrap_or_default(),
                 cors,
             ),
-            Err(e) => json_response(
+            Err(LayaServeError::Bucket { seq, max, .. }) => json_response(
+                writer,
+                "422 Unprocessable Entity",
+                &format!(
+                    "{{\"error\":{}}}",
+                    serde_json::to_string(&format!(
+                        "sequence length {seq} exceeds every ane bucket (max {max}) — \
+                         an explicit-device (laya-ane) request is never padded up; \
+                         retry with X-Reflex-Lane: laya (auto) or shorten the state"
+                    ))
+                    .unwrap_or_default()
+                ),
+                cors,
+            ),
+            Err(LayaServeError::Unavailable(e)) => json_response(
+                writer,
+                "503 Service Unavailable",
+                &format!(
+                    "{{\"error\":{}}}",
+                    serde_json::to_string(&format!("laya ane: {e}"))
+                        .unwrap_or_default()
+                ),
+                cors,
+            ),
+            Err(LayaServeError::Other(e)) => json_response(
                 writer,
                 "502 Bad Gateway",
                 &format!(
@@ -761,12 +1017,21 @@ fn laya_edge(
             "{\"error\":\"laya lane is still loading (weights download + load on first boot) — retry shortly\"}",
             cors,
         ),
-        LayaLane::Off => json_response(
-            writer,
-            "503 Service Unavailable",
-            "{\"error\":\"laya lane is not enabled — restart the engine with RIIR_REFLEX_LAYA=1\"}",
-            cors,
-        ),
+        LayaLane::Off => {
+            let remedy = match route {
+                LayaRoute::Auto => "RIIR_REFLEX_LAYA=1",
+                // The explicit-device spelling names its own env.
+                LayaRoute::AneExplicit => "RIIR_REFLEX_LAYA_ANE=1",
+            };
+            json_response(
+                writer,
+                "503 Service Unavailable",
+                &format!(
+                    "{{\"error\":\"laya lane is not enabled — restart the engine with {remedy}\"}}"
+                ),
+                cors,
+            )
+        }
         LayaLane::Failed(e) => json_response(
             writer,
             "500 Internal Server Error",

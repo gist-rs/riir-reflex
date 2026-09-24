@@ -328,3 +328,128 @@ mod mapping {
         assert_eq!(resp.answers[0].outcome, Some(Outcome::Score { level: 2 }));
     }
 }
+
+/// The routing-table tests: the Ready closure is a canned fake that
+/// RECORDS the route it was handed and answers from a table — so the
+/// edge's route plumbing + typed-error→status mapping are pinned
+/// weights-free at every feature posture (the real router behind the
+/// closure is `laya_serve::route_job`, exercised by the serialized smoke
+/// + the fixture-timing lane; its forward math is G5-pinned elsewhere).
+mod routing {
+    use super::{post_body, spawn_lanes, BODY};
+    use katgpt_core::decision_wire::{Calibration, DecisionResponse, Lane, Routing};
+    use riir_reflex::serve::{LayaLane, LayaRoute, LayaServeError};
+    use std::sync::{Arc, Mutex};
+
+    fn canned_ok(reason: &str) -> DecisionResponse {
+        DecisionResponse {
+            answers: vec![],
+            routing: Routing {
+                lane: Lane::Laya,
+                reason: Some(reason.to_string()),
+            },
+            calibration: Calibration {
+                method: "laya-temperature".into(),
+                temperature: 1.0,
+            },
+        }
+    }
+
+    /// A Ready lane whose closure records every route it sees and answers
+    /// from `table` (route → outcome). The 200 path carries the reason
+    /// verbatim so the test can assert the wire discloses the device.
+    fn ready_with(
+        table: impl Fn(LayaRoute) -> Result<DecisionResponse, LayaServeError> + Send + Sync + 'static,
+    ) -> (String, Arc<Mutex<Vec<LayaRoute>>>) {
+        let seen: Arc<Mutex<Vec<LayaRoute>>> = Arc::new(Mutex::new(Vec::new()));
+        let seen2 = Arc::clone(&seen);
+        let lane = LayaLane::Ready(Arc::new(move |req: &katgpt_core::decision_wire::DecisionRequest, route: LayaRoute| {
+            let _ = req;
+            seen2.lock().unwrap().push(route);
+            table(route)
+        }));
+        (spawn_lanes(lane), seen)
+    }
+
+    #[test]
+    fn laya_spelling_routes_auto() {
+        let (addr, seen) = ready_with(|_| Ok(canned_ok("requested lane=laya (device metal)")));
+        let resp = post_body(&addr, BODY, Some("laya"));
+        assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
+        assert_eq!(*seen.lock().unwrap(), vec![LayaRoute::Auto]);
+        assert!(
+            resp.contains("requested lane=laya (device metal)"),
+            "the reason reaches the wire: {resp}"
+        );
+    }
+
+    #[test]
+    fn laya_ane_spelling_routes_explicit() {
+        let (addr, seen) = ready_with(|route| match route {
+            LayaRoute::AneExplicit => Ok(canned_ok("requested lane=laya (device ane)")),
+            _ => panic!("explicit route expected"),
+        });
+        let resp = post_body(&addr, BODY, Some("laya-ane"));
+        assert!(resp.starts_with("HTTP/1.1 200"), "got: {resp}");
+        assert_eq!(*seen.lock().unwrap(), vec![LayaRoute::AneExplicit]);
+        assert!(resp.contains("device ane"), "got: {resp}");
+    }
+
+    #[test]
+    fn explicit_out_of_bucket_is_422_never_a_pad() {
+        let (addr, _) = ready_with(|route| match route {
+            LayaRoute::AneExplicit => Err(LayaServeError::Bucket {
+                checkpoint: "english",
+                seq: 300,
+                max: 128,
+            }),
+            _ => panic!("the auto hop must not run for an explicit request"),
+        });
+        let resp = post_body(&addr, BODY, Some("laya-ane"));
+        assert!(resp.starts_with("HTTP/1.1 422"), "got: {resp}");
+        assert!(resp.contains("max 128"), "got: {resp}");
+        assert!(resp.contains("never padded"), "got: {resp}");
+        assert!(resp.contains("laya (auto)"), "the remedy names the auto lane: {resp}");
+    }
+
+    #[test]
+    fn explicit_without_ane_is_503_with_the_boot_note() {
+        let (addr, _) = ready_with(|route| match route {
+            LayaRoute::AneExplicit => Err(LayaServeError::Unavailable(
+                "ane unavailable: no ane manifest — serving the default device".into(),
+            )),
+            _ => panic!("explicit route expected"),
+        });
+        let resp = post_body(&addr, BODY, Some("laya-ane"));
+        assert!(resp.starts_with("HTTP/1.1 503"), "got: {resp}");
+        assert!(resp.contains("no ane manifest"), "got: {resp}");
+    }
+
+    #[test]
+    fn other_error_is_502_on_the_device_that_owned_it() {
+        let (addr, _) = ready_with(|_| Err(LayaServeError::Other("metal weights corrupt".into())));
+        let resp = post_body(&addr, BODY, Some("laya"));
+        assert!(resp.starts_with("HTTP/1.1 502"), "got: {resp}");
+        assert!(resp.contains("metal weights corrupt"), "got: {resp}");
+        // No modelless answer leaked under the laya claim.
+        assert!(!resp.contains("\"lane\":\"modelless\""), "got: {resp}");
+    }
+
+    #[test]
+    fn laya_ane_off_names_the_ane_env() {
+        let addr = spawn_lanes(LayaLane::Off);
+        let resp = post_body(&addr, BODY, Some("laya-ane"));
+        assert!(resp.starts_with("HTTP/1.1 503"), "got: {resp}");
+        assert!(
+            resp.contains("RIIR_REFLEX_LAYA_ANE=1"),
+            "the explicit spelling names its own env: {resp}"
+        );
+    }
+
+    #[test]
+    fn laya_ane_is_a_known_spelling_not_a_400() {
+        let addr = spawn_lanes(LayaLane::Off);
+        let resp = post_body(&addr, BODY, Some("laya-ane"));
+        assert!(!resp.starts_with("HTTP/1.1 400"), "got: {resp}");
+    }
+}

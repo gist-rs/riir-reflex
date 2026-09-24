@@ -32,6 +32,66 @@ use std::time::Instant;
 
 /// The shared fixture plumbing: rows for one checkpoint + the
 /// internal→raw question rebuild (the fixture stores t/ins/crit).
+/// The ANE timing lane — the whole arm lives behind the lane's own cfg so
+/// a laya-riir-only build compiles the `ane` arg to a LOUD remedy exit
+/// instead of an error (the guard's layer-5 law: every lane's own feature
+/// set must compile). Runs the timing itself and RETURNS when done.
+#[cfg(all(target_os = "macos", feature = "laya-riir-ane"))]
+fn run_ane_lane(ckpt: &str, reps: usize) {
+    let ane_root = std::env::var_os("LAYA_ANE_ARTIFACTS_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| std::path::PathBuf::from("assets/ane"));
+    let manifest = ane_root.join("manifest.json");
+    if !manifest.exists() {
+        eprintln!(
+            "ane lane: no manifest at {} — the artifacts are local-only; \
+             run scripts/ane_convert.py first (or set LAYA_ANE_ARTIFACTS_DIR)",
+            manifest.display()
+        );
+        std::process::exit(2);
+    }
+    let agent = riir_reflex::laya::riir::RiirAgent::load_ane(
+        &riir_reflex::laya::weights::weights_root(),
+        checkpoint_arg(ckpt),
+        &ane_root,
+        &manifest,
+    )
+    .expect("ane agent load");
+    // Drop the rows the lane would refuse (named, loud) BEFORE the
+    // warmup pass — a panic mid-timing would poison the run.
+    let bucket_max = agent.ane_bucket_max().expect("ane posture");
+    let fixture_name = match ckpt {
+        "typed" => "typed-decisions",
+        other => other,
+    };
+    let rows = drop_out_of_bucket_rows(load_rows(ckpt), fixture_name, bucket_max);
+    // The posture label comes from the AGENT and reads 'ane' — the
+    // same law as the metal lane's label: a reading can never be
+    // mistaken for another posture. LAYA_DEVICE is deliberately NOT
+    // consulted here: the explicit lane argument owns the posture.
+    time_agent(
+        &format!("riir {}", agent.device()),
+        ckpt,
+        reps,
+        &rows,
+        |state, qs| {
+            agent.system_one(state, qs).expect("forward");
+        },
+    );
+}
+
+/// The no-ANE build's `ane` arg: a loud refusal naming the rebuild, not a
+/// compile error (the layer-5 law) and never a silent fall-through to the
+/// default lane — the posture label must never lie.
+#[cfg(not(all(target_os = "macos", feature = "laya-riir-ane")))]
+fn run_ane_lane(_ckpt: &str, _reps: usize) {
+    eprintln!(
+        "ane lane: this build has no ANE lane (needs macOS + \
+         --features laya-riir-ane) — rebuild with the feature"
+    );
+    std::process::exit(2);
+}
+
 fn load_rows(ckpt: &str) -> Vec<serde_json::Value> {
     // The fixture's checkpoint names are `Checkpoint::fixture_name`'s:
     // english / typed-decisions / multilingual.
@@ -163,14 +223,14 @@ fn main() {
     // `candle` is refused with the removal pointer (the lane died with
     // .issues/006).
     let mut args: Vec<String> = std::env::args().skip(1).collect();
-    let mut lane = "riir";
+    let mut ane_requested = false;
     match args.first().map(String::as_str) {
         Some("riir") => {
             args.remove(0);
         }
         Some("ane") => {
             args.remove(0);
-            lane = "ane";
+            ane_requested = true;
         }
         Some("candle") => {
             eprintln!(
@@ -183,69 +243,31 @@ fn main() {
     }
     let ckpt = args.first().cloned().unwrap_or_else(|| "english".into());
     let reps: usize = args.get(1).and_then(|s| s.parse().ok()).unwrap_or(3);
+    if ane_requested {
+        run_ane_lane(&ckpt, reps);
+        return;
+    }
 
-    match lane {
-        "ane" => {
-            let ane_root = std::env::var_os("LAYA_ANE_ARTIFACTS_DIR")
-                .map(std::path::PathBuf::from)
-                .unwrap_or_else(|| std::path::PathBuf::from("assets/ane"));
-            let manifest = ane_root.join("manifest.json");
-            if !manifest.exists() {
-                eprintln!(
-                    "ane lane: no manifest at {} — the artifacts are local-only; \
-                     run scripts/ane_convert.py first (or set LAYA_ANE_ARTIFACTS_DIR)",
-                    manifest.display()
-                );
-                std::process::exit(2);
-            }
-            let agent = riir_reflex::laya::riir::RiirAgent::load_ane(
-                &riir_reflex::laya::weights::weights_root(),
-                checkpoint_arg(&ckpt),
-                &ane_root,
-                &manifest,
-            )
-            .expect("ane agent load");
-            // Drop the rows the lane would refuse (named, loud) BEFORE the
-            // warmup pass — a panic mid-timing would poison the run.
-            let bucket_max = agent.ane_bucket_max().expect("ane posture");
-            let fixture_name = match ckpt.as_str() {
-                "typed" => "typed-decisions",
-                other => other,
-            };
-            let rows = drop_out_of_bucket_rows(load_rows(&ckpt), fixture_name, bucket_max);
-            // The posture label comes from the AGENT and reads 'ane' — the
-            // same law as the metal lane's label: a reading can never be
-            // mistaken for another posture. LAYA_DEVICE is deliberately NOT
-            // consulted here: the explicit lane argument owns the posture.
-            time_agent(
-                &format!("riir {}", agent.device()),
-                &ckpt,
-                reps,
-                &rows,
-                |state, qs| {
-                    agent.system_one(state, qs).expect("forward");
-                },
-            );
-        }
-        _ => {
-            let agent = riir_reflex::laya::riir::RiirAgent::load(
-                &riir_reflex::laya::weights::weights_root(),
-                checkpoint_arg(&ckpt),
-            )
-            .expect("agent load");
-            // The posture label comes from the AGENT (`.issues/005`):
-            // LAYA_DEVICE=metal runs the MSL backend — a reading can never
-            // be mistaken for the other posture.
-            let rows = load_rows(&ckpt);
-            time_agent(
-                &format!("riir {}", agent.device()),
-                &ckpt,
-                reps,
-                &rows,
-                |state, qs| {
-                    agent.system_one(state, qs).expect("forward");
-                },
-            );
-        }
+    // The default (and only remaining) lane: the per-op riir backend —
+    // LAYA_DEVICE picks cpu/metal; the ane lane dispatched above.
+    {
+        let agent = riir_reflex::laya::riir::RiirAgent::load(
+            &riir_reflex::laya::weights::weights_root(),
+            checkpoint_arg(&ckpt),
+        )
+        .expect("agent load");
+        // The posture label comes from the AGENT (`.issues/005`):
+        // LAYA_DEVICE=metal runs the MSL backend — a reading can never
+        // be mistaken for the other posture.
+        let rows = load_rows(&ckpt);
+        time_agent(
+            &format!("riir {}", agent.device()),
+            &ckpt,
+            reps,
+            &rows,
+            |state, qs| {
+                agent.system_one(state, qs).expect("forward");
+            },
+        );
     }
 }
