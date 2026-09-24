@@ -62,7 +62,11 @@ fn ece_edges_are_linspace_16() {
 #[test]
 fn ece_bin_edge_membership() {
     let edges = [0.0_f64, 0.5, 1.0];
-    assert_eq!(bin_of(0.5, &edges), Some(0), "edge value closes the lower bin");
+    assert_eq!(
+        bin_of(0.5, &edges),
+        Some(0),
+        "edge value closes the lower bin"
+    );
     assert_eq!(bin_of(0.7, &edges), Some(1));
     assert_eq!(bin_of(0.0, &edges), None, "conf 0.0 is in no bin");
     assert_eq!(bin_of(1.0, &edges), Some(1), "conf 1.0 is in the last bin");
@@ -169,9 +173,18 @@ fn hard_metrics_refuses_empty_rows() {
 #[test]
 fn conformal_floor_known_answers() {
     let cal = vec![
-        CalibrationPair { conf: 0.2, correct: true },
-        CalibrationPair { conf: 0.5, correct: false },
-        CalibrationPair { conf: 0.8, correct: true },
+        CalibrationPair {
+            conf: 0.2,
+            correct: true,
+        },
+        CalibrationPair {
+            conf: 0.5,
+            correct: false,
+        },
+        CalibrationPair {
+            conf: 0.8,
+            correct: true,
+        },
     ];
     let tests = [0.1, 0.2, 0.5, 0.9];
     let out = conformal_naive_floor(&cal, &tests);
@@ -237,7 +250,10 @@ fn soft_metrics_truncation_and_pad() {
 
 #[test]
 fn soft_metrics_none_on_degenerate_targets() {
-    assert!(soft_metrics(&[0.5, 0.5], &[0.0, 0.0]).is_none(), "zero-sum target");
+    assert!(
+        soft_metrics(&[0.5, 0.5], &[0.0, 0.0]).is_none(),
+        "zero-sum target"
+    );
     assert!(soft_metrics(&[0.5, 0.5], &[]).is_none(), "empty target");
 }
 
@@ -312,8 +328,18 @@ fn typed_decisions_gold_mapping() {
     // from probabilities per key
     let q1 = &case.questions[0];
     assert_eq!(q1.kind, QKind::Choice);
-    let keys: Vec<&str> = q1.criteria.as_object().unwrap().keys().map(String::as_str).collect();
-    assert_eq!(keys, vec!["a", "b"], "criteria key order IS the label order");
+    let keys: Vec<&str> = q1
+        .criteria
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(
+        keys,
+        vec!["a", "b"],
+        "criteria key order IS the label order"
+    );
     assert_eq!(case.gold[0].idx, 1);
     assert_eq!(case.gold[0].soft, vec![0.9, 0.1]);
     assert_eq!(case.gold[0].gold_score, None);
@@ -326,10 +352,7 @@ fn typed_decisions_gold_mapping() {
 
     // qs: score — criteria array, idx = int(label), gold_score = float(label)
     assert_eq!(case.questions[2].kind, QKind::Score);
-    assert_eq!(
-        case.questions[2].criteria,
-        json!(["low", "mid", "high"])
-    );
+    assert_eq!(case.questions[2].criteria, json!(["low", "mid", "high"]));
     assert_eq!(case.gold[2].idx, 2);
     assert_eq!(case.gold[2].soft, vec![0.0, 0.0, 0.0]);
     assert_eq!(case.gold[2].gold_score, Some(2.0));
@@ -423,7 +446,8 @@ fn ag_news_options_and_gold() {
         "criteria key order IS the label order"
     );
     assert_eq!(
-        crit["world"], json!("world news and international politics")
+        crit["world"],
+        json!("world news and international politics")
     );
     assert_eq!(crit["sports"], json!("sports"));
     assert_eq!(crit["business"], json!("business and economy"));
@@ -462,7 +486,10 @@ fn emotion_sst5_prompt_injections_basics() {
         keys,
         vec!["sadness", "joy", "love", "anger", "fear", "surprise"]
     );
-    assert!(crit.values().all(|v| v.is_null()), "emotion criteria values are Null");
+    assert!(
+        crit.values().all(|v| v.is_null()),
+        "emotion criteria values are Null"
+    );
     assert_eq!(suite.cases[0].gold[0].idx, 1);
     assert_eq!(suite.cases[1].gold[0].idx, 4);
     assert_eq!(suite.cases[0].state, json!({"text": "i am so happy"}));
@@ -477,7 +504,16 @@ fn emotion_sst5_prompt_injections_basics() {
     assert_eq!(q.qid, "sentiment");
     assert_eq!(q.kind, QKind::Score);
     assert_eq!(q.instructions, "How positive is the sentiment of `text`?");
-    assert_eq!(q.criteria, json!(["very negative", "negative", "neutral", "positive", "very positive"]));
+    assert_eq!(
+        q.criteria,
+        json!([
+            "very negative",
+            "negative",
+            "neutral",
+            "positive",
+            "very positive"
+        ])
+    );
     let g = &suite.cases[0].gold[0];
     assert_eq!(g.idx, 4);
     assert_eq!(g.gold_score, Some(4.0));
@@ -524,7 +560,10 @@ fn banking77_names_from_features() {
     assert_eq!(suite.name, "banking77");
     let q = &suite.cases[0].questions[0];
     assert_eq!(q.qid, "intent");
-    assert_eq!(q.instructions, "Which banking intent does `message` express?");
+    assert_eq!(
+        q.instructions,
+        "Which banking intent does `message` express?"
+    );
     let crit = q.criteria.as_object().unwrap();
     let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
     assert_eq!(keys, vec!["atm limit", "balance not updated"]);
@@ -562,7 +601,11 @@ fn xnli_gold_and_state_key_order() {
     let case = &suite.cases[0];
     let state = case.state.as_object().unwrap();
     let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
-    assert_eq!(state_keys, vec!["premise", "hypothesis"], "state key order is normative");
+    assert_eq!(
+        state_keys,
+        vec!["premise", "hypothesis"],
+        "state key order is normative"
+    );
 
     let q = &case.questions[0];
     assert_eq!(q.qid, "relation");
@@ -573,12 +616,18 @@ fn xnli_gold_and_state_key_order() {
     let crit = q.criteria.as_object().unwrap();
     let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
     assert_eq!(keys, vec!["entailment", "neutral", "contradiction"]);
-    assert_eq!(crit["entailment"], json!("the premise implies the hypothesis is true"));
+    assert_eq!(
+        crit["entailment"],
+        json!("the premise implies the hypothesis is true")
+    );
     assert_eq!(
         crit["neutral"],
         json!("the premise neither implies nor contradicts the hypothesis")
     );
-    assert_eq!(crit["contradiction"], json!("the premise implies the hypothesis is false"));
+    assert_eq!(
+        crit["contradiction"],
+        json!("the premise implies the hypothesis is false")
+    );
     assert_eq!(case.gold[0].idx, 2);
     assert_eq!(suite.cases[1].gold[0].idx, 0);
     assert_eq!(case.gold[0].soft, vec![0.0; 3]);
@@ -597,9 +646,7 @@ fn massive_fixture() -> serde_json::Value {
     let rows: Vec<serde_json::Value> = texts_labels
         .iter()
         .enumerate()
-        .map(|(i, (text, label))| {
-            json!({"row_idx": i, "row": {"text": text, "label_text": label}})
-        })
+        .map(|(i, (text, label))| json!({"row_idx": i, "row": {"text": text, "label_text": label}}))
         .collect();
     json!({"features": [], "rows": rows})
 }
@@ -626,9 +673,16 @@ fn massive_options_deterministic_and_seed_dependent() {
         let q = &case.questions[0];
         assert_eq!(q.qid, "intent");
         assert_eq!(q.kind, QKind::Choice);
-        assert_eq!(q.instructions, "What is the user asking for in `utterance`?");
+        assert_eq!(
+            q.instructions,
+            "What is the user asking for in `utterance`?"
+        );
         let crit = q.criteria.as_object().unwrap();
-        assert_eq!(crit.len(), 5, "1 gold + min(19, 4 distractors) — 5 distinct fixture labels");
+        assert_eq!(
+            crit.len(),
+            5,
+            "1 gold + min(19, 4 distractors) — 5 distinct fixture labels"
+        );
         // transform order: '_'→" " first, then '.'→": "
         assert_eq!(crit["wire.transfer_failed"], json!("wire: transfer failed"));
         assert_eq!(crit["alarm.check"], json!("alarm: check"));
@@ -704,11 +758,31 @@ fn suite_builds_are_deterministic() {
             "{name} must build deterministically"
         );
     };
-    check("typed_decisions", &build_typed_decisions(&typed, 0), &build_typed_decisions(&typed, 0));
-    check("ag_news", &build_ag_news(&text_rows, 0), &build_ag_news(&text_rows, 0));
-    check("emotion", &build_emotion(&text_rows, 0), &build_emotion(&text_rows, 0));
-    check("sst5", &build_sst5(&text_rows, 0), &build_sst5(&text_rows, 0));
-    check("banking77", &build_banking77(&banking, 0), &build_banking77(&banking, 0));
+    check(
+        "typed_decisions",
+        &build_typed_decisions(&typed, 0),
+        &build_typed_decisions(&typed, 0),
+    );
+    check(
+        "ag_news",
+        &build_ag_news(&text_rows, 0),
+        &build_ag_news(&text_rows, 0),
+    );
+    check(
+        "emotion",
+        &build_emotion(&text_rows, 0),
+        &build_emotion(&text_rows, 0),
+    );
+    check(
+        "sst5",
+        &build_sst5(&text_rows, 0),
+        &build_sst5(&text_rows, 0),
+    );
+    check(
+        "banking77",
+        &build_banking77(&banking, 0),
+        &build_banking77(&banking, 0),
+    );
     check(
         "prompt_injections",
         &build_prompt_injections(&text_rows, 0),
@@ -723,7 +797,11 @@ fn suite_builds_are_deterministic() {
         "features": [],
         "rows": [{"row_idx": 0, "row": {"premise": "p", "hypothesis": "h", "label": 1}}]
     });
-    check("xnli_en", &build_xnli_en(&xnli, 0), &build_xnli_en(&xnli, 0));
+    check(
+        "xnli_en",
+        &build_xnli_en(&xnli, 0),
+        &build_xnli_en(&xnli, 0),
+    );
 }
 
 // ── corpus helpers ──────────────────────────────────────────────────────────
@@ -740,7 +818,11 @@ fn train_docs_rules() {
     assert_eq!(docs[0].text, "hello world");
     // same rule for the other text suites
     for suite in ["emotion", "sst5", "banking77", "prompt_injections"] {
-        assert_eq!(train_docs(&text_rows, suite), docs, "{suite} shares the text-suite rule");
+        assert_eq!(
+            train_docs(&text_rows, suite),
+            docs,
+            "{suite} shares the text-suite rule"
+        );
     }
 
     let massive = json!({
@@ -793,7 +875,10 @@ fn q(kind: QKind, criteria: serde_json::Value) -> SuiteQuestion {
 /// key order.
 #[test]
 fn python_answer_choice_uses_choice_key_and_criteria_order() {
-    let question = q(QKind::Choice, json!({"beta": null, "alpha": null, "gamma": null}));
+    let question = q(
+        QKind::Choice,
+        json!({"beta": null, "alpha": null, "gamma": null}),
+    );
     let a = json!({
         "p": [0.2000, 0.6000, 0.2000],
         "conf": 0.6000,
@@ -882,4 +967,43 @@ fn g1_verdict_serializes_snake_case() {
         serde_json::to_string(&G1Verdict::NoClaim).unwrap(),
         "\"no_claim\""
     );
+}
+
+// ── confusion_top (Issue 013 lever-3 probe) ─────────────────────────────
+
+/// Counting, share-of-errors, count-desc tie-(gold,pred) ordering, top-k.
+#[test]
+fn confusion_top_counts_and_orders() {
+    let mispairs = vec![
+        ("b".to_string(), "a".to_string()),
+        ("b".to_string(), "a".to_string()),
+        ("a".to_string(), "c".to_string()),
+        ("c".to_string(), "a".to_string()),
+        ("b".to_string(), "a".to_string()),
+    ];
+    let rows = confusion_top(&mispairs, 10);
+    assert_eq!(rows.len(), 3);
+    assert_eq!(rows[0].gold, "b");
+    assert_eq!(rows[0].pred, "a");
+    assert_eq!(rows[0].count, 3);
+    assert!((rows[0].share_of_errors - 0.6).abs() < 1e-12);
+    // ties (count 1) ordered by (gold, pred): a→c before c→a.
+    assert_eq!(rows[1].gold, "a");
+    assert_eq!(rows[1].pred, "c");
+    assert_eq!(rows[2].gold, "c");
+    assert_eq!(rows[2].pred, "a");
+}
+
+/// Top-k truncation keeps the head, and an empty input is an empty readout.
+#[test]
+fn confusion_top_truncates_and_empty() {
+    let mispairs: Vec<(String, String)> = (0..20)
+        .map(|i| (format!("g{}", i % 5), format!("p{}", i % 3)))
+        .collect();
+    let rows = confusion_top(&mispairs, 4);
+    assert_eq!(rows.len(), 4);
+    assert!(rows[0].count >= rows[3].count);
+    // 15 distinct pairs possible; top 4 all carry count >= 2 (20/15 spread).
+    assert!(rows.iter().all(|r| r.count >= 1));
+    assert!(confusion_top(&[], 10).is_empty());
 }

@@ -120,11 +120,7 @@ pub fn hard_metrics(rows: &[(usize, Vec<f64>)]) -> HardMetrics {
         .sum();
     let macro_f1 = f1_sum / classes.len() as f64;
 
-    let pairs: Vec<(f64, bool)> = confs
-        .iter()
-        .copied()
-        .zip(correct.iter().copied())
-        .collect();
+    let pairs: Vec<(f64, bool)> = confs.iter().copied().zip(correct.iter().copied()).collect();
     let ece = ece_of(&pairs);
 
     // brier: sum over ALL classes of THAT question's probability vector
@@ -203,7 +199,11 @@ pub fn soft_metrics(p_cal: &[f64], gold_soft: &[f64]) -> Option<SoftMetrics> {
             d * d
         })
         .sum();
-    let tv: f64 = 0.5 * pp.iter().zip(&gp).map(|(&p, &g)| (p - g).abs()).sum::<f64>();
+    let tv: f64 = 0.5
+        * pp.iter()
+            .zip(&gp)
+            .map(|(&p, &g)| (p - g).abs())
+            .sum::<f64>();
     // KL(gp || pp): gp / clip(pp, 1e-12, None), then clip to [1e-12, 1e4]
     let kl: f64 = gp
         .iter()
@@ -255,8 +255,11 @@ pub fn conformal_naive_floor(cal: &[CalibrationPair], test_confs: &[f64]) -> Vec
 
     #[cfg(debug_assertions)]
     {
-        let mut sorted: Vec<(f64, f64)> =
-            test_confs.iter().copied().zip(out.iter().copied()).collect();
+        let mut sorted: Vec<(f64, f64)> = test_confs
+            .iter()
+            .copied()
+            .zip(out.iter().copied())
+            .collect();
         sorted.sort_by(|a, b| a.0.total_cmp(&b.0));
         for w in sorted.windows(2) {
             debug_assert!(
@@ -371,6 +374,54 @@ pub fn g1_verdict_of(
         G1Verdict::Fail
     };
     (Some(pass), verdict)
+}
+
+// ── confusion readout (Issue 013 lever-3 probe) ────────────────────────────
+
+/// One confused (gold → prediction) label pair, counted over the forced
+/// categorical questions of one suite lane.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+pub struct ConfusionRow {
+    pub gold: String,
+    pub pred: String,
+    pub count: usize,
+    /// count / total mispredictions over the counted questions.
+    pub share_of_errors: f64,
+}
+
+/// Top-K confused pairs from `(gold_key, pred_key)` misprediction rows — the
+/// pair-concentration probe behind Issue 013 lever 3 (are a suite's errors
+/// pair-structured, i.e. is a fitted pair head worth fitting?). Pure reduce:
+/// BTreeMap counting, ties broken by (gold, pred) — deterministic by
+/// construction, never a HashMap-order artifact.
+#[must_use]
+pub fn confusion_top(mispairs: &[(String, String)], top: usize) -> Vec<ConfusionRow> {
+    let errors = mispairs.len();
+    if errors == 0 {
+        return Vec::new();
+    }
+    let mut counts: std::collections::BTreeMap<(String, String), usize> =
+        std::collections::BTreeMap::new();
+    for (g, p) in mispairs {
+        *counts.entry((g.clone(), p.clone())).or_default() += 1;
+    }
+    let mut rows: Vec<ConfusionRow> = counts
+        .into_iter()
+        .map(|((gold, pred), count)| ConfusionRow {
+            gold,
+            pred,
+            count,
+            share_of_errors: count as f64 / errors as f64,
+        })
+        .collect();
+    rows.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then_with(|| a.gold.cmp(&b.gold))
+            .then_with(|| a.pred.cmp(&b.pred))
+    });
+    rows.truncate(top);
+    rows
 }
 
 /// argmax with first-max-wins on ties (np.argmax semantics).

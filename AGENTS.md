@@ -94,6 +94,14 @@ cargo run --release --bin harness                       # both-lane tables → .
 # (the test-split gain did not transfer); default stays 40.
 cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --cal-select-cap
 
+# The accuracy-lever probes (Issue 013, all levers VERDICTED — Bench 003/004/005):
+# the always-on modelless confusion readout (gold → pred pairs, forced eval)
+# and --pair-head-ab, the fitted pair-head A/B (diagonal-LDA heads armed from
+# CAL-slice confusion, both firing gates). REFUTED as an accuracy lever
+# (global net ≈ −19 questions, no GOAT cell); the instruments stay,
+# report-only, default posture byte-identical.
+cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairhead_ab
+
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb
 # binary resolves from NDB_BIN, else PATH — build it first:
 #   (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)

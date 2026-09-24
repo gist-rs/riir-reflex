@@ -4,11 +4,16 @@
 //! engine, so it rides the same feature.
 pub mod families;
 pub mod metrics;
-pub mod suites;
+pub mod pair_heads;
 #[cfg(feature = "modelless")]
 pub mod runner;
+pub mod suites;
 // Warm-tier persistence via the released `ndb` binary (Issue 007 P1):
 // subprocess-only, zero storage-leaf cargo deps; NATIVE-ONLY by
 // construction (std::process) — never join a wasm32 combo.
-#[cfg(all(feature = "corpus_db", feature = "modelless", not(target_arch = "wasm32")))]
+#[cfg(all(
+    feature = "corpus_db",
+    feature = "modelless",
+    not(target_arch = "wasm32")
+))]
 pub mod corpus_db;

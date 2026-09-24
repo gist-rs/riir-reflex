@@ -30,7 +30,7 @@
 //! suite ran BOTH lanes clean — absences are printed loud and listed in the
 //! tables, never silently dropped (the frontier-report law).
 
-use riir_reflex::harness::runner::{self, RunOptions, DEFAULT_DATASETS_DIR};
+use riir_reflex::harness::runner::{self, DEFAULT_DATASETS_DIR, RunOptions};
 
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -44,6 +44,7 @@ fn main() {
         laya_python: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
+        pair_head_ab: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -69,6 +70,7 @@ fn main() {
                     .unwrap_or_else(|| die("--laya-max-questions needs a number"));
             }
             "--skip-laya" => opts.skip_laya = true,
+            "--pair-head-ab" => opts.pair_head_ab = true,
             "--laya-python" => opts.laya_python = true,
             "--corpus-cap" => {
                 i += 1;
@@ -133,7 +135,11 @@ fn main() {
     #[cfg(not(feature = "corpus_db"))]
     let _ = kv_dir;
 
-    println!("harness: datasets {} · suites {:?}", opts.datasets_dir.display(), opts.suites);
+    println!(
+        "harness: datasets {} · suites {:?}",
+        opts.datasets_dir.display(),
+        opts.suites
+    );
     let (output, errors) = match runner::run(&opts) {
         Ok(r) => r,
         Err(e) => die(&e),
@@ -160,9 +166,7 @@ fn main() {
     // AFTER the files are on disk (the run happened; the persistence failed
     // — both facts are loud).
     #[cfg(feature = "corpus_db")]
-    if runs_kv
-        && let Err(e) = write_run_row(&output, &json_path, kv_dir.as_deref())
-    {
+    if runs_kv && let Err(e) = write_run_row(&output, &json_path, kv_dir.as_deref()) {
         die(&e);
     }
     #[cfg(feature = "corpus_db")]
@@ -181,7 +185,10 @@ fn main() {
     // Clean run = every suite present with BOTH lanes. Absences make the
     // run LOUD, never a silent green.
     if errors.is_empty() {
-        println!("harness: PASSED — {} suite(s), no absences", output.suites.len());
+        println!(
+            "harness: PASSED — {} suite(s), no absences",
+            output.suites.len()
+        );
     } else {
         println!(
             "harness: PASSED WITH ABSENCES — {} suite(s), {} absence(s) listed above and in TABLES.md",

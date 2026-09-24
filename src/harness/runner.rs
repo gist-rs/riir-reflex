@@ -46,8 +46,11 @@ use crate::engine::{
 };
 use crate::harness::families::SynthData;
 use crate::harness::metrics::{
-    CalibrationPair, G1Verdict, HardMetrics, conformal_naive_floor, ece_of, g1_verdict_of,
-    hard_metrics, score_metrics, soft_metrics,
+    CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, conformal_naive_floor, confusion_top,
+    ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics,
+};
+use crate::harness::pair_heads::{
+    ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
 };
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
@@ -465,8 +468,7 @@ pub fn load_suite_envelope(
     }
     let suite_dir = datasets_dir.join(spec.name);
     let test = load_rows(&suite_dir, "test")?;
-    let train = load_rows(&suite_dir, "train")
-        .map_err(|e| format!("suite {}: {e}", spec.name))?;
+    let train = load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
     Ok(serde_json::json!({
         "suite": spec.name,
         "test_rows": test,
@@ -539,6 +541,14 @@ pub struct LaneResult {
     /// chosen — always disclosed so a table never reads against an unknown
     /// corpus posture (None = the lane has no corpus: the laya lanes).
     pub corpus_cap: Option<CorpusCapInfo>,
+    /// Top-K categorical (gold → pred) confusion pairs, forced raw eval
+    /// (modelless only; Issue 013 lever-3 probe instrumentation — report-
+    /// only, never a gate). None on the laya lanes.
+    pub confusion: Option<Vec<ConfusionRow>>,
+    /// The lever-3 pair-head A/B records, `(top2-gated, pred-anchored)`
+    /// (present only when the `--pair-head-ab` arm ran). None otherwise,
+    /// and on the laya lanes.
+    pub pair_head_ab: Option<(PairHeadAb, PairHeadAb)>,
 }
 
 /// One cal-slice cap-selection candidate reading (Issue 013 lever-1
@@ -563,6 +573,337 @@ pub struct CorpusCapInfo {
     /// order (the registry default is always a candidate). `None` when no
     /// selection ran.
     pub selection: Option<Vec<CapCandidate>>,
+}
+
+/// Top-K cap for the confusion readout (the probe table's size).
+pub const CONFUSION_TOP: usize = 12;
+
+/// Categorical confusion over one lane's forced raw eval: Choice + Score
+/// questions only — Noul is the binary `[no, yes]` wire (its "confusion" is
+/// the flip, not a mineable pair). Option keys come from the same criteria
+/// `engine_request` feeds the engine, so a pair names exactly the options
+/// the engine scored.
+#[must_use]
+fn confusion_rows(eval: &Eval, cases: &[SuiteCase], top: usize) -> Vec<ConfusionRow> {
+    let mut mispairs: Vec<(String, String)> = Vec::new();
+    for (ci, case) in cases.iter().enumerate() {
+        for (qi, q) in case.questions.iter().enumerate() {
+            if q.kind == QKind::Noul {
+                continue;
+            }
+            let keys: Vec<String> = match q.kind {
+                QKind::Choice => q
+                    .criteria
+                    .as_object()
+                    .map(|m| m.keys().cloned().collect())
+                    .unwrap_or_default(),
+                QKind::Score => q
+                    .criteria
+                    .as_array()
+                    .map(|a| {
+                        a.iter()
+                            .map(|v| match v {
+                                serde_json::Value::String(s) => s.clone(),
+                                other => other.to_string(),
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                QKind::Noul => continue,
+            };
+            let gold = case.gold[qi].idx;
+            let pick = eval.picks[ci][qi];
+            if gold == pick {
+                continue;
+            }
+            let key = |i: usize| keys.get(i).cloned().unwrap_or_else(|| format!("#{i}"));
+            mispairs.push((key(gold), key(pick)));
+        }
+    }
+    confusion_top(&mispairs, top)
+}
+
+// ── Issue 013 lever-3 pair-head A/B (report-only arm) ─────────────────
+
+/// Display keys for the suite's option universe: the first non-Noul
+/// question's criteria keys/items, falling back to the engine domain label.
+/// Display-only (the record names pairs the way the questions did).
+fn option_display_labels(suite: &Suite, labels: &[String]) -> Vec<String> {
+    let mut out: Vec<String> = labels.to_vec();
+    let Some(first_q) = suite
+        .cases
+        .iter()
+        .flat_map(|case| case.questions.iter())
+        .find(|q| q.kind != QKind::Noul)
+    else {
+        return out;
+    };
+    match first_q.kind {
+        QKind::Choice => {
+            if let Some(m) = first_q.criteria.as_object() {
+                for (i, k) in m.keys().enumerate() {
+                    if i < out.len() {
+                        out[i] = k.clone();
+                    }
+                }
+            }
+        }
+        QKind::Score => {
+            if let Some(a) = first_q.criteria.as_array() {
+                for (i, v) in a.iter().enumerate() {
+                    if i < out.len() {
+                        out[i] = match v {
+                            serde_json::Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        };
+                    }
+                }
+            }
+        }
+        QKind::Noul => {}
+    }
+    out
+}
+
+/// Which questions a pair head fires on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PairGate {
+    /// The engine's own top-2 IS the armed pair — the canonical form. It
+    /// can never see an error whose gold ranked ≥ 3 (the measured black-
+    /// hole class).
+    Top2,
+    /// The engine's PICK is in an armed pair — the pred-anchored variant.
+    /// It sees the black-hole errors directly; overlapping pairs resolve
+    /// to the first armed pair (cal-support order, deterministic).
+    PredAnchored,
+}
+
+/// The pair-head A/B pass (Issue 013 lever 3): arm the top confusion pairs
+/// from the CAL slice's mispredictions, fit a diagonal-LDA head per pair
+/// from the pair's corpus docs (the same capped docs the engine's domains
+/// consume), then re-decide questions under BOTH firing gates. Forced
+/// picks only; Choice + Score questions (Noul is the binary wire).
+/// Report-only: the result is the record, never a gate, and nothing
+/// outside an armed pair's subset can move. Returns
+/// `(top2-gated, pred-anchored)`.
+#[allow(clippy::too_many_arguments)]
+fn pair_head_ab_pass(
+    raw_eval: &Eval,
+    suite: &Suite,
+    state_strs: &[String],
+    cal_eval: &Eval,
+    cal_cases: &[SuiteCase],
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    embedder: &crate::embed::Embedder,
+) -> Result<(PairHeadAb, PairHeadAb), String> {
+    // 1. Arm: cal-slice mispredictions in INDEX space (the display-key
+    // confusion readout is for the record; selection needs class indices).
+    let mut cal_mispairs: Vec<(usize, usize)> = Vec::new();
+    for (ci, case) in cal_cases.iter().enumerate() {
+        for (qi, q) in case.questions.iter().enumerate() {
+            if q.kind == QKind::Noul {
+                continue;
+            }
+            let gold = case.gold[qi].idx;
+            let pick = cal_eval.picks[ci][qi];
+            if gold != pick {
+                cal_mispairs.push((gold, pick));
+            }
+        }
+    }
+    let armed = select_pairs(&cal_mispairs, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT);
+
+    // 2. Fit: per-class corpus doc embeddings (same capped train docs the
+    // engine's domains consume, same order).
+    let display = option_display_labels(suite, labels);
+    let mut heads: Vec<PairHead<EMBED_DIM>> = Vec::with_capacity(armed.len());
+    if !armed.is_empty() {
+        let docs_for = |li: usize| -> Result<Vec<[f32; EMBED_DIM]>, String> {
+            let texts: Vec<&String> = train
+                .iter()
+                .filter(|d| d.label == labels[li])
+                .map(|d| &d.text)
+                .take(cap_per_label)
+                .collect();
+            let mut vs = Vec::with_capacity(texts.len());
+            for t in texts {
+                let mut v = [0.0f32; EMBED_DIM];
+                embedder.embed_into(t.as_bytes(), &mut v);
+                vs.push(v);
+            }
+            Ok(vs)
+        };
+        for arm in &armed {
+            let da = docs_for(arm.a)?;
+            let db = docs_for(arm.b)?;
+            match PairHead::fit(arm.a, arm.b, &da, &db) {
+                Some(h) => heads.push(h),
+                // A class with no corpus docs cannot arm (the engine's
+                // self-doc fallback covers scoring, not a fitted mean).
+                None => continue,
+            }
+        }
+    }
+
+    // 3. Apply under both gates: re-decide the fired subsets from the
+    // state embedding (embed once per case, reused by both walks).
+    let mut state_embeds: Vec<[f32; EMBED_DIM]> = Vec::with_capacity(suite.cases.len());
+    for s in state_strs {
+        let mut v = [0.0f32; EMBED_DIM];
+        embedder.embed_into(s.as_bytes(), &mut v);
+        state_embeds.push(v);
+    }
+    let top2_ab = pair_head_walk(
+        PairGate::Top2,
+        &heads,
+        &armed,
+        &display,
+        suite,
+        raw_eval,
+        &state_embeds,
+    );
+    let pred_ab = pair_head_walk(
+        PairGate::PredAnchored,
+        &heads,
+        &armed,
+        &display,
+        suite,
+        raw_eval,
+        &state_embeds,
+    );
+    Ok((top2_ab, pred_ab))
+}
+
+/// One gated A/B walk over the test cases with pre-fitted heads.
+#[allow(clippy::too_many_arguments)]
+fn pair_head_walk(
+    gate: PairGate,
+    heads: &[PairHead<EMBED_DIM>],
+    armed: &[ArmedPair],
+    display: &[String],
+    suite: &Suite,
+    raw_eval: &Eval,
+    state_embeds: &[[f32; EMBED_DIM]],
+) -> PairHeadAb {
+    let mut per_pair: Vec<PairSubsetRow> = armed
+        .iter()
+        .map(|arm| PairSubsetRow {
+            a: arm.a,
+            b: arm.b,
+            a_label: display.get(arm.a).cloned().unwrap_or_default(),
+            b_label: display.get(arm.b).cloned().unwrap_or_default(),
+            n: 0,
+            baseline_correct: 0,
+            head_correct: 0,
+            n_gold_in_pair: 0,
+            baseline_correct_in_pair: 0,
+            head_correct_in_pair: 0,
+        })
+        .collect();
+    let mut baseline_correct_all = 0usize;
+    let mut head_correct_all = 0usize;
+    let mut counted = 0usize;
+    let mut overrides = 0usize;
+    let mut base_on_subset = 0usize;
+    let mut head_on_subset = 0usize;
+    let mut subset_in_pair = 0usize;
+    let mut base_in_pair = 0usize;
+    let mut head_in_pair = 0usize;
+    for (ci, case) in suite.cases.iter().enumerate() {
+        for (qi, q) in case.questions.iter().enumerate() {
+            if q.kind == QKind::Noul {
+                continue;
+            }
+            let gold = case.gold[qi].idx;
+            let pick = raw_eval.picks[ci][qi];
+            let probs = &raw_eval.probs[ci][qi];
+            let base_ok = gold == pick;
+            baseline_correct_all += usize::from(base_ok);
+            counted += 1;
+            // Which armed pair (if any) fires, and which pair indices the
+            // record attributes the question to.
+            let fired = match gate {
+                PairGate::Top2 => {
+                    let Some((i1, i2)) = top2(probs) else {
+                        head_correct_all += usize::from(base_ok);
+                        continue;
+                    };
+                    // Attribute canonically (h.a < h.b) — the top-2 may
+                    // arrive in either order.
+                    heads
+                        .iter()
+                        .find(|h| (h.a == i1 && h.b == i2) || (h.a == i2 && h.b == i1))
+                        .map(|h| (h.a, h.b, h))
+                }
+                PairGate::PredAnchored => heads
+                    .iter()
+                    .find(|h| pick == h.a || pick == h.b)
+                    .map(|h| (h.a, h.b, h)),
+            };
+            let Some((pi_a, pi_b, head)) = fired else {
+                head_correct_all += usize::from(base_ok);
+                continue;
+            };
+            let pi = per_pair
+                .iter_mut()
+                .find(|r| r.a == pi_a && r.b == pi_b)
+                .expect("fired head came from the armed set");
+            pi.n += 1;
+            pi.baseline_correct += usize::from(base_ok);
+            base_on_subset += usize::from(base_ok);
+            overrides += 1;
+            let gold_in_pair = gold == pi_a || gold == pi_b;
+            if gold_in_pair {
+                pi.n_gold_in_pair += 1;
+                subset_in_pair += 1;
+            }
+            pi.baseline_correct_in_pair += usize::from(base_ok && gold_in_pair);
+            base_in_pair += usize::from(base_ok && gold_in_pair);
+            let hp = head.pick(&state_embeds[ci]);
+            let head_ok = gold == hp;
+            pi.head_correct += usize::from(head_ok);
+            pi.head_correct_in_pair += usize::from(head_ok && gold_in_pair);
+            head_on_subset += usize::from(head_ok);
+            head_in_pair += usize::from(head_ok && gold_in_pair);
+            head_correct_all += usize::from(head_ok);
+        }
+    }
+    let f = |n: usize| n as f64 / counted.max(1) as f64;
+    PairHeadAb {
+        armed: armed.to_vec(),
+        baseline_acc: f(baseline_correct_all),
+        head_acc: f(head_correct_all),
+        n_counted: counted,
+        n_overrides: overrides,
+        subset_n: overrides,
+        baseline_correct_on_subset: base_on_subset,
+        head_correct_on_subset: head_on_subset,
+        subset_gold_in_pair: subset_in_pair,
+        baseline_correct_in_pair: base_in_pair,
+        head_correct_in_pair: head_in_pair,
+        per_pair,
+    }
+}
+
+/// Top-2 indices by first-max-wins (ties keep the earlier index), or `None`
+/// under two options.
+#[must_use]
+fn top2(probs: &[f64]) -> Option<(usize, usize)> {
+    if probs.len() < 2 {
+        return None;
+    }
+    let mut best = if probs[1] > probs[0] { (1, 0) } else { (0, 1) };
+    for i in 2..probs.len() {
+        let p = probs[i];
+        if p > probs[best.0] {
+            best = (i, best.0);
+        } else if p > probs[best.1] {
+            best.1 = i;
+        }
+    }
+    Some(best)
 }
 
 /// The default cap-selection candidate ladder for `--cal-select-cap`
@@ -1007,6 +1348,9 @@ struct ModellessInput<'a> {
     /// The suite's raw train envelope (the selection stratification reads
     /// the rows it buckets; `train` alone has lost the row structure).
     train_rows: &'a Value,
+    /// Run the Issue-013 lever-3 pair-head A/B arm (report-only; pairs are
+    /// armed from CAL-slice confusion, heads fitted from corpus docs).
+    pair_head_ab: bool,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -1075,13 +1419,8 @@ fn build_selection_measurement<const N: usize>(
     cands.dedup();
     let mut rows = Vec::with_capacity(cands.len());
     for &cap in &cands {
-        let mut engine = build_engine::<N>(
-            spec.name,
-            &pool,
-            inp.labels,
-            cap,
-            EngineConfig::default(),
-        )?;
+        let mut engine =
+            build_engine::<N>(spec.name, &pool, inp.labels, cap, EngineConfig::default())?;
         let (ev, _) = eval_engine(&mut engine, &sel_suite.cases, &sel_state_strs, false)?;
         let cal_acc = hard_metrics(&ev.forced_rows(&sel_suite.cases)).accuracy;
         rows.push(CapCandidate { cap, cal_acc });
@@ -1123,9 +1462,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     {
         None
     } else if cal_cases.is_empty() {
-        return Err(
-            "cal-slice cap selection needs a cal slice (suite cal_cap > 0)".to_string(),
-        );
+        return Err("cal-slice cap selection needs a cal slice (suite cal_cap > 0)".to_string());
     } else {
         Some(build_selection_measurement::<N>(inp)?)
     };
@@ -1226,22 +1563,12 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     // Corpus corpora: eval-cap docs per label, from the SAME pool the
     // thresholds were fitted on (post-cal-slice train docs).
     let corpus_pool: &[TrainDoc] = train.get(spec.cal_cap.min(train.len())..).unwrap_or(train);
-    let mut raw_engine = build_engine::<N>(
-        spec.name,
-        corpus_pool,
-        labels,
-        effective_cap,
-        cfg.clone(),
-    )?;
+    let mut raw_engine =
+        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
 
     // Calibration pairs from a RAW (uncalibrated) engine over the cal slice.
-    let mut cal_engine = build_engine::<N>(
-        spec.name,
-        corpus_pool,
-        labels,
-        effective_cap,
-        cfg.clone(),
-    )?;
+    let mut cal_engine =
+        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
     let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
         Vec::new()
     } else {
@@ -1280,13 +1607,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let (raw_eval, lat) = eval_engine(&mut raw_engine, &suite.cases, state_strs, true)?;
 
     // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
-    let mut fitted = build_engine::<N>(
-        spec.name,
-        corpus_pool,
-        labels,
-        effective_cap,
-        cfg,
-    )?;
+    let mut fitted = build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)?;
     let mut moved = false;
     for p in &cal_pairs {
         moved |= fitted.observe(p.conf as f32, p.correct);
@@ -1317,8 +1638,13 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     // calibrator-never-fitted state is NO CLAIM — the meta's
     // calibration_protocol line has promised exactly that since the lane
     // landed; this makes the code keep the promise.
-    let (g1_pass, g1_verdict) =
-        g1_verdict_of(moved, cal_pairs.len(), readout_ece_cal, readout_ece_raw, floor_ece);
+    let (g1_pass, g1_verdict) = g1_verdict_of(
+        moved,
+        cal_pairs.len(),
+        readout_ece_cal,
+        readout_ece_raw,
+        floor_ece,
+    );
 
     // Optional per-type + soft/score metrics.
     let mut by_question_type: Option<BTreeMap<String, HardMetrics>> = None;
@@ -1465,6 +1791,23 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             source: cap_source.to_string(),
             selection: selection.map(|s| s.rows),
         }),
+        confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
+        pair_head_ab: if inp.pair_head_ab {
+            let (top2_ab, pred_ab) = pair_head_ab_pass(
+                &raw_eval,
+                suite,
+                state_strs,
+                &cal_eval,
+                &cal_cases,
+                train,
+                labels,
+                effective_cap,
+                &crate::embed::Embedder,
+            )?;
+            Some((top2_ab, pred_ab))
+        } else {
+            None
+        },
     })
 }
 
@@ -1730,6 +2073,8 @@ fn assemble_laya_lane_result(
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
         corpus_cap: None, // the laya lanes have no corpus
+        confusion: None,  // the pair probe is the modelless lane's instrument
+        pair_head_ab: None,
     }
 }
 
@@ -1794,7 +2139,9 @@ fn run_laya_python_checkpoint(
         }
         let line = serde_json::json!({"state": case.state, "questions": qs});
         writeln!(stdin, "{line}").map_err(|e| format!("oracle stdin ({ckpt}): {e}"))?;
-        stdin.flush().map_err(|e| format!("oracle stdin flush ({ckpt}): {e}"))
+        stdin
+            .flush()
+            .map_err(|e| format!("oracle stdin flush ({ckpt}): {e}"))
     };
 
     let read_line = |reader: &mut BufReader<std::process::ChildStdout>,
@@ -1819,7 +2166,9 @@ fn run_laya_python_checkpoint(
     let ready: Value = serde_json::from_str(line.trim())
         .map_err(|e| format!("oracle handshake ({ckpt}): {e} (got: {})", line.trim()))?;
     if ready.get("ready") != Some(&Value::Bool(true)) {
-        return Err(format!("oracle handshake ({ckpt}): expected {{\"ready\":true}}, got {line}"));
+        return Err(format!(
+            "oracle handshake ({ckpt}): expected {{\"ready\":true}}, got {line}"
+        ));
     }
 
     // Cap the eval cases when asked — the SAME trim law as the riir lane.
@@ -2203,6 +2552,12 @@ pub struct RunOptions {
     /// selected cap. The selection table rides the suite's result row.
     /// Mutually exclusive with [`RunOptions::corpus_cap_override`].
     pub cal_select_caps: Vec<usize>,
+    /// Run the Issue-013 lever-3 pair-head A/B arm: per suite, arm the
+    /// top confusion pairs from CAL-slice mispredictions, fit diagonal-LDA
+    /// heads from the pair's corpus docs, and re-decide questions whose
+    /// engine top-2 matches an armed pair. Report-only (a result-row
+    /// record, never a gate); the test split is read once. Default off.
+    pub pair_head_ab: bool,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
@@ -2265,6 +2620,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 },
                 cal_select_caps: &opts.cal_select_caps,
                 train_rows: &prepared.train_rows,
+                pair_head_ab: opts.pair_head_ab,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -2425,10 +2781,12 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             {
                 use crate::laya::riir::agent::DeviceKind;
                 match DeviceKind::from_env() {
-                    Ok(DeviceKind::Metal) => "metal (LAYA_DEVICE or the build's macOS default)"
-                        .to_string(),
-                    Ok(DeviceKind::Cpu) => "cpu (LAYA_DEVICE or the no-backend default)"
-                        .to_string(),
+                    Ok(DeviceKind::Metal) => {
+                        "metal (LAYA_DEVICE or the build's macOS default)".to_string()
+                    }
+                    Ok(DeviceKind::Cpu) => {
+                        "cpu (LAYA_DEVICE or the no-backend default)".to_string()
+                    }
                     Err(e) => format!("unknown ({e})"),
                 }
             }
@@ -2522,7 +2880,10 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             ));
         }
     }
-    s.push_str(&format!("- laya device posture: {}\n", out.meta.laya_device));
+    s.push_str(&format!(
+        "- laya device posture: {}\n",
+        out.meta.laya_device
+    ));
     s.push_str(&format!(
         "- laya-python lane: {}\n",
         out.meta.laya_python_lane
@@ -2574,12 +2935,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                     } else {
                         ""
                     };
-                    s.push_str(&format!(
-                        "| {}{} | {} |\n",
-                        c.cap,
-                        mark,
-                        fmt4(c.cal_acc)
-                    ));
+                    s.push_str(&format!("| {}{} | {} |\n", c.cap, mark, fmt4(c.cal_acc)));
                 }
                 s.push('\n');
             }
@@ -2894,7 +3250,11 @@ mod threshold_migration_tests {
         let scores: Vec<f32> = (0..THIN_SUPPORT_FLOOR as i32)
             .map(|i| 0.05 + i as f32 * 0.05)
             .collect();
-        let rec = recommend_fused_gate(&obs(&scores), &obs(&scores), Posture::Percentile { rho: 0.30 });
+        let rec = recommend_fused_gate(
+            &obs(&scores),
+            &obs(&scores),
+            Posture::Percentile { rho: 0.30 },
+        );
         assert!(rec.score.is_some() && rec.distance.is_some());
     }
 }
@@ -2903,7 +3263,7 @@ mod threshold_migration_tests {
 mod cap_selection_tests {
     //! Issue 013 lever-1 protocol plumb — the selection law + the CLI parse.
 
-    use super::{parse_cal_select_caps, select_cap, CapCandidate, DEFAULT_CAL_SELECT_CAPS};
+    use super::{CapCandidate, DEFAULT_CAL_SELECT_CAPS, parse_cal_select_caps, select_cap};
 
     fn cands(pairs: &[(usize, f64)]) -> Vec<CapCandidate> {
         pairs
