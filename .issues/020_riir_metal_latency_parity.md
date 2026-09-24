@@ -10,7 +10,7 @@ oracle still has rust **losing p50 by ~10%** (massive_intent, banking77) while
 **winning p99** — and `code_fixtures` joins them (Bench 006 Addendum 3:
 same-run p50 **+7.4%** median over 8 rounds, max **+43%** — T8 attributed
 it to ONE long case, not a cold start). Its largest remaining lever (T5, per-case question batching)
-is IDENTIFIED from the reference's own source. **T9 (Bench 006 Addendum 4):** case 3 = 512 tokens; its gap is T5 batching first, GEMM at m ≥ 256 (T7) second, and attention is about even in total (new small T10). **T10 rung 1 LANDED** (riir-infer `0ec88a9`, Bench 006 Addendum 5): flash_attn's row softmax on one simdgroup per row — encoder −6…−8% at 188–512 tokens, 10/10 paired wins, G5 green. The T7 `XWIDE_N_MIN` 2048 → 1024 pick was A/B'd through the harness and is **NOT landed** (inside noise at stable load). Filed 2026-09-24 from the published arena table
+is IDENTIFIED from the reference's own source. **T9 (Bench 006 Addendum 4):** case 3 = 512 tokens; its gap is T5 batching first, GEMM at m ≥ 256 (T7) second, and attention is about even in total (new small T10). **T10 rung 1 LANDED** (riir-infer `0ec88a9`, Bench 006 Addendum 5): flash_attn's row softmax on one simdgroup per row — encoder −6…−8% at 188–512 tokens, 10/10 paired wins, G5 green. **T10 rung 3 LANDED** (riir-infer `14af99f`, Bench 006 Addendum 6): one-pass online softmax — encoder a further −1.7…−3.5%, 38/40 paired wins, G5 green. The T7 `XWIDE_N_MIN` 2048 → 1024 pick was A/B'd through the harness and is **NOT landed** (inside noise at stable load). Filed 2026-09-24 from the published arena table
 (`https://reflex.gist.rs/data/bench.json`, `git_sha 77c408e`, M3, release).
 Owner directive in-session: *"rust slower than python in p99 and other case
 … make rust faster as it should in all cost."* Two independent causes are
@@ -346,8 +346,19 @@ box this repo does not currently have.
             each; flash_attn kernel alone 0.79 → 0.62. G5 3×/arm
             deterministic, max prob drift ≤ 5.1e-6 (gate 1e-3), top-1 1.000.
             Load 7–9, AC, powermode 2 — ratios only (Bench 006 Addendum 5).
-      - [ ] Rung 2 — hoist rope-K into one pre-pass per layer.
-      - [ ] Rung 3 — one-pass online softmax (drop the pass-1 max walk).
+      - [ ] Rung 2 — hoist rope-K into one pre-pass per layer. Upside
+            SHRANK after rung 3 (K is now staged once per tile, not twice):
+            what is left is a coalesced `[h][64][seq]` read and dropping the
+            cos/sin loads. Needs a per-layer device scratch through
+            `AttnScratch`.
+      - [x] **Rung 3 — one-pass online softmax — LANDED riir-infer
+            `14af99f`** (taken before rung 2 because it halves the staging
+            rung 2 optimizes). Row max/sum in registers, accumulator
+            rescaled by one diagonal 8×8 MMA per tile. Encoder paired
+            patched/base **0.965 / 0.975 / 0.983 / 0.979** at 188 / 283 /
+            370 / 512 tokens, 38/40 wins; flash_attn kernel 0.98 → 0.82.
+            G5 deterministic, drift ≤ 6.1e-6, top-1 1.000 (Bench 006
+            Addendum 6 — AC, load 6.3–6.6, GPU canary clean; ratios only).
       On the 10 full-attention layers the fused kernel runs about **1.15
       ms/layer at 512 tokens (≈ 0.9 TF/s)**, against torch SDPA's
       **0.59 ms/layer (1.8 TF/s)**. Those layers scale quadratically as

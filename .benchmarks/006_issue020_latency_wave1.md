@@ -1,6 +1,6 @@
 # Bench 006 — Issue 020 waves 1–2: the first-forward cliff, per-forward waste, coalesced weight staging
 
-**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** + **Addendum 4 (Issue 020 T9: case 3 = 512 tokens; its gap is mostly T5 batching (1q→2q step flat at every length) + GEMM at m≥256 (T7); attention ≈ even in total — the earlier "13→42 ms non-GEMM jump" is retracted as a two-instrument subtraction artifact; load 6–11, ratios only)** + **Addendum 5 (T10 rung 1 LANDED riir-infer `0ec88a9`: encoder −6…−8%, 10/10 paired wins, G5 green; T7 `XWIDE_N_MIN=1024` harness A/B inside noise at stable load → NOT landed)** · baseline = `HEAD` in a DETACHED worktree
+**Status:** COMPLETE 2026-09-24 + Addendum 1 (battery disclosure) + **Addendum 2 (AC re-bench — supersedes §2/§3's small deltas: GEMM wide −9.5/−10%, narrow −21.5%, massive_intent ≈ −5% p50 over 10 rounds; same-run vs python: p99 wins, p50 still loses ~10%)** + **Addendum 3 (same-run `code_fixtures`: rust loses p50 +7.4% median over 8 rounds, max +43% — attributed by Issue 020 T8 to one long case (case 3, 231 ms every round), NOT a cold start)** + **Addendum 4 (Issue 020 T9: case 3 = 512 tokens; its gap is mostly T5 batching (1q→2q step flat at every length) + GEMM at m≥256 (T7); attention ≈ even in total — the earlier "13→42 ms non-GEMM jump" is retracted as a two-instrument subtraction artifact; load 6–11, ratios only)** + **Addendum 5 (T10 rung 1 LANDED riir-infer `0ec88a9`: encoder −6…−8%, 10/10 paired wins, G5 green; T7 `XWIDE_N_MIN=1024` harness A/B inside noise at stable load → NOT landed)** + **Addendum 6 (T10 rung 3 LANDED riir-infer `14af99f`: one-pass online softmax — encoder −1.7…−3.5%, 38/40 paired wins, flash_attn −2…−21% growing with length, G5 green; a first contended run discarded)** · baseline = `HEAD` in a DETACHED worktree
 (`/tmp/reflex_base`, its own `CARGO_TARGET_DIR`) · arm = this working tree ·
 M3, `--release`, `--features laya-riir-metal`, `LAYA_DEVICE=metal`,
 english checkpoint.
@@ -622,3 +622,57 @@ deterministic across runs within each arm.
 The new summation order moves drift by a few 1e-6 in either direction, still about 200× under the gate.
 `metal_ops_smoke` 7/7; clippy `-p riir-infer-laya --features laya-riir-metal
 --all-targets` clean. Probe driver: `006_probes/flash_ab.py`.
+
+## Addendum 6 (2026-09-24 14:45–14:52, Issue 020 T10 rung 3 — LANDED riir-infer `14af99f`)
+
+**One-pass online softmax in `flash_attn`.** The two-pass form's max-only
+pass re-staged every K tile (rope included) and re-ran every score MMA; now
+each tile is staged and scored ONCE, the row max / sum ride in registers
+(simdgroup `sg` owns row `sg`), and the accumulator is rescaled by
+`exp(m_old − m_new)` through ONE diagonal 8×8 MMA per tile (`dg`, +1 KB
+threadgroup staging → 30 592 B of 32 768). Rung 3 was taken before rung 2
+(the rope-K pre-pass) on purpose: it halves the K staging rung 2 would
+have optimized, so rung 2's remaining upside is only the coalesced read +
+the dropped cos/sin loads on ONE staging per tile.
+
+Same probe tree and driver as Addendum 5 §B (`006_probes/flash_ab.py`,
+detached worktrees of riir-infer `883ddd6` + riir-reflex `8028a10` (plus the sibling's uncommitted `runner.rs` `laya-riir-ane` cfg guard, without which `8028a10` does not build `--features laya-riir-metal`),
+`riir-infer-ktime-split.diff` on both arms; line counts `10,20,30,45` →
+188/283/370/512 tokens), 3 warm-ups, 10 rounds, order shuffled + pair order
+alternated. **Box: AC, powermode 2, load 6.3–6.6, GPU canary 147.9 µs vs
+141 µs reference; `bench_preflight.sh` REFUSED on the 6.0 load ceiling only
+— ratios, not absolutes.**
+
+| tokens | encoder base | encoder patched | paired B/A median | B wins | flash_attn A → B (`LAYA_KTIME`, serialized) | B/A |
+|---|---|---|---|---|---|---|
+| 188 | 43.4 | 42.1 | **0.965** | 8/10 | 7.62 → 7.49 | 0.983 |
+| 283 | 71.4 | 69.7 | **0.975** | 10/10 | 9.36 → 8.88 | 0.948 |
+| 370 | 88.4 | 86.8 | **0.983** | 10/10 | 11.42 → 9.05 | 0.793 |
+| 512 | 114.8 | 112.4 | **0.979** | 10/10 | 15.04 → 12.38 | 0.824 |
+
+Smaller than the kernel's two-pass cost suggested (the retired pass was
+~half the tile work): the rung-1 row softmax had already made the max pass
+cheap, and on the 18 sliding-window layers each query block walks only ~5
+key tiles, so the fixed per-block cost (Q staging, drain) dominates there.
+The saving grows with length because it lives in the 10 full-attention
+layers.
+
+⛔ **A first 10-round run (14:31–14:34) is DISCARDED** — the GPU canary read
+340 µs (2.4× its reference) because another session's
+`/tmp/ane_p1/release/harness --out .benchmarks/001_phase1_tables_metal`
+started at 14:32 inside the window. Its encoder columns were 2.2–2.5×
+Addendum 5's, and its ratios (0.970–1.003, 4–8/10 wins) are a contended
+measurement. The overlap cuts BOTH ways: that harness's Metal numbers from
+14:32–14:34 shared the GPU with this A/B.
+
+**G5** (`tests/laya_riir_parity.rs`, `LAYA_DEVICE=metal`), run on the probe
+tree and twice on the real trees — deterministic, identical digits:
+
+| checkpoint | top-1 | prob drift (rung 1, Addendum 5) | prob drift (rung 3) | gate |
+|---|---|---|---|---|
+| english | 26/26 | 1.90e-6 | 3.21e-6 | ≤ 1e-3 |
+| typed-decisions | 26/26 | 2.65e-6 | 1.09e-6 | ≤ 1e-3 |
+| multilingual | 36/36 | 5.10e-6 | 6.08e-6 | ≤ 1e-3 |
+
+`metal_ops_smoke` 7/7; clippy `-p riir-infer-laya --features laya-riir-metal
+--all-targets` clean. Output: `006_probes/flash_ab_r3.out`.
