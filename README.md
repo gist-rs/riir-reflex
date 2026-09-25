@@ -11,6 +11,21 @@ native-Rust under the G5 parity gate (88/88 forwards, top-1 agreement 1.000,
 probability drift ≤ 3.1e-6); the Phase-1 harness produces the honest
 per-task tables over BOTH lanes (T1.5).
 
+## Built on KatGPT-RS
+
+The decision core is [KatGPT-RS](https://github.com/katopz/katgpt-rs) — the public, MIT, modelless inference
+primitives this engine serves. From it (`katgpt-core`, `default-features =
+false`, path dep `../katgpt-rs`):
+
+- `decision_wire` — the typed `choice` / `score` / `noul` wire + abstention.
+- `sigmoid_calibration`, `exact_sigmoid` — calibrated sigmoid confidence.
+- `distance_abstain` — distance-based abstention.
+- `state_option_scoring`, `action_bridge` — option scoring + action mapping.
+- `compression_drafter`, `template_decode` — drafted / templated decode.
+- `variable_rank_domain_expert` — per-domain expert routing.
+
+riir-reflex consumes the core and never edits it (G3).
+
 ## Quick start
 
 ```sh
