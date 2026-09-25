@@ -7,6 +7,26 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue 030 (partial) — the noul route anti-alignment FIXED (bench 038):
+  prompt_injections 0.4397 → 0.4828.** The T7 option-rank blend reached
+  noul questions through the legacy `k == N` index path (by-name already
+  excluded noul); on prompt_injections (N = 2: `"0"` = benign,
+  `"1"` = injection; internal option order `[yes, no]`, yes = injection)
+  that mapped "yes, injection" onto the BENIGN centroid — an anti-signal
+  by construction, the exact signature of the recorded below-chance 0.4397
+  (chance 0.50; T7 Addendum 5's −4.3 pt). Fix: `route_active` requires a
+  Choice/Score question — noul never takes route terms through either
+  path. Blast radius: only `N == k == 2` noul engines (prompt_injections
+  is the only dataset suite in that shape; the serve edge is 7-domain).
+  A/B (modelless, deterministic lane, back-to-back same box): the changed
+  suite improves on every axis (ECE 0.1070 → 0.0228, acc@50 0.3966 →
+  0.6552, G1 PASS held); every other suite bit-identical;
+  `code_fixtures` wiggles are its self-referential corpus tracking this
+  repo's own source (disclosed in the bench). Regression pin:
+  `noul_never_takes_route_terms_even_when_k_equals_n`. Remaining in the
+  issue: lever-4 fitted heads (the feature-class arc), the residual
+  emotion −1.3 pt (deferred), and the full-table/arena republish (the
+  published modelless column is stale as of this fix).
 - **Issue 029 — the GLiNER comparison lane LANDED + first cells measured
   + published** (same-day arc on the 4090 window): the external
   fastino/GLiNER2.5-Decide zero-shot classifier (Apache-2.0, 340M

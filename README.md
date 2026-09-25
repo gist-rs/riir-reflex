@@ -216,7 +216,7 @@ the three-way table below for the current rows):
 | ag_news | 400 | 0.5100 | **0.9500** | 0.2 ms | 116 ms |
 | emotion | 400 | 0.2825 | **0.5925** | 0.1 ms | 66 ms |
 | sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 88 ms |
-| prompt_injections | 116 | 0.4397 | **0.6983** | 0.1 ms | 88 ms |
+| prompt_injections | 116 | 0.4828 ² | **0.6983** | 0.1 ms | 88 ms |
 | xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 99 ms |
 | massive_intent_en | 300 | 0.6900 ¹ | **0.7500** | 0.1 ms | 159 ms |
 | banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 249 ms |
@@ -225,6 +225,13 @@ the three-way table below for the current rows):
 ¹ Issue 023 (Bench 007): was 0.0767 — the option-rank centroid signal
 was off on this sampled-distractor suite. Modelless-only re-read; the
 laya columns are unchanged (deterministic lanes).
+
+² Issue 030 (Bench 038): was 0.4397 — BELOW the 0.50 chance floor. The
+T7 route blend reached noul questions through the legacy `k == N` index
+path, which on this 2-domain suite scored "yes, injection" against the
+BENIGN centroid — an anti-signal by construction. Noul questions never
+take route terms now; the modelless-only re-read restores the drafter
+posture (0.4828, ECE 0.1070 → 0.0228); laya columns unchanged.
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,
