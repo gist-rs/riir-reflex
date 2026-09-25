@@ -1,0 +1,2 @@
+PROVENANCE: power=AC Power load=2.92 swap=1078.44M canary=120.6us/best5 powermode=2(high)
+✓ preflight PASSED — quote the PROVENANCE line in the bench record

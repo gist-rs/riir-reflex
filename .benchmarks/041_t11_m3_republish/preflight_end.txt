@@ -1,0 +1,1 @@
+PROVENANCE: power=AC Power load=9.20 swap=1078.44M canary=132.8us/best5 powermode=2(high)
