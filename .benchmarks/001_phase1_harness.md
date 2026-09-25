@@ -2,7 +2,7 @@
 
 **Status:** COMPLETE 2026-09-22 · run commit `a50c751` · release profile ·
 M3 (macOS, CPU-only) · laya feature ON · datasets `.raw/datasets/`
-(blake3-digested in `.docs/dataset_manifest.md`) · regenerated artifacts
+(blake3-digested in `.docs/02_protocols/dataset_manifest.md`) · regenerated artifacts
 [`001_phase1_tables/TABLES.md`](001_phase1_tables/TABLES.md) +
 [`001_phase1_tables/results.json`](001_phase1_tables/results.json) ·
 CI lane `.github/workflows/harness_tables.yml` (dispatch-only).
@@ -13,7 +13,7 @@ CI lane `.github/workflows/harness_tables.yml` (dispatch-only).
 **byte-identical questions** (one `Suite`, two renderers): the modelless
 engine (`src/engine.rs`) and the G5-parity-gated laya lane
 (`src/laya/agent.rs`, three checkpoints). Metrics ported verbatim from
-`.docs/laya_bench_protocols.md` §5 (hard metrics, ECE-15 left-open/right-
+`.docs/02_protocols/laya_bench_protocols.md` §5 (hard metrics, ECE-15 left-open/right-
 closed, Brier multi-class, NLL, AURC, acc@50/80, soft/score extras).
 
 Per-suite protocol: typed_decisions ALL 400 rows (2000 questions);

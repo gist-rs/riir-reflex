@@ -722,7 +722,7 @@ already closed with records only in git history.
 - **Issue 010 — the agent-skill section (the laya-page steal:
   "Give your coding agent a decision engine")** CLOSED at `177156d` +
   `c65bfcd`-followed close (filed `4e7cc6c`; verdict fixes `c65bfcd`).
-  `.docs/agent-skill/SKILL.md` authored as the source of truth in-repo,
+  `.docs/04_agent_skill/SKILL.md` authored as the source of truth in-repo,
   versioned with the engine — every wire example captured against the real
   binary built from clean HEAD `2c6acb9` in the detached worktree
   `riir-reflex.w010`, not hand-written. Two traps measured live and taught:

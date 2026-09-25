@@ -6,7 +6,7 @@
 # paging until a page returns fewer than 100 rows or the suite's row cap is
 # hit. Companion probes (/splits, /size) land beside the pages as splits.json
 # / size.json. .raw/ is gitignored; re-running regenerates the files (the
-# committed manifest .docs/dataset_manifest.md records their blake3 digests,
+# committed manifest .docs/02_protocols/dataset_manifest.md records their blake3 digests,
 # byte sizes and row counts).
 #
 # Idempotent: an existing page file with the row count its position expects is
@@ -378,7 +378,7 @@ main() {
     log ""
     log "summary: files=$FILES rows=$ROWS failed_requests=$FAILED"
     if [ "$FAILED" -gt 0 ]; then
-        log "FAILURES PRESENT — see FAIL lines above and .docs/dataset_manifest.md Gaps"
+        log "FAILURES PRESENT — see FAIL lines above and .docs/02_protocols/dataset_manifest.md Gaps"
         exit 1
     fi
 }

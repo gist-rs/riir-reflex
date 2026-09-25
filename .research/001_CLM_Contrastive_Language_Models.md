@@ -3,7 +3,7 @@
 > **Source:** blog <https://contrastive-lm.notion.site> ("Contrastive Language Models: A System One Model for Fast and Generalizable Decision-Making", Kwok, Kang, Suresh, Saad-Falcon, Pavone, Ré, Mirhoseini — posted 2026-09-23) · github.com/Contrastive-LM/CLM @ `cca045ffdb07b3ebcfe6938537cdeac5e14899c9` (Apache-2.0, full-tree read in `.raw/`, clone deleted after this pin) · HF org `Contrastive-LM` (models `CLM-v0.1-8B` + `deepswe-clm-heads-8k`; datasets `CLM-v0.1-Pretrain-Nemotron` 62.5M rows + `deepswe-clm-train-embeddings-8k` 406k rows — **precomputed embeddings shipped**), all Apache-2.0 per README.
 > **Date:** 2026-09-24
 > **Status:** DISTILLED — pending owner decision (files `.issues/019_clm_lane_reference_design.md`, the actionable half)
-> **Lineage:** Research 562 (TypeSafe Jev, katgpt-rs) → 573 (CUA-S1 open specialist recipe; choice_scorer PoC REFUTED at 101 contexts, reopen = 10⁴–10⁵) → 576 (Laya open generalist, RLCD recipe, pinned at `.docs/laya_reference_pin.md`) → **CLM** (the first open *contrastive* System One; Jev-compatible wire; beats Jev-as-verifier on long-horizon agentic benchmarks at 4–9× lower latency).
+> **Lineage:** Research 562 (TypeSafe Jev, katgpt-rs) → 573 (CUA-S1 open specialist recipe; choice_scorer PoC REFUTED at 101 contexts, reopen = 10⁴–10⁵) → 576 (Laya open generalist, RLCD recipe, pinned at `.docs/02_protocols/laya_reference_pin.md`)) → **CLM** (the first open *contrastive* System One; Jev-compatible wire; beats Jev-as-verifier on long-horizon agentic benchmarks at 4–9× lower latency).
 > **Classification:** Public sources; distillation internal.
 
 ## TL;DR

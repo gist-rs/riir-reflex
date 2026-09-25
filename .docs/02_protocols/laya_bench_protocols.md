@@ -253,7 +253,7 @@ T4 numbers were produced with the clamped value. `temperature[qt]` indexes the
 per-type list in QTYPES order (choice=0, score=1, noul=2).
 
 Shipped values (from `t4_colab_benchmark.json` `meta.models`, byte-pinned in
-`.docs/laya_reference_pin.md`):
+`.docs/02_protocols/laya_reference_pin.md`):
 
 | checkpoint | max_len / head_max_len | temperature | temperature_by_options |
 |---|---|---|---|

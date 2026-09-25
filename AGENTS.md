@@ -74,7 +74,7 @@ dated amendment, owner directive 2026-09-22).
 ```
 
 Path deps in `Cargo.toml` assume this layout. Move the repo → update the
-path dep + this table. Full dependency law: `.docs/sibling_layout.md`.
+path dep + this table. Full dependency law: `.docs/01_orientation/sibling_layout.md`.
 
 ## Build Commands
 
@@ -304,9 +304,9 @@ T1.1–T1.8 all landed. The last two:
   deltas on emotion (−1.3 pt) and prompt_injections (−4.3 pt), recorded
   both ways in the Bench 001 addendum (published, never gated). Datasets:
   HF datasets-server `/rows` JSON (`scripts/fetch_datasets.sh`,
-  blake3-digested in `.docs/dataset_manifest.md`); banking77 via the
+  blake3-digested in `.docs/02_protocols/dataset_manifest.md`); banking77 via the
   `mteb/banking77` mirror (PolyAI is script-based and unservable — recorded
-  in Gaps). Metrics port verbatim from `.docs/laya_bench_protocols.md` §5.
+  in Gaps). Metrics port verbatim from `.docs/02_protocols/laya_bench_protocols.md` §5.
   **Two measured lessons the first run paid for:** (a) the fused-gate birth
   thresholds (0.35/0.5) do NOT transfer — they abstained 64–100% on
   real-corpus suites, so the harness FITS both thresholds per suite at the
@@ -321,7 +321,7 @@ T1.1–T1.8 all landed. The last two:
   as n/a, never as perfect).
 - **T1.8 docs closure LANDED 2026-09-22** — this file, README (results +
   honest reading), the katgpt-rs `decision_wire` catalog note (the
-  substrate's consumer), and the `.docs/dataset_manifest.md` banking77
+  substrate's consumer), and the `.docs/02_protocols/dataset_manifest.md` banking77
   resolution. The `structured_reads` root promotion line is correctly NOT
   pulled: the engine consumes the drafter/routing/calibration substrate,
   never `structured_read` (the recorded re-arm trigger stays armed).
@@ -551,6 +551,42 @@ a bench file's numbers ARE its artifact.
   first-order arm on this laptop and was recorded by nothing until
   2026-09-24 (Bench 006 Addendum 1). General rule: katgpt-rs AGENTS.md
   §Feature Flag Discipline G2 box-state bullet.
+
+## Documentation Shape
+
+A **numbered-folder `.docs/` book** (the fleet format — `katgpt-rs/.docs/` is
+the reference): numbered folders for sort order, bare slugs inside, a
+`README.md` index per folder, and `.docs/README.md` as the top-level index.
+
+| Folder | Scope |
+|---|---|
+| `01_orientation/` | Repo orientation (the sibling dependency-graph artifact) |
+| `02_protocols/` | The laya lane's contracts: bench protocols, reference pin, dataset manifest |
+| `03_decision_flow/` | The decision-flow narrative + SVG diagram |
+| `04_agent_skill/` | The `reflex-integration` agent skill (source of truth) |
+
+- Files inside numbered folders have **no number prefix** — bare slugs
+  (`sibling_layout.md`). Add a doc by dropping `slug.md` in the right folder
+  + one line in that folder's `README.md` index table.
+- The shape is gate-enforced: `scripts/docs_shape_gate.py` walks the tree
+  (root index, `NN_` dir names, per-folder README, every doc indexed, walk
+  floors) and is wired into `scripts/ci_feature_guard.sh` as layer 8.
+
+**Site mirror law.** `.docs/03_decision_flow/decision_flow.svg` and
+`.docs/04_agent_skill/SKILL.md` are published on reflex.gist.rs through
+MIRRORS in `../reflex-site` (`assets/decision_flow.svg`,
+`skills/reflex-integration/SKILL.md`). The `.docs/` copies are the **source
+of truth**; the site is the mirror. After editing either: run
+`python3 ../reflex-site/scripts/sync_mirror.py`, then commit **both** repos.
+The guard's mirror layer (layer 9, `sync_mirror.py --check`) fails on drift
+and skips loud (visible line, final-line disclosure) without the sibling
+checkout — a skip is a deferral, never a green.
+
+**Bench republish.** After any bench-affecting landing, re-publish the site:
+the home-page TL;DR + averaged chart AND the `/bench/` tables ALL render from
+`data/bench.json`, so republishing is what updates the home page. Wrapper:
+`../reflex-site/scripts/republish_bench.sh`; manual steps in the
+`../reflex-site` README §"Regenerate the tables".
 
 ## Numbering Discipline
 

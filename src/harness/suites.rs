@@ -1,5 +1,5 @@
 //! Suite builders from HF datasets-server `/rows` JSON row files
-//! (`.docs/laya_bench_protocols.md` §3, Plan 603 T1.5). Pure: takes the
+//! (`.docs/02_protocols/laya_bench_protocols.md` §3, Plan 603 T1.5). Pure: takes the
 //! parsed envelope `{"features": [...], "rows": [{"row_idx": N, "row": {...}}]}`
 //! and returns cases; no fetch, no I/O, no engine/laya imports.
 //!

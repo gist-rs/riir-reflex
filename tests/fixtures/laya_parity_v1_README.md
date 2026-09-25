@@ -7,7 +7,7 @@ expected-outputs file must record this hash of the questions it was captured aga
 - `checkpoints` names which of the three laya checkpoints the row runs on: 26 forwards per
   english-lane checkpoint, 36 for multilingual (98 total — a seconds-scale capture run).
 - Coverage is deliberate (every row targets a parity hazard from
-  `.docs/laya_reference_pin.md`): all temperature buckets incl. `choice:11+` (the shipped
+  `.docs/02_protocols/laya_reference_pin.md`): all temperature buckets incl. `choice:11+` (the shipped
   0.1006 the reference clamps to 0.5) and `score:2` (falls back to `temperature[1]`), the
   k=1 single-option forward (the #96 shape), structured/`None`/`0`/`False` criterion
   renders (Python-JSON byte format), dict/list state serialization, `[MASK]`/`<mask>`
@@ -20,7 +20,7 @@ expected-outputs file must record this hash of the questions it was captured aga
 - Expected outputs are **captured from the reference Python stack** (one-time, at pin
   time — the reference side of G5, not lane Python) into
   `tests/fixtures/laya_parity_expected_v1.json`, which records: this file's BLAKE3, the
-  checkpoint pins from `.docs/laya_reference_pin.md`, per-row logits, probabilities,
+  checkpoint pins from `.docs/02_protocols/laya_reference_pin.md`, per-row logits, probabilities,
   confidence, and the reference's own temperature resolution per question.
 - The Rust parity test (a `[[test]]` row, `required-features = ["laya"]`, same commit as
   the port code) replays both files and asserts **top-1 agreement >= 99.9% + probability

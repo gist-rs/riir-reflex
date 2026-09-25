@@ -1,4 +1,4 @@
-//! Metric definitions ported verbatim from `.docs/laya_bench_protocols.md` §5
+//! Metric definitions ported verbatim from `.docs/02_protocols/laya_bench_protocols.md` §5
 //! (Plan 603 T1.5). Pure f64 math over already-calibrated probabilities — no
 //! engine, no laya, no I/O, no sibling imports. Every public function is a
 //! known-answer unit test target in `tests/harness_units.rs`.
