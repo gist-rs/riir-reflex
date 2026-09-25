@@ -1,0 +1,9 @@
+PROVENANCE: power=AC Power load=2.87 swap=1054.44M canary=120.9us/best5 powermode=2(high)
+
+suite                  ckpt            rust p50    py p50     Δp50  rust p99    py p99     Δp99  sup  verdict
+banking77              english            55.0      58.0    -5.2%      66.0      76.0   -13.2%    6  p50 WIN  p99 WIN  acc 0.498/0.498
+
+cells 1: p50 wins 1 losses 0 · p99 wins 1 losses 0 · ties(±2%) 0
+EVERY-CELL BAR: MET on this paired sample (no cell behind, no tie band losses)
+(paired per-suite sample — quote WITH the preflight line; a single
+ sample is one sample: rerun before acting on any within-tol cell)

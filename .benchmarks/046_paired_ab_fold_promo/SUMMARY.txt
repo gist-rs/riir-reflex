@@ -1,0 +1,18 @@
+⛔ (no preflight — PAIRED_AB_NO_PREFLIGHT=1, NOT FOR PUBLICATION)
+PROVENANCE: power=AC Power load=1.76 swap=1054.44M canary=120.7us/best5 powermode=2(high)
+
+suite                  ckpt            rust p50    py p50     Δp50  rust p99    py p99     Δp99  sup  verdict
+ag_news                english            24.0      25.0    -4.0%      44.0      56.0   -21.4%    5  p50 WIN  p99 WIN  acc 0.950/0.950
+banking77              english            55.0      58.0    -5.2%      66.0      76.0   -13.2%    6  p50 WIN  p99 WIN  acc 0.498/0.498
+emotion                english            14.0      17.0   -17.6%      19.0      38.0   -50.0%    5  p50 WIN  p99 WIN  acc 0.593/0.593
+massive_intent_en      english            37.0      36.0    +2.8%      46.0      54.0   -14.8%    4  p50 LOSS p99 WIN  acc 0.750/0.750
+sst5                   english            18.0      20.0   -10.0%      24.0      41.0   -41.5%    7  p50 WIN  p99 WIN  acc 0.372/0.372
+typed_decisions        english           313.0     256.0   +22.3%     513.0     423.0   +21.3%    5  p50 LOSS p99 LOSS acc 0.357/0.357
+typed_decisions        multilingual      130.0     122.0    +6.6%     231.0     241.0    -4.1%    5  p50 LOSS p99 WIN  acc 0.349/0.349
+typed_decisions        typed             276.0     261.0    +5.7%     491.0     525.0    -6.5%    5  p50 LOSS p99 WIN  acc 0.745/0.745
+xnli_en                english            19.0      23.0   -17.4%      25.0      46.0   -45.7%    4  p50 WIN  p99 WIN  acc 0.860/0.860
+
+cells 9: p50 wins 5 losses 4 · p99 wins 8 losses 1 · ties(±2%) 0
+EVERY-CELL BAR: NOT met — behind at: massive_intent_en/english, typed_decisions/english, typed_decisions/multilingual, typed_decisions/typed
+(paired per-suite sample — quote WITH the preflight line; a single
+ sample is one sample: rerun before acting on any within-tol cell)

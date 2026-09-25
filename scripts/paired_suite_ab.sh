@@ -53,6 +53,12 @@ if [ "${PAIRED_AB_NO_PREFLIGHT:-0}" != "1" ]; then
         echo "REFUSE — the box failed its preflight; no paired table from this state" >&2
         exit 1
     fi
+    # the PASSED posture is the publication posture — provenance.txt must
+    # carry the real PROVENANCE line, never the no-preflight default (the
+    # first publication-grade run rendered its summary with the ⛔ marker
+    # beside a PASSED preflight — the marker and the evidence disagreed)
+    line=$(sh scripts/bench_preflight.sh 2>/dev/null | grep '^PROVENANCE:' | head -1)
+    PROVENANCE="PROVENANCE (paired_suite_ab): ${line#PROVENANCE: }"
 else
     echo "⚠ PAIRED_AB_NO_PREFLIGHT=1 — the run's numbers are NOT FOR PUBLICATION"
 fi
@@ -77,6 +83,7 @@ echo "paired per-suite A/B → $OUT_DIR"
 echo "suites: $SUITES"
 i=0
 for suite in $(echo "$SUITES" | tr ',' ' '); do
+    mkdir -p "$OUT_DIR/$suite/both" "$OUT_DIR/$suite/py" "$OUT_DIR/$suite/rust"
     if [ $((i % 2)) -eq 0 ]; then
         echo "[$suite] even → one run, rust laya first then py"
         "$HARNESS" --suites "$suite" --laya-python --out "$OUT_DIR/$suite/both" \

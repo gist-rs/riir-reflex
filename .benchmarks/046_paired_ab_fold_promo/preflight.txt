@@ -1,0 +1,10 @@
+ok   power        AC
+ok   powermode    2 (High Power)
+info last power transition: 2026-09-25 18:26:12 (Using AC)
+ok   settle       on AC 623 min (>= 5)
+ok   load         1.76 (ceiling 6.0)
+warn swap used   1054.44M — paging can masquerade as a slow kernel
+ok   canary       120.7 us best-of-5 vs ref 141 us
+
+PROVENANCE: power=AC Power load=1.76 swap=1054.44M canary=120.7us/best5 powermode=2(high)
+✓ preflight PASSED — quote the PROVENANCE line in the bench record
