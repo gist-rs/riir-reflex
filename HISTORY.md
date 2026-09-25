@@ -5,6 +5,74 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-26
+
+- **Issues 032 + 034 CLOSED — the head-select publish landed both hosts
+  full-lane; the publisher wipe's real mechanism measured + walled.**
+  - **Issue 034's finding CORRECTED by re-measurement (the session's
+    central result):** the lane wipe lives on the FRESH-DOCS publish path
+    (`publish_bench.py <doc1> <doc2> <site>` — 15→14 suites, 85→14 cells,
+    123 slots dropped, reproduced against the live table), NOT on the
+    update path the original issue blamed: `host_lane_entry`'s
+    `setdefault` returns the EXISTING container for any known host — an
+    update writes its slots in place and every undeclared lane survives
+    (verified with live-as-primary + both docs: 15 suites / 3 hosts /
+    every comparison + ane cell intact). The REAL both-docs-together
+    constraint is the Issue 018 T7 drift gate (published m3 modelless was
+    pre-head-select 0.69-class vs the fresh 0.7933 — measured refusal).
+    The issue-as-filed code-quote mechanism was wrong; the owner's
+    option-3 decision survived the correction (fresh re-runs still
+    wanted) but the comparison servers were never needed for this
+    publish — the published clm/gliner/agentjev cells ride along
+    untouched.
+  - **The wall landed** (reflex-site `1bc4bab`):
+    `guard_wholesale_replace` + `lane_inventory` refuse a fresh-docs
+    publish that would drop published slots (real-table refusal names
+    the 123), `PUBLISH_BENCH_FULL_REPLACE=1` acknowledges a deliberate
+    replacement with a disclosure, the update path never walls
+    (resolved-path compare), self-test 17→21/21 (refuse / env-acknowledge
+    / update-path-bypass / laya-checkpoint-inventory arms); README
+    publish-shape law `cd08984`.
+  - **Bench 045 — the M3 full-lane leg** (`--head-select --laya-python
+    --features slice_leak,laya-riir,laya-riir-metal`, reflex `6939420` +
+    riir-infer `53334f9`, preflight AC/high load 3.21→2.21, 15/15
+    suites): head selections identical to 040/043/044 (four-run);
+    banking77 0.6840 / massive 0.7933 bit-identical again; 7/7 leak
+    blocks byte-identical to the 4090's Bench 044 (the scan is a
+    dataset+cap property — two-host fact); typed/english 309 ms vs the
+    published 367 (the fold promotion visible).
+  - **Bench 047 — the 4090 full-lane leg** (`--head-select --features
+    slice_leak,laya-riir-cuda` at d727196, launched detached via a
+    schtasks one-shot after two Start-Process deaths — the ssh session
+    kills its process tree; box-state UNJUDGED by design): 15/15
+    suites, cross-host modelless BIT-IDENTICAL to 045, selections
+    identical, third leak confirmation, typed/english CUDA 105 ms p50.
+  - **The publish + deploy + live verify** (reflex-site `1e27741`, worker
+    `b086cf74`): `republish_bench.sh` full chain (self-test → chart
+    smoke → publish → mirror parity → bench-page smoke PASSED), live
+    curl verified — 15 suites / 3 hosts, m3 lane_sources `6939420`,
+    comparisons + ane rows alive, `harness_cache_reuse` present (the
+    034 reappearance checkpoint confirmed).
+  - **Issue 024 T5's host halves both landed** (045 M3 + 047 4090 with
+    Bench 044's 4090 run); the issue stays open on the laya-lane
+    de-leaked tail only.
+  - **Issue 020 T11's fold rung PROMOTED default-on** (riir-infer
+    `53334f9`): `LAYA_METAL_FOLD_RES`/`_GLU` flip to the `!= Ok("0")`
+    kill-switch spelling on the paired A/B's evidence — 24/24 wins on
+    every shape within the split rule's reach (medians −1.5…−5.9%), the
+    no-op control flat at 1.002/1.001 above the crossover, bit gates +
+    G5 both postures green. **Bench 046 — the paired per-suite A/B's
+    first publication-grade run:** the stable band FLIPPED to wins
+    (ag_news −4.0% / banking77 −5.2% / emotion −17.6% / sst5 −10.0% /
+    xnli_en −17.4% p50; p99 8/9; banking77 reproduced byte-identical on
+    a second paired sample); the every-cell bar's remaining deficit is
+    the typed_decisions trio (english +22.3% p50 AND p99 — the only
+    double loss) + massive_intent_en +2.8% (within-tol, sup 4 — rerun
+    before calling). Instrument repairs found BY the run: per-suite dirs
+    pre-created (the log redirect died pre-measurement) +
+    provenance.txt carried the NOT-FOR-PUBLICATION default even when
+    preflight PASSED (marker and evidence disagreeing).
+
 ## 2026-09-25
 
 - **Issue close-out sweep 2026-09-25 #2 (this commit) — Issue 007 removed;
