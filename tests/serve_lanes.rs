@@ -145,7 +145,7 @@ fn modelless_lane_spelling_serves_modelless() {
 /// the one request shape where the default and raw lanes visibly differ —
 /// the head answers it by default, the raw engine abstains off its corpus.
 fn first_fixture_sentence() -> String {
-    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl").lines() {
+    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl").lines() {
         let v: serde_json::Value = serde_json::from_str(line).expect("fixture line parses");
         if v["state_id"] == "_meta" {
             continue;

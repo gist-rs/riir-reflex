@@ -2,7 +2,7 @@
 //!
 //! Pins, in order of what they protect:
 //! 1. the fixture bytes (the cross-repo data contract — the embedded copy
-//!    is katgpt-rs `tests/fixtures/tetris_oracle_laya_en_v2.jsonl`);
+//!    is katgpt-rs `tests/fixtures/tetris_oracle_laya_en_v3.jsonl`);
 //! 2. the grammar port (every corpus sentence decodes and re-renders
 //!    byte-identically — the same drift detector the katgpt-rs side runs);
 //! 3. the fit (bit-deterministic; the published Bench 881 decoded-arm
@@ -35,9 +35,11 @@ const TETRIS_V4_FILE_BLAKE3: &str =
 /// 2026-09-23 on the M3 Max, release profile). The fit recipe is pinned by
 /// THESE numbers + the digest determinism, not by a copied weight table.
 const ANCHOR_LAMBDA: f64 = 1.0;
-const ANCHOR_IN_CORPUS: usize = 44;
-const ANCHOR_LOO: usize = 44;
+const ANCHOR_IN_CORPUS: usize = 42;
+const ANCHOR_LOO: usize = 42;
 const N_STATES: usize = 120;
+
+
 
 #[test]
 fn fixture_bytes_match_the_pinned_blake3() {
@@ -96,7 +98,7 @@ fn corpus_round_trip_is_byte_identical() {
     let heads = GameHeads::build();
     let g = *heads.grammar();
     let mut n = 0usize;
-    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl").lines() {
+    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl").lines() {
         let v: serde_json::Value =
             serde_json::from_str(line).unwrap_or_else(|e| panic!("fixture line: {e}"));
         if v["state_id"] == "_meta" {
@@ -126,7 +128,7 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
         .count();
     assert_eq!(
         loo_agree, ANCHOR_LOO,
-        "LOO agreement drifted from Bench 881"
+        "LOO agreement drifted from the v3 refit (Bench 892)"
     );
 
     let head = fitter.fit_into(&corpus.rows, &corpus.targets, lambda);
@@ -137,7 +139,7 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
             in_agree += 1;
         }
     }
-    assert_eq!(in_agree, ANCHOR_IN_CORPUS, "in-corpus agreement drifted");
+    assert_eq!(in_agree, ANCHOR_IN_CORPUS, "in-corpus agreement drifted from the v3 refit (Bench 892)");
 
     // Determinism: a fresh fit from the same corpus is byte-identical.
     let (corpus2, _) = parse_corpus();
@@ -165,7 +167,7 @@ use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
 fn first_fixture_sentence() -> (String, usize) {
-    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl").lines() {
+    for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl").lines() {
         let v: serde_json::Value = serde_json::from_str(line).expect("fixture line parses");
         if v["state_id"] == "_meta" {
             continue;

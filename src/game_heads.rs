@@ -60,13 +60,17 @@ use katgpt_core::decision_wire::{
 use katgpt_core::state_option_scoring::head::{FittedHead, HeadFitter};
 use katgpt_core::template_decode::{DecodeError, Grammar, Seg, Template, Vocab};
 
-/// The tetris oracle fixture, verbatim from katgpt-rs `tests/fixtures/`
-/// (Plan 607 T0b + T3). Pinned by BLAKE3 in the serve tests.
-const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v2.jsonl");
+/// The tetris oracle fixture, verbatim from katgpt-rs `tests/fixtures/` —
+/// the **v3** grammar (Issue 884's real hard drop; the arena serves v3 and
+/// the head must be fitted on the distribution it scores — the v2-fitted
+/// head measured raw-class play under v3 sentences, demo re-record
+/// 2026-09-25). Pinned by BLAKE3 in the serve tests.
+const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl");
 
-/// BLAKE3 of [`TETRIS_FIXTURE`] — the cross-repo data contract.
+/// BLAKE3 of [`TETRIS_FIXTURE`] — equals the published v3 fixture pin
+/// `12035ebf…6e804` (katgpt-rs tetris_oracle_v3_README).
 pub const TETRIS_FIXTURE_BLAKE3: &str =
-    "f32c8577bca50726618d2bb4fb27c904148161d650f16a59c01676a97fa540bb";
+    "12035ebf43d0293c7ec00e716e72ee6a21686cc41a222938a81d0abd9316e804";
 
 /// The lanes oracle fixture, verbatim from katgpt-rs `tests/fixtures/`
 /// (Plan 607 T5 / Bench 880).
