@@ -1969,6 +1969,24 @@ fn run_laya_checkpoint(
         cases = &suite.cases[..cut];
     }
 
+    // GPU pre-ramp (Issue 020): the first measured case after a fresh load
+    // pays the Metal pipeline compile (the python oracle pays its MPS graph
+    // compile the same way), which is the recorded cold-first-suite
+    // signature — the process's first suite inflated across runs. One
+    // unmeasured warmup case per (suite, checkpoint) load compiles the
+    // exact pipelines the timed loop then uses. `LAYA_HARNESS_NO_WARMUP=1`
+    // restores the cold posture (the measurement, not the default).
+    if laya_gpu_preramp_enabled()
+        && let Some(first) = cases.first()
+    {
+        let warm_q = case_questions(first);
+        match agent.system_one(&first.state, &warm_q) {
+            Ok(_) => eprintln!("  [laya {ckpt}] gpu pre-ramp: 1 unmeasured warmup case"),
+            Err(crate::laya::LayaError::Bucket { .. }) => {}
+            Err(e) => return Err(format!("laya warmup ({ckpt}): {e}")),
+        }
+    }
+
     let mut probs = Vec::with_capacity(cases.len());
     let mut picks = Vec::with_capacity(cases.len());
     let mut confs = Vec::with_capacity(cases.len());
@@ -1985,16 +2003,7 @@ fn run_laya_checkpoint(
     let mut bucket_skipped_cases: Vec<&str> = Vec::new();
 
     for (ci, case) in cases.iter().enumerate() {
-        let mut questions: Vec<(String, Value)> = Vec::with_capacity(case.questions.len());
-        for q in &case.questions {
-            let mut def = serde_json::Map::new();
-            def.insert("type".into(), Value::String(q.kind.as_str().into()));
-            def.insert("instructions".into(), Value::String(q.instructions.clone()));
-            if !q.criteria.is_null() {
-                def.insert("criteria".into(), q.criteria.clone());
-            }
-            questions.push((q.qid.clone(), Value::Object(def)));
-        }
+        let questions = case_questions(case);
         let t0 = Instant::now();
         let answers = match agent.system_one(&case.state, &questions) {
             Ok(a) => a,
@@ -2383,6 +2392,20 @@ fn run_laya_python_checkpoint(
         cases = &suite.cases[..cut];
     }
 
+    // GPU pre-ramp (Issue 020), the oracle half: the first measured case
+    // pays the reference's MPS graph compile — the same cold-first-suite
+    // signature the riir lane's warmup addresses. One unmeasured case per
+    // (suite, checkpoint) subprocess; `LAYA_HARNESS_NO_WARMUP=1` restores
+    // the cold posture.
+    if laya_gpu_preramp_enabled()
+        && let Some(first) = cases.first()
+    {
+        send_case(&mut stdin, first)?;
+        let mut line = String::new();
+        read_line(&mut reader, &mut line)?;
+        eprintln!("  [laya-python {ckpt}] gpu pre-ramp: 1 unmeasured warmup case");
+    }
+
     let mut probs = Vec::with_capacity(cases.len());
     let mut picks = Vec::with_capacity(cases.len());
     let mut confs = Vec::with_capacity(cases.len());
@@ -2506,6 +2529,29 @@ fn run_laya_checkpoint(
     _leak_flags: Option<&[bool]>,
 ) -> Result<(LaneResult, Vec<String>), String> {
     Err("laya-riir feature off".to_string())
+}
+
+/// GPU pre-ramp switch (Issue 020): default ON; `LAYA_HARNESS_NO_WARMUP=1`
+/// is the explicit cold-posture opt-out (only the literal truthy spelling
+/// disables — a typo must not silently restore the cold lane).
+fn laya_gpu_preramp_enabled() -> bool {
+    std::env::var("LAYA_HARNESS_NO_WARMUP").ok().as_deref() != Some("1")
+}
+
+/// The wire form of one suite case's questions, shared by the timed loop
+/// and the pre-ramp warmup (identical construction, one home).
+fn case_questions(case: &SuiteCase) -> Vec<(String, Value)> {
+    let mut questions: Vec<(String, Value)> = Vec::with_capacity(case.questions.len());
+    for q in &case.questions {
+        let mut def = serde_json::Map::new();
+        def.insert("type".into(), Value::String(q.kind.as_str().into()));
+        def.insert("instructions".into(), Value::String(q.instructions.clone()));
+        if !q.criteria.is_null() {
+            def.insert("criteria".into(), q.criteria.clone());
+        }
+        questions.push((q.qid.clone(), Value::Object(def)));
+    }
+    questions
 }
 
 // ── the CLM comparison lane (Issue 019 T3 / .issues/027) ─────────────
