@@ -7,6 +7,73 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue close-out sweep 2026-09-25 (this commit) — six done issues removed
+  from `.issues/`, their records here.** Live-verified before removal:
+  `reflex.gist.rs/data/bench.json` is byte-identical to reflex-site HEAD
+  (`cb0eaf7`) and carries the clm (15), gliner (15) and agentjev (14) lane rows
+  — so the "site DEPLOY, M3-gated" remains in 025/027/029 were already
+  discharged by the Bench 041 republish deploy.
+  - **Issue 017 CLOSED — the ANE lane (laya-apple distill).** Gate 1 ratified
+    at feasibility+bench scope (release scope: download-on-demand,
+    digest-pinned); P0 six BC1S FP16 artifacts 100%-ANE / 0 transitions
+    (`de3de3e`+`53df6e1`); P1 substrate runtime riir-infer `78a91c3`+`5c8ec2a`,
+    G5-ANE 76/76 top-1 zero flips (`2169ed1`); P2 publish inside the 023 T5
+    republish (site `3ab373f`, worker `cde063c2`, Plan 002 closed `957b87b`);
+    serve wiring reflex `c2df053` + substrate fetch `1cbbb6e` (`5a71c61`).
+    Defers carried as posture: (a) heterogeneous ANE+Metal two-queue serving
+    (the 2.9–4.6× class) waits on Issue 015's parallel-instance root cause +
+    a site posture plan; (b) the "defer the typed ANE conversion" row was in
+    fact discharged by P0 (all three models, english/typed/multilingual,
+    converted). Artifact HOSTING (who uploads the 1.3 GB where) is an owner
+    ops act; the client side is ready.
+  - **Issue 023 CLOSED — option-NAME route for the modelless centroid signal**
+    (`d02f3a8`: massive 0.077 → 0.690, G1 FAIL → PASS; 12 suites
+    byte-identical). T4 cap re-selection declined promotion; T5 the
+    together-republish (site `3ab373f`, worker `cde063c2`, `3d4f7ce`); T6
+    pair-head refutation stands (`e8ee043`); T7 stale-verdict sweep
+    (`a21ed07`).
+  - **Issue 025 CLOSED — AgentJev / System-One positioning.** Bench-doc rows
+    verified at the pinned sha `a965ca8f`; the MEASURE row landed as Bench 039
+    (`1e5847a`): gold-label typed_decisions **0.7715** vs laya-typed 0.7445
+    (+2.7 pt, the published ranking survives the protocol change); 15-suite
+    shape 3 agentjev / 7 laya / 4 gliner; site column `12ab4bb` (`3f80d95`),
+    live. **DEFERRED (owner-gated verdict 2026-09-24, `#Verdict: AGREE`):**
+    the lane-3 serving port of `aimeigaoshou/agent-jev` through riir-infer.
+    Reopen triggers (checkable): riir-infer op-layer T7 AND the EXL3 trellis
+    lane AND the ANE lane each closed, OR the first production consumer of
+    `Lane::Hybrid` lands. Non-goal stands: no shared-prefix work without a
+    causal decision lane to host it.
+  - **Issue 027 CLOSED — the CLM T3 4090 window** (Bench 034, `b67eeb8`,
+    renumbered `904a5c1`; Rust halves `967415c`): determinism pin GREEN (8/8
+    byte-identical, head mtime unchanged), CLM cells on all 15 suites, leak
+    columns rode the publish; the riding AgentJev row executed as Bench 039.
+    **Window laws for the next 4090 CLM run (Issue 019 T4 inherits them):**
+    never beside the perf-league cycles or a laya CUDA pass (the first
+    combined attempt stuck ~13 min under VRAM contention and was discarded —
+    run SERIALIZED passes); `--gpu-memory-utilization 0.72`, not 0.35 (bf16
+    weights alone are 14.11 GiB on a 24 GB card); send one fixed warmup
+    request first (the first request after a `clm-serve` boot reports
+    `usage.input_tokens = 0`); same-box latency law (no CLM-4090 vs
+    laya-M3 latency comparison); the "9× vs Jev" figure never enters our
+    tables. Boot script: `scripts/clm_serve_4090.sh`. Code comments citing
+    `.issues/027` resolve here.
+  - **Issue 029 CLOSED — the GLiNER comparison lane** (`7ad656e` lane + Bench
+    037 first cells, `a2c03aa` landscape row, `e04b586`/`fa86b46`): gliner
+    beats the laya BASE checkpoints on 9/15 suites; site deploy verified live
+    (above). The publisher-owner cosmetic question (the 4090-win per-host
+    header keeps the ORIGINAL run's sha `afacc3a` beside newer lanes) —
+    DECIDED (Claude verdict under the standing owner delegation): **keep the
+    Issue 023 T5 law** — the header records the original run's facts; the
+    per-lane truth is `lane_sources`; no publisher change.
+  - **Issue 030 CLOSED — noul route anti-alignment + lever-4 fitted heads**
+    (fix `36e4e0a` / Bench 038; heads `69a6eae` / Bench 040). Its last item —
+    the arena republish at the promoted `--head-select` posture — had NOT
+    happened (Bench 041 ran `head_posture: OFF` on both hosts), so it moves
+    to the new **Issue 032** rather than being ticked as done.
+  - Issue 019 T5 (`/bench` publish + README row) ticked in place — verified
+    live (15 `clm (reference)` rows) + README lane rows; 019 stays OPEN on the
+    optional T4 T-Rex re-run.
+
 - **Issue 031 RESOLVED — the fixture_pins four-hash + the parse-precision
   note, LANDED (this commit): `fixture_pins()` (issue-884 hardening) hashes
   every EMBEDDED fixture's `include_str!` bytes against its pin in the serve
