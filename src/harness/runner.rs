@@ -4057,7 +4057,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             "off (pass --laya-python to add the reference lane)".to_string()
         },
         head_posture: if opts.head_select {
-            "ON — cal-selected per suite (ladder 0/0.5/1/2, forced cal-slice accuracy, \
+            "ON — cal-selected per suite (ladder 0/0.25/0.5/1, forced cal-slice accuracy, \
              ties → 0 = off; issue 030 lever 4; per-row candidates in the results)"
                 .to_string()
         } else if opts.head_scale > 0.0 {
@@ -4254,7 +4254,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             && let Some(hs) = &m.head_selection
         {
             s.push_str(&format!(
-                "**label heads:** cal-selected scale {} (ladder 0/0.5/1/2, forced cal \
+                "**label heads:** cal-selected scale {} (ladder 0/0.25/0.5/1, forced cal \
                  accuracy, ties → 0)\n\n",
                 hs.selected
             ));
