@@ -1,6 +1,6 @@
 # Issue 024 — `slice_leak`: an in-harness near-duplicate leak report (Issue 007 P2's decided route)
 
-**Status:** OPEN — T1 + T2 LANDED 2026-09-24 (the index + its G1/G2 oracle gate, both green; see "T1/T2 landed" below). **T3 LANDED 2026-09-24** (runner wiring + the `results.json` `leak` block; record below). T4 (site columns) rides the NEXT Issue 018 two-host publish; T5 (the Bench write-up) needs the next full multi-lane run's numbers.
+**Status:** OPEN — T1 + T2 LANDED 2026-09-24 (the index + its G1/G2 oracle gate, both green; see "T1/T2 landed" below). **T3 LANDED 2026-09-24** (runner wiring + the `results.json` `leak` block; record below). **T4 DONE 2026-09-25** (site columns rode the 027 window publish — see the task row; the old status line here predates that landing). **T5 (the Bench write-up) still waits: Bench 041's full m3 republish ran WITHOUT the leak scan** (zero `leak` blocks / `acc_deleaked` in its `results.json`, measured 2026-09-25 by grep) — the write-up needs the next full multi-lane run taken WITH `--features slice_leak`, and the 4090 host's modelless rows need their own slice_leak-enabled run before the columns cover both hosts.
 
 ## Finding (measured, `scripts/slice_leak_probe.py`, 2.3 s, M3 at load ~6, AC)
 

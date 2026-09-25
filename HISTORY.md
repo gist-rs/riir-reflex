@@ -7,6 +7,34 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue close-out sweep 2026-09-25 #2 (this commit) — Issue 007 removed;
+  the `.issues/.highwater` counter repaired; open-issue status refresh.**
+  - **Issue 007 CLOSED — harness families + corpus on the neuron-db
+    substrate.** P1 LANDED `307a10b` (`corpus_db` opt-in, native-only,
+    DEFAULT-OFF: subprocess store over the released `ndb` CLI —
+    `--json`-only calls, stdin writes never argv, one-corpus-one-row,
+    BLAKE3 digest-pinned corpus keys, `NDB_ASSUME_YES`,
+    `NDB_BIN`→PATH→loud-refuse resolution; harness `--runs-kv` run-history
+    rows + `--save-corpus` read-back-verified rows; consumer-side golden
+    pin live-verified against ndb 0.1.0; BOUNDARY.md runtime-dep row —
+    zero cargo dep on the storage leaf, the no-source-leak posture made
+    structural). P2 DECIDED `e0557a2` (owner-delegated): NEITHER
+    neuron-db route — the trigger was MEASURED as fired
+    (`scripts/slice_leak_probe.py`: ag_news 6.8% / banking77 3.2% /
+    massive 2.9% near-twins at ≥ 0.8 char-4-gram Jaccard, ~98% same-label)
+    and the answer is the in-harness `slice_leak` report, landed as
+    Issue 024 (still open there on its T5 write-up). **Deferred remainder
+    carried here**: corpus LOAD-from-kv (`[-]`) — the write+verify side is
+    live (`--save-corpus` read-back-verifies each row), no consumer
+    exists yet; land it when the first kv-only run is actually wanted
+    (e.g. CI without the dataset checkout). Reopen triggers: a third
+    harness lane needing cross-process durability → P1's scope moves up;
+    a corpus larger than memory → the `ndb shard` route reopens
+    (neuron-db Proposal 002 Phase 4); the CLI proves burdensome in CI
+    beyond `NDB_ASSUME_YES` → the `--no-identity` posture decision opens
+    neuron-db-side. Code comments citing `.issues/007` resolve here
+    (`AGENTS.md` corpus_db build-command row).
+
 - **Issue close-out sweep 2026-09-25 (this commit) — six done issues removed
   from `.issues/`, their records here.** Live-verified before removal:
   `reflex.gist.rs/data/bench.json` is byte-identical to reflex-site HEAD
