@@ -4154,6 +4154,56 @@ wire's first-class abstention is ours alone).
 
 "#,
     );
+    // Issue-029 landscape row: fastino's fast-decisions suite — PUBLISHED
+    // vendor rows, quoted as published; this harness does NOT run their
+    // suite (the issue-029 non-goal: our 15 suites are the protocol).
+    // Numbers verified against the fastino/GLiNER2.5-Decide model card +
+    // the fastino/fast-decisions dataset card (fetched 2026-09-25,
+    // Apache-2.0). The scored split is HELD OUT (their public repo ships
+    // only the 100/domain dev split, with an explicit do-not-score note)
+    // — so the row is necessarily quoted, never re-runnable here. Static
+    // by design, the same law as the block above.
+    s.push_str(
+r#"## Landscape — fast-decisions (vendor suite; NOT measured by this harness)
+
+fastino's `fast-decisions` suite — 17 English operational-decision
+domains (commerce support intent/topic, ticket routing, product feedback,
+banking intent, document type, review sentiment, assistant handoff,
+email triage, clinic request, travel request, news topic, paper field,
+sports recap, restaurant review, benefits request, screen tags), 300
+held-out test examples per domain, exact-match accuracy, the same text
+and candidate labels for every model. Quoted AS PUBLISHED (issue 029).
+
+| model | avg exact-match |
+|---|---|
+| GLiNER2.5-Decide (340M, DeBERTa-v3-large) | **60.2%** |
+| GLiNER2.5-Decide-1B (their dataset card: "GLiNER2 XL (1B)") | 59.6% |
+| JevK5 | 57.6% |
+| GLiNER2.5-multi-Decide (287M) | 56.7% |
+| SemIf (Qwen3.5-4B) | 56.4% |
+| GLiFormer large-v1 | 49.0% |
+| Laya Router | 46.6% |
+
+Footnotes: (1) the scored split is private — their public repo carries
+only the 100/domain development split with an explicit "do not report a
+score computed on the files in this repo" note, so no row here can be
+re-scored outside fastino. (2) their metric is per-head exact match
+(single-label string equality; multi-label heads compared as sets),
+averaged over the 17 domains. (3) their "Laya Router" row names no
+checkpoint variant — neither the base router nor the typed specialist;
+our measured laya-riir cells are the port checkpoints under OUR protocol,
+so the 60.2-vs-46.6 gap is their-suite/their-checkpoint/their-protocol.
+(4) our measured comparison lives in the 15-suite tables (bench 037,
+`.benchmarks/037_gliner_lane_4090`): the DIRECTION is confirmed on
+decision-style suites — gliner beats the laya base checkpoint 9/15
+(banking77 +20.8pt, massive_intent +7.3pt, all five harness families) —
+and honestly refuted on classic NLU (ag_news −24.8pt, xnli_en −38.3pt;
+their card's own "not a general-purpose model" framing). The
+typed_decisions headline stays laya's: the `typed` specialist 0.7445 vs
+gliner 0.5280.
+
+"#,
+    );
     s
 }
 

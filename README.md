@@ -37,6 +37,16 @@ cargo test                                     # the gates
   (4090-windows, bench 033): typed_decisions 0.3465 against laya-typed
   0.7445 on the same split — an honest loss row; p50 ≈31 ms/case
   localhost.
+- `harness --gliner` ADDS the GLiNER comparison lane (issue 029):
+  fastino/GLiNER2.5-Decide as a JSONL subprocess oracle
+  (`scripts/gliner_lane.py`, their `gliner2` package; `GLINER_PYTHON`
+  names the venv, `GLINER_MODEL`/`GLINER_PY_DEVICE` the posture) — their
+  model serves, our Rust measures; no feature gate, no new deps. First
+  cells (4090-windows, bench 037): beats the laya BASE checkpoint on 9/15
+  suites (banking77 0.706 vs 0.498), loses classic NLU (ag_news 0.70 vs
+  0.95, xnli 0.48 vs 0.86), and does not touch the `typed` specialist
+  (typed_decisions 0.528 vs 0.7445); p50 22–32 ms/case, subprocess IPC
+  included.
 
 ## Install (binary-only distribution, Plan 606)
 
@@ -240,6 +250,21 @@ Laya faster (41.53 vs ~60–70 ms p50/case) — AgentJev's latency win is wide
 candidate loads. Full footnoted row: the `## Landscape` section of
 [`TABLES.md`](.benchmarks/001_phase1_tables/TABLES.md).
 
+**fast-decisions landscape (published vendor rows, not measured here — issue 029):**
+fastino's own `fast-decisions` suite (17 English operational-decision
+domains × 300 held-out examples per domain, exact-match) publishes
+GLiNER2.5-Decide at **60.2%** against "Laya Router" **46.6%** — quoted
+as published, with the protocol footnotes that the scored split is
+private (their public repo ships only a 100/domain development split,
+with an explicit do-not-score note) and their Laya row names no checkpoint
+variant. Our measured comparison on OUR 15-suite protocol (bench 037)
+confirms the direction on decision-style suites (gliner beats the laya
+base 9/15; banking77 +20.8pt), refutes it on classic NLU (ag_news
+−24.8pt, xnli_en −38.3pt — their card's own "not a general-purpose
+model"), and the typed_decisions headline stays laya's (`typed` 0.7445
+vs gliner 0.5280). Full footnoted row: the `## Landscape` section of
+[`TABLES.md`](.benchmarks/001_phase1_tables/TABLES.md).
+
 Where reflex stands — the axis is not the specialist accuracy bar. The
 specialists trade latency for accuracy; reflex's axis is the modelless latency
 floor (0.5 ms p50/case, zero weights), first-class abstention (none of the three
@@ -414,6 +439,12 @@ above is the verdict, and the retraction is recorded in Bench 001.)
   served by THEIR stack, measured by ours; a comparison lane, never a
   product lane, and never bundled. Not affiliated with, or endorsed by,
   Contrastive-LM's authors.
+- The **GLiNER** comparison lane (issue 029) measures the external
+  fastino/GLiNER2.5-Decide reference (the 340M DeBERTa-v3-large checkpoint
+  and the `gliner2` package, both Apache-2.0) through THEIR Python package
+  as a measurement-only subprocess oracle — loaded at runtime, never
+  redistributed in the release archives, never in the shipped binary.
+  Not affiliated with, or endorsed by, fastino.
 - All site copy, benchmarks, and code are original. The arena SHAPE
   (playground + measured benchmark + agent-skill download) is an
   unprotectable concept; nothing else is replicated.

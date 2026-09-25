@@ -16,7 +16,10 @@ beat the laya `typed` specialist on the headline suite** (0.528 vs
 0.7445). Latency: gliner p50 22–32 ms (subprocess IPC included, fp32
 CUDA); on long-context typed_decisions it is 3.5× faster than the
 in-process laya-riir cuda lane (30 vs 107 ms), on short suites ~2× slower
-(22 vs 10–12 ms).
+(22 vs 10–12 ms). The fast-decisions LANDSCAPE ROW landed 2026-09-25
+(their published table quoted as published — verified against both their
+cards — beside our measured 15-suite verdict; renderer `## Landscape`
+block + README Results/attribution, the `.issues/025` pattern).
 
 ## Why
 
@@ -81,6 +84,16 @@ heads) — everything the metrics tail needs.
       sha (afacc3a/09-24) is stale beside its d69f0c7/09-25 lanes; the
       per-lane truth lives in `lane_sources`. If the header should track
       the latest contributing run, that is a publish_bench.py owner call.
-- [ ] (optional, next 4090 window) the fast-decisions suite as a SEPARATE
+- [x] (optional, next 4090 window) the fast-decisions suite as a SEPARATE
       landscape row — vendor-published numbers quoted as published beside
-      our measured row, the `.issues/025` pattern.
+      our measured row, the `.issues/025` pattern. DONE 2026-09-25 — the
+      second static `## Landscape` block in the renderer (`render_markdown`)
+      + the README Results paragraph + the `--gliner` quick-start bullet +
+      the attribution bullet. Numbers verified against BOTH their cards
+      (model + dataset) at fetch time: their full 7-row table quoted; the
+      scored split is PRIVATE (public repo = 100/domain dev split with an
+      explicit do-not-score note — quoted, never re-runnable here); their
+      two cards disagree on the 1B row's name (Decide-1B vs "GLiNER2 XL
+      (1B)", same 59.6%) — quoted with both. Committed TABLES.md artifacts
+      are run snapshots (never hand-edited); the section appears at the
+      next harness run.
