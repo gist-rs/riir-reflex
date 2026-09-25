@@ -1,6 +1,6 @@
 # Issue 032 — republish the arena table at the `--head-select` posture (Bench 040's promoted arena protocol never reached reflex.gist.rs/bench)
 
-**Status:** OPEN — filed 2026-09-25 at the Issue 030 close-out (the one unfinished item that issue carried). Nothing landed yet.
+**Status:** OPEN — filed 2026-09-25 at the Issue 030 close-out (the one unfinished item that issue carried). **The 4090 leg of task 1 LANDED 2026-09-26 (Bench 043, `.benchmarks/032_headsel_4090/`): full-harness `--head-select --skip-laya` at reflex `0418d33`, PASSED (the one absence = harness_cache_reuse, LLM-lane-only, expected), and the cross-host determinism gate PASS — 14/14 suites bit-identical accuracy vs Bench 040's M3 reference, banking77 0.6840 / massive 0.7933 confirmed on x86_64-Windows. Remaining: the M3 preflight-clean leg (the box carried a sibling's 8-core GPU run all session), the merged publish + CF deploy + live verify, README rows, close-out.** Nothing else landed yet.
 
 ## Finding
 
@@ -20,11 +20,15 @@ reflex-site HEAD, which carries that run.
 
 ## Tasks
 
-- [ ] Modelless-only `--head-select` run on BOTH hosts (m3 + 4090-windows),
+- [-] Modelless-only `--head-select` run on BOTH hosts (m3 + 4090-windows),
       preflight-clean (`scripts/bench_preflight.sh`, PROVENANCE line quoted),
       never beside a sibling latency A/B. The modelless lane is
       deterministic — accuracy is the claim, so the two hosts must agree
       bit-for-bit on accuracy (the Issue 023 T5 pairwise drift gate).
+      **4090 half DONE (Bench 043): 14/14 bit-identical vs the M3 b040
+      reference. M3 half waits for the quiet box — the run must be
+      preflight-clean because its cells join a merged publish (a loaded-box
+      latency cell would poison the published table).**
 - [ ] Publish through `../reflex-site/scripts/publish_bench.py` as a
       lane-update merge (laya / clm / gliner / agentjev cells carried
       untouched), with `RunMeta.head_posture` + the per-suite selected scale
