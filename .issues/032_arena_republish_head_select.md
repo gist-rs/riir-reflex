@@ -1,6 +1,6 @@
 # Issue 032 — republish the arena table at the `--head-select` posture (Bench 040's promoted arena protocol never reached reflex.gist.rs/bench)
 
-**Status:** OPEN — filed 2026-09-25 at the Issue 030 close-out (the one unfinished item that issue carried). **The 4090 leg of task 1 LANDED 2026-09-26 (Bench 043, `.benchmarks/032_headsel_4090/`): full-harness `--head-select --skip-laya` at reflex `0418d33`, PASSED (the one absence = harness_cache_reuse, LLM-lane-only, expected), and the cross-host determinism gate PASS — 14/14 suites bit-identical accuracy vs Bench 040's M3 reference, banking77 0.6840 / massive 0.7933 confirmed on x86_64-Windows. Remaining: the M3 preflight-clean leg (the box carried a sibling's 8-core GPU run all session), the merged publish + CF deploy + live verify, README rows, close-out.** Nothing else landed yet.
+**Status:** OPEN — filed 2026-09-25 at the Issue 030 close-out (the one unfinished item that issue carried). **The 4090 leg RE-LANDED 2026-09-26 at HEAD with the fixed posture label (Bench 044, `.benchmarks/044_headsel_4090_leak/`): reflex `d727196`, 14/14 accuracy bit-identical vs BOTH Bench 043 and the Bench 040 M3 reference (three-run, two-host facts), `head_posture` now `ladder 0/0.25/0.5/1` in the meta (the 0418d33-vs-d727196 label mismatch the publish would have carried is closed), and the run was taken WITH `--features slice_leak` so it also closed Issue 024's 4090 half (leak blocks + `acc_deleaked`, bound law verified). Remaining: the M3 preflight-clean leg at the same posture + feature (one run serves both issues' M3 halves), the merged publish + CF deploy + live verify, README rows, close-out.** (Bench 043 `.benchmarks/032_headsel_4090/` stays as the first 4090 leg record; its stale posture label is superseded by 044.)
 
 ## Finding
 
@@ -25,10 +25,11 @@ reflex-site HEAD, which carries that run.
       never beside a sibling latency A/B. The modelless lane is
       deterministic — accuracy is the claim, so the two hosts must agree
       bit-for-bit on accuracy (the Issue 023 T5 pairwise drift gate).
-      **4090 half DONE (Bench 043): 14/14 bit-identical vs the M3 b040
-      reference. M3 half waits for the quiet box — the run must be
+      **4090 half DONE twice (Bench 043 at 0418d33, re-landed as Bench 044 at d727196 with the fixed `head_posture` label + `--features slice_leak`): 14/14 bit-identical vs the M3 b040 reference both times. M3 half waits for the quiet box — the run must be
       preflight-clean because its cells join a merged publish (a loaded-box
-      latency cell would poison the published table).**
+      latency cell would poison the published table); take it with
+      `--features slice_leak` so it also carries Issue 024's M3 leak
+      columns in the same pass.**
 - [ ] Publish through `../reflex-site/scripts/publish_bench.py` as a
       lane-update merge (laya / clm / gliner / agentjev cells carried
       untouched), with `RunMeta.head_posture` + the per-suite selected scale
