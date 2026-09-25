@@ -560,3 +560,27 @@ built and measured 2026-09-25 moved nothing: head wall is dispatch+GPU
 bound; reverted). Batching the head across questions would remove the
 per-question dispatch cost — worth at most a few percent of multi-q case
 wall, contingent as before.
+
+## Follow-up 2026-09-25 — the arena table REPUBLISHED + the publication-noise study (Bench 036)
+
+The handoff's public-facing item ("the published arena table still shows
+the pre-wave numbers") is CLOSED with eyes open. The gpu pre-ramp landed
+first (`d69f0c7`: one unmeasured warmup case per (suite, checkpoint) load
+on both laya lanes — the cold-first-suite signature's pipeline-compile
+half; `LAYA_HARNESS_NO_WARMUP=1` restores the cold posture), then a full
+15-suite clean-window run was taken and PUBLISHED through
+reflex-site `publish_bench.py` (m3 lanes updated; the 4090-windows host
+rows untouched).
+
+The honest caveat that ships with it: **Bench 036 measured the publication
+itself unstable at the ±20-40% level on typed_decisions and the python
+lane** across five same-day runs (typed·english rust p50 282→488 with no
+box-state signature — preflight-passing runs span the whole range, an idle
+coldown read the WORST, and the 035 binary re-run back-to-back with the new
+one brackets zero). The substrate is NOT slower — `laya_fixture_timing`
+reads its recorded 28.3/28.3/12.2 ms at every checkpoint, burst and
+sustained. The published table was stale by a build generation (typed
+rust 1124 ms vs today's 282-488), so the fresh sample strictly improves it;
+claims that need honesty quote Bench 035's across-run ranges or same-process
+A/Bs, never the site's single-sample cells. Full study + the protocol rule:
+`.benchmarks/036_publication_noise_study/BENCH.md`.
