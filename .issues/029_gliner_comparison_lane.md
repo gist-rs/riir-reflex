@@ -76,6 +76,11 @@ heads) — everything the metrics tail needs.
 ## Remains
 
 - [ ] The site deploy (`npx wrangler deploy` from the M3 — the 027 law).
+- [ ] (publisher-owner, cosmetic) `bench.json`'s per-host header row keeps
+      the ORIGINAL run's facts by law (Issue 023 T5) — the 4090-win header
+      sha (afacc3a/09-24) is stale beside its d69f0c7/09-25 lanes; the
+      per-lane truth lives in `lane_sources`. If the header should track
+      the latest contributing run, that is a publish_bench.py owner call.
 - [ ] (optional, next 4090 window) the fast-decisions suite as a SEPARATE
       landscape row — vendor-published numbers quoted as published beside
       our measured row, the `.issues/025` pattern.
