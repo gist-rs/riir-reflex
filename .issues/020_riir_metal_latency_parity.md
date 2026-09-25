@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **the closing same-run table is TAKEN (Bench 035, three full 15-suite `--laya-python` runs 2026-09-25): the published Class-A losses FLIPPED — typed/english and multilingual now WIN by 20–30% (was +19.3/+37.9%), every former loss narrowed to +3–12% — but the issue's every-cell bar is NOT met: a stable band of short-sequence, single-question suites remains +3–12% behind (banking77 ≈ +3–4%, massive_intent ≈ +5%, ag_news, sst5, emotion, xnli), and the next lever is FIXED-COST amortization at small m (the loop path those suites run, T5 packing being 1-q-excluded by its own measured +4.5% regression — re-pricing packed-at-1q POST-T7 is the named candidate rung)** — waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed); **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 CLOSED** — rung 1 (the dispatch band) LANDED **and its suite-p50 row PASSED 2026-09-25 (Bench 032/SUITE_AB: NEW/OLD −29…−36% p50 median on all three suites, 6/6 rounds, both load classes)**, the occupancy axis REFUTED at kernel level (bk32/bn32 both lose; code reverted), and the follow-up axes are now ALL measured-closed: **the MMA-roofline probe (`riir-infer-laya/examples/sgemm_roofline.rs`) measured the narrow instance staging-bound — shipped 3.1–4.9 TF/s vs MMA-only 5.1–10.2 TF/s (+63…+134% headroom) — and its f16-B arm then REFUTED the byte-halving lever (flat within ±2% on every cell; B fits L2, so re-reads were never DRAM traffic — the binding cost is the TG-issue path) — five axes now refuted at kernel level (occupancy, BK48, coalescing ×2, f16-B); narrow's shape is the measured local optimum, the lossy backend rung is dead before being built, and the GEMM axis reopens only on a Metal/toolchain change or an L2-oversized working set (n > ~4096)**; **T10 rung 2 (rope hoist) MEASURED 2026-09-25 and NOT PROMOTED (Bench 033: clean-round medians banking77 p50 −4.4% 2/3, banking77 p99 −14.3%, code_fixtures p99 −3.3%, massive flat — thinner than the rung-1/3 promotion bands; stays opt-in `LAYA_METAL_ROPE_HOIST=1`, not reverted — the attention-heavy p99 profile and a post-f16 re-price remain open doors)**
+**Status:** OPEN — **T11 rung 3 (split-K) LANDED 2026-09-25 (riir-infer `512477e`): the widest losing cell, the arena tetris spot sentence, went 1.370× → 1.085× torch MPS (paired, 372 sentences); seq ≤ 106 −6…−39%, seq ≥ 140 untouched; still +8.5%, so the every-cell bar stays unmet** — **the closing same-run table is TAKEN (Bench 035, three full 15-suite `--laya-python` runs 2026-09-25): the published Class-A losses FLIPPED — typed/english and multilingual now WIN by 20–30% (was +19.3/+37.9%), every former loss narrowed to +3–12% — but the issue's every-cell bar is NOT met: a stable band of short-sequence, single-question suites remains +3–12% behind (banking77 ≈ +3–4%, massive_intent ≈ +5%, ag_news, sst5, emotion, xnli), and the next lever is FIXED-COST amortization at small m (the loop path those suites run, T5 packing being 1-q-excluded by its own measured +4.5% regression — re-pricing packed-at-1q POST-T7 is the named candidate rung)** — waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed); **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 CLOSED** — rung 1 (the dispatch band) LANDED **and its suite-p50 row PASSED 2026-09-25 (Bench 032/SUITE_AB: NEW/OLD −29…−36% p50 median on all three suites, 6/6 rounds, both load classes)**, the occupancy axis REFUTED at kernel level (bk32/bn32 both lose; code reverted), and the follow-up axes are now ALL measured-closed: **the MMA-roofline probe (`riir-infer-laya/examples/sgemm_roofline.rs`) measured the narrow instance staging-bound — shipped 3.1–4.9 TF/s vs MMA-only 5.1–10.2 TF/s (+63…+134% headroom) — and its f16-B arm then REFUTED the byte-halving lever (flat within ±2% on every cell; B fits L2, so re-reads were never DRAM traffic — the binding cost is the TG-issue path) — five axes now refuted at kernel level (occupancy, BK48, coalescing ×2, f16-B); narrow's shape is the measured local optimum, the lossy backend rung is dead before being built, and the GEMM axis reopens only on a Metal/toolchain change or an L2-oversized working set (n > ~4096)**; **T10 rung 2 (rope hoist) MEASURED 2026-09-25 and NOT PROMOTED (Bench 033: clean-round medians banking77 p50 −4.4% 2/3, banking77 p99 −14.3%, code_fixtures p99 −3.3%, massive flat — thinner than the rung-1/3 promotion bands; stays opt-in `LAYA_METAL_ROPE_HOIST=1`, not reverted — the attention-heavy p99 profile and a post-f16 re-price remain open doors)**
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -437,6 +437,52 @@ box this repo does not currently have.
             fusion / fewer bigger kernels) — a large rung with modest
             expected yield (+3–12% ceiling on 6–8 small suites); nothing
             cheap remains in this lane on M3-vs-MPS parity cells.
+      - [x] **Rung 3 — split-K for under-filled GEMM grids — LANDED
+            2026-09-25, default ON (riir-infer `512477e`).** Rung 2's
+            "GPU-side small-m cost" was attributed with a new per-dispatch
+            GPU profiler (`LAYA_METAL_PROFILE=1`,
+            `tests/metal_small_m_profile.rs`): at the tetris sentence
+            (seq 54) `sgemm` was **83%** of GPU time, and the d×d
+            projections ran on a 16×2 = **32-threadgroup** grid on a 40-core
+            GPU, each TG walking all of k alone. That is OCCUPANCY, not op
+            count. Batch-1 narrow GEMMs with ≤ 64 narrow TGs now slice k
+            into fixed 128-element slices plus an ascending-order reduce.
+            Paired in-process A/B (`tests/metal_splitk_ab.rs`, 24
+            position-balanced rounds): on/off **0.615 / 0.785 / 0.787 /
+            0.878 / 0.938** at seq 24 / 46 / 54 / 80 / 106 (24/24 wins
+            each), **1.000** at seq 140–512 (identical kernels;
+            cross-binary vs the old kernel within ±1%). End to end, paired
+            per spot against the torch oracle on 372 arena sentences:
+            Rust/Python **1.370 → 1.085**. G5 3/3 checkpoints (worst drift
+            7.5e-6), batch parity, packed gate 0/30 processes.
+            - ⛔ **Packed ≡ loop bit-identity needed two repairs, and the
+              second was a latent bug split-K only exposed.** (a) The
+              split decision depends on m, so the packed forward
+              (m = Σ seq) and the loop (m = seq) could land on opposite
+              sides of the ceiling (measured: seq 78 → 48 vs 80 TGs,
+              logits differed). The fixed slice length makes a split row
+              depend only on its own data, and the encoder now passes its
+              per-question row segments (`Backend::set_row_segments`) so
+              each segment gets the loop's decision. Folding EVERY instance
+              at the slice length instead (global bit-identity) was built
+              and costs **+18…+31%** at m ≥ 188 (register pressure; KC 512
+              still +18%), so it was rejected. (b) `download_into`
+              resolved a sub-slice by the TIGHTEST container at a base
+              pointer, which served a dead key: the packed CLS row came
+              from a dead 9984-float buffer, act [0.59, 0.43] vs the true
+              [1.0, 0.0], in **7/30** processes. 6/6 failing processes had
+              the two-candidate download and 0/24 passing ones did, so this
+              is causal. Now the most recently TOUCHED entry wins: 0/30,
+              plus a deterministic regression arm that fires under the old
+              rule.
+            - **Next levers, measured and not built** (the post-split
+              profile at seq 54): unsplit `sgemm` is now **50%** of GPU
+              time, i.e. qkv (n 3072, 96 TGs) and MLP-up (n 5248, 164 TGs).
+              Raising the ceiling to 96 LOSES on the identical-grid seq-188
+              d×d shape (1.006, 2/24 wins), so this needs a
+              shape-aware rule, not a bigger number. `ln_rows` is **8%**
+              (one simdgroup per row, the Class-A item 7) and the reduce
+              **4.4%** (fusable with the following bias add).
 - [x] **T10 — full-attention `flash_attn` throughput** (small, low priority).
       - [x] **Rung 1 — parallel row softmax — LANDED riir-infer `0ec88a9`.**
             Both softmax steps ran serially on 32 of 1024 threads; now one
@@ -591,7 +637,9 @@ The arena's "time to judge one landing spot" chart had laya (Rust) at
 **707.6 ms** against laya (Python) 32.6 ms. That was not this issue's class:
 the walk was recorded against a **CPU-posture** engine on a loaded box
 (floor 169 ms; a quiet probe today reads CPU 127.6 ms, Metal 22.3 ms), and
-the recorder wrote no device. The fix is reflex-site `68f056d`: the recorder
+the recorder wrote no device. (⚑ Closed by T11 rung 3: the cell is now
+1.085× paired, and the site shows 18.9 vs 17.8 ms at reflex-site
+`342bfdc`.) The fix is reflex-site `68f056d`: the recorder
 now reads the device from `routing.reason`, refuses a non-metal laya walk on
 macOS, and the chart labels the rows `· Metal` / `· MPS`.
 
