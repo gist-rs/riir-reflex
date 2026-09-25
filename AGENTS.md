@@ -159,6 +159,18 @@ cargo test --features clm-lane --lib lanes::  # the law goldens + the stub-HTTP 
 # touch the laya `typed` specialist (0.528 vs 0.7445) — `.issues/029`.
 GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
   cargo run --release --bin harness -- --gliner --suites banking77 --skip-laya
+
+# The AgentJev comparison lane (Issue 025 amendment 4 / `.issues/027`,
+# `--agentjev`, no feature gate): their `jev_service` (malevrigns/agent-jev
+# @ a965ca8f, Apache-2.0) answered over HTTP at AGENTJEV_SERVE_URL
+# (default http://127.0.0.1:8149; their step-600 tensors + temperatures) —
+# their stack serves, our Rust measures. First cells 2026-09-25 (bench
+# 038, 4090 window): gold-label typed_decisions 0.7715 (vs our laya-typed
+# 0.7445, +2.7pt — their published 0.7925 is teacher-argmax agreement);
+# full 15-suite lane = the specialist shape (3 agentjev / 7 laya / 4 gliner
+# wins); det ✗ = their disclosed bf16 HTTP wobble, picks stable — bench 039.
+AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
+  cargo run --release --bin harness -- --agentjev --suites typed_decisions --skip-laya
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the

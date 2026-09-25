@@ -2,4 +2,5 @@
 //! decision engines measured in the arena's comparison tables, consumed
 //! over their own wire, mapped into `decision_wire`'s shapes.
 
+pub mod agentjev;
 pub mod clm;

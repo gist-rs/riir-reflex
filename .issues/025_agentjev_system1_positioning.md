@@ -1,6 +1,6 @@
 # AgentJev / System-One positioning — the typed-decision category grew a beat-laya challenger
 
-**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 spike is DEFERRED by verdict 2026-09-24 (named checkable reopen triggers in-file). A new optional MEASURE-only row (gold-label re-score through their own service) rides the 019 T3 4090 window (`.issues/027`; renumbered from 026 — upstream dual-allocated 026) — do NOT auto-start.
+**Status:** OPEN — the three ungated bench-doc tasks LANDED 2026-09-24 (numbers verified at the pinned sha; headline 79.25 lives in `typed_decisions/agentjev_v1_report.json` `/trained/*` — `comparison.json` carries it too under `/agentjev/trained`, beside the phase-4 pre-run baseline). The stretch lane-3 spike is DEFERRED by verdict 2026-09-24 (named checkable reopen triggers in-file). **The MEASURE-only row LANDED 2026-09-25 (bench 039, the 4090 window after `.issues/027`'s CLM work + `.issues/029`'s gliner window)**: the `--agentjev` harness lane (their jev_service over loopback HTTP, `src/lanes/agentjev.rs`) measured their published step-600 tensors GOLD-LABEL on our split — **0.7715** (two independent passes identical) vs our laya-typed 0.7445 (+2.7pt; their teacher-argmax 0.7925 → gold −2.1pt). **The published ranking survives the protocol change.** Full 15-suite lane: 3 agentjev wins / 7 laya / 4 gliner — the specialist shape (dominant on typed_decisions, mediocre classic NLU + untrained decision suites). det ✗ every suite = their own disclosed bf16 HTTP wobble (picks stable). What remains here: nothing ungated — the row is published (renderer `## Landscape` MEASURED row + README + bench 039); the site /bench column rides the next site publish (deploy M3-gated).
 
 ## Why
 
@@ -67,24 +67,15 @@ calibration gate (G1), game heads, single-binary matrix.
       shared-prefix work without a causal decision lane to host it.
       License: Apache-2.0 weights are compatible with our MIT public
       surface (attribution required).
-- [ ] (optional, rides the 019 T3 4090 window `.issues/027` [renumbered from 026] — do NOT
-      auto-start) the MEASURE-vs-SERVE split (Gate-0 verdict amendment 4):
-      the data point actually missing is AgentJev's **gold-label** accuracy
-      on our 400-case split — their 79.25% is teacher-argmax agreement, a
-      different protocol from our measured 74.45%. Obtainable the same way
-      019 measures CLM: their Apache-2.0 Python service runs on the 4090,
-      our Rust harness measures over HTTP — no riir-infer port, no
-      collision with the in-flight arcs. **Wire condition RESOLVED at the
-      contract level 2026-09-24** (read at the pinned sha, clone removed):
-      their service is `POST /api/evaluate` (`jev_service/contract.py`),
-      NOT the TypeSafe systemone wire — but the mapping is direct and
-      client-side only: our noul → their `type: boolean` (criteria, or the
-      default `TRUE`/`FALSE`), choice → `type: choice` (options array),
-      score → `type: score` (levels, 2..10 ordered descriptions); response
-      `{results: [{id, answers: […probabilities]}], usage: {wall_ms, …}}`
-      maps into `DecisionResponse` with no server shim. Latency column:
-      record BOTH client round-trip and their `usage.wall_ms` (server-side
-      measure), prefer client round-trip for cross-lane consistency.
+- [x] (optional, rode the 4090 window 2026-09-25 — bench 039) the MEASURE-vs-SERVE
+      split (Gate-0 verdict amendment 4): the data point actually missing was AgentJev's
+      **gold-label** accuracy on our 400-case split — their 79.25% is teacher-argmax
+      agreement, a different protocol from our measured 74.45%. **DONE — 0.7715**
+      (their service at `a965ca8f` + the published step-600 tensors over loopback HTTP,
+      `--agentjev`, `src/lanes/agentjev.rs`; two passes identical; +2.7pt over laya-typed
+      — the ranking survives the protocol change; the full 15-suite lane rides the same
+      bench: 3/7/4 wins, the specialist shape). The lane-3 serving port stays DEFERRED
+      (reopen triggers below).
 
 ## Non-goals (decided in the research verdict)
 

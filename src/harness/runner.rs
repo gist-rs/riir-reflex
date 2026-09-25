@@ -990,6 +990,14 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gliner: Option<LaneResult>,
+    /// Issue 025 amendment 4 / `.issues/027`: the AgentJev comparison lane's
+    /// row — their `jev_service` (Apache-2.0, not affiliated) served on
+    /// loopback, measured over HTTP. The missing data point this lane owns:
+    /// AgentJev's GOLD-LABEL accuracy on our typed_decisions split (their
+    /// published 79.25% is teacher-argmax agreement — a different protocol).
+    /// Absent (never a fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agentjev: Option<LaneResult>,
     /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
     /// the slices THIS run served. Absent (not a zero rate) when the
     /// `slice_leak` feature is off or the suite is out of scope.
@@ -1049,6 +1057,11 @@ pub struct RunMeta {
     /// package as a JSONL subprocess — comparison lane, never a product
     /// lane).
     pub gliner_lane: String,
+    /// Whether the AgentJev comparison lane ran (Issue 025 amendment 4 /
+    /// `.issues/027`), and its serving posture when it did (their
+    /// `jev_service` on loopback, measured over HTTP — the MEASURE-vs-SERVE
+    /// split; comparison lane, never a product lane).
+    pub agentjev_lane: String,
     /// Power source / power mode / load / swap at run start AND end, with a
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
@@ -2994,6 +3007,129 @@ fn run_gliner_lane(
     ))
 }
 
+/// The AgentJev comparison lane (Issue 025 amendment 4 / `.issues/027`):
+/// their `jev_service` served on loopback, measured over HTTP — the
+/// MEASURE-vs-SERVE split (their Apache-2.0 Python service runs on the
+/// 4090, our Rust harness measures; the riir-infer port stays DEFERRED in
+/// `.issues/025`). Same cases, their contract (`src/lanes/agentjev.rs`
+/// pins the mapping), the same metrics tail via
+/// [`assemble_laya_lane_result`]. Latency = client round-trip per case
+/// (their `usage.wall_ms` recorded beside it — the 025 amendment-4 law).
+///
+/// Env: `AGENTJEV_SERVE_URL` (default `http://127.0.0.1:8149`). The
+/// `/api/info` handshake advertises the loaded checkpoint + device; the
+/// lane stamps THOSE into the row, never a hardcoded name.
+fn run_agentjev_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::agentjev::AgentJevLane;
+
+    let t_start = Instant::now();
+    let lane = AgentJevLane::default();
+    let (model, device) = lane.info()?;
+    eprintln!("    [agentjev] service up: {model} on {device}");
+
+    // WARMUP (the clm lane's cold-start law): one FIXED throwaway request
+    // (never a case's — no cache pollution of measured latencies) absorbs
+    // the service's cold path before the first measured case.
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("agentjev warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N agentjev row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    let mut server_wall_ms: f64 = 0.0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, wall_ms) = lane
+            .decide(case)
+            .map_err(|e| format!("agentjev lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        if let Some(w) = wall_ms {
+            server_wall_ms += w;
+        }
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column.
+        if ci < 10 {
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("agentjev determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("agentjev determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!("    [agentjev] server-side wall sum: {server_wall_ms:.0} ms");
+
+    Ok(assemble_laya_lane_result(
+        "agentjev",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 // ── prepared suite + run ────────────────────────────────────────────────
 
 struct Prepared {
@@ -3224,6 +3360,13 @@ pub struct RunOptions {
     /// their gliner2 package as a JSONL subprocess oracle (Issue 029;
     /// measurement-only, off by default).
     pub gliner: bool,
+    /// Also run the AgentJev comparison lane (Issue 025 amendment 4 /
+    /// `.issues/027`): their `jev_service` answered over HTTP
+    /// (`AGENTJEV_SERVE_URL`, default `http://127.0.0.1:8149`) — their
+    /// stack serves, our Rust measures (comparison lane, never a product
+    /// lane). An unreachable server is a LOUD error, never a silent skip.
+    /// Default off.
+    pub agentjev: bool,
     /// Override every dataset suite's per-label corpus cap (0 = the
     /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
     /// (Issue 013 lever 1); a published table must state the override or
@@ -3552,6 +3695,31 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // AgentJev comparison lane (Issue 025 amendment 4 / `.issues/027`):
+        // their jev_service served on loopback, measured over HTTP — same
+        // cases, their contract, the same metrics tail.
+        let agentjev_result = if opts.agentjev {
+            eprintln!("    agentjev: running…");
+            match run_agentjev_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    agentjev: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (agentjev): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -3560,6 +3728,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             laya: laya_results,
             clm: clm_result,
             gliner: gliner_result,
+            agentjev: agentjev_result,
             leak: leak_block,
         });
     }
@@ -3678,6 +3847,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --gliner to add the comparison lane; needs the gliner2 \
              venv — .issues/029)"
+                .to_string()
+        },
+        agentjev_lane: if opts.agentjev {
+            "on — their jev_service (malevrigns/agent-jev @ a965ca8f, Apache-2.0, \
+             not affiliated) served on loopback, measured over HTTP (comparison \
+             lane, never a product lane): same cases, their decision.v1 contract, \
+             gold-label scoring (their published 79.25% is teacher-argmax \
+             agreement — this lane's row is the protocol-honest split); latency = \
+             client round-trip, their usage.wall_ms recorded beside it; \
+             determinism = the observed-repeat check; .issues/025 + .issues/027"
+                .to_string()
+        } else {
+            "off (pass --agentjev to add the comparison lane; needs their \
+             jev_service on AGENTJEV_SERVE_URL — .issues/025)"
                 .to_string()
         },
         divergences: vec![
@@ -3975,6 +4158,33 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.agentjev {
+            // Same shape as the gliner row — the AgentJev reference is a
+            // comparison lane with the same metrics surface (no abstain,
+            // no gates; latency = client round-trip over HTTP).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if suite.laya.is_empty() {
             s.push_str("| laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |\n");
         }
@@ -4133,6 +4343,7 @@ here is comparable without them.
 | lane · model | source | acc | bool·noul / choice / score | p50 case |
 |---|---|---|---|---|
 | AgentJev-0.6B (598M, Qwen3-0.6B backbone) | published (their run) | **0.7925** | 88.83 / 75.33 / 75.00 | ~60–70 ms, their cuda box |
+| reflex · agentjev (their service, gold-label) | **MEASURED** (bench 039, 4090) | **0.7715** | — | 88 ms (loopback HTTP) |
 | Laya (published checkpoint, 421M ModernBERT) | their table — card-copied, not re-scored | 0.7700 | — | 41.53 ms (their box) |
 | TypeSafe Jev 1.13.0 | their table — zero-shot generalist | 0.727 | — | — |
 | reflex · laya-riir·typed | MEASURED — the typed_decisions table above | 0.7445 (baseline `aa37823`) | 78.50 / 73.33 / 72.25 | 1312 ms (m3 metal, that baseline) |
@@ -4140,7 +4351,11 @@ here is comparable without them.
 
 Footnotes: (1) their accuracy is agreement with the public TEACHER argmax;
 ours is gold-label under the standard harness protocol — different
-references of truth. (2) their run held out 120 dev + 120 cal cases and
+references of truth. (1b) the MEASURED agentjev row (bench 039, Issue 025
+amendment 4) closes that gap for AgentJev: **0.7715 gold-label** on this
+harness's split (teacher-argmax 0.7925 → gold −2.1pt) — the published
+ranking SURVIVES the protocol change (+2.7pt over our measured laya-typed
+0.7445; their teacher-protocol gap was +2.25). (2) their run held out 120 dev + 120 cal cases and
 selected the step-600 checkpoint on dev soft-CE before opening test; ours
 fits no per-benchmark head. (3) their wide-load figure (shared-prefix
 298.91 ms vs unshared 609.65 ms at 66 paths / 33,547 tokens, backbone

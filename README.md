@@ -47,6 +47,14 @@ cargo test                                     # the gates
   0.95, xnli 0.48 vs 0.86), and does not touch the `typed` specialist
   (typed_decisions 0.528 vs 0.7445); p50 22–32 ms/case, subprocess IPC
   included.
+- `harness --agentjev` ADDS the AgentJev comparison lane (Issue 025
+  amendment 4 / `.issues/027`): their `jev_service` (malevrigns/agent-jev
+  @ `a965ca8f`, Apache-2.0) answered over HTTP at `AGENTJEV_SERVE_URL`
+  (default `http://127.0.0.1:8149`) — their stack serves, our Rust
+  measures; no feature gate, no new deps. First cells (4090-windows,
+  bench 039): gold-label typed_decisions **0.7715** (vs our laya-typed
+  0.7445, +2.7pt — their published 0.7925 is teacher-argmax agreement);
+  p50 88 ms/case long-context, 28–31 ms short.
 
 ## Install (binary-only distribution, Plan 606)
 
@@ -226,7 +234,7 @@ the three-way table below for the current rows):
 was off on this sampled-distractor suite. Modelless-only re-read; the
 laya columns are unchanged (deterministic lanes).
 
-² Issue 030 (Bench 038): was 0.4397 — BELOW the 0.50 chance floor. The
+² Issue 030 (Bench 039): was 0.4397 — BELOW the 0.50 chance floor. The
 T7 route blend reached noul questions through the legacy `k == N` index
 path, which on this 2-domain suite scored "yes, injection" against the
 BENIGN centroid — an anti-signal by construction. Noul questions never
@@ -256,6 +264,20 @@ token-op reduction) is their box and load. On SHORT inputs their own table reads
 Laya faster (41.53 vs ~60–70 ms p50/case) — AgentJev's latency win is wide
 candidate loads. Full footnoted row: the `## Landscape` section of
 [`TABLES.md`](.benchmarks/001_phase1_tables/TABLES.md).
+
+**Measured (bench 039, Issue 025 amendment 4):** AgentJev's GOLD-LABEL
+accuracy on our split is **0.7715** (their service, our protocol — two
+independent passes identical) against our measured laya-typed **0.7445**
+(+2.7pt) — the published ranking survives the protocol change; the
+category's accuracy bar on this split is now measured, not quoted. The
+full 15-suite lane (bench 039) shows the specialist shape: 3 wins / 7
+laya wins / 4 gliner wins — dominant on typed_decisions, mediocre on
+classic NLU (ag_news 0.80 vs 0.95, xnli 0.46 vs 0.86) and on the
+decision-style suites it was not trained for (banking77 0.546 vs gliner
+0.706); GLiNER2.5-Decide is the better generalist decision model on our
+15, AgentJev the better specialist on its split. det ✗ on every suite —
+their own disclosed bf16 HTTP wobble (~3rd decimal; picks stable, accuracy
+reproduced exactly across two full passes).
 
 **fast-decisions landscape (published vendor rows, not measured here — issue 029):**
 fastino's own `fast-decisions` suite (17 English operational-decision
@@ -452,6 +474,12 @@ above is the verdict, and the retraction is recorded in Bench 001.)
   as a measurement-only subprocess oracle — loaded at runtime, never
   redistributed in the release archives, never in the shipped binary.
   Not affiliated with, or endorsed by, fastino.
+- The **AgentJev** comparison lane (Issue 025 amendment 4 / `.issues/027`)
+  measures the external AgentJev-0.6B reference (malevrigns/agent-jev code
+  @ `a965ca8f` + the aimeigaoshou/agent-jev published step-600 tensors,
+  both Apache-2.0) through THEIR `jev_service` over loopback HTTP — their
+  stack serves, our Rust measures; a comparison lane, never a product
+  lane, never bundled. Not affiliated with, or endorsed by, its authors.
 - All site copy, benchmarks, and code are original. The arena SHAPE
   (playground + measured benchmark + agent-skill download) is an
   unprotectable concept; nothing else is replicated.

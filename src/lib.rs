@@ -91,9 +91,10 @@ pub mod laya;
 /// the `laya-riir` feature (or the datasets/weights) are absent.
 pub mod harness;
 
-/// The comparison-lane adapters (Issue 019): third-party decision engines
-/// measured in the arena's tables over their own wire. Opt-in `clm-lane`
-/// today; the module is empty without it. Their stack serves, our Rust
-/// measures — no new deps either way (std HTTP + the in-tree serde_json).
-#[cfg(feature = "clm-lane")]
+/// The comparison-lane adapters (Issues 019/029/025): third-party decision
+/// engines measured in the arena's tables over their own wire — their
+/// stack serves, our Rust measures. Ungated since the agentjev lane
+/// (Issue 025 amendment 4): the adapters are std-HTTP/JSON only, zero new
+/// deps; the `clm-lane` feature now gates only the CLM RUN path (the
+/// `run_clm_lane` stub + the determinism pin), not the module tree.
 pub mod lanes;

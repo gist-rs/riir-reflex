@@ -5,10 +5,16 @@ site `ae79a87`) — the serving + measuring halves are DONE: the
 determinism pin GREEN (8/8 byte-identical + head mtime unchanged, after
 the warmup law below), the CLM cells landed on ALL 15 suites, the leak
 columns rode the publish (.issues/024 T4), the README row + site table
-carry the lane. REMAINS: the optional AgentJev gold-label row (a
-DIFFERENT server — their jev_service; the next 4090 window can run it;
-025's "do NOT auto-start" stands) and the site DEPLOY (M3-gated — this
-box has no CF creds; `npx wrangler deploy` from the M3 discharges it).
+carry the lane. **The riding AgentJev gold-label row ALSO EXECUTED
+2026-09-25 (bench 039, the NEXT 4090 window — the same law this issue
+wrote): their jev_service at `a965ca8f` on loopback :8149, the `--agentjev`
+lane, gold-label typed_decisions 0.7715 (vs laya-typed 0.7445, +2.7pt —
+the published ranking survives the protocol change) + the full 15-suite
+lane column; det ✗ = their own disclosed bf16 HTTP wobble, picks stable
+across two identical-accuracy passes.** REMAINS: the site DEPLOY
+(M3-gated — this box has no CF creds; `npx wrangler deploy` from the M3
+discharges it — now carrying BOTH the bench-037 gliner rows + filter AND
+the bench-039 agentjev column when the site publish lands).
 The Rust-side halves LANDED on `develop`:
 `src/harness/runner.rs` grows the `clm` column (`--clm`, feature-gated
 `clm-lane`, the parity law in-module: THEIR `to_text` state prose +

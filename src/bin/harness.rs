@@ -6,7 +6,7 @@
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
-//!                                      [--clm] [--gliner]
+//!                                      [--clm] [--gliner] [--agentjev]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -23,6 +23,14 @@
 //! transformers + peft + accelerate). Env: `GLINER_PYTHON` (the venv
 //! python), `GLINER_PY_DEVICE` (default cuda), `GLINER_MODEL`. A missing
 //! script/venv is a loud absence, never a silent skip.
+//! `--agentjev` adds the AgentJev comparison lane (Issue 025 amendment 4 /
+//! `.issues/027`): their `jev_service` (malevrigns/agent-jev @ a965ca8f,
+//! Apache-2.0, not affiliated) answered over HTTP at `AGENTJEV_SERVE_URL`
+//! (default `http://127.0.0.1:8149`) — their stack serves, our Rust
+//! measures. The lane's owned data point: AgentJev's GOLD-LABEL accuracy
+//! on our split (their published 79.25% is teacher-argmax agreement — a
+//! different protocol). An unreachable server is a loud absence, never a
+//! silent skip.
 //! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
 //! binary (table `harness_runs`, value = the exact results.json bytes) and
 //! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
@@ -56,6 +64,7 @@ fn main() {
         laya_python: false,
         clm: false,
         gliner: false,
+        agentjev: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
@@ -88,6 +97,7 @@ fn main() {
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
+            "--agentjev" => opts.agentjev = true,
             "--corpus-cap" => {
                 i += 1;
                 opts.corpus_cap_override = args
