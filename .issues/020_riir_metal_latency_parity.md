@@ -584,3 +584,31 @@ rust 1124 ms vs today's 282-488), so the fresh sample strictly improves it;
 claims that need honesty quote Bench 035's across-run ranges or same-process
 A/Bs, never the site's single-sample cells. Full study + the protocol rule:
 `.benchmarks/036_publication_noise_study/BENCH.md`.
+
+## Follow-up 2026-09-25 — a new losing cell: the arena's tetris spot sentence (reflex-site `68f056d`)
+
+The arena's "time to judge one landing spot" chart had laya (Rust) at
+**707.6 ms** against laya (Python) 32.6 ms. That was not this issue's class:
+the walk was recorded against a **CPU-posture** engine on a loaded box
+(floor 169 ms; a quiet probe today reads CPU 127.6 ms, Metal 22.3 ms), and
+the recorder wrote no device. The fix is reflex-site `68f056d`: the recorder
+now reads the device from `routing.reason`, refuses a non-metal laya walk on
+macOS, and the chart labels the rows `· Metal` / `· MPS`.
+
+Re-recorded on Metal (this repo `ca1483c`, `modelless laya-riir
+laya-riir-metal`), same process, same 1127 spot sentences (seed 607, v3,
+~21 words, **1 question**), both lanes played the identical game:
+
+| run | rust Metal p50 (HTTP /decide) | python MPS p50 (stdin) | Δ |
+|---|---|---|---|
+| 1 | 22.19 ms | 16.22 ms | **+36.8%** |
+| 2 | 21.58 | 16.36 | **+31.9%** |
+| 3 | 26.28 | 24.29 | +8.2% |
+
+`PROVENANCE: power=AC Power load=5.76 swap=1094.44M canary=117.0us/best5 powermode=2(high)`.
+⚠ The transports differ: HTTP adds about 0.4 ms (the modelless lane's
+whole HTTP round-trip is 0.64 ms p50), which is not enough to close a
+5–6 ms gap. This is the short-sequence 1-question band named in the status
+line (the loop path, fixed cost at small m), and it is the widest cell
+measured there so far. The arena now publishes it with the device named,
+so closing it would show directly on reflex.gist.rs/arena.
