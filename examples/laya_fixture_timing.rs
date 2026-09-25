@@ -142,7 +142,10 @@ fn build_qs(row: &serde_json::Value) -> Vec<(String, serde_json::Value)> {
 /// the timing lane drops those rows LOUDLY instead of crashing — named,
 /// counted, never silently absorbed (the parity gate's skip rule, at the
 /// timing lane's granularity). The expected capture carries the seq lens.
-#[cfg(feature = "laya-riir-ane")]
+/// macOS-scoped with its only caller (`run_ane_lane`) — the substrate's
+/// `ane_bucket_max` is Core ML / macOS, so a non-macOS all-features build
+/// compiles this to nothing too.
+#[cfg(all(feature = "laya-riir-ane", target_os = "macos"))]
 fn drop_out_of_bucket_rows(
     rows: Vec<serde_json::Value>,
     fixture_name: &str,

@@ -1918,7 +1918,16 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
 /// value can never silently demote an explicitly requested lane). A
 /// missing artifact tree errors LOUD naming the remedy, never a CPU
 /// number wearing an ANE label.
-#[cfg(all(feature = "laya-riir", feature = "laya-riir-ane"))]
+/// `target_os = "macos"` — the SAME scope the substrate gates
+/// `RiirAgent::load_ane` with (Core ML artifacts); elsewhere this variant
+/// compiles to nothing and the plain fallback below serves (its substrate
+/// loader refuses an env `ane` LOUD — an ANE number can never silently
+/// wear a CPU label either way).
+#[cfg(all(
+    feature = "laya-riir",
+    feature = "laya-riir-ane",
+    target_os = "macos"
+))]
 fn load_laya_agent(
     ckpt: &str,
     ck: crate::laya::config::Checkpoint,
@@ -1946,8 +1955,14 @@ fn load_laya_agent(
     }
 
 /// The no-ANE-build form: plain load (an env `ane` value is refused loud
-/// by the substrate — fail loud, never a silent fallback).
-#[cfg(all(feature = "laya-riir", not(feature = "laya-riir-ane")))]
+/// by the substrate — fail loud, never a silent fallback). Also the form
+/// on a non-macOS box with the `laya-riir-ane` feature ON: the substrate's
+/// `load_ane` is macOS-scoped (Core ML), so the plain loader serves and
+/// refuses the env selection loud — the same fail-loud law.
+#[cfg(all(
+    feature = "laya-riir",
+    not(all(feature = "laya-riir-ane", target_os = "macos"))
+))]
 fn load_laya_agent(
     ckpt: &str,
     ck: crate::laya::config::Checkpoint,

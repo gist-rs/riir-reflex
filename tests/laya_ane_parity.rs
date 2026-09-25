@@ -29,7 +29,12 @@
 //! golden-round-trip precedent for local-only substrate).
 //!
 //! Run: `cargo test --release --features laya-riir-ane --test laya_ane_parity`
-#![cfg(feature = "laya-riir-ane")]
+#![cfg(all(feature = "laya-riir-ane", target_os = "macos"))]
+// `target_os = "macos"` — the SAME scope the substrate gates
+// `RiirAgent::load_ane`/`ane_bucket_max` with (Core ML artifacts); a
+// non-macOS `--all-features` build compiles this file to nothing (the
+// green-zero law: the `required-features` row names the lane, this cfg
+// names the platform — both are load-bearing).
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
