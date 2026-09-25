@@ -984,6 +984,12 @@ pub struct SuiteResult {
     /// the absences section names it).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub clm: Option<LaneResult>,
+    /// Issue 029: the GLiNER comparison lane's row — fastino/GLiNER2.5-Decide
+    /// (Apache-2.0, not affiliated) as a JSONL subprocess oracle over THEIR
+    /// gliner2 package (`scripts/gliner_lane.py`, the laya-python protocol).
+    /// Absent (never a fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gliner: Option<LaneResult>,
     /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
     /// the slices THIS run served. Absent (not a zero rate) when the
     /// `slice_leak` feature is off or the suite is out of scope.
@@ -1038,6 +1044,11 @@ pub struct RunMeta {
     /// and its serving posture when it did (the external reference over
     /// `/v1/systemone` — comparison lane, never a product lane).
     pub clm_lane: String,
+    /// Whether the GLiNER comparison lane ran (Issue 029), and its serving
+    /// posture when it did (fastino/GLiNER2.5-Decide over their gliner2
+    /// package as a JSONL subprocess — comparison lane, never a product
+    /// lane).
+    pub gliner_lane: String,
     /// Power source / power mode / load / swap at run start AND end, with a
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
@@ -2778,6 +2789,211 @@ fn run_clm_lane(
     Err("clm-lane feature off — rebuild with --features clm-lane to measure the CLM reference".to_string())
 }
 
+/// The GLiNER comparison lane (Issue 029): fastino/GLiNER2.5-Decide driven
+/// as a JSONL subprocess oracle over THEIR gliner2 package
+/// (`scripts/gliner_lane.py`) — the laya-python lane's protocol and answer
+/// mapping (SAME cases, SAME metrics tail via [`assemble_laya_lane_result`];
+/// the only differences are the forward's executor and their probability
+/// readout). Latency is the subprocess round-trip per case (IPC included),
+/// the same measurement law as the laya-python oracle — the honest
+/// cross-lane comparison for it is laya-python, NOT the in-process riir
+/// lane; the table's posture line says so.
+///
+/// Env: `GLINER_LANE_SCRIPT` (default `scripts/gliner_lane.py`) ·
+/// `GLINER_PYTHON` (default `python3`; the venv needs gliner2 + torch +
+/// transformers + peft + accelerate — gliner2 declares none of them) ·
+/// `GLINER_PY_DEVICE` (default `cuda`) · `GLINER_MODEL` (default
+/// `fastino/GLiNER2.5-Decide`). The handshake advertises the loaded model
+/// id and device; the lane stamps THOSE into the row, never a hardcoded
+/// name (an env override shows up as itself).
+fn run_gliner_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    // Issue 024 T3: one leak flag per suite.cases entry; the served set is
+    // a PREFIX (the trim law), so the flags stay aligned.
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use std::io::{BufRead, BufReader, Write};
+    use std::process::{ChildStdin, Command, Stdio};
+
+    let script = std::env::var("GLINER_LANE_SCRIPT")
+        .unwrap_or_else(|_| "scripts/gliner_lane.py".to_string());
+    if !Path::new(&script).is_file() {
+        return Err(format!(
+            "gliner lane script not found at {script} — run from the repo root or set \
+             GLINER_LANE_SCRIPT (the lane is opt-in measurement tooling; the venv \
+             needs gliner2 + torch + transformers + peft + accelerate)"
+        ));
+    }
+    let python = std::env::var("GLINER_PYTHON").unwrap_or_else(|_| "python3".to_string());
+    let device = std::env::var("GLINER_PY_DEVICE").unwrap_or_else(|_| "cuda".to_string());
+
+    let t_start = Instant::now();
+    let mut child = Command::new(&python)
+        .arg(&script)
+        .arg(&device)
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        // stderr inherits: their loader's warnings stay visible.
+        .spawn()
+        .map_err(|e| format!("spawn {python} {script}: {e}"))?;
+    let mut stdin: ChildStdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| "gliner oracle stdin unavailable".to_string())?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "gliner oracle stdout unavailable".to_string())?;
+    let mut reader = BufReader::new(stdout);
+
+    // The send/read helpers share the laya-python lane's shapes verbatim
+    // (the wire is the point of the protocol).
+    let send_case = |stdin: &mut ChildStdin, case: &SuiteCase| -> Result<(), String> {
+        let questions = case_questions(case);
+        let qs: Vec<Value> = questions
+            .iter()
+            .map(|(qid, def)| serde_json::json!({"qid": qid, "def": def}))
+            .collect();
+        let line = serde_json::json!({"state": case.state, "questions": qs});
+        writeln!(stdin, "{line}").map_err(|e| format!("gliner stdin: {e}"))?;
+        stdin.flush().map_err(|e| format!("gliner stdin flush: {e}"))
+    };
+    let read_line = |reader: &mut BufReader<std::process::ChildStdout>,
+                     buf: &mut String|
+     -> Result<(), String> {
+        buf.clear();
+        let n = reader
+            .read_line(buf)
+            .map_err(|e| format!("gliner stdout: {e}"))?;
+        if n == 0 {
+            return Err(
+                "gliner oracle stream ended early — the subprocess died; its \
+                 stderr above names the cause"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    };
+
+    // Handshake: one ready line once the checkpoint is loaded; the
+    // advertised model id is stamped into the row (never hardcoded).
+    let mut line = String::new();
+    read_line(&mut reader, &mut line)?;
+    let ready: Value = serde_json::from_str(line.trim())
+        .map_err(|e| format!("gliner handshake: {e} (got: {})", line.trim()))?;
+    if ready.get("ready") != Some(&Value::Bool(true)) {
+        return Err(format!(
+            "gliner handshake: expected {{\"ready\":true}}, got {line}"
+        ));
+    }
+    let model = ready
+        .get("model")
+        .and_then(Value::as_str)
+        .unwrap_or("fastino/GLiNER2.5-Decide")
+        .to_string();
+    let advertised_device = ready
+        .get("device")
+        .and_then(Value::as_str)
+        .unwrap_or("?")
+        .to_string();
+    eprintln!("    [gliner] oracle up: {model} on {advertised_device}");
+
+    // The trim law: the SAME question cap as the laya lanes, so a capped
+    // run never compares a full-N gliner row against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    // GPU pre-ramp (Issue 020), the same law as both laya lanes: one
+    // unmeasured warmup case absorbs the CUDA graph/kernel-compile cold
+    // path before the first measured case. `LAYA_HARNESS_NO_WARMUP=1`
+    // restores the cold posture for every GPU lane at once.
+    if laya_gpu_preramp_enabled()
+        && let Some(first) = cases.first()
+    {
+        send_case(&mut stdin, first)?;
+        let mut warm = String::new();
+        read_line(&mut reader, &mut warm)?;
+        eprintln!("  [gliner] gpu pre-ramp: 1 unmeasured warmup case");
+    }
+
+    let mut probs = Vec::with_capacity(cases.len());
+    let mut picks = Vec::with_capacity(cases.len());
+    let mut confs = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        send_case(&mut stdin, case)?;
+        let mut line = String::new();
+        read_line(&mut reader, &mut line)?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        let resp: Value = serde_json::from_str(line.trim())
+            .map_err(|e| format!("gliner response (case {ci}): {e}"))?;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column.
+        if ci < 10 {
+            send_case(&mut stdin, case)?;
+            let mut line2 = String::new();
+            read_line(&mut reader, &mut line2)?;
+            if line != line2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(case.questions.len());
+        let mut cpicks = Vec::with_capacity(case.questions.len());
+        let mut cconfs = Vec::with_capacity(case.questions.len());
+        for q in case.questions.iter() {
+            let answers = resp
+                .get("answers")
+                .and_then(|a| a.as_object())
+                .ok_or_else(|| format!("gliner response (case {ci}): no answers object"))?;
+            let a = answers.get(&q.qid).ok_or_else(|| {
+                format!("gliner response (case {ci}): missing qid {}", q.qid)
+            })?;
+            let (p, pick, conf) = parse_python_answer(q, a)
+                .map_err(|e| format!("gliner response (case {ci}): {e}"))?;
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    drop(stdin);
+    let _ = child.wait();
+
+    Ok(assemble_laya_lane_result(
+        "gliner",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 // ── prepared suite + run ────────────────────────────────────────────────
 
 struct Prepared {
@@ -3004,6 +3220,10 @@ pub struct RunOptions {
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
+    /// Also run the GLiNER comparison lane — fastino/GLiNER2.5-Decide over
+    /// their gliner2 package as a JSONL subprocess oracle (Issue 029;
+    /// measurement-only, off by default).
+    pub gliner: bool,
     /// Override every dataset suite's per-label corpus cap (0 = the
     /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
     /// (Issue 013 lever 1); a published table must state the override or
@@ -3278,7 +3498,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         }
 
-        // CLM comparison lane (Issue 019 T3 / .issues/027): the external
+        // CLM comparison lane (Issue 019 T3 / `.issues/027`): the external
         // Contrastive-LM reference over `/v1/systemone` — their stack
         // serves, our Rust measures. Same cases, their rendering law, the
         // same metrics tail.
@@ -3307,6 +3527,31 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // GLiNER comparison lane (Issue 029): fastino/GLiNER2.5-Decide as a
+        // JSONL subprocess oracle over their gliner2 package — same cases,
+        // the lane's own probability readout, the same metrics tail.
+        let gliner_result = if opts.gliner {
+            eprintln!("    gliner: running…");
+            match run_gliner_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    gliner: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (gliner): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -3314,6 +3559,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             modelless,
             laya: laya_results,
             clm: clm_result,
+            gliner: gliner_result,
             leak: leak_block,
         });
     }
@@ -3419,6 +3665,21 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --clm to add the comparison lane; .issues/027)".to_string()
         },
+        gliner_lane: if opts.gliner {
+            "on — fastino/GLiNER2.5-Decide over their gliner2 package as a JSONL \
+             subprocess oracle (comparison lane, Apache-2.0, not affiliated): same \
+             cases, their per-label probability readout (softmax for single-label \
+             heads; conf = top-label probability), their fp32 default posture; \
+             latency = subprocess round-trip (IPC included) — the honest \
+             cross-lane latency comparison is laya-python (the same IPC law), \
+             never the in-process riir lane; determinism = the observed-repeat \
+             check; .issues/029"
+                .to_string()
+        } else {
+            "off (pass --gliner to add the comparison lane; needs the gliner2 \
+             venv — .issues/029)"
+                .to_string()
+        },
         divergences: vec![
             "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
              both lanes see byte-identical questions, which is the integrity that matters"
@@ -3506,6 +3767,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.laya_python_lane
     ));
     s.push_str(&format!("- clm lane: {}\n", out.meta.clm_lane));
+    s.push_str(&format!("- gliner lane: {}\n", out.meta.gliner_lane));
     s.push_str(&format!(
         "- corpus cap posture: {}\n",
         out.meta.corpus_cap_mode
@@ -3571,10 +3833,15 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                      answered below.\n\n",
                 );
             }
-            if !suite.laya.is_empty() || suite.clm.is_some() {
+            if !suite.laya.is_empty() || suite.clm.is_some() || suite.gliner.is_some() {
                 s.push_str("| lane · model | n | acc | ECE(maxp) | readout-ECE | p50 | p99 (support) | det |\n");
                 s.push_str("|---|---|---|---|---|---|---|---|\n");
-                for r in suite.laya.values().chain(suite.clm.iter()) {
+                for r in suite
+                    .laya
+                    .values()
+                    .chain(suite.clm.iter())
+                    .chain(suite.gliner.iter())
+                {
                     s.push_str(&format!(
                         "| {} · {} | {} | {} | {} | {} | {:.1} ms | {} | {} |\n",
                         r.lane,
@@ -3680,6 +3947,34 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.gliner {
+            // Same shape as the clm row — the GLiNER reference is a
+            // comparison lane with the same metrics surface (no abstain,
+            // no gates; latency = subprocess round-trip, the laya-python
+            // measurement law).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if suite.laya.is_empty() {
             s.push_str("| laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |\n");
         }
@@ -3759,6 +4054,30 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 ));
             }
             if let Some(r) = &suite.clm {
+                s.push_str(&format!(
+                    "**typed-decisions extras ({}·{}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
+                    r.lane,
+                    r.model,
+                    fmt_opt(r.soft_acc),
+                    fmt_opt(r.brier_soft),
+                    fmt_opt(r.score_mae),
+                    fmt_opt(r.within_1)
+                ));
+                if let Some(by) = &r.by_question_type {
+                    for (t, h) in by {
+                        s.push_str(&format!(
+                            "| {}·{} | {t} | {} | {} | {} | {} |\n",
+                            r.lane,
+                            r.model,
+                            h.n,
+                            fmt4(h.accuracy),
+                            fmt4(h.ece),
+                            fmt4(h.mean_confidence)
+                        ));
+                    }
+                }
+            }
+            if let Some(r) = &suite.gliner {
                 s.push_str(&format!(
                     "**typed-decisions extras ({}·{}):** soft_acc {} · brier_soft {} · score MAE {} · within_1 {}\n",
                     r.lane,

@@ -144,6 +144,21 @@ cargo test --release --features slice_leak --test slice_leak_oracle -- --nocaptu
 # one-time helper — no Python at serving time). Default-OFF, never in the
 # release set; the harness column + the determinism pin ride T3.
 cargo test --features clm-lane --lib lanes::  # the law goldens + the stub-HTTP wire pins
+
+# The GLiNER comparison lane (Issue 029, `--gliner`, no feature gate — zero
+# new deps): the external Apache-2.0 fastino/GLiNER2.5-Decide zero-shot
+# classifier as a JSONL subprocess oracle over THEIR gliner2 package
+# (scripts/gliner_lane.py — the laya-python protocol; the venv needs
+# gliner2 + torch-cu + transformers + peft + accelerate, gliner2 declares
+# none of them). Env: GLINER_PYTHON (the venv python), GLINER_PY_DEVICE
+# (default cuda), GLINER_MODEL. Same cases, their per-label probability
+# readout, the same metrics tail; latency = subprocess round-trip (the
+# laya-python measurement law). First cells 2026-09-25 on the 4090 window:
+# beats the laya BASE checkpoints on 9/15 suites (banking77 0.706 vs
+# 0.498; typed base 0.528 vs 0.3575), loses classic NLU, and does not
+# touch the laya `typed` specialist (0.528 vs 0.7445) — `.issues/029`.
+GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
+  cargo run --release --bin harness -- --gliner --suites banking77 --skip-laya
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the

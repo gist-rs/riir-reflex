@@ -7,6 +7,36 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue 029 — the GLiNER comparison lane LANDED + first cells measured
+  + published** (same-day arc on the 4090 window): the external
+  fastino/GLiNER2.5-Decide zero-shot classifier (Apache-2.0, 340M
+  DeBERTa-v3-large) as a JSONL subprocess oracle over THEIR gliner2
+  package — `scripts/gliner_lane.py` (the `laya_python_lane.py` protocol;
+  one schema per case, labels-with-descriptions their native form, noul →
+  `[no, yes]`, a DISCLOSED strip for their structural-token refusal, the
+  loader banner kept off the protocol channel) + `run_gliner_lane` (the
+  handshake-advertised model id, the trim law, the GPU pre-ramp, the
+  observed-repeat det check, the same metrics tail via
+  `assemble_laya_lane_result`; `--gliner`, NO feature gate — zero new
+  deps). The measured verdict (host `4090-windows`, all 15 suites, no
+  absences, gliner det ✓ everywhere, same run as a fresh laya-riir cuda
+  pass at the SAME substrate sha `1afd4f8` as the published lanes):
+  **gliner beats the laya BASE checkpoints on 9/15 suites** — banking77
+  0.706 vs 0.498, typed_decisions base 0.528 vs 0.3575, massive_intent
+  0.823 vs 0.750 — **loses classic NLU** (ag_news 0.70 vs 0.95, xnli 0.48
+  vs 0.86, emotion 0.565 vs 0.593) and **does not touch the laya `typed`
+  specialist on the headline** (0.528 vs 0.7445). Latency: p50 22–32 ms
+  (subprocess IPC in, fp32 CUDA) — 3.5× FASTER than the in-process laya
+  cuda lane on long-context typed_decisions (30 vs 107 ms), ~2× slower on
+  short suites (22 vs 10–12 ms). Modelless drift gate: clean (13 suites
+  bit-identical to m3; `code_fixtures` the designed exclusion). Site ride:
+  the publisher carries the lane (the clm law), the bench page gained
+  clm + gliner chart slots with extra-host hero fallback (host-tagged
+  tooltips) + the **lane-filter checkbox bar** (the owner ask) governing
+  EVERY section with localStorage persistence — validated by a headless
+  playwright smoke (chips, rows, toggle-off everywhere, reload
+  persistence, restore). Site deploy: the M3 discharges it (the 027
+  no-CF-creds law on this box).
 - **Issue 027 — the CLM T3 4090 window EXECUTED** (bench 034,
   renumbered from 033 in the same-window dual-allocation with the
   sibling's rope-hoist instrument `033_rope_hoist_ab` (landed at origin

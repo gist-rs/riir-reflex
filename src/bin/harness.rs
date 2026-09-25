@@ -6,7 +6,7 @@
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
-//!                                      [--clm]
+//!                                      [--clm] [--gliner]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -17,6 +17,12 @@
 //! serving at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`). Needs the
 //! `clm-lane` feature; an unreachable server is a loud absence, never a
 //! silent skip.
+//! `--gliner` adds the GLiNER comparison lane (Issue 029):
+//! fastino/GLiNER2.5-Decide as a JSONL subprocess oracle over THEIR gliner2
+//! package (`scripts/gliner_lane.py` — the venv needs gliner2 + torch +
+//! transformers + peft + accelerate). Env: `GLINER_PYTHON` (the venv
+//! python), `GLINER_PY_DEVICE` (default cuda), `GLINER_MODEL`. A missing
+//! script/venv is a loud absence, never a silent skip.
 //! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
 //! binary (table `harness_runs`, value = the exact results.json bytes) and
 //! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
@@ -49,6 +55,7 @@ fn main() {
         skip_laya: false,
         laya_python: false,
         clm: false,
+        gliner: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
@@ -80,6 +87,7 @@ fn main() {
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
+            "--gliner" => opts.gliner = true,
             "--corpus-cap" => {
                 i += 1;
                 opts.corpus_cap_override = args
