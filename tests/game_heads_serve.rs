@@ -14,9 +14,22 @@
 
 use riir_reflex::game_heads::{
     FLAPPY_V3_FIXTURE_BLAKE3, GameHeads, LANES_FIXTURE_BLAKE3, TETRIS_D, TETRIS_FIXTURE_BLAKE3,
-    head_digest, loo_select, parse_corpus,
+    fixture_pins, head_digest, loo_select, parse_corpus,
 };
 use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_heads};
+
+use std::path::PathBuf;
+
+/// The UNSERVED tetris v3/v4 oracle fixtures' published pins (the
+/// issue-031 four-hash: katgpt-rs `tests/fixtures/` digests, verified here
+/// against the verbatim copies in THIS repo's `tests/fixtures/` — never
+/// length-only). The copies are deliberately NOT embedded in the serve
+/// binary (v4 alone is 8.4 MB); they exist so the cross-repo data contract
+/// stays checkable without a katgpt-rs checkout beside this one.
+const TETRIS_V3_FILE_BLAKE3: &str =
+    "12035ebf43d0293c7ec00e716e72ee6a21686cc41a222938a81d0abd9316e804";
+const TETRIS_V4_FILE_BLAKE3: &str =
+    "18e6b2604a2f01433a5f7d860b7c98009fa1f41ad75be5c35ee251717ac52903";
 
 /// The published Bench 881 decoded-arm anchors (katgpt-rs, measured
 /// 2026-09-23 on the M3 Max, release profile). The fit recipe is pinned by
@@ -39,9 +52,40 @@ fn fixture_bytes_match_the_pinned_blake3() {
     assert_eq!(corpus.rows.len(), 2660, "corpus option count drifted");
     assert_eq!(corpus.offsets.len(), N_STATES + 1, "state count drifted");
     assert_eq!(corpus.argmaxes.len(), N_STATES);
-    // Silence the unused-const lint when only the corpus shape is asserted
-    // (the pin constant doubles as documentation of the data contract).
     assert_eq!(TETRIS_FIXTURE_BLAKE3.len(), 64);
+}
+
+#[test]
+fn every_embedded_fixture_hashes_to_its_pin() {
+    // The include_str! bytes hashed through blake3 against the pinned hex —
+    // before Issue 884 the three pins were asserted by LENGTH only, so a
+    // stale pin beside a re-copied fixture passed.
+    for (name, got, pin) in fixture_pins() {
+        assert_eq!(got, pin, "{name}: embedded fixture blake3 != pinned blake3");
+    }
+}
+
+#[test]
+fn unserved_tetris_v3_v4_fixtures_hash_to_their_pins() {
+    // The issue-031 four-hash completion: the two oracle fixtures this repo
+    // does NOT serve (v3 fitted the current head; v4 is the Phase-1 preview
+    // fixture) are pinned against their verbatim copies on disk. A missing
+    // file is a FAILURE, never a skip — a pin that reads nothing verifies
+    // nothing.
+    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    for (name, file, pin) in [
+        ("tetris_v3", "tetris_oracle_laya_en_v3.jsonl", TETRIS_V3_FILE_BLAKE3),
+        ("tetris_v4", "tetris_oracle_laya_en_v4.jsonl", TETRIS_V4_FILE_BLAKE3),
+    ] {
+        let path = manifest.join("tests/fixtures").join(file);
+        let bytes = std::fs::read(&path)
+            .unwrap_or_else(|e| panic!("{name}: fixture copy missing at {}: {e}", path.display()));
+        assert_eq!(
+            blake3::hash(&bytes).to_hex().as_str(),
+            pin,
+            "{name}: fixture copy blake3 != pinned blake3"
+        );
+    }
 }
 
 #[test]

@@ -34,7 +34,9 @@
 //! Provenance and drift discipline:
 //! - the fixtures are verbatim copies of katgpt-rs `tests/fixtures/` (the
 //!   laya oracle over the T0b/T5 state dumps), BLAKE3-pinned below and
-//!   asserted in `tests/game_heads_serve.rs`;
+//!   asserted in `tests/game_heads_serve.rs`; the UNSERVED tetris v3/v4
+//!   oracle fixtures are pinned the same way test-side (the issue-031
+//!   four-hash: every pin is verified against bytes, never length-only);
 //! - each head is FITTED AT BOOT from its fixture by the published recipe
 //!   (standardize → λ by state-level LOO MSE over the pinned grid → final
 //!   fit) — no weight artifact exists to drift, and the tests pin each
@@ -42,6 +44,12 @@
 //! - grammar-invalid sentences, foreign questions and unknown inputs are
 //!   LOUD refusals here: they return `None` and the request falls through
 //!   to the cosine engine, which abstains off-corpus as before.
+//!
+//! Parse-precision note (katgpt-rs Bench 890 §G3): a future head fit whose
+//! result must land on the katgpt-rs-side head bytes needs the same
+//! `serde_json/float_roundtrip` feature katgpt-rs fits under — the DEFAULT
+//! parser rounds differently and moves the tetris structured-head digest
+//! (`65409c14…` vs `b3c91ee0…`), agreement numbers unaffected.
 //!
 //! This is boot + edge surface (one parse, one fit, one decode per
 //! request) — the engine core's G4 alloc-free window is untouched.
@@ -839,6 +847,20 @@ pub fn head_digest<const D: usize>(h: &FittedHead<D>) -> blake3::Hash {
         bytes.extend_from_slice(&w.to_le_bytes());
     }
     blake3::hash(&bytes)
+}
+
+/// Every embedded oracle fixture as `(name, embedded bytes' BLAKE3 hex,
+/// pinned BLAKE3 hex)` — the cross-repo data contract made checkable. The
+/// pins were documentation until this hashed the `include_str!` bytes
+/// (katgpt-rs Issue 884): a re-copied fixture whose pin was not bumped, or a
+/// bumped pin whose fixture was not re-copied, reds in the serve tests.
+pub fn fixture_pins() -> [(&'static str, String, &'static str); 3] {
+    let hex = |s: &str| blake3::hash(s.as_bytes()).to_hex().to_string();
+    [
+        ("tetris", hex(TETRIS_FIXTURE), TETRIS_FIXTURE_BLAKE3),
+        ("lanes", hex(LANES_FIXTURE), LANES_FIXTURE_BLAKE3),
+        ("flappy_v3", hex(FLAPPY_V3_FIXTURE), FLAPPY_V3_FIXTURE_BLAKE3),
+    ]
 }
 
 // ── the serving struct ──────────────────────────────────────────────

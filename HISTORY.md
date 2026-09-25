@@ -7,6 +7,23 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue 031 RESOLVED — the fixture_pins four-hash + the parse-precision
+  note, LANDED (this commit): `fixture_pins()` (issue-884 hardening) hashes
+  every EMBEDDED fixture's `include_str!` bytes against its pin in the serve
+  tests (`every_embedded_fixture_hashes_to_its_pin`) — the three pins were
+  length-only assertions before; the UNSERVED tetris v3/v4 oracle fixtures
+  are pinned test-side from verbatim copies in `tests/fixtures/`
+  (`unserved_tetris_v3_v4_fixtures_hash_to_their_pins`, pins `12035ebf…` /
+  `18e6b260…`, a missing file FAILS never skips) — deliberately not embedded
+  in the serve binary (v4 alone is 8.4 MB); the parse-precision note lives in
+  the `game_heads` module doc (a fit landing on katgpt-rs head bytes needs
+  the same `serde_json/float_roundtrip` feature — the default parser moved
+  the tetris structured-head digest `65409c14…` vs `b3c91ee0…`, Bench 890
+  §G3, agreement numbers unaffected). The crossed-head integration stays
+  CLOSED on the Bench 890 G1 FAIL — two-line serving to the spot head
+  remains refused by design. Serve suite 16/16 green (both new pins
+  included), clippy -D clean. Full file life: `git log --follow --
+  .issues/031_tetris_v4_phase2_handoff.md`.
 - **Issue 030 RESOLVED — lever 4, the fitted-head feature-class arc, LANDED at
   bench 040 (this commit): banking77 +23.8 pt, massive +10.3 pt, every other
   suite bit-identical or ECE-better — the modelless lane takes BOTH rows past
