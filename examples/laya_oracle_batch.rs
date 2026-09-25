@@ -13,6 +13,12 @@
 //! captured per option and the argmax (lowest index on ties, the manifest's
 //! pinned option order) is the decision.
 //!
+//! A record may also carry an optional `state_sentence` (katgpt-rs Plan 609
+//! T1.6's two-line envelope): when present, every option's forward becomes
+//! `<state_sentence>\n<option sentence>`, so the decision can condition on
+//! the state context (the tetris v4 preview arm). Absent → the historical
+//! option-only forward, byte-identical behavior for the v2/v3 manifests.
+//!
 //! Output: one JSONL line per record —
 //! `{"state_id": "...", "question": "...", "checkpoint": "english",
 //!   "p_clean": [0.02, 0.94, ...], "argmax": 1}`
@@ -97,6 +103,9 @@ fn main() {
     for rec in &manifest {
         let state_id = rec["state_id"].as_str().expect("state_id");
         let question = rec["question"].as_str().expect("question");
+        let state_line = rec
+            .get("state_sentence")
+            .and_then(|v| v.as_str());
         let options = rec["options"].as_array().expect("options array");
         let qdef = serde_json::json!({
             "type": "noul",
@@ -106,8 +115,15 @@ fn main() {
         let mut p_clean: Vec<f32> = Vec::with_capacity(options.len());
         for opt in options {
             let sentence = opt["sentence"].as_str().expect("option sentence");
+            // The two-line envelope: the state line joins the option line
+            // at the forward (Plan 609 T1.6). Without a state line the
+            // forward is exactly the historical option-only text.
+            let payload = match state_line {
+                Some(s) => format!("{s}\n{sentence}"),
+                None => sentence.to_string(),
+            };
             let fwd = agent
-                .forward_question(&serde_json::Value::String(sentence.to_string()), &qdef)
+                .forward_question(&serde_json::Value::String(payload), &qdef)
                 .expect("forward");
             // noul option keys are ["false", "true"] — p(true) is the
             // yes-probability for the record's question.
