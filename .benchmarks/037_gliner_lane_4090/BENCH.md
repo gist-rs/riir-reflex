@@ -1,4 +1,4 @@
-# Bench 036 — Issue 029: the GLiNER comparison lane's first cells — beats the laya BASE checkpoints on 9/15, does not touch the `typed` specialist
+# Bench 037 — Issue 029: the GLiNER comparison lane's first cells — beats the laya BASE checkpoints on 9/15, does not touch the `typed` specialist
 
 One full 15-suite run on 2026-09-25, host `4090-windows` (REFLEX_BENCH_HOST),
 reflex `d69f0c7` + substrate `1afd4f8` (the SAME sha the published 4090 laya
@@ -14,8 +14,9 @@ down); they carried over in the publish merge untouched.
 start (desktop only, no sibling compute — the serialized-window law), gliner
 oracle resident ~2.3 GiB fp32 beside the laya lane's allocation (total well
 under the card; no contention signature — no stall on any suite). No
-power-source axis on this box (AC desktop); run stamped in results.json
-(`meta.box_state`).
+power-source axis on this box (AC desktop); meta.box_state carries the
+STANDING all-null refusal posture for this host (UNJUDGED - bench 034's
+recorded class), so the latency cells carry no box-state claim.
 
 ## The verdict table (accuracy; gliner vs the same run's laya lanes)
 
