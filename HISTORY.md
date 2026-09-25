@@ -7,8 +7,8 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
-- **Issue 030 (partial) — the noul route anti-alignment FIXED (bench 038):
-  prompt_injections 0.4397 → 0.4828.** The T7 option-rank blend reached
+- **Issue 030 (partial) — the noul route anti-alignment FIXED at `36e4e0a`
+  (bench 038): prompt_injections 0.4397 → 0.4828.** The T7 option-rank blend reached
   noul questions through the legacy `k == N` index path (by-name already
   excluded noul); on prompt_injections (N = 2: `"0"` = benign,
   `"1"` = injection; internal option order `[yes, no]`, yes = injection)

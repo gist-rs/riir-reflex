@@ -1,6 +1,6 @@
 # Issue 030 — noul questions take route terms through the legacy `k == N` index path, and on prompt_injections the alignment is ANTI-correlated (the recorded T7 −4.3 pt regression's root cause)
 
-Status: PARTIAL — the anti-alignment fix LANDED (bench 038; see the HISTORY.md 2026-09-25 entry for the commit); lever-4 fitted heads tracked below as the open arc.
+Status: PARTIAL — the anti-alignment fix LANDED at `36e4e0a` (bench 038); lever-4 fitted heads tracked below as the open arc.
 
 ## The finding
 
