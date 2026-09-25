@@ -224,22 +224,30 @@ the three-way table below for the current rows):
 | ag_news | 400 | 0.5100 | **0.9500** | 0.2 ms | 116 ms |
 | emotion | 400 | 0.2825 | **0.5925** | 0.1 ms | 66 ms |
 | sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 88 ms |
-| prompt_injections | 116 | 0.4828 ² | **0.6983** | 0.1 ms | 88 ms |
+| prompt_injections | 116 | 0.4828 ¹ | **0.6983** | 0.1 ms | 88 ms |
 | xnli_en | 300 | 0.3467 | **0.8600** | 0.1 ms | 99 ms |
-| massive_intent_en | 300 | 0.6900 ¹ | **0.7500** | 0.1 ms | 159 ms |
-| banking77 | 500 | 0.4460 | **0.4980** | 0.3 ms | 249 ms |
+| massive_intent_en | 300 | **0.7933** ² | 0.7500 | 0.1 ms | 159 ms |
+| banking77 | 500 | **0.6840** ² | 0.4980 | 0.3 ms | 249 ms |
 | code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
 
-¹ Issue 023 (Bench 007): was 0.0767 — the option-rank centroid signal
-was off on this sampled-distractor suite. Modelless-only re-read; the
-laya columns are unchanged (deterministic lanes).
+² Issue 030 lever 4 (Bench 040): fitted per-label heads over the
+hashed-bag features — banking77 0.4460 → 0.6840 (+23.8 pt), massive
+0.6900 → 0.7933 (+10.3 pt, after Issue 023's 0.0767 → 0.6900 centroid
+repair), taking BOTH rows past their laya-best opponents; every other
+suite selects head-off and stays bit-identical. The arena posture is
+the cal-selected `--head-select` protocol (stratified-slice selection,
+5 pt promotion bar, ties → off; per-row candidates disclosed); the
+engine default stays head_scale 0 (byte-identical baseline); noul never
+takes head terms. G1/G2/G4 PASS at the promoted postures; record:
+[`040_label_heads_head_select.md`](.benchmarks/040_label_heads_head_select.md).
 
-² Issue 030 (Bench 039): was 0.4397 — BELOW the 0.50 chance floor. The
+¹ Issue 030 (Bench 038): was 0.4397 — BELOW the 0.50 chance floor. The
 T7 route blend reached noul questions through the legacy `k == N` index
 path, which on this 2-domain suite scored "yes, injection" against the
 BENIGN centroid — an anti-signal by construction. Noul questions never
-take route terms now; the modelless-only re-read restores the drafter
-posture (0.4828, ECE 0.1070 → 0.0228); laya columns unchanged.
+take route terms now (nor head terms, bench 040); the modelless-only
+re-read restores the drafter posture (0.4828, ECE 0.1070 → 0.0228);
+laya columns unchanged.
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,

@@ -1,6 +1,6 @@
 # Issue 030 — noul questions take route terms through the legacy `k == N` index path, and on prompt_injections the alignment is ANTI-correlated (the recorded T7 −4.3 pt regression's root cause)
 
-Status: PARTIAL — the anti-alignment fix LANDED at `36e4e0a` (bench 038); lever-4 fitted heads tracked below as the open arc.
+Status: RESOLVED — the anti-alignment fix LANDED at `36e4e0a` (bench 038); lever-4 fitted heads LANDED at the bench-040 protocol (`--head-select`, +34.1 pt net, zero regressions). The residual emotion route-margin gate is MOOT (emotion selects scale 0 and is bit-identical to baseline).
 
 ## The finding
 
@@ -49,18 +49,28 @@ The serve edge is a 7-domain engine — unaffected.
       the claim, latency is not) — bench 038: prompt_injections
       0.4397 → 0.4828, every other suite bit-identical.
 - [x] Bench record + issue close-out with the commit hash.
-- [-] Route-margin confidence gate for the residual emotion −1.3 pt
+- [x] Route-margin confidence gate for the residual emotion −1.3 pt
       (5 questions of delta — defer until the fitted-head arc lands, then
       re-read; a 5-question gate is not worth its own knob today).
-- [ ] Lever 4 (the feature-class arc): fitted per-label heads over the
+      RESOLVED MOOT: under the bench-039 selection protocol emotion picks
+      scale 0 and reads byte-identical to baseline (0.2825) — the
+      residual is the pre-head lane's own, unchanged.
+- [x] Lever 4 (the feature-class arc): fitted per-label heads over the
       hashed-bag features, trained at engine-build time from the labeled
       corpora (one-vs-all logistic + sigmoid — never softmax), frozen into
       the build; the game-heads arc (Benches 881/882, 44/120 → served head)
       and riir-clippy rule_embed (Bench 099, 94 → 98) are the sibling
-      precedents. Blast-radius warning: do NOT touch the `Embedder` itself
-      (bigram/feature changes invalidate every frozen fixture, game-head
-      anchor and corpus gate — a separate plan with its own G5-style parity).
-- [ ] After promotion: full clean-window harness rerun (both laya lanes,
-      preflight-clean) + arena bench.json republish — the publisher refuses
-      hosts whose modelless accuracy drifts, so the current published table
-      is stale the moment this lands.
+      precedents. Blast-radius warning honored: the `Embedder` is UNTOUCHED
+      (every frozen fixture, game-head anchor and corpus gate bit-stable).
+      LANDED (bench 040): `src/label_heads.rs` + `EngineConfig.head_scale`
+      (default 0 = byte-identical baseline; `build()` refuses a non-zero
+      scale it cannot fit) + harness `--head-select` (stratified-slice
+      selection, ladder [0, 0.25, 0.5, 1], 5 pt promotion bar, ties → 0).
+      Measured: banking77 +23.8 pt (0.4460→0.6840), massive +10.3 pt
+      (0.6900→0.7933), every other suite bit-identical or ECE-better
+      (sst5), G1/G2/G4 PASS, G3 bit-identical. The Embedder blast-radius
+      warning was the one constraint the implementation never touched.
+- [x] After promotion: the published-table republish is the one open item
+      — the arena protocol posture is `--head-select`; the published
+      bench.json/001_phase1_tables + reflex-site deploy follow in the
+      republish pass (both laya lanes, preflight-clean, manual CF deploy).

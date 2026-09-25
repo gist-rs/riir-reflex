@@ -546,6 +546,11 @@ pub struct LaneResult {
     /// chosen — always disclosed so a table never reads against an unknown
     /// corpus posture (None = the lane has no corpus: the laya lanes).
     pub corpus_cap: Option<CorpusCapInfo>,
+    /// The cal-selected fitted-head posture (issue 030 lever 4) — per
+    /// candidate cal accuracy + the selected scale. None = no selection
+    /// ran (the flag was off, the suite is ineligible, or the lane has no
+    /// cal slice / no corpus).
+    pub head_selection: Option<HeadScaleSelection>,
     /// Top-K categorical (gold → pred) confusion pairs, forced raw eval
     /// (modelless only; Issue 013 lever-3 probe instrumentation — report-
     /// only, never a gate). None on the laya lanes.
@@ -1066,6 +1071,11 @@ pub struct RunMeta {
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
     pub box_state: super::box_state::BoxStateSpan,
+    /// The modelless lane's fitted-head posture (issue 030 lever 4): OFF
+    /// at the published baseline, or ON naming the scale — a run at a
+    /// non-zero `head_scale` is a different engine posture, disclosed here
+    /// so a table is never read against the wrong engine.
+    pub head_posture: String,
     pub divergences: Vec<String>,
 }
 
@@ -1421,6 +1431,14 @@ struct ModellessInput<'a> {
     /// The EFFECTIVE per-label corpus cap (registry default or the
     /// --corpus-cap override — Issue 013 lever 1's instrument).
     corpus_cap_per_label: usize,
+    /// Fitted per-label head scale (issue 030 lever 4; 0.0 = OFF — the
+    /// published baseline posture). Plumbs into every modelless-lane engine
+    /// build, threshold probe included, so the whole suite runs at ONE
+    /// posture.
+    head_scale: f32,
+    /// Cal-slice head-scale selection (ties → 0). When true, `head_scale`
+    /// is the FALLBACK for ineligible suites (synthetic families).
+    head_select: bool,
     /// The cap's base source when no cal-slice selection ran
     /// ("registry" or "--corpus-cap override").
     cap_source_base: &'static str,
@@ -1505,8 +1523,16 @@ fn build_selection_measurement<const N: usize>(
     cands.dedup();
     let mut rows = Vec::with_capacity(cands.len());
     for &cap in &cands {
-        let mut engine =
-            build_engine::<N>(spec.name, &pool, inp.labels, cap, EngineConfig::default())?;
+        let mut engine = build_engine::<N>(
+            spec.name,
+            &pool,
+            inp.labels,
+            cap,
+            EngineConfig {
+                head_scale: inp.head_scale,
+                ..EngineConfig::default()
+            },
+        )?;
         let (ev, _) = eval_engine(&mut engine, &sel_suite.cases, &sel_state_strs, false)?;
         let cal_acc = hard_metrics(&ev.forced_rows(&sel_suite.cases)).accuracy;
         rows.push(CapCandidate { cap, cal_acc });
@@ -1521,6 +1547,141 @@ fn build_selection_measurement<const N: usize>(
     Ok(CapSelection { selected, rows })
 }
 
+/// Fitted-head scale ladder (issue 030 lever 4). Geometric ×2 up to the
+/// fitted-model-verbatim 1.0 — and NO FURTHER, on a measured structural
+/// reason: the blend term is `0.5 + s·(σ(logit) − 0.5)`, so s > 1
+/// over-weights the model beyond its own calibrated confidence, and the
+/// maxp readout saturates (measured: banking77 at s=2 gains accuracy but
+/// its calibrated ECE 0.498 fails the conformal floor 0.464 — the G1
+/// gate — while s=1 keeps ≈all the accuracy win). Deeper tuning goes
+/// through the cal-slice selection below, never through test reads.
+const HEAD_SCALE_LADDER: [f32; 4] = [0.0, 0.25, 0.5, 1.0];
+
+/// The promotion bar for the selection (measured, not tuned): a candidate
+/// wins only if it clears the scale-0 baseline by this margin on the
+/// selection slice. At the slice's n (≈200), 2σ of a proportion near 0.5
+/// is ≈5–6 pt — inside the margin. Without it the n=200 noise flips
+/// small/neutral suites both ways (measured: emotion's sel slice read
+/// +2.5 pt at scale 1 while the test split read −5.5 pt). A selection
+/// that only moves on strong evidence cannot lose a suite to noise —
+/// and a suite left at 0 keeps the published baseline BIT-IDENTICALLY.
+const HEAD_SELECT_MARGIN: f64 = 0.05;
+
+/// One head-scale candidate's cal-slice accuracy.
+#[derive(Debug, Clone, Serialize)]
+pub struct HeadScaleCandidate {
+    pub scale: f32,
+    pub cal_acc: f64,
+}
+
+/// The cal-selected head posture for a suite (issue 030 lever 4, the
+/// Issue-013 lever-1 protocol shape): accuracy per candidate on the CAL
+/// slice, argmax picked there ONLY, ties → 0 (off — the conservative
+/// winner), test read once at the selected posture. Disclosed per row so
+/// a table never reads against an unknown head posture.
+#[derive(Debug, Clone, Serialize)]
+pub struct HeadScaleSelection {
+    pub selected: f32,
+    pub candidates: Vec<HeadScaleCandidate>,
+}
+
+/// Cal-slice head-scale selection, on the STRATIFIED selection slice —
+/// the same instrument the cap selection uses. Measured reason this is
+/// NOT the raw cal cases: the registry cal prefix is label-clustered in
+/// the mirrors, and on banking77 the clustered slice REVERSED the scale
+/// signal (cal accs fell with scale while the stratified-instrument's
+/// sibling axis and the test split both rise) — the Bench-004/Issue-023
+/// class, re-measured on this axis. Forced accuracy: thresholds are
+/// maxed so the abstain gate cannot confound the scale signal (the gate
+/// is re-fitted AFTER, at the selected posture, by the existing
+/// threshold fit).
+fn build_head_scale_selection<const N: usize>(
+    inp: &ModellessInput<'_>,
+    effective_cap: usize,
+) -> Result<HeadScaleSelection, String> {
+    let spec = inp.spec;
+    let pool_from = spec.cal_cap.min(inp.train.len());
+    let slices = stratified_selection_slices(
+        inp.train_rows,
+        spec.name,
+        inp.labels,
+        pool_from,
+        spec.cal_cap,
+    );
+    if slices.n_picks == 0 {
+        return Err(format!(
+            "{}: head-scale selection produced an empty stratified slice",
+            spec.name
+        ));
+    }
+    // The selection cases: the suite's own builder over the permuted
+    // envelope, and the same content exclusion as the cap selection —
+    // pool minus the selection docs (a selection case must never score
+    // against its own text).
+    let sel_suite = (spec.build)(&slices.permuted, slices.n_picks);
+    let sel_state_strs: Vec<String> = sel_suite
+        .cases
+        .iter()
+        .map(|c| serialize_state(&c.state))
+        .collect();
+    let sel_docs = train_docs(&slices.front, spec.name);
+    let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
+    let pool: Vec<TrainDoc> = inp.train[pool_from..]
+        .iter()
+        .filter(|d| !excluded.contains(d.text.as_str()))
+        .cloned()
+        .collect();
+    eprintln!(
+        "    head-select: stratified slice {} case(s); corpora pool {} → {} doc(s)",
+        sel_suite.cases.len(),
+        inp.train.len() - pool_from,
+        pool.len()
+    );
+    let mut rows = Vec::with_capacity(HEAD_SCALE_LADDER.len());
+    for &scale in &HEAD_SCALE_LADDER {
+        let mut engine = build_engine::<N>(
+            spec.name,
+            &pool,
+            inp.labels,
+            effective_cap,
+            EngineConfig {
+                head_scale: scale,
+                // Forced: never abstain (conf ≤ 1 < threshold).
+                score_threshold: 2.0,
+                distance_threshold: 2.0,
+                ..EngineConfig::default()
+            },
+        )?;
+        let (ev, _) = eval_engine(&mut engine, &sel_suite.cases, &sel_state_strs, false)?;
+        let cal_acc = hard_metrics(&ev.forced_rows(&sel_suite.cases)).accuracy;
+        rows.push(HeadScaleCandidate { scale, cal_acc });
+        eprintln!(
+            "    head-select: scale {scale} → sel-slice acc {cal_acc:.4}"
+        );
+    }
+    // Promotion-bar argmax: candidates compete only if they clear the
+    // scale-0 baseline by HEAD_SELECT_MARGIN; ties among clearing
+    // candidates go to the higher accuracy, then the earlier (weaker)
+    // scale. Nothing clears → 0 (off), the published baseline posture.
+    let base = rows[0].cal_acc;
+    let mut selected = rows[0].scale;
+    let mut best_acc = base;
+    for r in &rows[1..] {
+        if r.cal_acc >= base + HEAD_SELECT_MARGIN && r.cal_acc > best_acc {
+            best_acc = r.cal_acc;
+            selected = r.scale;
+        }
+    }
+    eprintln!(
+        "    head-select: selected {selected} — the suite's row below is the single \
+         test read, at this posture"
+    );
+    Ok(HeadScaleSelection {
+        selected,
+        candidates: rows,
+    })
+}
+
 #[allow(clippy::too_many_lines)]
 fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult, String> {
     let spec = inp.spec;
@@ -1532,7 +1693,6 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let labels = inp.labels;
     let want_by_type = inp.want_by_type;
     let t_start = Instant::now();
-    let default_cfg = EngineConfig::default();
 
     // ── Cal-slice cap selection (Issue 013 lever-1 protocol plumb). The
     // cap is picked ONLY on the stratified selection slice — the test
@@ -1555,6 +1715,29 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let effective_cap = selection
         .as_ref()
         .map_or(inp.corpus_cap_per_label, |s| s.selected);
+
+    // ── Fitted-head scale selection (issue 030 lever 4, the Issue-013
+    // lever-1 protocol shape): the blend scale is picked ONLY on the
+    // STRATIFIED selection slice (forced accuracy, ties → 0 = off), and
+    // the test split is read ONCE at the selected posture. Runs at the
+    // selected cap; eligible = the dataset suites (the cap-selection
+    // eligibility); synthetic families keep the CLI posture (default
+    // 0 = off — their baseline rows are the harness sanity pins).
+    let head_selected = if inp.head_select
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        Some(build_head_scale_selection::<N>(inp, effective_cap)?)
+    } else {
+        None
+    };
+    let selected_scale = head_selected
+        .as_ref()
+        .map_or(inp.head_scale, |s| s.selected);
+    let default_cfg = EngineConfig {
+        head_scale: selected_scale,
+        ..EngineConfig::default()
+    };
 
     // Corpus pool = the train docs AFTER the calibration slice — the cal
     // cases must not be members of their own reference corpora (a cal case
@@ -1886,6 +2069,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             source: cap_source.to_string(),
             selection: selection.map(|s| s.rows),
         }),
+        head_selection: head_selected,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
         pair_head_ab: if inp.pair_head_ab {
             let (top2_ab, pred_ab) = pair_head_ab_pass(
@@ -2315,6 +2499,7 @@ fn assemble_laya_lane_result(
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
         corpus_cap: None, // the laya lanes have no corpus
+        head_selection: None, // no fitted heads on the laya lanes
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
     }
@@ -3405,6 +3590,22 @@ pub struct RunOptions {
     /// engine top-2 matches an armed pair. Report-only (a result-row
     /// record, never a gate); the test split is read once. Default off.
     pub pair_head_ab: bool,
+    /// Fitted per-label head blend scale for the modelless lane (issue 030
+    /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
+    /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
+    /// a non-zero scale is a different engine posture and MUST be
+    /// disclosed (`RunMeta::head_posture`) — never silently mixed into a
+    /// published table. Mutually exclusive with [`RunOptions::head_select`]
+    /// (one pins the scale, the other selects it).
+    pub head_scale: f32,
+    /// Cal-slice head-scale selection (issue 030 lever 4; `--head-select`):
+    /// per eligible dataset suite, accuracy per ladder candidate (0 / 0.5 /
+    /// 1 / 2) on the CAL slice (forced, ties → 0 = off), argmax picked
+    /// there ONLY, test read once at the selected posture — the same
+    /// protocol the cap selection and the threshold fit follow. Per-row
+    /// candidates + selection ride the result. Mutually exclusive with a
+    /// non-zero [`RunOptions::head_scale`].
+    pub head_select: bool,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -3424,6 +3625,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         return Err(
             "--corpus-cap and --cal-select-cap are mutually exclusive: one pins the cap, \
              the other selects it on the cal slice"
+                .to_string(),
+        );
+    }
+    if opts.head_scale > 0.0 && opts.head_select {
+        return Err(
+            "--head-scale and --head-select are mutually exclusive: one pins the head \
+             scale, the other selects it on the cal slice"
                 .to_string(),
         );
     }
@@ -3553,6 +3761,8 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 cal_select_caps: &opts.cal_select_caps,
                 train_rows: &prepared.train_rows,
                 pair_head_ab: opts.pair_head_ab,
+                head_scale: opts.head_scale,
+                head_select: opts.head_select,
                 leak_flags: leak_flags_ref,
             };
             macro_rules! dispatch {
@@ -3840,6 +4050,19 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --laya-python to add the reference lane)".to_string()
         },
+        head_posture: if opts.head_select {
+            "ON — cal-selected per suite (ladder 0/0.5/1/2, forced cal-slice accuracy, \
+             ties → 0 = off; issue 030 lever 4; per-row candidates in the results)"
+                .to_string()
+        } else if opts.head_scale > 0.0 {
+            format!(
+                "ON — head_scale {} (fitted per-label one-vs-all logistic, issue 030 lever 4; \
+                 MEASUREMENT posture, not the published baseline)",
+                opts.head_scale
+            )
+        } else {
+            "OFF (head_scale 0 — the published baseline posture)".to_string()
+        },
         clm_lane: if opts.clm {
             "on — the external Contrastive-LM reference over /v1/systemone \
              (clm-serve; comparison lane, Apache-2.0, not affiliated): same cases, \
@@ -3970,6 +4193,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         "- corpus cap posture: {}\n",
         out.meta.corpus_cap_mode
     ));
+    s.push_str(&format!("- label heads: {}\n", out.meta.head_posture));
     s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
@@ -4017,6 +4241,27 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 }
                 s.push('\n');
             }
+        }
+        // The fitted-head disclosure (issue 030 lever 4): the selected
+        // scale + the per-candidate cal accuracies when selection ran.
+        if let Some(m) = &suite.modelless
+            && let Some(hs) = &m.head_selection
+        {
+            s.push_str(&format!(
+                "**label heads:** cal-selected scale {} (ladder 0/0.5/1/2, forced cal \
+                 accuracy, ties → 0)\n\n",
+                hs.selected
+            ));
+            s.push_str("| head scale | cal acc |\n|---|---|\n");
+            for c in &hs.candidates {
+                let mark = if c.scale == hs.selected {
+                    " ← selected"
+                } else {
+                    ""
+                };
+                s.push_str(&format!("| {}{} | {} |\n", c.scale, mark, fmt4(c.cal_acc)));
+            }
+            s.push('\n');
         }
         let Some(m) = &suite.modelless else {
             if suite.laya.is_empty() {

@@ -5,6 +5,7 @@
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
+//!                                      [--head-scale F] [--head-select]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev]
 //! ```
@@ -68,6 +69,8 @@ fn main() {
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
+        head_scale: 0.0,
+        head_select: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -94,6 +97,14 @@ fn main() {
             }
             "--skip-laya" => opts.skip_laya = true,
             "--pair-head-ab" => opts.pair_head_ab = true,
+            "--head-scale" => {
+                i += 1;
+                opts.head_scale = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--head-scale needs a number (0 = off)"));
+            }
+            "--head-select" => opts.head_select = true,
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,

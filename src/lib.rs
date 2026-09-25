@@ -76,6 +76,13 @@ pub mod serve;
 #[cfg(feature = "modelless")]
 pub mod game_heads;
 
+/// Fitted per-label heads over the hashed-bag features (issue 030 lever
+/// 4): one-vs-all logistic rows fitted at engine-build time from the
+/// labeled corpora — deterministic, sigmoid (never softmax), default-off
+/// behind the engine's `head_scale` knob.
+#[cfg(feature = "modelless")]
+pub mod label_heads;
+
 /// The laya native-Rust comparison lane (Plan 603 T1.4) — the riir-owned
 /// forward (opt-in `laya-riir`). MOVED substrate-side (the consolidation
 /// issue's encoder-lane move): the lane lives in the inference substrate's

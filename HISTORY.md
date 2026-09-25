@@ -7,6 +7,40 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-25
 
+- **Issue 030 RESOLVED — lever 4, the fitted-head feature-class arc, LANDED at
+  bench 040 (this commit): banking77 +23.8 pt, massive +10.3 pt, every other
+  suite bit-identical or ECE-better — the modelless lane takes BOTH rows past
+  their laya-best opponents.** `src/label_heads.rs`: one-vs-all logistic heads
+  (sigmoid, never softmax) over the UNTOUCHED 256-dim hashed-bag features,
+  fitted at engine-build time from the same post-cal pool (deterministic:
+  fixed doc order, 12 epochs, lr 0.5 linear decay, L2 1e-4, no RNG;
+  bit-identical re-fit, tested). Blend term `0.5 + head_scale·(σ(logit) − 0.5)`
+  wherever route terms are active; noul never takes it (issue 030's law).
+  `EngineConfig.head_scale` default 0 = byte-identical baseline; `build()`
+  REFUSES a non-zero scale it cannot fit (fail-closed — never a silent no-op
+  head). Arena posture = harness `--head-select`: per eligible dataset suite,
+  accuracy per ladder `[0, 0.25, 0.5, 1.0]` on the STRATIFIED selection slice
+  (forced), 5 pt promotion bar over scale-0, ties → off, test read once;
+  per-candidate rows disclosed in results.json + TABLES.md +
+  `RunMeta.head_posture`. Three measured traps shaped the protocol: (1) the
+  raw cal slice REVERSES banking77's scale signal (label-clustered cal,
+  Bench-004/Issue-023 class re-measured on this axis — accs fall 0.265→0.200
+  on cal while test rises +23.8 pt; the stratified slice ranks it right,
+  0.49→0.715); (2) n=200 selection noise flips small/neutral suites both ways
+  (emotion: sel +2.5 pt / test −5.5 pt) — the promotion bar makes the selection
+  only move on strong evidence; (3) scale > 1 fails G1 BY CONSTRUCTION (the
+  blend over-weights the model past its own calibrated confidence; banking77
+  at pin-2.0: calibrated ECE 0.498 > floor 0.464) — the ladder caps at the
+  fitted-model-verbatim 1.0, where G1 passes. GOAT: G1 PASS at every promoted
+  posture (ag_news' floor FAIL is byte-identical baseline, selected 0,
+  pre-existing); G2 decision_set_goat p99 45 µs + per-suite p50s unchanged;
+  G3 bit-identical everywhere not promoted; G4 core alloc-free (stack dot per
+  option). 152 tests green, clippy -D clean at both postures. Posture law: the
+  ENGINE default stays 0 (the published baseline reproduces bit-for-bit); the
+  ARENA protocol is `--head-select`. Open from the issue: the published-table
+  republish (both laya lanes + reflex-site + manual CF deploy) — the last
+  unchecked task.
+
 - **Issue 030 (partial) — the noul route anti-alignment FIXED at `36e4e0a`
   (bench 038): prompt_injections 0.4397 → 0.4828.** The T7 option-rank blend reached
   noul questions through the legacy `k == N` index path (by-name already
