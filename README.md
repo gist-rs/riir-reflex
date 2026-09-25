@@ -192,6 +192,11 @@ scripts/build-release.sh x86_64-pc-windows-gnu   # cross target → zip via carg
 scripts/binary_leak_scan.sh target/aarch64-apple-darwin/dist/reflex
 ```
 
+After a release is published (and after any wasm-head rebuild): re-publish
+the site's disk-footprint chart — it re-measures the unpacked archive, the
+HF model trees and the wasm on every run (`../reflex-site/scripts/publish_sizes.sh`,
+generated into `data/sizes.json`, never hand-typed).
+
 ## The gates (Plan 603 GOAT)
 
 | gate | verdict | where |
