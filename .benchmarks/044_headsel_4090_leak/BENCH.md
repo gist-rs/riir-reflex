@@ -5,6 +5,13 @@ claims · head-select posture at the FIXED ladder label · `slice_leak` scan
 armed (Issue 024's 4090 half) · 14/14 accuracy bit-identical vs BOTH prior
 runs (Bench 040's M3 reference and Bench 043's 4090 run — the third
 cross-host confirmation of the head-select promotion numbers).
+⚠ **The latency cells in this run's results.json are BOX-INVALIDATED
+(UNJUDGED Windows box_state + contention-shaped p50s vs the incumbents)
+and were never published** — the owner-decided landing (option 3,
+`.issues/034`) keeps the live table at Bench 041 until preflight-clean
+FULL-lane re-runs exist; the derived `results_publish.json` in this dir
+(the latency-carry experiment) is SUPERSEDED and kept only as the dry-run
+record.
 
 ## Why a re-run (Bench 043's own operating note asked for this)
 
