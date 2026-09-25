@@ -2199,14 +2199,20 @@ fn run_laya_checkpoint(
     // unmeasured warmup case per (suite, checkpoint) load compiles the
     // exact pipelines the timed loop then uses. `LAYA_HARNESS_NO_WARMUP=1`
     // restores the cold posture (the measurement, not the default).
-    if laya_gpu_preramp_enabled()
-        && let Some(first) = cases.first()
-    {
-        let warm_q = case_questions(first);
-        match agent.system_one(&first.state, &warm_q) {
-            Ok(_) => eprintln!("  [laya {ckpt}] gpu pre-ramp: 1 unmeasured warmup case"),
-            Err(crate::laya::LayaError::Bucket { .. }) => {}
-            Err(e) => return Err(format!("laya warmup ({ckpt}): {e}")),
+    // The warmup is the first SERVABLE case: an ANE bucket refusal moves
+    // on to the next one (a refused case warms nothing — Bench 042 found
+    // prompt_injections' case 0 over the bucket, so its first timed case
+    // was the cold one).
+    if laya_gpu_preramp_enabled() {
+        for case in cases {
+            match agent.system_one(&case.state, &case_questions(case)) {
+                Ok(_) => {
+                    eprintln!("  [laya {ckpt}] gpu pre-ramp: 1 unmeasured warmup case ({})", case.id);
+                    break;
+                }
+                Err(crate::laya::LayaError::Bucket { .. }) => continue,
+                Err(e) => return Err(format!("laya warmup ({ckpt}): {e}")),
+            }
         }
     }
 
