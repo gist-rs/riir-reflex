@@ -69,7 +69,8 @@ publication.
 | The laya reference models/protocol authorship | upstream (Apache-2.0) — mirrored UNMODIFIED under `.raw/` at a full sha before any published table (T1.4 pin) |
 | Game runtime (NPC cognition, sync, perception) | `../riir-ai` |
 | Code healing / lint tooling | `../riir-clippy` |
-| The public arena site + distribution | Phase 2 (separate plan, GREEN-LIT, not this repo's Phase 1) |
+| The public arena site (static pages, charts, published data mirrors) | `gist-rs/reflex-site` (`../reflex-site`) — the product's site, fed FROM here: harness output → its `data/bench.json` publisher, doc/SVG mirrors synced by its `scripts/sync_mirror.py` (plan: `../katgpt-rs/.plans/606_reflex_phase2_site_distribution.md`). Display name: **Reflex** (lanes: *Reflex · modelless* = this engine, *Reflex · rulebook* = `../riir-reflexer`); KatGPT is credited as the substrate, never a lane name |
+| The binary release channel | `gist-rs/reflex` (+ Homebrew tap / Scoop bucket) — built from this repo (`scripts/build-release.sh`, `dist/`), published there |
 
 ## May depend on
 
