@@ -27,6 +27,28 @@ Choosing one label from N is a single decision with no next state to search.
 What does transfer is the **scaffolding**: rules as data, a genome, and a gated
 hill-`climb` against held-out seeds (T5).
 
+## POC measurement (2026-09-26, throwaway analysis script, not the product path)
+
+Plain multinomial naive Bayes: add-1 smoothing, unigram + bigram, one fixed
+configuration with **no hyperparameter selection**. Trained on the already-fetched
+train rows only and scored on the same test split the harness uses:
+
+| suite | train rows | test tokens seen in train | NB @64/label | NB @all fetched train | modelless (045) | laya best |
+|---|---|---|---|---|---|---|
+| ag_news | 4000 | 94.2% | 0.665 | **0.868** | 0.510 | 0.950 |
+| emotion | 4000 | 94.8% | 0.268 | **0.570** | 0.282 | 0.593 |
+| sst5 | 4000 | 91.3% | 0.263 | **0.387** | 0.217 | 0.372 |
+| prompt_injections | 546 | 77.8% | 0.595 | **0.802** | 0.483 | 0.698 |
+| xnli_en | 4000 | 92.2% | 0.363 | 0.387 | 0.347 | 0.860 |
+
+Reads: (1) data volume matters a lot for a count-based scorer. The same scorer goes
+0.665 → 0.868 on ag_news just from 64/label to all 4000 rows, and only 4000 of 120k
+were fetched. (2) Train already covers about 92–95% of the test tokens, so the test
+rows add almost nothing a train-only corpus lacks. (3) NB alone passes laya on sst5
+and prompt_injections and comes within 2 pt on emotion. (4) xnli stays at the
+bag-of-words floor, as predicted (T3/T4). Not a GOAT number yet: T1 must reproduce
+it in Rust with selection on the cal slice.
+
 ## Diagnosis — three ceilings, all in the scorer
 
 1. **The scorer gets worse with more data.** Bench 003: ag_news peaks at cap 64/label
