@@ -28,7 +28,7 @@ const BIGRAM_WEIGHT: f32 = 0.5;
 /// FNV-1a 64 over ASCII-lowercased bytes. Lowercasing happens in-hash (no
 /// allocation on the hot path; non-ASCII bytes pass through deterministically).
 #[inline]
-fn fnv1a_word(bytes: &[u8], salt: u64) -> u64 {
+pub(crate) fn fnv1a_word(bytes: &[u8], salt: u64) -> u64 {
     let mut h = 0xcbf2_9ce4_8422_2325u64 ^ salt;
     for &b in bytes {
         let b = if b.is_ascii_uppercase() { b + 32 } else { b };
@@ -41,7 +41,7 @@ fn fnv1a_word(bytes: &[u8], salt: u64) -> u64 {
 /// Trim non-alphanumeric ASCII edges. Returns an empty slice for tokens
 /// that are pure punctuation.
 #[inline]
-fn token(raw: &[u8]) -> &[u8] {
+pub(crate) fn token(raw: &[u8]) -> &[u8] {
     let is_sep = |b: u8| !(b.is_ascii_alphanumeric());
     let mut a = 0usize;
     let mut b = raw.len();

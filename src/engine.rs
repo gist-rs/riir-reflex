@@ -45,7 +45,7 @@
 use crate::embed::Embedder;
 use crate::label_heads::LabelHeads;
 #[cfg(feature = "nb_scope")]
-use crate::nb_scope::{NB_VOCAB, NbAlpha, NbScope};
+use crate::nb_scope::{NbAlpha, NbScope, NbView, view_tokens_into};
 use crate::readout;
 use katgpt_core::compression_drafter::Lz4FlexDrafter;
 use katgpt_core::decision_wire::{
@@ -255,6 +255,10 @@ pub struct EngineConfig {
     /// harness, never read off test.
     #[cfg(feature = "nb_scope")]
     pub nb_noul_domain: Option<usize>,
+    /// Count-table event view (issue 038 T3): bag, or the sentence-pair
+    /// view (last field read against the earlier ones).
+    #[cfg(feature = "nb_scope")]
+    pub nb_view: NbView,
 }
 
 impl Default for EngineConfig {
@@ -274,6 +278,8 @@ impl Default for EngineConfig {
             nb_alpha: NbAlpha::ObservedLaplace,
             #[cfg(feature = "nb_scope")]
             nb_noul_domain: None,
+            #[cfg(feature = "nb_scope")]
+            nb_view: NbView::Bag,
         }
     }
 }
@@ -505,7 +511,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 .iter()
                 .map(|s| s.nb_docs.as_deref().unwrap_or(&s.docs))
                 .collect();
-            NbScope::fit(&sets, cfg.nb_alpha)
+            NbScope::fit(&sets, cfg.nb_alpha, cfg.nb_view)
         });
         for (i, s) in specs.into_iter().enumerate() {
             if s.docs.is_empty() {
@@ -652,7 +658,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 // in-scope score per domain, one term per offered option.
                 #[cfg(feature = "nb_scope")]
                 if let Some(nb) = self.nb.as_ref() {
-                    crate::embed::hashed_tokens_into(req.state.as_bytes(), NB_VOCAB, &mut sc.nb_tok);
+                    view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
                     let mut nb_in = [0.0f32; N];
                     nb.in_scores(&sc.nb_tok, &mut nb_in);
                     let n_tok = sc.nb_tok.len();
@@ -666,7 +672,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             #[cfg(feature = "nb_scope")]
             let noul_nb: Option<(f32, f32)> = match (q.kind, self.nb.as_ref(), self.cfg.nb_noul_domain) {
                 (QuestionKind::Noul, Some(nb), Some(d)) if d < N => {
-                    crate::embed::hashed_tokens_into(req.state.as_bytes(), NB_VOCAB, &mut sc.nb_tok);
+                    view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
                     let mut nb_in = [0.0f32; N];
                     nb.in_scores(&sc.nb_tok, &mut nb_in);
                     let yes = NbScope::blend_term(&nb_in, d, sc.nb_tok.len(), self.cfg.nb_scale);

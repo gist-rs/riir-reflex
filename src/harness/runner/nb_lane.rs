@@ -12,7 +12,7 @@
 
 use super::*;
 #[cfg(feature = "nb_scope")]
-use crate::nb_scope::NbAlpha;
+use crate::nb_scope::{NbAlpha, NbView};
 
 /// One (scale, α) candidate's selection-slice accuracy.
 #[derive(Debug, Clone, Serialize)]
@@ -22,6 +22,8 @@ pub struct NbCandidate {
     /// Noul polarity candidate (`Some(d)`: "yes" reads as domain `d`);
     /// `None` on choice/score suites.
     pub noul_domain: Option<usize>,
+    /// Event view (`bag` / `pair`).
+    pub view: &'static str,
     pub cal_acc: f64,
 }
 
@@ -35,6 +37,8 @@ pub struct NbSelection {
     pub selected_alpha: &'static str,
     /// The selected noul polarity (noul suites only).
     pub selected_noul_domain: Option<usize>,
+    /// The selected event view (`bag` / `pair`).
+    pub selected_view: &'static str,
     pub candidates: Vec<NbCandidate>,
 }
 
@@ -93,56 +97,75 @@ pub(super) fn build_nb_selection<const N: usize>(
     } else {
         vec![None]
     };
-    let eval_at = |scale: f32, alpha: NbAlpha, noul: Option<usize>| -> Result<f64, String> {
-        let mut engine = build_engine::<N>(
-            spec.name,
-            &pool,
-            inp.labels,
-            effective_cap,
-            EngineConfig {
-                head_scale,
-                nb_scale: scale,
-                nb_alpha: alpha,
-                nb_noul_domain: noul,
-                // Forced: never abstain (conf ≤ 1 < threshold).
-                score_threshold: 2.0,
-                distance_threshold: 2.0,
-                ..EngineConfig::default()
-            },
-        )?;
-        let (ev, _) = eval_engine(&mut engine, &cases, &state_strs, false)?;
-        Ok(hard_metrics(&ev.forced_rows(&cases)).accuracy)
+    // A sentence-pair suite (states carry ≥ 2 string fields) also tries the
+    // pair view (issue 038 T3).
+    let pair_suite = cases.first().is_some_and(|c| {
+        c.state
+            .as_object()
+            .is_some_and(|m| m.values().filter(|v| v.is_string()).count() >= 2)
+    });
+    let views: &[(NbView, &str)] = if pair_suite {
+        &[(NbView::Bag, "bag"), (NbView::Pair, "pair")]
+    } else {
+        &[(NbView::Bag, "bag")]
     };
-    let base = eval_at(0.0, NbAlpha::ObservedLaplace, None)?;
+    let eval_at =
+        |scale: f32, alpha: NbAlpha, noul: Option<usize>, view: NbView| -> Result<f64, String> {
+            let mut engine = build_engine::<N>(
+                spec.name,
+                &pool,
+                inp.labels,
+                effective_cap,
+                EngineConfig {
+                    head_scale,
+                    nb_scale: scale,
+                    nb_alpha: alpha,
+                    nb_noul_domain: noul,
+                    nb_view: view,
+                    // Forced: never abstain (conf ≤ 1 < threshold).
+                    score_threshold: 2.0,
+                    distance_threshold: 2.0,
+                    ..EngineConfig::default()
+                },
+            )?;
+            let (ev, _) = eval_engine(&mut engine, &cases, &state_strs, false)?;
+            Ok(hard_metrics(&ev.forced_rows(&cases)).accuracy)
+        };
+    let base = eval_at(0.0, NbAlpha::ObservedLaplace, None, NbView::Bag)?;
     eprintln!("    nb-select: scale 0 (off) → sel-slice acc {base:.4}");
     let mut rows = vec![NbCandidate {
         scale: 0.0,
         alpha: "off",
         noul_domain: None,
+        view: "bag",
         cal_acc: base,
     }];
-    let (mut selected_scale, mut selected_alpha, mut selected_noul, mut best) =
-        (0.0f32, "off", None, base);
-    for &noul in &polarities {
-        for &(alpha, name) in &NB_ALPHA_LADDER {
-            for &scale in &NB_SCALE_LADDER {
-                let cal_acc = eval_at(scale, alpha, noul)?;
-                eprintln!(
-                    "    nb-select: scale {scale} α {name} noul-yes {noul:?} → sel-slice acc \
-                     {cal_acc:.4}"
-                );
-                if cal_acc >= base + HEAD_SELECT_MARGIN && cal_acc > best {
-                    best = cal_acc;
-                    selected_scale = scale;
-                    selected_alpha = name;
-                    selected_noul = noul;
+    let (mut selected_scale, mut selected_alpha, mut selected_noul, mut selected_view, mut best) =
+        (0.0f32, "off", None, "bag", base);
+    for &(view, view_name) in views {
+        for &noul in &polarities {
+            for &(alpha, name) in &NB_ALPHA_LADDER {
+                for &scale in &NB_SCALE_LADDER {
+                    let cal_acc = eval_at(scale, alpha, noul, view)?;
+                    eprintln!(
+                        "    nb-select: scale {scale} α {name} noul-yes {noul:?} view {view_name} → \
+                     sel-slice acc {cal_acc:.4}"
+                    );
+                    if cal_acc >= base + HEAD_SELECT_MARGIN && cal_acc > best {
+                        best = cal_acc;
+                        selected_scale = scale;
+                        selected_alpha = name;
+                        selected_noul = noul;
+                        selected_view = view_name;
+                    }
+                    rows.push(NbCandidate {
+                        scale,
+                        alpha: name,
+                        noul_domain: noul,
+                        view: view_name,
+                        cal_acc,
+                    });
                 }
-                rows.push(NbCandidate {
-                    scale,
-                    alpha: name,
-                    noul_domain: noul,
-                    cal_acc,
-                });
             }
         }
     }
@@ -154,6 +177,7 @@ pub(super) fn build_nb_selection<const N: usize>(
         selected_scale,
         selected_alpha,
         selected_noul_domain: selected_noul,
+        selected_view,
         candidates: rows,
     })
 }
@@ -165,6 +189,16 @@ pub(super) fn alpha_of(name: &str) -> NbAlpha {
         .iter()
         .find(|(_, n)| *n == name)
         .map_or(NbAlpha::ObservedLaplace, |(a, _)| *a)
+}
+
+/// The view a selected label maps back to.
+#[cfg(feature = "nb_scope")]
+pub(super) fn view_of(name: &str) -> NbView {
+    if name == "pair" {
+        NbView::Pair
+    } else {
+        NbView::Bag
+    }
 }
 
 /// Raw text of a case state: every string leaf, newline-joined (the
@@ -239,7 +273,14 @@ pub(super) fn transductive_pass<const N: usize>(
 ) -> Result<Option<TransductiveReport>, String> {
     #[cfg(not(feature = "nb_scope"))]
     {
-        let _ = (inp, honest, honest_accuracy, cfg, corpus_pool, effective_cap);
+        let _ = (
+            inp,
+            honest,
+            honest_accuracy,
+            cfg,
+            corpus_pool,
+            effective_cap,
+        );
         Ok(None)
     }
     #[cfg(feature = "nb_scope")]

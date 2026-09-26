@@ -1836,6 +1836,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         default_cfg.nb_scale = sel.selected_scale;
         default_cfg.nb_alpha = nb_lane::alpha_of(sel.selected_alpha);
         default_cfg.nb_noul_domain = sel.selected_noul_domain;
+        default_cfg.nb_view = nb_lane::view_of(sel.selected_view);
     }
 
     // Corpus pool = the train docs AFTER the calibration slice — the cal
@@ -4251,7 +4252,8 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         nb_posture: if opts.nb_select {
             format!(
                 "ON — cal-selected per suite (scale 0/1/4/16 × α observed-laplace/fixed-1, \
-                 promotion bar +5 pt over off on the stratified slice; count tables from \
+                 promotion bar +5 pt over off on the stratified slice; + noul polarity per \
+                 domain on noul suites; + bag/pair view on multi-field states; count tables from \
                  TRAIN rows only, uncapped). Transductive column: {TRANSDUCTIVE_PROTOCOL}"
             )
         } else {
@@ -4486,25 +4488,30 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             && let Some(ns) = &m.nb_selection
         {
             s.push_str(&format!(
-                "**count tables:** cal-selected scale {} α {} (promotion bar +5 pt over off)\n\n",
-                ns.selected_scale, ns.selected_alpha
+                "**count tables:** cal-selected scale {} α {} view {} (promotion bar +5 pt over \
+                 off)\n\n",
+                ns.selected_scale, ns.selected_alpha, ns.selected_view
             ));
-            s.push_str("| nb scale | α | noul yes→domain | cal acc |\n|---|---|---|---|\n");
+            s.push_str(
+                "| nb scale | α | noul yes→domain | view | cal acc |\n|---|---|---|---|---|\n",
+            );
             for c in &ns.candidates {
                 let mark = if c.scale == ns.selected_scale
                     && c.alpha == ns.selected_alpha
                     && c.noul_domain == ns.selected_noul_domain
+                    && c.view == ns.selected_view
                 {
                     " ← selected"
                 } else {
                     ""
                 };
                 s.push_str(&format!(
-                    "| {}{} | {} | {} | {} |\n",
+                    "| {}{} | {} | {} | {} | {} |\n",
                     c.scale,
                     mark,
                     c.alpha,
                     c.noul_domain.map_or("—".to_string(), |d| d.to_string()),
+                    c.view,
                     fmt4(c.cal_acc)
                 ));
             }
