@@ -1,0 +1,573 @@
+{
+  "meta": {
+    "date_utc": "2026-09-26T16:04:01Z",
+    "git_sha": "b092869",
+    "host": "m3",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_rule": "tables fit on the DEPLOYED corpus: the full registry pool (train minus the stratified cal front), NB docs uncapped per label (nb_doc_sets — the build_engine_with rule)",
+    "slice_rule": "states from the label-stratified selection slice (the shared cal-side instrument); NO gold consumed, NO test row evaluated — the test split stays reserved for T5's single read",
+    "seen_rule": "an event is SEEN iff its bucket was touched by any domain's training docs (the fit-time seen set); duplicates counted — the same event stream the blend σ divides by",
+    "gate_rule": "H2 ARMED-PENDING iff rumor fraction (n < 4) ≤ 50% on ANY admissible view; NOT ARMED iff every view exceeds it — a write-off must survive both tokenizations; the binding view stays nb-select's train-side decision"
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_states": 100,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 100,
+          "min_seen": 61,
+          "p25_seen": 87,
+          "median_seen": 129,
+          "p75_seen": 207,
+          "max_seen": 429,
+          "mean_seen": 158.74,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 1.0,
+          "median_total_events": 129,
+          "corpus_docs": 701,
+          "observed_buckets": 20081,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              0
+            ],
+            [
+              "8-15",
+              0
+            ],
+            [
+              "16-31",
+              0
+            ],
+            [
+              "32-63",
+              5
+            ],
+            [
+              "64+",
+              95
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "ag_news",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 32,
+          "p25_seen": 65,
+          "median_seen": 81,
+          "p75_seen": 96,
+          "max_seen": 241,
+          "mean_seen": 88.075,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9882324499531566,
+          "median_total_events": 81,
+          "corpus_docs": 3800,
+          "observed_buckets": 68080,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              0
+            ],
+            [
+              "8-15",
+              0
+            ],
+            [
+              "16-31",
+              0
+            ],
+            [
+              "32-63",
+              47
+            ],
+            [
+              "64+",
+              153
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "emotion",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 6,
+          "p25_seen": 25,
+          "median_seen": 37,
+          "p75_seen": 57,
+          "max_seen": 113,
+          "mean_seen": 42.385,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9965667673515884,
+          "median_total_events": 37,
+          "corpus_docs": 3800,
+          "observed_buckets": 36480,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              1
+            ],
+            [
+              "8-15",
+              21
+            ],
+            [
+              "16-31",
+              52
+            ],
+            [
+              "32-63",
+              95
+            ],
+            [
+              "64+",
+              31
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "sst5",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 4,
+          "p25_seen": 20,
+          "median_seen": 33,
+          "p75_seen": 46,
+          "max_seen": 80,
+          "mean_seen": 34.29,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9679373731787932,
+          "median_total_events": 33,
+          "corpus_docs": 3800,
+          "observed_buckets": 42612,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              7
+            ],
+            [
+              "8-15",
+              24
+            ],
+            [
+              "16-31",
+              57
+            ],
+            [
+              "32-63",
+              100
+            ],
+            [
+              "64+",
+              12
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "prompt_injections",
+      "n_states": 100,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 100,
+          "min_seen": 6,
+          "p25_seen": 10,
+          "median_seen": 20,
+          "p75_seen": 41,
+          "max_seen": 680,
+          "mean_seen": 37.42,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9438002878545543,
+          "median_total_events": 21,
+          "corpus_docs": 446,
+          "observed_buckets": 6648,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              10
+            ],
+            [
+              "8-15",
+              28
+            ],
+            [
+              "16-31",
+              29
+            ],
+            [
+              "32-63",
+              24
+            ],
+            [
+              "64+",
+              9
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "xnli_en",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 10,
+          "p25_seen": 37,
+          "median_seen": 57,
+          "p75_seen": 78,
+          "max_seen": 366,
+          "mean_seen": 61.415,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9631748988109896,
+          "median_total_events": 57,
+          "corpus_docs": 3800,
+          "observed_buckets": 58251,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              0
+            ],
+            [
+              "8-15",
+              6
+            ],
+            [
+              "16-31",
+              30
+            ],
+            [
+              "32-63",
+              80
+            ],
+            [
+              "64+",
+              84
+            ]
+          ]
+        },
+        {
+          "view": "pair",
+          "n_states": 200,
+          "min_seen": 7,
+          "p25_seen": 19,
+          "median_seen": 26,
+          "p75_seen": 34,
+          "max_seen": 129,
+          "mean_seen": 27.83,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 1.0,
+          "median_total_events": 26,
+          "corpus_docs": 3800,
+          "observed_buckets": 30825,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              2
+            ],
+            [
+              "8-15",
+              27
+            ],
+            [
+              "16-31",
+              112
+            ],
+            [
+              "32-63",
+              57
+            ],
+            [
+              "64+",
+              2
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "massive_intent_en",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 3,
+          "p25_seen": 7,
+          "median_seen": 9,
+          "p75_seen": 13,
+          "max_seen": 31,
+          "mean_seen": 10.46,
+          "rumor_fraction": 0.065,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.8101511212543887,
+          "median_total_events": 11,
+          "corpus_docs": 3829,
+          "observed_buckets": 9497,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              13
+            ],
+            [
+              "4-7",
+              65
+            ],
+            [
+              "8-15",
+              92
+            ],
+            [
+              "16-31",
+              30
+            ],
+            [
+              "32-63",
+              0
+            ],
+            [
+              "64+",
+              0
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    },
+    {
+      "name": "banking77",
+      "n_states": 200,
+      "views": [
+        {
+          "view": "bag",
+          "n_states": 200,
+          "min_seen": 8,
+          "p25_seen": 14,
+          "median_seen": 18,
+          "p75_seen": 24,
+          "max_seen": 86,
+          "mean_seen": 21.76,
+          "rumor_fraction": 0.0,
+          "zero_fraction": 0.0,
+          "mean_seen_fraction": 0.9504076691361975,
+          "median_total_events": 19,
+          "corpus_docs": 3845,
+          "observed_buckets": 11382,
+          "histogram": [
+            [
+              "0",
+              0
+            ],
+            [
+              "1",
+              0
+            ],
+            [
+              "2",
+              0
+            ],
+            [
+              "3",
+              0
+            ],
+            [
+              "4-7",
+              0
+            ],
+            [
+              "8-15",
+              55
+            ],
+            [
+              "16-31",
+              117
+            ],
+            [
+              "32-63",
+              25
+            ],
+            [
+              "64+",
+              3
+            ]
+          ]
+        }
+      ],
+      "h2_armed": true,
+      "verdict": "ARMED-PENDING"
+    }
+  ],
+  "skipped": [
+    "code_fixtures: generated in-process, no corpus pool",
+    "harness_visibility: synthetic family / LLM-lane only — no corpus pool",
+    "harness_permissions: synthetic family / LLM-lane only — no corpus pool",
+    "harness_tool_fit: synthetic family / LLM-lane only — no corpus pool",
+    "harness_routing: synthetic family / LLM-lane only — no corpus pool",
+    "harness_sensitivity: synthetic family / LLM-lane only — no corpus pool",
+    "harness_cache_reuse: synthetic family / LLM-lane only — no corpus pool"
+  ]
+}

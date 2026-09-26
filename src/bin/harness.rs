@@ -56,6 +56,11 @@
 //! default always joins), the argmax is picked on the CAL SLICE ONLY, and
 //! the test split is read once at the selected cap. The two are mutually
 //! exclusive (run() refuses the combination).
+//! `--e0` (needs `nb_scope`) runs the riir-instinct Issue-005 E0
+//! evidence-density measurement INSTEAD of the lanes: per dataset suite, on
+//! the stratified selection slice, the distribution of seen-token counts
+//! over the deployed count tables + the rumor fraction — report only, no
+//! gold, no test-row eval. Writes `e0.json` + `E0.md` into `--out`.
 //! Writes `results.json` + `TABLES.md` into `--out`
 //! (default `.benchmarks/001_phase1_tables/`). Datasets come from
 //! `.raw/datasets/` (scripts/fetch_datasets.sh). Exit 0 iff every requested
@@ -109,6 +114,7 @@ fn harness_main() {
     let mut runs_kv = false;
     let mut kv_dir: Option<std::path::PathBuf> = None;
     let mut save_corpus: Vec<String> = Vec::new();
+    let mut e0 = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -139,6 +145,7 @@ fn harness_main() {
             }
             "--head-select" => opts.head_select = true,
             "--nb-select" => opts.nb_select = true,
+            "--e0" => e0 = true,
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
@@ -216,6 +223,56 @@ fn harness_main() {
     }
     #[cfg(not(feature = "corpus_db"))]
     let _ = kv_dir;
+
+    // Issue 005 (riir-instinct) E0: an EXCLUSIVE early-exit measurement
+    // mode — evidence density on the stratified selection slice, report
+    // only, before any lane machinery runs. Needs `nb_scope` (it reads the
+    // count tables' fit-time seen set); a missing feature is a loud refusal
+    // naming the rebuild (the build-stamp law).
+    #[cfg(feature = "nb_scope")]
+    if e0 {
+        println!(
+            "harness --e0: datasets {} · suites {:?}",
+            opts.datasets_dir.display(),
+            opts.suites
+        );
+        let out = match runner::run_e0(&opts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("e0.json");
+        let md_path = out_dir.join("E0.md");
+        let json = serde_json::to_string_pretty(&out).expect("e0 serialize");
+        let md = runner::render_e0_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --e0: absence: {e}");
+        }
+        println!(
+            "harness --e0: PASSED — {} suite(s) measured, {} absence(s); wrote {} + {}",
+            out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    #[cfg(not(feature = "nb_scope"))]
+    if e0 {
+        die(
+            "--e0 needs the `nb_scope` feature — rebuild: cargo build --release \
+             --features nb_scope --bin harness",
+        );
+    }
 
     // The clm flag is an EXPLICIT lane request — a compile-time-missing
     // feature is a loud refusal naming the rebuild (the build-stamp law),

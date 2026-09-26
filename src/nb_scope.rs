@@ -233,6 +233,10 @@ pub struct NbScope {
     tables: Vec<ContrastiveScoreTable>,
     alpha: f32,
     observed: usize,
+    /// Bitset of buckets any training doc touched (issue 005 E0): `n` of
+    /// the hybrid evidence gate `g = σ((n − n_min)/τ_n)` counts a state's
+    /// events against this set. 16 KiB — retained, not recomputed.
+    seen: Box<[u64]>,
 }
 
 impl NbScope {
@@ -243,16 +247,17 @@ impl NbScope {
     pub fn fit(domains: &[&[String]], alpha: NbAlpha, view: NbView) -> Self {
         let mut buf: Vec<u32> = Vec::new();
         let mut toks: Vec<Vec<Vec<u32>>> = Vec::with_capacity(domains.len());
-        let mut seen = vec![false; NB_VOCAB];
+        let mut seen = vec![0u64; NB_VOCAB.div_ceil(64)];
         let mut observed = 0usize;
         for docs in domains {
             let mut rows = Vec::with_capacity(docs.len());
             for doc in *docs {
                 view_tokens_into(view, doc.as_bytes(), &mut buf);
                 for &w in &buf {
-                    let s = &mut seen[w as usize];
-                    if !*s {
-                        *s = true;
+                    let slot = &mut seen[w as usize / 64];
+                    let bit = 1u64 << (w as usize % 64);
+                    if *slot & bit == 0 {
+                        *slot |= bit;
                         observed += 1;
                     }
                 }
@@ -283,6 +288,7 @@ impl NbScope {
             tables,
             alpha,
             observed,
+            seen: seen.into(),
         }
     }
 
@@ -308,6 +314,19 @@ impl NbScope {
     #[must_use]
     pub fn observed(&self) -> usize {
         self.observed
+    }
+
+    /// How many of `tokens`' events the training docs saw — the evidence
+    /// count `n` of the riir-instinct issue-005 hybrid gate
+    /// (`g = σ((n − n_min)/τ_n)`). Counts events, duplicates included: the
+    /// same event stream the blend's σ normalizer divides by, so `n` and
+    /// `n_tokens` always describe one stream. Zero-alloc.
+    #[must_use]
+    pub fn seen_count(&self, tokens: &[u32]) -> usize {
+        tokens
+            .iter()
+            .filter(|&&w| self.seen[w as usize / 64] & (1u64 << (w as usize % 64)) != 0)
+            .count()
     }
 
     /// In-scope log2-odds per domain for `tokens` into `out[..len()]`
@@ -446,7 +465,29 @@ mod tests {
         assert_eq!(
             NbScope::blend_term(&s, 1, 0, 2.0),
             1.0,
-            "no tokens ⇒ scale·0.5"
+            "no tokens \u{21d2} scale\u{b7}0.5"
         );
+    }
+
+    #[test]
+    fn seen_count_reads_the_fit_time_event_stream() {
+        let nb = fit2();
+        let mut t = Vec::new();
+        // Doc 1 verbatim: unigrams AND bigrams all observed at fit.
+        hashed_tokens_into(b"the team won the match", NB_VOCAB, &mut t);
+        assert_eq!(
+            nb.seen_count(&t),
+            t.len(),
+            "a verbatim training sentence is fully seen"
+        );
+        // One novel word adds exactly two unseen events: the unigram and
+        // its bigram with the previous word. Duplicates count ("the" ×2).
+        hashed_tokens_into(b"the team won the match zzzq", NB_VOCAB, &mut t);
+        assert_eq!(
+            nb.seen_count(&t),
+            t.len() - 2,
+            "exactly the novel unigram + bigram are unseen"
+        );
+        assert_eq!(nb.seen_count(&[]), 0);
     }
 }

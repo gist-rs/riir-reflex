@@ -140,6 +140,15 @@ cargo test --features corpus_db --lib corpus_db -- --nocapture  # wire pins; the
 # UNSEEN without .raw/datasets; SLICE_LEAK_REQUIRE_DATA=1 makes that a failure.
 cargo test --release --features slice_leak --test slice_leak_oracle -- --nocapture
 
+# E0 evidence density (riir-instinct Issue 005 T1; opt-in `nb_scope`):
+# per dataset suite, on the stratified selection slice, the distribution of
+# seen-token counts over the DEPLOYED count tables + the rumor fraction
+# (n < 4, the Proposal-013 death class). Report-only early-exit mode — no
+# gold, no test-row eval; writes e0.json + E0.md into --out. Record:
+# .benchmarks/053_e0_evidence_density/
+cargo run --release --features nb_scope --bin harness -- --e0 \
+  --out .benchmarks/053_e0_evidence_density
+
 # The CLM comparison lane (Issue 019, opt-in `clm-lane`): the external
 # Apache-2.0 Contrastive-LM reference served over HTTP (`clm-serve` + vLLM
 # pooling on the 4090 window, `.issues/027`), measured in the arena's

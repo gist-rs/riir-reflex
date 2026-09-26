@@ -66,6 +66,15 @@ use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 mod nb_lane;
 pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
 
+/// Issue 005 (riir-instinct) E0 — the count-table evidence-density
+/// measurement (T1, reflex-only). Lives beside [`nb_lane`] as a child
+/// module so it reuses [`prepare`], [`selection_slice`] and the suite
+/// registry without publishing them.
+#[cfg(feature = "nb_scope")]
+mod e0;
+#[cfg(feature = "nb_scope")]
+pub use e0::{render_e0_markdown, run_e0, E0Meta, E0Output, E0Suite, E0ViewStats};
+
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
 
@@ -1185,6 +1194,29 @@ fn build_engine<const N: usize>(
     build_engine_with::<N>(suite, train, labels, cap_per_label, cfg, &[])
 }
 
+/// Issue 038's count-table corpus rule, extracted for [`e0`]: every pool
+/// doc of the label, UNcapped (table scoring cost is independent of how
+/// many docs built it), plus `extra_nb`; a starved label falls back to its
+/// own label text — exactly [`build_engine_with`]'s per-label `nb_docs`.
+#[cfg(feature = "nb_scope")]
+fn nb_doc_sets(train: &[TrainDoc], labels: &[String], extra_nb: &[TrainDoc]) -> Vec<Vec<String>> {
+    labels
+        .iter()
+        .map(|label| {
+            let mut nb_docs: Vec<String> = train
+                .iter()
+                .chain(extra_nb.iter())
+                .filter(|d| d.label == *label)
+                .map(|d| d.text.clone())
+                .collect();
+            if nb_docs.is_empty() {
+                nb_docs.push(label.clone());
+            }
+            nb_docs
+        })
+        .collect()
+}
+
 /// [`build_engine`] plus issue 038's count-table corpus: when the config
 /// arms `nb_scale`, each label's tables read EVERY pool doc of that label
 /// (uncapped — table scoring cost is independent of how many docs built
@@ -1206,6 +1238,8 @@ fn build_engine_with<const N: usize>(
         "suite {suite}: {N} domains armed but the option universe has {} labels",
         labels.len()
     );
+    #[cfg(feature = "nb_scope")]
+    let nb_sets = (cfg.nb_scale > 0.0).then(|| nb_doc_sets(train, labels, extra_nb));
     let mut specs: Vec<ExpertSpec> = Vec::with_capacity(N);
     // Issue 039 T3: labels whose corpus is ONLY the self-doc fallback — the
     // build-time signal that the fetched train rows do not cover the label
@@ -1213,7 +1247,7 @@ fn build_engine_with<const N: usize>(
     // starved a label. The caller decides: disclose loud (main builds) or
     // ignore (selection slices, where the starvation is by construction).
     let mut fallback_labels: Vec<String> = Vec::new();
-    for label in labels {
+    for (idx, label) in labels.iter().enumerate() {
         let mut docs: Vec<String> = train
             .iter()
             .filter(|d| d.label == *label)
@@ -1232,17 +1266,8 @@ fn build_engine_with<const N: usize>(
         #[allow(unused_mut)]
         let mut spec = ExpertSpec::new(label.as_str(), &docs);
         #[cfg(feature = "nb_scope")]
-        if cfg.nb_scale > 0.0 {
-            let mut nb_docs: Vec<String> = train
-                .iter()
-                .chain(extra_nb.iter())
-                .filter(|d| d.label == *label)
-                .map(|d| d.text.clone())
-                .collect();
-            if nb_docs.is_empty() {
-                nb_docs = docs.clone();
-            }
-            spec = spec.with_nb_docs(nb_docs);
+        if let Some(sets) = nb_sets.as_ref() {
+            spec = spec.with_nb_docs(sets[idx].clone());
         }
         specs.push(spec);
     }
