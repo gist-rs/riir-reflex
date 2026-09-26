@@ -64,7 +64,27 @@
 
 use riir_reflex::harness::runner::{self, DEFAULT_DATASETS_DIR, RunOptions};
 
+/// Harness stack size. The runner keeps several `DecisionEngine<N, 256>`
+/// values live per suite (probe, raw, cal, fitted, plus issue 038's
+/// transductive build), each carrying `N` experts by value. On the
+/// 77-domain banking77 that overflowed the 1 MiB Windows main-thread stack
+/// (measured on the 4090, 2026-09-26) while the 8 MiB macOS default fit.
+/// One explicit size for every platform instead of per-OS luck.
+const HARNESS_STACK_BYTES: usize = 64 << 20;
+
 fn main() {
+    let worker = std::thread::Builder::new()
+        .name("harness".to_string())
+        .stack_size(HARNESS_STACK_BYTES)
+        .spawn(harness_main)
+        .expect("spawn the harness thread");
+    if worker.join().is_err() {
+        // The panic message already printed on the worker thread.
+        std::process::exit(101);
+    }
+}
+
+fn harness_main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let mut opts = RunOptions {
         datasets_dir: std::env::current_dir()
