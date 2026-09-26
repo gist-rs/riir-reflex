@@ -26,6 +26,10 @@ false`, path dep `../katgpt-rs`):
 
 riir-reflex consumes the core and never edits it (G3).
 
+Related: [riir-reflexer](https://github.com/gist-rs/riir-reflexer) — the public
+rulebook engine over the same substrate (engine + vessel format + submission
+client); the arena's rulebook board serves from it.
+
 ## Quick start
 
 ```sh
