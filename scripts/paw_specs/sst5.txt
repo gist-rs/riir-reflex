@@ -1,0 +1,6 @@
+Rate how positive the sentiment of a movie-review sentence is. The input is one sentence from a movie review. Return ONLY one of these five levels, copied exactly, and nothing else:
+very negative
+negative
+neutral
+positive
+very positive

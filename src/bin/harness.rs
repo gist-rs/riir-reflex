@@ -7,7 +7,7 @@
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--head-scale F] [--head-select]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
-//!                                      [--clm] [--gliner] [--agentjev]
+//!                                      [--clm] [--gliner] [--agentjev] [--paw]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -32,6 +32,17 @@
 //! on our split (their published 79.25% is teacher-argmax agreement — a
 //! different protocol). An unreachable server is a loud absence, never a
 //! silent skip.
+//! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
+//! (MIT SDK, not affiliated) — one program compiled per specced suite from
+//! the committed `scripts/paw_specs/<suite>.txt` (cached by
+//! `(suite, compiler, BLAKE3(spec))` in `.raw/paw/programs.json`, so a
+//! re-run never recompiles), then one hosted `/api/v1/infer` per question
+//! over a `curl` subprocess. `PAW_API_KEY` is OPTIONAL — unset = their
+//! anonymous tier (20 compiles/h; programs are PUBLIC on their hub), printed
+//! loud. Env: `PAW_API_URL`, `PAW_COMPILER`, `PAW_COMPILE_ASYNC=1`,
+//! `PAW_SPECS_DIR`, `PAW_PROGRAM_CACHE`, `PAW_CURL`. Free-text answers are
+//! mapped by the exact-match law; unparseable = a counted refusal, never a
+//! guess. Suites without a spec are a loud absence.
 //! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
 //! binary (table `harness_runs`, value = the exact results.json bytes) and
 //! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
@@ -66,6 +77,7 @@ fn main() {
         clm: false,
         gliner: false,
         agentjev: false,
+        paw: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
@@ -109,6 +121,7 @@ fn main() {
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
             "--agentjev" => opts.agentjev = true,
+            "--paw" => opts.paw = true,
             "--corpus-cap" => {
                 i += 1;
                 opts.corpus_cap_override = args

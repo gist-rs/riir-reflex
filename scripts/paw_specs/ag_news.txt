@@ -1,0 +1,11 @@
+Classify the topic of a news article. The input is the article's headline followed by its opening text. Return ONLY one of these four labels, copied exactly, and nothing else:
+world
+sports
+business
+sci_tech
+
+Label meanings:
+world = world news and international politics
+sports = sports
+business = business and economy
+sci_tech = science and technology

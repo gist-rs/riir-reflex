@@ -1,0 +1,7 @@
+Identify which emotion is most strongly expressed in a short English message written in the first person. The input is the message. Return ONLY one of these six labels, in lowercase, copied exactly, and nothing else:
+sadness
+joy
+love
+anger
+fear
+surprise

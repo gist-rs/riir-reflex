@@ -1003,6 +1003,12 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agentjev: Option<LaneResult>,
+    /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
+    /// affiliated) — free-text answers under the exact-match law, refusals
+    /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
+    /// the lane did not run or the suite has no committed spec.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paw: Option<crate::lanes::paw::PawLaneResult>,
     /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
     /// the slices THIS run served. Absent (not a zero rate) when the
     /// `slice_leak` feature is off or the suite is out of scope.
@@ -1067,6 +1073,9 @@ pub struct RunMeta {
     /// `jev_service` on loopback, measured over HTTP — the MEASURE-vs-SERVE
     /// split; comparison lane, never a product lane).
     pub agentjev_lane: String,
+    /// Whether the PAW comparison lane ran (Issue 033), and its posture
+    /// (hosted anonymous / authenticated) when it did.
+    pub paw_lane: String,
     /// Power source / power mode / load / swap at run start AND end, with a
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
@@ -3573,6 +3582,10 @@ pub struct RunOptions {
     /// lane). An unreachable server is a LOUD error, never a silent skip.
     /// Default off.
     pub agentjev: bool,
+    /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
+    /// compiled per specced suite, answered over their hosted REST via a
+    /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
+    pub paw: bool,
     /// Override every dataset suite's per-label corpus cap (0 = the
     /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
     /// (Issue 013 lever 1); a published table must state the override or
@@ -3951,6 +3964,42 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // PAW comparison lane (Issue 033): one program per specced suite
+        // (cached), free-text answers under the exact-match law.
+        let paw_result = if opts.paw {
+            eprintln!("    paw: running…");
+            let run = crate::lanes::paw::PawClient::new(crate::lanes::paw::PawConfig::from_env())
+                .and_then(|c| {
+                    crate::lanes::paw::run_suite(&c, &prepared.suite, opts.laya_max_questions)
+                });
+            match run {
+                Ok(Some(r)) => {
+                    eprintln!(
+                        "    paw: acc {:.4} · refusals {}/{} · p50 {:.1} ms · {} s",
+                        r.accuracy,
+                        r.refusals,
+                        r.n_questions,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Ok(None) => {
+                    eprintln!(
+                        "    paw: ABSENT — no committed spec for {} (scripts/paw_specs/)",
+                        spec.name
+                    );
+                    None
+                }
+                Err(e) => {
+                    errors.push(format!("{} (paw): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -3960,6 +4009,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             clm: clm_result,
             gliner: gliner_result,
             agentjev: agentjev_result,
+            paw: paw_result,
             leak: leak_block,
         });
     }
@@ -4115,6 +4165,27 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              jev_service on AGENTJEV_SERVE_URL — .issues/025)"
                 .to_string()
         },
+        paw_lane: if opts.paw {
+            format!(
+                "on — ProgramAsWeights (MIT SDK, not affiliated) over their hosted \
+                 REST via a curl subprocess, posture {} (anonymous = their free \
+                 tier; programs compile PUBLIC); one program per specced suite \
+                 (scripts/paw_specs/, cached by (suite, compiler, BLAKE3(spec))); \
+                 temperature 0, max_tokens {}; free-text answers mapped by the \
+                 exact-match law (one surrounding quote pair stripped, counted), \
+                 unparseable = a counted REFUSAL scored wrong, never guessed; NO \
+                 confidence/ECE columns (no probability surface — disclosed \
+                 divergence); latency = client round-trip incl. network + curl \
+                 spawn; hosted inference not promised deterministic (observed-repeat \
+                 check); .issues/033",
+                crate::lanes::paw::PawConfig::from_env().posture(),
+                crate::lanes::paw::MAX_TOKENS
+            )
+        } else {
+            "off (pass --paw to add the comparison lane; PAW_API_KEY optional — \
+             .issues/033)"
+                .to_string()
+        },
         divergences: vec![
             "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
              both lanes see byte-identical questions, which is the integrity that matters"
@@ -4203,6 +4274,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     ));
     s.push_str(&format!("- clm lane: {}\n", out.meta.clm_lane));
     s.push_str(&format!("- gliner lane: {}\n", out.meta.gliner_lane));
+    s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!(
         "- corpus cap posture: {}\n",
         out.meta.corpus_cap_mode
@@ -4459,8 +4531,25 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.paw {
+            // Free text, no probability surface: accuracy + latency only
+            // (refusals scored wrong); the refusal line follows the table.
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | — | — | — | — | — | — | — | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.n_questions,
+                fmt4(r.accuracy),
+                r.latency_p50_ms,
+                fmt_p99_cell(r.latency_p99_ms, r.latency_tail_support, None, 1),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if suite.laya.is_empty() {
             s.push_str("| laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |\n");
+        }
+        if let Some(r) = &suite.paw {
+            s.push_str(&crate::lanes::paw::render_detail_line(r));
         }
 
         // G1 table (modelless only).
