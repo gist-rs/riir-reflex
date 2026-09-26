@@ -13,13 +13,12 @@
 //! 2. every case is forwarded through `RiirAgent::system_one` (the
 //!    G5-proven lane);
 //! 3. the answer's probabilities are mapped into the STUDENT-SIDE label
-//!    universe (first appearance over the surviving train docs — the same
-//!    law as riir-train's `label_universe` over the same survivor
-//!    sequence), with a per-row gold pin: the presented key at the gold
-//!    position must equal the student-side label string (Name suites:
-//!    massive/banking77 — direct equality; FixedInt suites: ag_news /
-//!    emotion / sst5 / xnli — presented position i ↔ int label i, the
-//!    builder's ClassLabel-order invariant).
+//!    universe (the distinct surviving-doc labels in SORTED order — the
+//!    same law as riir-train's `label_universe`), with a per-row gold pin:
+//!    the presented key at the gold position must equal the student-side
+//!    label string (Name suites: massive/banking77 — direct equality;
+//!    FixedInt suites: ag_news / emotion / sst5 / xnli — presented
+//!    position i ↔ int label i, the builder's ClassLabel-order invariant).
 //!
 //! massive_intent_en presents a 20-key PER-ROW option subset; its dump
 //! carries the full-universe target vector with 0 for un-presented labels
@@ -225,15 +224,17 @@ fn distill_suite(
     if docs.is_empty() {
         return Err("no train rows survived the label rule".into());
     }
-    // Student-side label universe: first appearance over the surviving docs
-    // — the same law as riir-train's label_universe over the same sequence,
-    // so the student's join check is exact equality (order included).
+    // Student-side label universe: the distinct surviving-doc labels in
+    // SORTED order — riir-train's `label_universe` law ("stable domain
+    // order; the artifact carries the names"), which the student asserts
+    // as exact equality (order included).
     let mut classes: Vec<String> = Vec::with_capacity(16);
     for d in &docs {
         if !classes.iter().any(|c| c == &d.label) {
             classes.push(d.label.clone());
         }
     }
+    classes.sort();
     let n_classes = classes.len();
 
     let keymap = KeyMap::for_suite(spec.name)
@@ -468,7 +469,7 @@ mod tests {
     }
 
     #[test]
-    fn fixed_int_maps_by_position_into_first_appearance_order() {
+    fn fixed_int_maps_by_position_into_the_student_order() {
         // Student universe arrived at label "1" first: classes = [1, 0, 2].
         let classes = vec!["1".to_string(), "0".to_string(), "2".to_string()];
         let p = probs(&[("a", 0.1), ("b", 0.6), ("c", 0.3)]);
