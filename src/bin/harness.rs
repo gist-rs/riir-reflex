@@ -8,6 +8,7 @@
 //!                                      [--head-scale F] [--head-select]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
+//!                                      [--paw-local]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -43,6 +44,18 @@
 //! `PAW_SPECS_DIR`, `PAW_PROGRAM_CACHE`, `PAW_CURL`. Free-text answers are
 //! mapped by the exact-match law; unparseable = a counted refusal, never a
 //! guess. Suites without a spec are a loud absence.
+//! `--paw-local` adds the PAW Posture B lane (Issue 033): the SAME
+//! compiled programs answered through their LOCAL llama.cpp runtime
+//! (`paw.function(program_id)` over the `programasweights` package as a
+//! Python subprocess oracle — the gliner-lane shape). The lane NEVER
+//! compiles: the program id comes from the hosted lane's cache, so the
+//! local-vs-hosted delta isolates the runtime posture on identical
+//! artifacts. Greedy by construction; determinism re-verified per run
+//! (observed-repeat, first 10). Env: `PAW_LOCAL_PYTHON` (the venv
+//! interpreter, e.g. `.raw/paw-env/Scripts/python.exe`), `PAW_LOCAL_SCRIPT`
+//! (default `scripts/paw_local_lane.py`), `PAW_GPU_LAYERS`/`PAW_LOCAL_N_CTX`
+//! (their loader's knobs). One-time setup: the venv + a `--paw` run for the
+//! program cache (`scripts/paw_preload.py` warms the base download).
 //! `--runs-kv` appends ONE Warm-tier row per run via the released `ndb`
 //! binary (table `harness_runs`, value = the exact results.json bytes) and
 //! `--save-corpus` stores each named suite's dataset as ONE digest-pinned
@@ -103,6 +116,7 @@ fn harness_main() {
         gliner: false,
         agentjev: false,
         paw: false,
+        paw_local: false,
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
@@ -116,7 +130,11 @@ fn harness_main() {
     let mut save_corpus: Vec<String> = Vec::new();
     let mut e0 = false;
     let mut distill = false;
+    // Consumed only by the laya-riir-gated --distill block below; the
+    // default-features build would carry them as dead stores (clippy -D).
+    #[cfg(feature = "laya-riir")]
     let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
+    #[cfg(feature = "laya-riir")]
     let mut distill_limit = 0usize;
     let mut i = 0;
     while i < args.len() {
@@ -150,6 +168,7 @@ fn harness_main() {
             "--nb-select" => opts.nb_select = true,
             "--e0" => e0 = true,
             "--distill" => distill = true,
+            #[cfg(feature = "laya-riir")]
             "--distill-out" => {
                 i += 1;
                 distill_out = args
@@ -157,6 +176,11 @@ fn harness_main() {
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--distill-out needs a path"));
             }
+            #[cfg(not(feature = "laya-riir"))]
+            "--distill-out" => {
+                i += 1; // value skipped; --distill itself refuses below
+            }
+            #[cfg(feature = "laya-riir")]
             "--limit" => {
                 i += 1;
                 distill_limit = args
@@ -164,11 +188,16 @@ fn harness_main() {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--limit needs a number (0 = the whole split)"));
             }
+            #[cfg(not(feature = "laya-riir"))]
+            "--limit" => {
+                i += 1; // value skipped; --distill itself refuses below
+            }
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
             "--agentjev" => opts.agentjev = true,
             "--paw" => opts.paw = true,
+            "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
                 i += 1;
                 opts.corpus_cap_override = args

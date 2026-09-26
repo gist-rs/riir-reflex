@@ -6,9 +6,13 @@
 //! `--no-default-features` does not activate). `paw` (Issue 033) needs no
 //! feature of its own: it rides `modelless` (its cache key is the
 //! in-tree blake3) and is native-only (a `curl` subprocess transport).
+//! `paw_local` (Issue 033 Posture B) shares those gates and adds the
+//! Python-oracle subprocess (the gliner-lane shape).
 
 pub mod agentjev;
 #[cfg(feature = "clm-lane")]
 pub mod clm;
 #[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]
 pub mod paw;
+#[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]
+pub mod paw_local;

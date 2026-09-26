@@ -196,6 +196,23 @@ GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
 AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
   cargo run --release --bin harness -- --agentjev --suites typed_decisions --skip-laya
 
+# The PAW comparison lane (Issue 033, `--paw` hosted / `--paw-local` local
+# runtime, no feature gate): ProgramAsWeights (ProgramAsWeights, MIT SDK, not
+# affiliated) — one program compiled per specced suite from
+# scripts/paw_specs/<suite>.txt (hosted, cached by (suite, compiler,
+# BLAKE3(spec)) in .raw/paw/programs.json), then answered hosted (curl
+# subprocess) or through their LOCAL llama.cpp runtime (`paw.function` over
+# the programasweights package as a Python subprocess — the gliner shape).
+# `--paw-local` NEVER compiles: the program id comes from the hosted lane's
+# cache, so local-vs-hosted isolates the runtime posture on identical
+# artifacts. Cells: benches 049 / 055+054 (ft tier, cross-box) /
+# 056 (local, full-N stratified, det 4/4 — accuracy-neutral vs hosted,
+# determinism-positive).
+# One-time local setup: uv venv .raw/paw-env + programasweights, then
+# scripts/paw_preload.py warms the 594 MB base + program bundles.
+PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
+  cargo run --release --bin harness -- --paw-local --skip-laya
+
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
 # coremltools subprocess (scripts/cua_s1_lane.py, their preprocessing.py

@@ -32,7 +32,31 @@ lives in `.issues/` and `.plans/`, never here.
   riir-infer Issue 021. Latency indicative (UNJUDGED box state, the
   macOS-only Issue-021 probe posture): banking77 cuda p50 23 ms vs M3 metal
   47 ms.
-
+- **Issue 033 Posture B LANDED — [Bench 056](.benchmarks/056_paw_local_full4090/BENCH.md):
+  the PAW LOCAL llama.cpp runtime cells, full-N, det 4/4 ✓** (`--paw-local`,
+  `src/lanes/paw_local.rs` + `scripts/paw_local_lane.py` +
+  `scripts/paw_preload.py`, 8 in-module tests): the SAME compiled programs
+  the hosted cells measured, answered through their local runtime
+  (`paw.function` over programasweights 0.4.10, llama.cpp auto-CUDA) as a
+  Python subprocess oracle — the lane never compiles, the program id comes
+  from the hosted lane's cache, so the posture delta is measured on
+  identical artifacts. ag_news 0.8000 · emotion 0.4875 · sst5 0.4167 ·
+  banking77 **0.4120** (refusals 35.4%, answered-acc 0.6378); accuracy-neutral
+  vs hosted at the same law (−1.3..+2.3 pt vs [Bench
+  055](.benchmarks/055_paw_ft_bs48_m3/BENCH.md)) and determinism-positive
+  (4/4 byte-identical repeats — the hosted tier cannot promise this);
+  p50 114–264 ms local vs ~930 ms hosted round-trip. Two measured traps on
+  record: the **uv-venv trampoline stdin deadlock** (a uv venv
+  `python.exe` spawns the real interpreter as a child while holding its own
+  copy of the stdin write handle — close-then-wait deadlocks the reap;
+  Drop kills-then-waits) and the **cache-key posture** (`PAW_COMPILER`
+  unset + a single cached program auto-selects loud; ambiguity refuses
+  naming the tiers). ⚠ Sample-law disclosure in the record: this run is
+  Issue-039-T2 stratified; 054 ran pre-`a2353e2` (first-N law) — the
+  same-law hosted anchor is 055, and this box's modelless control column is
+  pull-limited (the 429-wall fetch carries fewer train rows than the M3's
+  `datasets_t20k`), a different pull, not a regression.
+ 86a0c03 (feat(033): PAW Posture B lands - the LOCAL llama.cpp runtime cells, full-N, det 4/4 (Bench 056))
 - **Issue 033 ft-cells: cross-box CONFIRMATION — [Bench
   054](.benchmarks/054_paw_ft_cells_win4090.md)** (the 4090 Windows box, full
   test pulls at the 049 caps, hosted anonymous, run in parallel with the M3

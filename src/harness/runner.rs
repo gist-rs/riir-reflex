@@ -1047,6 +1047,11 @@ pub struct SuiteResult {
     /// the lane did not run or the suite has no committed spec.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub paw: Option<crate::lanes::paw::PawLaneResult>,
+    /// Issue 033 Posture B: the same programs answered through their
+    /// LOCAL llama.cpp runtime (`src/lanes/paw_local.rs`) — the
+    /// runtime-posture twin of `paw`, determinism-comparable.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub paw_local: Option<crate::lanes::paw::PawLaneResult>,
     /// Issue 024 T3: the corpus∪cal → eval near-duplicate leak scan over
     /// the slices THIS run served. Absent (not a zero rate) when the
     /// `slice_leak` feature is off or the suite is out of scope.
@@ -1119,6 +1124,10 @@ pub struct RunMeta {
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
+    /// Whether the PAW Posture B lane ran (Issue 033), and its serving
+    /// posture when it did (their local llama.cpp runtime over a Python
+    /// subprocess — the runtime-posture twin of `paw_lane`).
+    pub paw_local_lane: String,
     /// Power source / power mode / load / swap at run start AND end, with a
     /// latency-quotable verdict (Issue 021 T7) — the axis every Issue 020
     /// A/B was missing.
@@ -4196,6 +4205,12 @@ pub struct RunOptions {
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
     pub paw: bool,
+    /// Also run the PAW Posture B lane (Issue 033): the SAME compiled
+    /// programs answered through their LOCAL llama.cpp runtime as a Python
+    /// subprocess oracle (`src/lanes/paw_local.rs`, the gliner-lane
+    /// shape). Never compiles — reads the hosted lane's cache. Default
+    /// off.
+    pub paw_local: bool,
     /// Override every dataset suite's per-label corpus cap (0 = the
     /// registry defaults). MEASUREMENT-ONLY — the acc-vs-cap lever sweep
     /// (Issue 013 lever 1); a published table must state the override or
@@ -4625,6 +4640,51 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // PAW Posture B lane (Issue 033): the same compiled programs
+        // through their LOCAL llama.cpp runtime — the runtime-posture twin
+        // of the hosted row above, so the delta isolates the posture.
+        let paw_local_result = if opts.paw_local {
+            eprintln!("    paw-local: running…");
+            let (python, script) = crate::lanes::paw_local::resolve_invocation();
+            let cfg = crate::lanes::paw::PawConfig::from_env();
+            let run = crate::lanes::paw_local::PawLocalSession::spawn(&python, &script)
+                .and_then(|mut session| {
+                    crate::lanes::paw_local::run_suite(
+                        &mut session,
+                        &cfg,
+                        &prepared.suite,
+                        opts.laya_max_questions,
+                    )
+                });
+            match run {
+                Ok(Some(r)) => {
+                    eprintln!(
+                        "    paw-local: acc {:.4} · refusals {}/{} · p50 {:.1} ms · det {} · {} s",
+                        r.accuracy,
+                        r.refusals,
+                        r.n_questions,
+                        r.latency_p50_ms,
+                        r.determinism_ok.map_or("—".to_string(), |ok| if ok { "✓".into() } else { "✗".into() }),
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Ok(None) => {
+                    eprintln!(
+                        "    paw-local: ABSENT — no committed spec for {} (scripts/paw_specs/)",
+                        spec.name
+                    );
+                    None
+                }
+                Err(e) => {
+                    errors.push(format!("{} (paw-local): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -4635,6 +4695,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             gliner: gliner_result,
             agentjev: agentjev_result,
             paw: paw_result,
+            paw_local: paw_local_result,
             leak: leak_block,
         });
     }
@@ -4835,6 +4896,25 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              .issues/033)"
                 .to_string()
         },
+        paw_local_lane: if opts.paw_local {
+            format!(
+                "on — the SAME compiled programs answered through their LOCAL \
+                 llama.cpp runtime as a Python subprocess oracle \
+                 (programasweights, not affiliated; {} + {}), never compiling — \
+                 the program id comes from the hosted lane's cache so the \
+                 local-vs-hosted delta isolates the runtime posture on identical \
+                 artifacts; greedy by construction, determinism re-verified per \
+                 run (observed-repeat, first 10); latency = in-process round-trip \
+                 (no network); same mapping law + refusal accounting as --paw; \
+                 .issues/033",
+                crate::lanes::paw_local::PYTHON_ENV,
+                crate::lanes::paw_local::SCRIPT_ENV
+            )
+        } else {
+            "off (pass --paw-local to add the local-runtime twin; needs the \
+             programasweights venv + a hosted-lane cache — .issues/033)"
+                .to_string()
+        },
         divergences: vec![
             "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — \
              both lanes see byte-identical questions, which is the integrity that matters"
@@ -4924,6 +5004,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- clm lane: {}\n", out.meta.clm_lane));
     s.push_str(&format!("- gliner lane: {}\n", out.meta.gliner_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
+    s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(
         "- corpus cap posture: {}\n",
         out.meta.corpus_cap_mode
@@ -5274,10 +5355,28 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.paw_local {
+            // The runtime-posture twin of the paw row: same columns, local
+            // latency (no network), determinism promised by construction
+            // and re-verified per run.
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | — | — | — | — | — | — | — | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.n_questions,
+                fmt4(r.accuracy),
+                r.latency_p50_ms,
+                fmt_p99_cell(r.latency_p99_ms, r.latency_tail_support, None, 1),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if suite.laya.is_empty() {
             s.push_str("| laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |\n");
         }
         if let Some(r) = &suite.paw {
+            s.push_str(&crate::lanes::paw::render_detail_line(r));
+        }
+        if let Some(r) = &suite.paw_local {
             s.push_str(&crate::lanes::paw::render_detail_line(r));
         }
 

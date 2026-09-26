@@ -1,6 +1,6 @@
 # Issue 033 — PAW comparison lane: ProgramAsWeights as the third external classifier oracle
 
-**Status:** OPEN — lane LANDED (`2e9f351`) + first cells MEASURED keyless (Bench 049, hosted anonymous posture, 4-suite subset, 2026-09-26). **`paw-ft-bs48` finetune cells DONE, measured TWICE INDEPENDENTLY — [Bench 055](../.benchmarks/055_paw_ft_bs48_m3/BENCH.md) (M3 stratified; renumbered from 053 — same-day dual allocation, `053_e0` is the earlier allocation and keeps 053) + [Bench 054](../.benchmarks/054_paw_ft_cells_win4090.md) (4090 full-pull), 2026-09-26/27, every direction agreeing: the tier claim measures TRUE on every suite (+0.8 to +32.4 pt over their default compiler); banking77's gain is refusals converting (74.8% → 34.4% stratified / 73% → 42.2% full-pull).** Open: Posture B lane (local runtime subprocess oracle), arena republish (deferred to the Issue-039 T5 both-hosts re-run), HISTORY close. Filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`).
+**Status:** OPEN — lane LANDED (`2e9f351`) + first cells MEASURED keyless (Bench 049, hosted anonymous posture, 4-suite subset, 2026-09-26). **`paw-ft-bs48` finetune cells DONE, measured TWICE INDEPENDENTLY — [Bench 055](../.benchmarks/055_paw_ft_bs48_m3/BENCH.md) (M3 stratified; renumbered from 053 — same-day dual allocation, `053_e0` is the earlier allocation and keeps 053) + [Bench 054](../.benchmarks/054_paw_ft_cells_win4090.md) (4090 full-pull), 2026-09-26/27, every direction agreeing: the tier claim measures TRUE on every suite (+0.8 to +32.4 pt over their default compiler); banking77's gain is refusals converting (74.8% → 34.4% stratified / 73% → 42.2% full-pull).** **Posture B DONE — [Bench 056](../.benchmarks/056_paw_local_full4090/BENCH.md)** (2026-09-27, 4090, full-N stratified, det 4/4): the local llama.cpp runtime is accuracy-neutral vs hosted at the same law (−1.3..+2.3 pt vs 055) and determinism-positive. Open: arena republish (deferred to the Issue-039 T5 both-hosts re-run), HISTORY close. Filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`).
 
 ## Finding
 
@@ -97,8 +97,17 @@ protocol, `temperature=0` fixed. No API key needed; heavier setup (base GGUF dow
       ag_news 0.7925 · emotion 0.5025 · sst5 0.3933 · banking77 **0.3940**
       (refusals 73% → 42.2%, answered-acc 0.6817); compile ~12 s/suite there
       (not minutes); det 4/4 ✓ that run.
-- [ ] Posture B lane: local runtime as a Python subprocess oracle (gliner precedent),
-      full-N deterministic cells — feasibility MEASURED keyless (Findings).
+- [x] Posture B lane: local runtime as a Python subprocess oracle (gliner precedent),
+      full-N deterministic cells — **Bench 056** (`.benchmarks/056_paw_local_full4090/`,
+      4090 box, `--paw-local`, full-N stratified law, programs from the hosted cache —
+      never compiles): ag_news 0.8000 · emotion 0.4875 · sst5 0.4167 · banking77
+      **0.4120** (refusals 35.4%, answered-acc 0.6378); **det 4/4 ✓** (the determinism
+      the hosted posture cannot promise); p50 114–264 ms local vs ~930 ms hosted
+      round-trip. Lane landed same commit: `src/lanes/paw_local.rs` +
+      `scripts/paw_local_lane.py` + `scripts/paw_preload.py` (8 in-module tests).
+      Measured traps on record: the uv-venv trampoline stdin deadlock (Drop
+      kills-then-waits) and the `PAW_COMPILER` cache-key posture (single-program
+      auto-select, ambiguity refuses).
 - [ ] Arena republish via `../reflex-site/scripts/publish_bench.py` lane-update merge.
 - [ ] Close into HISTORY.md with hashes; record which posture the published cells used.
 

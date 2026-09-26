@@ -798,8 +798,10 @@ pub fn trimmed(cases: &[SuiteCase], max_questions: usize) -> &[SuiteCase] {
 }
 
 /// Nearest-rank p50 / p99 / tail support over µs samples (the repo-family
-/// percentile law — the same formula as the runner's).
-fn percentiles_ms(durs_us: &[u64]) -> (f64, f64, usize) {
+/// percentile law — the same formula as the runner's). Shared with the
+/// local-runtime lane so the two postures' latency columns stay comparable
+/// by construction.
+pub(crate) fn percentiles_ms(durs_us: &[u64]) -> (f64, f64, usize) {
     let mut d = durs_us.to_vec();
     d.sort_unstable();
     let n = d.len();
