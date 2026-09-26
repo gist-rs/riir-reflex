@@ -92,7 +92,7 @@ use std::time::Instant;
 
 use katgpt_core::decision_wire::{DecisionRequest, Outcome, Question};
 use riir_reflex::embed::EMBED_DIM;
-use riir_reflex::engine::{DecisionEngine, EngineConfig, ExpertSpec, Scratch};
+use riir_reflex::engine::{DecisionEngine, DrafterFix, EngineConfig, ExpertSpec, Scratch};
 use riir_reflex::harness::box_state::{self, BoxStateSpan};
 use serde_json::{Value, json};
 
@@ -101,6 +101,11 @@ const TEST_BLAKE3: &str = "78223e7a5ac8557ae0deea3acf484b4e5a40c6ea4c439fe3fb55c
 /// BLAKE3 of the pinned `train.jsonl` (same revision) — the modelless corpus source.
 const TRAIN_BLAKE3: &str = "19206c9df46e0692ef0c82d9dfedbe7ce7eff14658efdeb02465f7ce10c5191f";
 const TEST_ROWS: usize = 24_370;
+/// BLAKE3 of the pinned `validation.jsonl` (same revision) — the
+/// Issue-036 T2 SELECTION split. A candidate drafter fix is measured here
+/// first; the test split is read once, for the survivor only.
+const VALIDATION_BLAKE3: &str = "0c32388ebbd7e197841a750bdb10ac51cc5b288fa9fa7732be6537eb7d4e8be6";
+const VALIDATION_ROWS: usize = 22_054;
 /// The one instruction our lanes read (modelless prompt, laya instructions).
 const PROMPT: &str = "Choose the one action for the ELEMENT: fill it with the matching \
                       document entry, or check, click, or skip it.";
@@ -192,7 +197,13 @@ fn pct(sorted: &[f64], p: f64) -> (f64, usize) {
 
 // ── the modelless lane ──────────────────────────────────────────────────
 
-fn run_modelless(train: &[Row], test: &[Row], idx: &[usize], cap: usize) -> Result<LaneRun, String> {
+fn run_modelless(
+    train: &[Row],
+    test: &[Row],
+    idx: &[usize],
+    cap: usize,
+    fix: DrafterFix,
+) -> Result<LaneRun, String> {
     let mut specs = Vec::with_capacity(ACTIONS.len());
     for a in ACTIONS {
         let docs: Vec<String> = train
@@ -206,8 +217,14 @@ fn run_modelless(train: &[Row], test: &[Row], idx: &[usize], cap: usize) -> Resu
         }
         specs.push(ExpertSpec::new(a, &docs));
     }
-    let mut engine = DecisionEngine::<4, EMBED_DIM>::build_specs(specs, EngineConfig::default())
-        .map_err(|e| format!("engine build: {e}"))?;
+    let mut engine = DecisionEngine::<4, EMBED_DIM>::build_specs(
+        specs,
+        EngineConfig {
+            drafter_fix: fix,
+            ..EngineConfig::default()
+        },
+    )
+    .map_err(|e| format!("engine build: {e}"))?;
     let mut sc: Scratch<EMBED_DIM> = Scratch::new();
     sc.prepare(1);
     let request = |r: &Row| DecisionRequest {
@@ -510,18 +527,33 @@ fn main() {
     let lanes = flag("--lanes").unwrap_or_else(|| "coreml,modelless".into());
     let cap = num("--cap", DEFAULT_CAP);
     let laya_ckpt = flag("--laya-ckpt").unwrap_or_else(|| "typed".into());
+    // Issue 036 T2: the selection split + the drafter-fix variant. The
+    // TEST split stays the default (backward compatible); the VALIDATION
+    // split is where a candidate fix is measured FIRST (selection on
+    // validation only — the test read is once, for the survivor).
+    let split = flag("--split").unwrap_or_else(|| "test".into());
+    let (eval_blake3, eval_rows, eval_name) = match split.as_str() {
+        "test" => (TEST_BLAKE3, TEST_ROWS, "test"),
+        "validation" => (VALIDATION_BLAKE3, VALIDATION_ROWS, "validation"),
+        other => fail(&format!(
+            "unknown split {other} (test | validation — the Issue-036 selection split)"
+        )),
+    };
+    let fix = flag("--drafter-fix").unwrap_or_else(|| "off".into());
+    let fix = DrafterFix::from_spelling(&fix)
+        .unwrap_or_else(|| fail(&format!("unknown --drafter-fix {fix} (off | per_byte | ncd | shared_prefix | key_only)")));
     let dir = std::env::var("CUA_S1_DIR").map_or_else(|_| PathBuf::from(".raw/cua-s1-forms"), PathBuf::from);
 
-    let test_path = dir.join("dataset/test.jsonl");
-    if !test_path.is_file() {
+    let eval_path = dir.join(format!("dataset/{eval_name}.jsonl"));
+    if !eval_path.is_file() {
         fail(&format!(
             "UNSEEN — fixture absent at {} (hf download cua-ai/cua-s1-forms @ 8273f347…, module doc); nothing measured",
-            test_path.display()
+            eval_path.display()
         ));
     }
-    let test = load_rows(&test_path, TEST_BLAKE3).unwrap_or_else(|e| fail(&e));
-    if test.len() != TEST_ROWS {
-        fail(&format!("test.jsonl has {} rows, pinned {TEST_ROWS}", test.len()));
+    let test = load_rows(&eval_path, eval_blake3).unwrap_or_else(|e| fail(&e));
+    if test.len() != eval_rows {
+        fail(&format!("{eval_name}.jsonl has {} rows, pinned {eval_rows}", test.len()));
     }
     let span_start = box_state::capture();
 
@@ -532,15 +564,22 @@ fn main() {
         let res = match lane {
             "modelless" => {
                 let train_path = dir.join("dataset/train.jsonl");
-                load_rows(&train_path, TRAIN_BLAKE3)
-                    .and_then(|train| run_modelless(&train, &test, &stride(TEST_ROWS, num("--n-modelless", 0)), cap))
+                load_rows(&train_path, TRAIN_BLAKE3).and_then(|train| {
+                    run_modelless(&train, &test, &stride(eval_rows, num("--n-modelless", 0)), cap, fix)
+                })
             }
-            "coreml" => run_coreml(&dir, &test, &stride(TEST_ROWS, num("--n-coreml", 0))),
-            "laya" => run_laya(&test, &stride(TEST_ROWS, num("--n-laya", 240)), &laya_ckpt),
+            "coreml" => run_coreml(&dir, &test, &stride(eval_rows, num("--n-coreml", 0))),
+            "laya" => run_laya(&test, &stride(eval_rows, num("--n-laya", 240)), &laya_ckpt),
             other => fail(&format!("unknown lane {other} (coreml | modelless | laya)")),
         };
         match res {
-            Ok(run) => {
+            Ok(mut run) => {
+                // The drafter-fix posture is part of the row's identity.
+                if fix != DrafterFix::Off && run.name.starts_with("reflex · modelless") {
+                    run.name = format!("reflex · modelless [{}", fix.as_str());
+                    run.name.push_str("]");
+                    run.detail = format!("{} + drafter_fix {}", run.detail, fix.as_str());
+                }
                 eprintln!("  [{lane}] {} rows in {:.1}s", run.rows.len(), t0.elapsed().as_secs_f64());
                 runs.push(run);
             }
@@ -558,7 +597,9 @@ fn main() {
         fail(&format!("every requested lane SKIPPED — nothing measured: {}", skipped.join("; ")));
     }
 
-    println!("\n## cua-s1-forms arena — their test split @ 8273f347 ({TEST_ROWS} rows)\n");
+    println!(
+        "\n## cua-s1-forms arena — their {eval_name} split @ 8273f347 ({eval_rows} rows)\n"
+    );
     println!("box: {}\n", box_state::render_line(&span));
     println!(
         "| lane | serving | N | top-1 | per gold action | picked | latency p50 / p95 / p99 | 2nd timer p50 / p95 / p99 |"
@@ -594,7 +635,7 @@ fn main() {
                            "picked": pick_hist(run, &test), "latency": lat, "latency_2nd": lat2,
                            "floor_chance": chance, "floor_skip": skip, "first_errors": errors}));
     }
-    let (chance, skip) = floors(&test, &stride(TEST_ROWS, 0));
+    let (chance, skip) = floors(&test, &stride(eval_rows, 0));
     println!(
         "\nfloors (full split): uniform chance {:.4}% · constant-skip {:.4}%",
         100.0 * chance,
@@ -624,7 +665,7 @@ fn main() {
     }
     if let Some(out) = flag("--out") {
         let j = json!({"fixture": {"repo": "cua-ai/cua-s1-forms", "revision": "8273f34778b99ac2e12d9f6e7d57dad99ae20845",
-                                   "file": "test.jsonl", "rows": TEST_ROWS, "blake3": TEST_BLAKE3,
+                                   "file": format!("{eval_name}.jsonl"), "rows": eval_rows, "blake3": eval_blake3,
                                    "sha256": "d63a7e0db195d4d20154a40b2f8dd09ce3bb65487a158c638da5c609d4475e7c"},
                        "box": span, "cap": cap, "prompt": PROMPT, "lanes": report, "skipped": skipped,
                        "floors_full": {"chance": chance, "skip": skip}});

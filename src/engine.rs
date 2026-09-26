@@ -264,6 +264,68 @@ pub struct EngineConfig {
     /// selected on the cal slice (in-sample calibrated ECE, margin over
     /// Dispatch). Readout-only — never moves the pick or the distribution.
     pub readout: crate::readout::ReadoutMode,
+    /// Drafter-delta correction for the DRAFTER-ONLY path (Issue 036 T2):
+    /// choice/score questions where neither route path armed, whose option
+    /// score is the raw LZ4 compressed-length delta — a quantity that
+    /// carries an option-length prior (appending a short literal grows the
+    /// stream less) and collapses onto the shortest option on dynamic
+    /// option spaces. Engaged ONLY when the question is drafter-only, so
+    /// every route-armed suite stays byte-identical by construction (the
+    /// issue's no-regression gate). Off = the shipped law.
+    pub drafter_fix: DrafterFix,
+}
+
+/// The [`EngineConfig::drafter_fix`] candidates (Issue 036 T2). All are
+/// corrections to the drafter term `s = compressed_len(ctx) −
+/// compressed_len(ctx+cand)` (higher = more compressible = more likely).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum DrafterFix {
+    /// The shipped law: raw delta.
+    #[default]
+    Off,
+    /// Length-normalized delta: `s / candidate_byte_len` — cancels the
+    /// prior that short literals win by growing the stream less.
+    PerByte,
+    /// The NCD-style conditional term: `s − standalone(candidate)`, where
+    /// standalone = the delta against an EMPTY context (the candidate's own
+    /// compressed cost under the corpus). What remains is the context-
+    /// CONDITIONED signal only.
+    Ncd,
+    /// Score only the candidate SUFFIX past the options' longest common
+    /// prefix (shared prefixes like `fill ` cancel; the row-unique value is
+    /// what distinguishes). Candidate-byte rewrite.
+    SharedPrefix,
+    /// Score only the candidate KEY: the bytes up to the first `: `
+    /// (strips the row-unique value after it — `fill Given name: Isla`
+    /// scores as `fill Given name`). Options without `: ` score whole.
+    /// Candidate-byte rewrite.
+    KeyOnly,
+}
+
+impl DrafterFix {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            DrafterFix::Off => "off",
+            DrafterFix::PerByte => "per_byte",
+            DrafterFix::Ncd => "ncd",
+            DrafterFix::SharedPrefix => "shared_prefix",
+            DrafterFix::KeyOnly => "key_only",
+        }
+    }
+
+    /// The inverse of [`DrafterFix::as_str`] (unknown → `None`).
+    #[must_use]
+    pub fn from_spelling(s: &str) -> Option<Self> {
+        match s {
+            "off" => Some(Self::Off),
+            "per_byte" => Some(Self::PerByte),
+            "ncd" => Some(Self::Ncd),
+            "shared_prefix" => Some(Self::SharedPrefix),
+            "key_only" => Some(Self::KeyOnly),
+            _ => None,
+        }
+    }
 }
 
 impl Default for EngineConfig {
@@ -286,8 +348,52 @@ impl Default for EngineConfig {
             #[cfg(feature = "nb_scope")]
             nb_view: NbView::Bag,
             readout: crate::readout::ReadoutMode::Dispatch,
+            drafter_fix: DrafterFix::Off,
         }
     }
+}
+
+/// First offset of `needle` in `haystack` (None when absent) — the
+/// Issue-036 KeyOnly rewrite's `: ` finder. Byte-level: candidates are
+/// `&[u8]`, and `[u8]::split_once` is unstable.
+fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
+    if needle.is_empty() || needle.len() > haystack.len() {
+        return None;
+    }
+    haystack
+        .windows(needle.len())
+        .position(|w| w == needle)
+}
+
+/// The longest prefix (≥ [`SHARED_PREFIX_MIN`], the measured floor: a word)
+/// carried by at least half the options, and its byte length — the
+/// Issue-036 SharedPrefix rewrite. Deterministic; `(0, None)` when no
+/// family qualifies (including k < 2).
+const SHARED_PREFIX_MIN: usize = 4;
+
+fn shared_prefix_of(options: &[String]) -> usize {
+    if options.len() < 2 {
+        return 0;
+    }
+    let need = options.len().div_ceil(2);
+    let min_len = options.iter().map(|o| o.len()).min().unwrap_or(0);
+    let mut best = 0usize;
+    for l in (SHARED_PREFIX_MIN..=min_len).rev() {
+        // Count L-byte prefixes at this length; a majority carrying ONE
+        // identical prefix is the family.
+        let mut seen: std::collections::HashMap<&[u8], usize> = std::collections::HashMap::new();
+        for o in options {
+            let n = seen.entry(&o.as_bytes()[..l]).or_insert(0);
+            *n += 1;
+        }
+        if let Some((_, count)) = seen.iter().max_by_key(|(_, c)| **c)
+            && *count >= need
+        {
+            best = l;
+            break; // longest first — the first qualifying length wins
+        }
+    }
+    best
 }
 
 /// Fail-closed engine errors. `Wire` wraps the wire contract's own
@@ -641,6 +747,26 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // path already excludes noul; this guard closes the legacy path.
             let route_active =
                 !matches!(q.kind, QuestionKind::Noul) && (by_name || k == N);
+            // Issue 036 T1/T2: the weakest-scorer path — a choice/score
+            // question whose option score is the raw drafter delta. Both
+            // the disclosure flag and the [`EngineConfig::drafter_fix`]
+            // corrections key on exactly this shape (noul's no-route
+            // posture is by design, issue 030, and never counts).
+            let drafter_only = !route_active && !matches!(q.kind, QuestionKind::Noul);
+            // Issue 036 T2 (SharedPrefix): the LONGEST byte-prefix shared
+            // by a MAJORITY of the options (≥ half, ≥ 4 bytes = a word) —
+            // the dominant option family's shared head (cua: `fill ` across
+            // ~26 of 29 options). Stripped from the options that carry it;
+            // the rest score whole. The all-options common prefix is the
+            // wrong rule on mixed option sets (check/click/skip share
+            // nothing with the fills — the global prefix is empty) and a
+            // global strip would be a no-op exactly where the fix targets.
+            // Zero when the fix is off or no family qualifies.
+            let common_prefix = if drafter_only && self.cfg.drafter_fix == DrafterFix::SharedPrefix {
+                shared_prefix_of(&q.options)
+            } else {
+                0
+            };
             // Fitted per-label heads (issue 030 lever 4): the same legality
             // guard as the route terms — a head row belongs to a LABEL's
             // corpus, and noul's `[yes, no]` is question vocabulary, never
@@ -713,12 +839,51 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                         sc.cand
                             .extend_from_slice(if i == 0 { b"yes" as &[u8] } else { b"no" })
                     }
-                    _ => sc.cand.extend_from_slice(q.options[i].as_bytes()),
+                    _ => {
+                        // Issue 036 T2: the drafter-only candidate-byte
+                        // rewrites (SharedPrefix strips the options' common
+                        // head; KeyOnly keeps the key before `: `). The
+                        // route-armed path never sees either (the rewrites
+                        // key on drafter_only).
+                        let full = q.options[i].as_bytes();
+                        let stripped = if drafter_only
+                            && self.cfg.drafter_fix == DrafterFix::SharedPrefix
+                        {
+                            &full[common_prefix..]
+                        } else if drafter_only && self.cfg.drafter_fix == DrafterFix::KeyOnly {
+                            // The bytes up to the first `: ` (the key);
+                            // options without one score whole.
+                            match find_subslice(full, b": ") {
+                                Some(pos) => &full[..pos],
+                                None => full,
+                            }
+                        } else {
+                            full
+                        };
+                        sc.cand.extend_from_slice(stripped);
+                    }
                 }
                 // The zero-alloc hot scorer (substrate: katgpt-core
                 // `score_into`, landed for THIS lane's G4).
-                let s = self.experts[di].drafter.score_into(&sc.ctx, &sc.cand) as f32;
-                let mut score = exact_sigmoid(s / self.cfg.score_temperature);
+                let s_raw = self.experts[di].drafter.score_into(&sc.ctx, &sc.cand);
+                // Issue 036 T2: the drafter-only delta corrections
+                // (PerByte cancels the option-length prior; Ncd subtracts
+                // the candidate's own standalone compressed cost — the
+                // context-CONDITIONED term remains).
+                let s = if drafter_only {
+                    match self.cfg.drafter_fix {
+                        DrafterFix::PerByte => {
+                            (s_raw as f32 / sc.cand.len().max(1) as f32) as i32
+                        }
+                        DrafterFix::Ncd => {
+                            s_raw - self.experts[di].drafter.score_into(&[], &sc.cand)
+                        }
+                        _ => s_raw,
+                    }
+                } else {
+                    s_raw
+                };
+                let mut score = exact_sigmoid(s as f32 / self.cfg.score_temperature);
                 if route_active {
                     score += terms
                         .next()
@@ -1092,6 +1257,134 @@ mod tests {
             !reason.contains("drafter-only"),
             "a fully resolved question must not be disclosed, got: {reason}"
         );
+    }
+
+    #[test]
+    fn drafter_fix_spellings_round_trip() {
+        for f in [
+            DrafterFix::Off,
+            DrafterFix::PerByte,
+            DrafterFix::Ncd,
+            DrafterFix::SharedPrefix,
+            DrafterFix::KeyOnly,
+        ] {
+            assert_eq!(DrafterFix::from_spelling(f.as_str()), Some(f));
+        }
+        assert_eq!(DrafterFix::from_spelling("length_norm"), None);
+    }
+
+    /// A dynamic-option choice question (options neither name the domains
+    /// nor hit k == N) — the Issue-036 shape. FIVE options on an N=4
+    /// engine: k != N is what keeps the legacy index-alignment route path
+    /// ARMED-OFF (four options would arm it by arity).
+    fn dynamic_request() -> DecisionRequest {
+        DecisionRequest {
+            state: "FORM\nELEMENT Edit \"Office phone\" value=\"\"".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "Choose the one action for the ELEMENT",
+                [
+                    "fill ICE phone: 645-725-1912",
+                    "fill DOB: 1985-06-20",
+                    "fill Reference: APT53JZS",
+                    "check",
+                    "click",
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+                None,
+            )],
+        }
+    }
+
+    #[test]
+    fn drafter_fix_off_keeps_the_shipped_scores_bit_identical() {
+        let mut eng: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let mut fixed: DecisionEngine<4, EMBED_DIM> = DecisionEngine::build(
+            four_topics(),
+            EngineConfig {
+                drafter_fix: DrafterFix::PerByte,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        // Route-ARMED question (options = the four domain names, k == N):
+        // the fix must never engage — byte-identical distribution.
+        let req = DecisionRequest {
+            state: "deploy the service".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                ["deploy", "weather", "music", "billing"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                None,
+            )],
+        };
+        let (mut a, mut b) = (Scratch::new(), Scratch::new());
+        eng.solve_into(&req, &mut a).unwrap();
+        fixed.solve_into(&req, &mut b).unwrap();
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        assert_eq!(bits(&a.probs), bits(&b.probs));
+    }
+
+    /// SharedPrefix fixture: the three fill options share the LONG prefix
+    /// `fill Reference: ` — stripping it forces the score onto the
+    /// row-unique suffixes, which must move the distribution.
+    fn shared_prefix_request() -> DecisionRequest {
+        DecisionRequest {
+            state: "FORM\nELEMENT Edit \"Reference\" value=\"\"".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "Choose the one action for the ELEMENT",
+                [
+                    "fill Reference: APT53JZS",
+                    "fill Reference: BQQ91W",
+                    "fill Reference: MM40XK",
+                    "check",
+                    "click",
+                ]
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+                None,
+            )],
+        }
+    }
+
+    #[test]
+    fn drafter_fixes_engage_on_the_drafter_only_path() {
+        let mut off: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        let mut engage = |req: &DecisionRequest, fix: DrafterFix, label: &str| {
+            let (mut a, mut b) = (Scratch::new(), Scratch::new());
+            off.solve_into(req, &mut a).unwrap();
+            let mut eng: DecisionEngine<4, EMBED_DIM> = DecisionEngine::build(
+                four_topics(),
+                EngineConfig {
+                    drafter_fix: fix,
+                    ..EngineConfig::default()
+                },
+            )
+            .unwrap();
+            eng.solve_into(req, &mut b).unwrap();
+            assert_ne!(
+                bits(&a.probs),
+                bits(&b.probs),
+                "{fix:?} must change the distribution on the drafter-only path ({label})"
+            );
+            assert!(b.slots[0].drafter_only);
+        };
+        let req = dynamic_request();
+        engage(&req, DrafterFix::PerByte, "dynamic");
+        engage(&req, DrafterFix::Ncd, "dynamic");
+        engage(&req, DrafterFix::KeyOnly, "dynamic");
+        let sp = shared_prefix_request();
+        engage(&sp, DrafterFix::SharedPrefix, "shared-prefix");
     }
 
     /// Issue 030: a noul question must NEVER take route terms — its
