@@ -149,6 +149,16 @@ cargo test --release --features slice_leak --test slice_leak_oracle -- --nocaptu
 cargo run --release --features nb_scope --bin harness -- --e0 \
   --out .benchmarks/053_e0_evidence_density
 
+# Distill teacher pass (riir-train Issue 576 T3; opt-in `laya-riir`): laya
+# probabilities over the TRAIN rows of the six Arm-A suites, mapped into the
+# student-side label universe (sorted, per-row gold pins), dumped as RIDT v1
+# + BLAKE3 sidecar under .raw/distill_teacher (gitignored data). Early-exit
+# like --e0 — no eval lane, no test row. `--limit N` = stratified validation
+# slice; 0 = the whole split. The student is riir-train
+# `examples/instinct_arm_b` (Bench 609).
+cargo run --release --features laya-riir-metal --bin harness -- --distill \
+  --datasets-dir .raw/datasets_t20k --distill-out .raw/distill_teacher
+
 # The CLM comparison lane (Issue 019, opt-in `clm-lane`): the external
 # Apache-2.0 Contrastive-LM reference served over HTTP (`clm-serve` + vLLM
 # pooling on the 4090 window, `.issues/027`), measured in the arena's
