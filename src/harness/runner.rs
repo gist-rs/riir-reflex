@@ -2659,6 +2659,17 @@ fn run_laya_checkpoint(
             };
             if render(&answers) != render(&answers2) {
                 *determinism_ok.get_or_insert(true) = false;
+                // The divergent pair's rendered fields (6dp) print at the
+                // fire — Issue 021's hunt was blind until this named the
+                // flipping FIELD (act_probability) and its magnitude. The
+                // flag is already a recorded outcome; this is disclosure.
+                eprintln!(
+                    "  [laya {ckpt}] DETERMINISM case {} q{}:\n    a1 = {}\n    a2 = {}",
+                    case.id,
+                    answers.len(),
+                    render(&answers),
+                    render(&answers2)
+                );
             }
         }
 

@@ -95,7 +95,15 @@ axes; latency/seconds excluded by design — box properties).
   suite True). Reported-not-claimed per `meta.determinism_scoping`; the
   measured picks still match metal exactly. Shape-scoped (banking77 = the
   long-sequence ~317-token, 77-way suite) — filed to riir-infer (the lane
-  owner) as riir-infer Issue 021.
+  owner) as riir-infer Issue 021. **RESOLVED 2026-09-27** (riir-infer
+  `c64d0b1`): the cuda chain cache kept a dead buffer's slot entry at a
+  recycled host address (the fused-GLU temp vs the hidden that reused its
+  address), so `download_into`'s prefix match had two same-epoch candidates
+  and HashMap iteration order picked — ~50/50 — feeding the act head a
+  garbage CLS row (act_probability saturated, picks never moved); fixed by
+  same-ptr different-len eviction on bind + the download's trailing sync
+  (cudarc's `memcpy_dtoh` is async). `determinism_ok = true` ×4 on the
+  re-run; record: riir-infer HISTORY (Issue 021).
 - Latency indicative only (UNJUDGED box state — the Issue-021 probes are
   macOS; the Bench-047 precedent): banking77 cuda p50 23 ms vs the M3
   metal 47 ms; whole run 8m33s wall. Launcher: the Bench-047 schtasks
