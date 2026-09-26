@@ -408,7 +408,12 @@ wiring.
       regression), and 020's later levers (the T7 GEMM dispatch band,
       T11 split-K + `ln_rows_wide`) landed after it — the published
       chart this A/B compares against is settled. Nothing of S8/T7 has
-      landed.
+      landed. **EXECUTION PLAN LANDED 2026-09-26: riir-infer
+      `.plans/611_t7_op_layer_unification.md`** (S1–S6, each
+      independently landable; S1a's mean-centered-LN GAP kernel is the
+      engine-side payoff that survives every A/B outcome; the verdict
+      + deletion criterion are pre-registered in the plan before any
+      number is read).
 
 ## P3 progress (the GPU kernel migration — executing in slices, plan:
 ## riir-infer `.plans/610_riir_infer_gpu_carve_slice1.md`, moved from riir-ai 2026-09-26)
