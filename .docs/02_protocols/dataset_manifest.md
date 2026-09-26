@@ -541,3 +541,39 @@ that suite (re-derive with `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`
 
 typed_decisions and prompt_injections are unchanged (their caps already
 cover their train splits: 800 of 1200 by design, and 546 of 546).
+
+## Sampling law (Issue 039 T2 — the stratified split, Bench 052)
+
+The FILES on disk are unchanged by this section — the sampling law is how
+the HARNESS consumes them (`src/harness/suites.rs::stratified_split`):
+
+- **Test sample** = label-stratified round-robin over the WHOLE test split
+  (budget = the registry test cap; first-appearance label order, dataset
+  order within each label; deterministic, no RNG, no seed). The first-N law
+  it replaces was a label PREFIX on label-sorted mirrors: banking77's 500
+  first test rows spanned 13 of 77 labels, massive's 300 spanned 30 of 60
+  (measured, Issue 039) — every lane scored a non-representative slice and
+  the questions' remaining labels carried only their self-doc fallback
+  corpus. `budget == 0` (or ≥ all rows) is the identity split — the
+  uncapped suites (typed_decisions, prompt_injections) are byte-identical
+  to the first-N law.
+- **Cal slice** = the same stratified law over the train rows. The old
+  first-N cal slice was label-clustered (2/4 ag_news labels, ~2/77
+  banking77, in its first 200 rows — the measured reason the Issue-013
+  selection instruments exist).
+- **Corpus pool** = the train rows MINUS the stratified cal front
+  (excluded by CONSTRUCTION via the split's `rest` envelope, not by
+  position). The positional `train[cal_cap..]` cut it replaces was only
+  correct while the cal slice was the first-N prefix — on a label-clustered
+  train mirror it also ORPHANED every label whose whole block sat inside
+  the prefix (banking77's first label had ZERO pool docs at the full pull).
+- **Fallback guard (Issue 039 T3)**: an engine build whose option label has
+  NO train docs in the pool now discloses the label names loud (stderr +
+  the suite's results row + the markdown ⛔ line) — the self-doc fallback
+  count that silently inflated pre-T1 numbers is never silent again.
+
+Case COUNTS are unchanged (the budget is the registry cap); the labels the
+cases cover, the cal slices, the corpus pools — and therefore every
+published number — move from Bench 052 on. The readout-selection lever
+(T4) was measured NEGATIVE at 052 and demoted to a report-only candidate
+table; the shipped Dispatch readout runs everywhere.

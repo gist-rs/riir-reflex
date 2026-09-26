@@ -56,9 +56,11 @@ use crate::harness::pair_heads::{
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
     build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
-    build_xnli_en, stratified_selection_slices, train_docs,
+    build_xnli_en, stratified_selection_slices, stratified_split, train_docs,
 };
 use crate::pyjson::serialize_state;
+use crate::readout::ReadoutMode;
+use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 /// Issue 038: the count-table lever's selection + the separate transductive column.
 mod nb_lane;
@@ -576,6 +578,17 @@ pub struct LaneResult {
     /// (an absence, never a fabricated rate).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acc_deleaked: Option<f64>,
+    /// Issue 039 T4: the confidence-readout CANDIDATE table on the cal
+    /// slice — REPORT-ONLY (the arming lever was demoted at Bench 052; the
+    /// shipped Dispatch law runs everywhere). None = thin cal.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readout_report: Option<ReadoutReport>,
+    /// Issue 039 T3: option labels with NO train docs in the corpus pool —
+    /// they score against their self-doc fallback (the label text alone).
+    /// Empty = the train pull covers the whole label universe (the guard is
+    /// silent). Laya lanes never carry one (they read no train rows).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub corpus_fallbacks: Vec<String>,
 }
 
 /// One cal-slice cap-selection candidate reading (Issue 013 lever-1
@@ -1062,6 +1075,11 @@ pub struct RunMeta {
     pub corpus_cap_mode: String,
     pub corpus_protocol: String,
     pub calibration_protocol: String,
+    /// Issue 039 T2: the test/cal sampling law (stratified vs first-N).
+    pub sampling_protocol: String,
+    /// Issue 039 T4: the confidence-readout posture (shipped Dispatch law,
+    /// or cal-side selection armed per suite past the margin).
+    pub readout_posture: String,
     pub floor_definition: String,
     pub determinism_scoping: String,
     /// The riir lane's device posture for this run (honest latency reading:
@@ -1163,7 +1181,7 @@ fn build_engine<const N: usize>(
     labels: &[String],
     cap_per_label: usize,
     cfg: EngineConfig,
-) -> Result<DecisionEngine<N, EMBED_DIM>, String> {
+) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
     build_engine_with::<N>(suite, train, labels, cap_per_label, cfg, &[])
 }
 
@@ -1179,7 +1197,7 @@ fn build_engine_with<const N: usize>(
     cap_per_label: usize,
     cfg: EngineConfig,
     extra_nb: &[TrainDoc],
-) -> Result<DecisionEngine<N, EMBED_DIM>, String> {
+) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
     #[cfg(not(feature = "nb_scope"))]
     let _ = extra_nb;
     assert_eq!(
@@ -1189,6 +1207,12 @@ fn build_engine_with<const N: usize>(
         labels.len()
     );
     let mut specs: Vec<ExpertSpec> = Vec::with_capacity(N);
+    // Issue 039 T3: labels whose corpus is ONLY the self-doc fallback — the
+    // build-time signal that the fetched train rows do not cover the label
+    // universe (a truncated/label-sorted pull) or that a sub-pool build
+    // starved a label. The caller decides: disclose loud (main builds) or
+    // ignore (selection slices, where the starvation is by construction).
+    let mut fallback_labels: Vec<String> = Vec::new();
     for label in labels {
         let mut docs: Vec<String> = train
             .iter()
@@ -1200,7 +1224,9 @@ fn build_engine_with<const N: usize>(
             // Self-doc fallback: the label text itself is the corpus (a
             // corpus-is-the-model engine always has SOMETHING to score
             // against; without this, out-of-train options would be
-            // unscorable). Reported in the run meta via corpus_protocol.
+            // unscorable). Reported in the run meta via corpus_protocol, and
+            // now ALSO surfaced by name to the caller (the Issue-039 guard).
+            fallback_labels.push(label.clone());
             docs.push(label.clone());
         }
         #[allow(unused_mut)]
@@ -1221,6 +1247,7 @@ fn build_engine_with<const N: usize>(
         specs.push(spec);
     }
     DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
+        .map(|e| (e, fallback_labels))
         .map_err(|e| format!("engine build ({suite}): {e}"))
 }
 
@@ -1503,9 +1530,12 @@ struct ModellessInput<'a> {
     /// Cal-slice cap-selection candidates (empty = off — run() enforces
     /// mutual exclusion with the override).
     cal_select_caps: &'a [usize],
-    /// The suite's raw train envelope (the selection stratification reads
+    /// The suite's corpus-pool envelope (dataset suites: the train rows
+    /// MINUS the stratified cal front — the selection stratification reads
     /// the rows it buckets; `train` alone has lost the row structure).
-    train_rows: &'a Value,
+    /// Null on the synthetic/code paths (those suites are
+    /// selection-ineligible).
+    pool_rows: &'a Value,
     /// Run the Issue-013 lever-3 pair-head A/B arm (report-only; pairs are
     /// armed from CAL-slice confusion, heads fitted from corpus docs).
     pair_head_ab: bool,
@@ -1532,18 +1562,15 @@ fn build_selection_measurement<const N: usize>(
     inp: &ModellessInput<'_>,
 ) -> Result<CapSelection, String> {
     let spec = inp.spec;
-    let pool_from = spec.cal_cap.min(inp.train.len());
-    let slices = stratified_selection_slices(
-        inp.train_rows,
-        spec.name,
-        inp.labels,
-        pool_from,
-        spec.cal_cap,
-    );
+    // Issue 039 T2: the selection draws from the POOL envelope (train rows
+    // minus the stratified cal front), pool_from = 0 — under the stratified
+    // cal slice the positional `cal_cap..` cut no longer separates cal from
+    // pool, but the complement envelope does, by construction.
+    let slices = stratified_selection_slices(inp.pool_rows, spec.name, inp.labels, 0, spec.cal_cap);
     if slices.n_picks == 0 {
         return Err(format!(
-            "{}: cap selection produced an empty stratified slice — the train rows \
-             beyond the cal prefix carry none of the engine's labels",
+            "{}: cap selection produced an empty stratified slice — the pool rows \
+             carry none of the engine's labels",
             spec.name
         ));
     }
@@ -1560,7 +1587,8 @@ fn build_selection_measurement<const N: usize>(
     // exclusion: pool minus these texts.
     let sel_docs = train_docs(&slices.front, spec.name);
     let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
-    let pool: Vec<TrainDoc> = inp.train[pool_from..]
+    let pool: Vec<TrainDoc> = inp
+        .train
         .iter()
         .filter(|d| !excluded.contains(d.text.as_str()))
         .cloned()
@@ -1571,7 +1599,7 @@ fn build_selection_measurement<const N: usize>(
          FULL registry pool)",
         sel_suite.cases.len(),
         inp.labels.len(),
-        inp.train.len() - pool_from,
+        inp.train.len(),
         pool.len()
     );
 
@@ -1581,7 +1609,7 @@ fn build_selection_measurement<const N: usize>(
     cands.dedup();
     let mut rows = Vec::with_capacity(cands.len());
     for &cap in &cands {
-        let mut engine = build_engine::<N>(
+        let (mut engine, _) = build_engine::<N>(
             spec.name,
             &pool,
             inp.labels,
@@ -1656,14 +1684,9 @@ struct SelSlice {
 
 fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, String> {
     let spec = inp.spec;
-    let pool_from = spec.cal_cap.min(inp.train.len());
-    let slices = stratified_selection_slices(
-        inp.train_rows,
-        spec.name,
-        inp.labels,
-        pool_from,
-        spec.cal_cap,
-    );
+    // Issue 039 T2: pool-envelope input, pool_from = 0 (see
+    // build_selection_measurement).
+    let slices = stratified_selection_slices(inp.pool_rows, spec.name, inp.labels, 0, spec.cal_cap);
     if slices.n_picks == 0 {
         return Err(format!(
             "{}: {tag} selection produced an empty stratified slice",
@@ -1678,7 +1701,8 @@ fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, Stri
         .collect();
     let sel_docs = train_docs(&slices.front, spec.name);
     let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
-    let pool: Vec<TrainDoc> = inp.train[pool_from..]
+    let pool: Vec<TrainDoc> = inp
+        .train
         .iter()
         .filter(|d| !excluded.contains(d.text.as_str()))
         .cloned()
@@ -1686,7 +1710,7 @@ fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, Stri
     eprintln!(
         "    {tag}: stratified slice {} case(s); corpora pool {} → {} doc(s)",
         sel_suite.cases.len(),
-        inp.train.len() - pool_from,
+        inp.train.len(),
         pool.len()
     );
     Ok(SelSlice {
@@ -1718,7 +1742,7 @@ fn build_head_scale_selection<const N: usize>(
     } = selection_slice(inp, "head-select")?;
     let mut rows = Vec::with_capacity(HEAD_SCALE_LADDER.len());
     for &scale in &HEAD_SCALE_LADDER {
-        let mut engine = build_engine::<N>(
+        let (mut engine, _) = build_engine::<N>(
             spec.name,
             &pool,
             inp.labels,
@@ -1759,6 +1783,141 @@ fn build_head_scale_selection<const N: usize>(
         selected,
         candidates: rows,
     })
+}
+
+/// Issue 039 T4: the per-suite confidence-readout CANDIDATE table —
+/// REPORT-ONLY by measured verdict. The original lever (arm the best
+/// candidate per suite, selected on in-sample calibrated ECE over the cal
+/// slice) was DEMOTED at Bench 052: on the wide suites it targets
+/// (banking77 77-way, massive 60-way) the shipped Dispatch readout IS
+/// max_prob (the wide arm — candidates coincide, cal ECE identical) and
+/// inv_entropy measured WORSE (massive 0.5519 vs 0.4618, banking77 0.8070
+/// vs 0.7860), so no functional beats the shipped law where the gap was;
+/// where a candidate DID win on cal (the narrow suites, entropy→maxp),
+/// arming it overfit the cal slice and regressed emotion's test G1 to a
+/// FAIL. The wide-label G1 failures were closed by T2's stratified cal
+/// slice instead. The report stays as instrumentation (what the candidate
+/// functionals read on cal), and [`crate::engine::EngineConfig::readout`]
+/// remains the opt-in knob (never armed by the harness).
+#[derive(Debug, Clone, Serialize)]
+pub struct ReadoutReport {
+    /// The candidate the margin rule WOULD arm (`ReadoutMode::as_str`) —
+    /// recorded, never applied (the demotion above).
+    pub best_on_cal: String,
+    /// In-sample calibrated ECE per candidate on the cal slice.
+    pub candidates: Vec<ReadoutCandidate>,
+}
+
+/// One readout candidate's cal-slice reading.
+#[derive(Debug, Clone, Serialize)]
+pub struct ReadoutCandidate {
+    pub mode: String,
+    pub cal_ece: f64,
+}
+
+/// A candidate must beat the shipped Dispatch law by at least this cal-ECE
+/// margin to be selected — a smaller delta is cal-slice noise, and arming a
+/// non-default readout on noise would be selection without evidence.
+const READOUT_SELECT_MARGIN: f64 = 0.005;
+
+/// Below this many cal pairs the selection signal is too thin to rank
+/// readouts — keep the shipped Dispatch law and record no selection (the
+/// synthetic families' tiny cal slices; the dataset suites all clear it).
+const READOUT_MIN_CAL_PAIRS: usize = 32;
+
+/// Cal-slice readout CANDIDATE report (Issue 039 T4, REPORT-ONLY — the
+/// arming lever was demoted, see [`ReadoutReport`]): rank the candidate
+/// confidence readouts by IN-SAMPLE CALIBRATED ECE on the cal slice — fit
+/// the sigmoid-gate calibrator on the candidate's own pairs, apply it to
+/// the same pairs, take the ECE. The answer distribution and the forced
+/// pick are readout-INDEPENDENT (the readout runs after the argmax), so
+/// ONE cal evaluation serves every candidate: the probs + picks are
+/// recovered from that eval and only the confidence scalar is recomputed
+/// per mode. `None` = thin cal (below [`READOUT_MIN_CAL_PAIRS`]) — nothing
+/// to report.
+fn readout_report_on_cal<const N: usize>(
+    suite: &str,
+    cal_cases: &[SuiteCase],
+    cal_state_strs: &[String],
+    corpus_pool: &[TrainDoc],
+    labels: &[String],
+    cap: usize,
+    cfg: &EngineConfig,
+) -> Result<Option<ReadoutReport>, String> {
+    let n_pairs: usize = cal_cases.iter().map(|c| c.questions.len()).sum();
+    if n_pairs < READOUT_MIN_CAL_PAIRS {
+        return Ok(None);
+    }
+    let candidates = [
+        ReadoutMode::Dispatch,
+        ReadoutMode::MaxProb,
+        ReadoutMode::InvEntropy,
+    ];
+    // Probs + picks are mode-independent — one cal eval. The engine is
+    // built at the caller's posture (heads/nb resolved); its own readout
+    // field is irrelevant here (only probs/picks are read back).
+    let (mut engine, _) = build_engine::<N>(suite, corpus_pool, labels, cap, cfg.clone())?;
+    let (ev, _) = eval_engine(&mut engine, cal_cases, cal_state_strs, false)?;
+    let mut rows = Vec::with_capacity(candidates.len());
+    for &mode in &candidates {
+        // The engine's readout ran on the INTERNAL distribution; the eval
+        // stores label-space probs (noul flipped to [no, yes] and p_no
+        // re-derived as 1 − p_yes). Recover the internal vector: exact for
+        // choice/score (f64::from of the engine's f32, lossless both ways);
+        // for noul the second element carries a 1 − p_yes f64 rounding
+        // wobble (~1e-8) against the engine's own p_no — a selection-signal
+        // wobble only, never a test-readout path.
+        let mut cal = SigmoidGateCalibrator::new(cfg.cal_capacity, cfg.cal_min_obs);
+        let mut raw_pairs: Vec<(f32, bool)> = Vec::with_capacity(n_pairs);
+        for (ci, case) in cal_cases.iter().enumerate() {
+            for (qi, q) in case.questions.iter().enumerate() {
+                let p = &ev.probs[ci][qi];
+                let internal: Vec<f32> = if q.kind == QKind::Noul {
+                    let p_yes = p[1] as f32;
+                    vec![p_yes, 1.0 - p_yes]
+                } else {
+                    p.iter().map(|&x| x as f32).collect()
+                };
+                let raw = crate::readout::confidence_with(mode, &internal);
+                let correct = ev.picks[ci][qi] == case.gold[qi].idx;
+                cal.observe(raw, correct);
+                raw_pairs.push((raw, correct));
+            }
+        }
+        let calibrated: Vec<(f64, bool)> = raw_pairs
+            .iter()
+            .map(|&(raw, ok)| (f64::from(cal.apply(raw)), ok))
+            .collect();
+        rows.push(ReadoutCandidate {
+            mode: mode.as_str().to_string(),
+            cal_ece: ece_of(&calibrated),
+        });
+    }
+    // The margin rule's pick, RECORDED ONLY (never armed — the Bench-052
+    // demotion: the winner overfits the cal slice on the narrow suites and
+    // coincides with Dispatch on the wide ones).
+    let dispatch_ece = rows[0].cal_ece;
+    let mut best_on_cal = ReadoutMode::Dispatch;
+    for (&mode, row) in candidates.iter().zip(rows.iter()).skip(1) {
+        if row.cal_ece + READOUT_SELECT_MARGIN <= dispatch_ece {
+            best_on_cal = mode;
+            break;
+        }
+    }
+    eprintln!(
+        "    readout-report: best-on-cal {} ({} vs dispatch {:.4}; margin {READOUT_SELECT_MARGIN}; \
+         REPORT-ONLY — the arming lever is demoted, Bench 052)",
+        best_on_cal.as_str(),
+        rows.iter()
+            .map(|r| format!("{} {:.4}", r.mode, r.cal_ece))
+            .collect::<Vec<_>>()
+            .join(", "),
+        dispatch_ece
+    );
+    Ok(Some(ReadoutReport {
+        best_on_cal: best_on_cal.as_str().to_string(),
+        candidates: rows,
+    }))
 }
 
 #[allow(clippy::too_many_lines)]
@@ -1839,6 +1998,27 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         default_cfg.nb_view = nb_lane::view_of(sel.selected_view);
     }
 
+    // ── Confidence-readout CANDIDATE report (Issue 039 T4, REPORT-ONLY —
+    // the arming lever was DEMOTED at Bench 052: on the wide suites it
+    // targets, Dispatch IS max_prob and inv_entropy measured worse; where a
+    // candidate won on cal, arming it overfit and regressed emotion's test
+    // G1). The wide-label G1 failures were closed by T2's stratified cal
+    // slice. The table is recorded for instrumentation; the shipped
+    // Dispatch law runs everywhere.
+    let readout_report = if cal_cases.is_empty() {
+        None
+    } else {
+        readout_report_on_cal::<N>(
+            spec.name,
+            cal_cases,
+            cal_state_strs,
+            train,
+            labels,
+            effective_cap,
+            &default_cfg,
+        )?
+    };
+
     // Corpus pool = the train docs AFTER the calibration slice — the cal
     // cases must not be members of their own reference corpora (a cal case
     // scoring cos 1.0 against ITSELF inflates every cal-slice quantile and
@@ -1856,8 +2036,10 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     // 30% of in-corpus-distribution questions abstain, the rest pass. The
     // fitted values ride the result row.
     let (score_threshold, distance_threshold, threshold_recommendation) = {
-        let corpus_pool: &[TrainDoc] = train.get(spec.cal_cap.min(train.len())..).unwrap_or(train);
-        let mut probe = build_engine::<N>(
+        // Issue 039 T2: `train` IS the corpus pool now (the complement of
+        // the stratified cal front — cal rows excluded by construction).
+        let corpus_pool: &[TrainDoc] = train;
+        let (mut probe, _) = build_engine::<N>(
             spec.name,
             corpus_pool,
             labels,
@@ -1930,13 +2112,23 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     };
 
     // Corpus corpora: eval-cap docs per label, from the SAME pool the
-    // thresholds were fitted on (post-cal-slice train docs).
-    let corpus_pool: &[TrainDoc] = train.get(spec.cal_cap.min(train.len())..).unwrap_or(train);
-    let mut raw_engine =
+    // thresholds were fitted on (the complement of the stratified cal
+    // front — cal rows excluded by construction, Issue 039 T2).
+    let corpus_pool: &[TrainDoc] = train;
+    let (mut raw_engine, corpus_fallbacks) =
         build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
+    if !corpus_fallbacks.is_empty() {
+        eprintln!(
+            "  [issue-039 corpus guard] {}: {} option label(s) with NO train docs in the \
+             corpus pool → self-doc fallback (scores nearly uninformative for them): {}",
+            spec.name,
+            corpus_fallbacks.len(),
+            corpus_fallbacks.join(", ")
+        );
+    }
 
     // Calibration pairs from a RAW (uncalibrated) engine over the cal slice.
-    let mut cal_engine =
+    let (mut cal_engine, _) =
         build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
     let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
         Vec::new()
@@ -1978,7 +2170,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
 
     // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
     let fitted_cfg_for_transductive = cfg.clone();
-    let mut fitted = build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)?;
+    let (mut fitted, _) = build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)?;
     let mut moved = false;
     for p in &cal_pairs {
         moved |= fitted.observe(p.conf as f32, p.correct);
@@ -2168,6 +2360,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         latency_p99_ms: lat.p99_ms,
         latency_tail_support: lat.tail_support,
         acc_deleaked,
+        readout_report,
+        corpus_fallbacks,
         latency_extremes: lat.extremes,
         determinism_ok: lat.determinism_ok,
         seconds: t_start.elapsed().as_secs_f64(),
@@ -2624,6 +2818,8 @@ fn assemble_laya_lane_result(
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
+        readout_report: None,
+        corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
     }
 }
 
@@ -3461,10 +3657,10 @@ struct Prepared {
     cal_cases: Vec<SuiteCase>,
     cal_state_strs: Vec<String>,
     labels: Vec<String>,
-    /// The raw train envelope (dataset suites) — the cap-selection
-    /// stratification's input. Null on the synthetic/code paths (those
-    /// suites are selection-ineligible).
-    train_rows: Value,
+    /// The corpus-pool envelope (dataset suites: train minus the stratified
+    /// cal front) — the selection stratification's input. Null on the
+    /// synthetic/code paths (those suites are selection-ineligible).
+    pool_rows: Value,
 }
 
 fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
@@ -3496,7 +3692,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             state_strs,
             cal_cases: d.cal_cases,
             cal_state_strs,
-            train_rows: Value::Null,
+            pool_rows: Value::Null,
         });
     }
 
@@ -3522,16 +3718,30 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             state_strs,
             cal_cases,
             cal_state_strs,
-            train_rows: Value::Null,
+            pool_rows: Value::Null,
         });
     }
 
     let suite_dir = dir.join(spec.name);
     let test_rows = load_rows(&suite_dir, "test")?;
-    let suite = (spec.build)(&test_rows, spec.test_cap);
+    // Issue 039 T2: the test sample is a label-STRATIFIED round-robin over
+    // the whole split, not the first-N prefix — on label-sorted mirrors the
+    // prefix is a label fraction (banking77's 500 first rows spanned 13 of
+    // 77 labels; massive's 300 spanned 30 of 60), so every lane scored a
+    // non-representative slice while the questions still offered every
+    // label. Budget 0 (all rows) is the identity split, so uncapped suites
+    // never move.
+    let test_split = stratified_split(&test_rows, spec.name, spec.test_cap);
+    let suite = (spec.build)(&test_split.front, 0);
     let train_rows =
         load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
-    let train = train_docs(&train_rows, spec.name);
+    // The cal slice is stratified by the SAME law, and the corpus pool is
+    // the split's REST (cal rows excluded by construction, not position —
+    // the positional `train[cal_cap..]` cut was only correct while the cal
+    // slice was the first-N prefix; on a label-clustered train mirror it
+    // also ORPHANED every label whose whole block sat inside the prefix).
+    let cal_split = stratified_split(&train_rows, spec.name, spec.cal_cap);
+    let train = train_docs(&cal_split.rest, spec.name);
     if train.is_empty() {
         return Err(format!(
             "suite {}: the train split produced no corpus docs — the modelless \
@@ -3626,10 +3836,10 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         );
     }
 
-    // Calibration cases: the SAME builder over the train rows (identical
-    // question shapes; gold from the train labels).
+    // Calibration cases: the SAME builder over the stratified cal front
+    // (identical question shapes; gold from the train labels).
     let (cal_cases, cal_state_strs) = if spec.cal_cap > 0 {
-        let cal_suite = (spec.build)(&train_rows, spec.cal_cap);
+        let cal_suite = (spec.build)(&cal_split.front, 0);
         let strs = cal_suite
             .cases
             .iter()
@@ -3652,7 +3862,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         cal_cases,
         cal_state_strs,
         labels,
-        train_rows,
+        pool_rows: cal_split.rest,
     })
 }
 
@@ -3899,7 +4109,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                     "registry"
                 },
                 cal_select_caps: &opts.cal_select_caps,
-                train_rows: &prepared.train_rows,
+                pool_rows: &prepared.pool_rows,
                 pair_head_ab: opts.pair_head_ab,
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
@@ -4259,6 +4469,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "OFF (nb_scale 0 — the published baseline posture)".to_string()
         },
+        sampling_protocol: "test sample = label-STRATIFIED round-robin over the whole test \
+                            split (budget = the registry test cap; first-appearance label \
+                            order, dataset order within each label, deterministic, no RNG); \
+                            cal slice = the same law over the train rows; corpus pool = the \
+                            train rows MINUS the cal front (excluded by construction, not \
+                            position); budget-0 suites unchanged (identity split) — Issue 039 T2"
+            .to_string(),
+        readout_posture: "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side \
+                          arming lever overfit the narrow suites' cal slice — emotion's test G1 \
+                          regressed — and coincided with Dispatch on the wide suites it targeted; \
+                          the wide-label G1 gap was closed by T2's stratified cal slice). The \
+                          candidate table is recorded per suite (report-only); \
+                          EngineConfig::readout stays the opt-in knob"
+            .to_string(),
         clm_lane: if opts.clm {
             "on — the external Contrastive-LM reference over /v1/systemone \
              (clm-serve; comparison lane, Apache-2.0, not affiliated): same cases, \
@@ -4414,9 +4638,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- label heads: {}\n", out.meta.head_posture));
     s.push_str(&format!("- count tables (issue 038): {}\n", out.meta.nb_posture));
     s.push_str(&format!(
-        "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
+        "- corpus: {} \n- calibration: {}\n- sampling: {}\n- readout: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
         out.meta.calibration_protocol,
+        out.meta.sampling_protocol,
+        out.meta.readout_posture,
         out.meta.floor_definition,
         out.meta.determinism_scoping
     ));
@@ -4528,6 +4754,35 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 (t.accuracy - t.honest_accuracy) * 100.0,
                 t.n_pseudo,
                 t.protocol
+            ));
+        }
+        // Issue 039 T4/T3 disclosures: the readout candidate report (the
+        // arming lever is demoted — recorded when a candidate would have
+        // won on cal) and any label the corpus pool starved.
+        if let Some(m) = &suite.modelless
+            && let Some(rs) = &m.readout_report
+            && rs.best_on_cal != "dispatch"
+        {
+            let cands = rs
+                .candidates
+                .iter()
+                .map(|c| format!("{} {:.4}", c.mode, c.cal_ece))
+                .collect::<Vec<_>>()
+                .join(" · ");
+            s.push_str(&format!(
+                "**readout (report-only):** best-on-cal `{}` NOT armed — the margin pick overfits \
+                 cal (Bench 052 demotion); cal in-sample calibrated ECE: {cands}\n\n",
+                rs.best_on_cal
+            ));
+        }
+        if let Some(m) = &suite.modelless
+            && !m.corpus_fallbacks.is_empty()
+        {
+            s.push_str(&format!(
+                "⛔ **corpus fallback (Issue 039 guard):** {} option label(s) with NO train docs \
+                 in the corpus pool — self-doc fallback only: {}\n\n",
+                m.corpus_fallbacks.len(),
+                m.corpus_fallbacks.join(", ")
             ));
         }
         let Some(m) = &suite.modelless else {

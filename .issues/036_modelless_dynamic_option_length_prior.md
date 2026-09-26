@@ -1,6 +1,6 @@
 # Issue 036 — modelless: the drafter-only path is degenerate on dynamic option spaces
 
-**Status:** OPEN — filed 2026-09-26 from Issue 035 T4 (Bench 048). Measured finding, no fix attempted (a fix selected on the cua fixture would be test-tuned).
+**Status:** OPEN — filed 2026-09-26 from Issue 035 T4 (Bench 048). **T1 DONE** (2026-09-26: `Slot.drafter_only` + the `; drafter-only=N` routing-reason disclosure, engine-tested — any wire caller can now see the weakest-scorer posture). T2/T3 open (measured finding, no fix attempted — a fix selected on the cua fixture would be test-tuned).
 
 ## Finding
 
@@ -42,9 +42,14 @@ rescue term exists.
 
 ## Plan
 
-- [ ] **T1 — detect + disclose first (cheap, no accuracy claim):** when a question
+- [x] **T1 — detect + disclose first (cheap, no accuracy claim):** when a question
       arms neither route path, surface it (routing reason / a `drafter_only` flag)
-      so a caller can see the engine is running its weakest scorer.
+      so a caller can see the engine is running its weakest scorer. — DONE:
+      `Slot.drafter_only` (choice/score only — noul's no-route posture is by
+      design, issue 030, and never counts) + `routing_reason` appends
+      `; drafter-only=N` when any slot was drafter-only (rides the existing
+      wire `Routing.reason` — serve edge, harness, and the GOAT bench's warm
+      line all surface it). Test: `routing_reason_discloses_drafter_only_questions`.
 - [ ] **T2 — candidate modelless fixes, selected on cua `validation.jsonl` only:**
       (a) length-normalized delta (per candidate byte, or delta minus the
       candidate's standalone compressed cost — the NCD-style conditional term);

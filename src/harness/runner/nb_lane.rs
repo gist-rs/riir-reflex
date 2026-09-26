@@ -111,7 +111,7 @@ pub(super) fn build_nb_selection<const N: usize>(
     };
     let eval_at =
         |scale: f32, alpha: NbAlpha, noul: Option<usize>, view: NbView| -> Result<f64, String> {
-            let mut engine = build_engine::<N>(
+            let (mut engine, _) = build_engine::<N>(
                 spec.name,
                 &pool,
                 inp.labels,
@@ -299,7 +299,7 @@ pub(super) fn transductive_pass<const N: usize>(
         for (score, source) in [(half..n, 0..half), (0..half, half..n)] {
             let extra = pseudo_docs(cases, honest, inp.labels, source);
             n_pseudo += extra.len();
-            let mut engine = build_engine_with::<N>(
+            let (mut engine, _) = build_engine_with::<N>(
                 inp.spec.name,
                 corpus_pool,
                 inp.labels,

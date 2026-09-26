@@ -11,6 +11,10 @@ Cargo.lock.bak
 assets/ane/**/*.mlpackage/
 assets/ane/**/*.mlmodelc/
 assets/ane/**/*.mlmodel
+# Issue 037: the e8 table sidecars — same artifact rule (the multilingual one
+# is 197.6 MB, over the git host's 100 MB per-file limit); manifest + log carry
+# the digests.
+assets/ane/**/table_e8.safetensors
 
 # Local release staging (separate git repos pushed to their own remotes) + packaged artifacts
 dist/

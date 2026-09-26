@@ -24,6 +24,44 @@
 /// inverted-normalized-entropy functional; larger sets use argmax-label-prob.
 pub const NARROW_MAX_OPTIONS: usize = 8;
 
+/// A confidence-readout functional (Issue 039 T4). `Dispatch` is the
+/// shipped Bench-817 law (narrow → inverted entropy, wide → maxprob); the
+/// other two are the cal-side SELECTION candidates the harness may arm
+/// per suite when the shipped law's calibrated ECE loses on the cal slice
+/// (the wide-label G1 gap: 77/60-way maxp readouts). The pick NEVER changes
+/// the answer distribution or the forced pick — confidence only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ReadoutMode {
+    /// The shipped dispatch table (the serving default).
+    Dispatch,
+    /// Argmax-label-prob at every width.
+    MaxProb,
+    /// Inverted normalized label entropy at every width.
+    InvEntropy,
+}
+
+impl ReadoutMode {
+    #[must_use]
+    pub fn as_str(self) -> &'static str {
+        match self {
+            ReadoutMode::Dispatch => "dispatch",
+            ReadoutMode::MaxProb => "max_prob",
+            ReadoutMode::InvEntropy => "inv_entropy",
+        }
+    }
+
+    /// The inverse of [`ReadoutMode::as_str`] (unknown → `None`).
+    #[must_use]
+    pub fn from_spelling(s: &str) -> Option<Self> {
+        match s {
+            "dispatch" => Some(Self::Dispatch),
+            "max_prob" => Some(Self::MaxProb),
+            "inv_entropy" => Some(Self::InvEntropy),
+            _ => None,
+        }
+    }
+}
+
 /// Normalized Shannon entropy in nats, `H / ln K` ∈ [0, 1]. `K ≤ 1` reads
 /// as fully peaked (0.0).
 #[inline]
@@ -41,13 +79,26 @@ fn normalized_entropy(probs: &[f32]) -> f32 {
     (h / ln_k).clamp(0.0, 1.0)
 }
 
-/// The confidence readout for one answer distribution. Always in [0, 1].
-pub fn confidence(probs: &[f32]) -> f32 {
-    if probs.len() <= NARROW_MAX_OPTIONS {
-        1.0 - normalized_entropy(probs)
-    } else {
-        probs.iter().copied().fold(0.0f32, f32::max)
+/// The confidence readout for one answer distribution under an explicit
+/// mode. Always in [0, 1].
+pub fn confidence_with(mode: ReadoutMode, probs: &[f32]) -> f32 {
+    match mode {
+        ReadoutMode::Dispatch => {
+            if probs.len() <= NARROW_MAX_OPTIONS {
+                1.0 - normalized_entropy(probs)
+            } else {
+                probs.iter().copied().fold(0.0f32, f32::max)
+            }
+        }
+        ReadoutMode::MaxProb => probs.iter().copied().fold(0.0f32, f32::max),
+        ReadoutMode::InvEntropy => 1.0 - normalized_entropy(probs),
     }
+}
+
+/// The confidence readout for one answer distribution (the shipped
+/// [`ReadoutMode::Dispatch`] law). Always in [0, 1].
+pub fn confidence(probs: &[f32]) -> f32 {
+    confidence_with(ReadoutMode::Dispatch, probs)
 }
 
 #[cfg(test)]
@@ -114,5 +165,51 @@ mod tests {
         p = vec![0.01; 16];
         let c = confidence(&p);
         assert!((0.0..=1.0).contains(&c));
+    }
+
+    #[test]
+    fn modes_are_dispatch_complements_on_the_arms() {
+        // Narrow shape: Dispatch == InvEntropy != MaxProb.
+        let narrow = vec![0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.0078125];
+        assert!(near(
+            confidence_with(ReadoutMode::Dispatch, &narrow),
+            confidence_with(ReadoutMode::InvEntropy, &narrow)
+        ));
+        assert!(!near(
+            confidence_with(ReadoutMode::Dispatch, &narrow),
+            confidence_with(ReadoutMode::MaxProb, &narrow)
+        ));
+        // Wide shape: Dispatch == MaxProb != InvEntropy.
+        let mut wide = narrow.clone();
+        wide.push(0.0);
+        assert!(near(
+            confidence_with(ReadoutMode::Dispatch, &wide),
+            confidence_with(ReadoutMode::MaxProb, &wide)
+        ));
+        assert!(!near(
+            confidence_with(ReadoutMode::Dispatch, &wide),
+            confidence_with(ReadoutMode::InvEntropy, &wide)
+        ));
+        // All modes bounded.
+        for m in [
+            ReadoutMode::Dispatch,
+            ReadoutMode::MaxProb,
+            ReadoutMode::InvEntropy,
+        ] {
+            assert!((0.0..=1.0).contains(&confidence_with(m, &narrow)));
+            assert!((0.0..=1.0).contains(&confidence_with(m, &wide)));
+        }
+    }
+
+    #[test]
+    fn mode_spellings_round_trip() {
+        for m in [
+            ReadoutMode::Dispatch,
+            ReadoutMode::MaxProb,
+            ReadoutMode::InvEntropy,
+        ] {
+            assert_eq!(ReadoutMode::from_spelling(m.as_str()), Some(m));
+        }
+        assert_eq!(ReadoutMode::from_spelling("maxprob"), None);
     }
 }

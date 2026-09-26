@@ -259,6 +259,11 @@ pub struct EngineConfig {
     /// view (last field read against the earlier ones).
     #[cfg(feature = "nb_scope")]
     pub nb_view: NbView,
+    /// Confidence-readout functional (Issue 039 T4). Default is the
+    /// shipped Bench-817 dispatch; the harness may arm a per-suite mode
+    /// selected on the cal slice (in-sample calibrated ECE, margin over
+    /// Dispatch). Readout-only — never moves the pick or the distribution.
+    pub readout: crate::readout::ReadoutMode,
 }
 
 impl Default for EngineConfig {
@@ -280,6 +285,7 @@ impl Default for EngineConfig {
             nb_noul_domain: None,
             #[cfg(feature = "nb_scope")]
             nb_view: NbView::Bag,
+            readout: crate::readout::ReadoutMode::Dispatch,
         }
     }
 }
@@ -365,6 +371,14 @@ pub struct Slot {
     pub prob_lo: usize,
     /// Flat-probability range length (the question's arity).
     pub prob_len: usize,
+    /// Issue 036 T1: the question ran its WEAKEST scorer — a choice/score
+    /// with neither route path armed (options neither all resolve to
+    /// domains by name nor `k == N`), so the score is the byte-level
+    /// drafter delta alone, which carries an option-length prior and often
+    /// ranks by accident on dynamic option spaces. Noul never counts (its
+    /// no-route posture is by design, issue 030). Surfaced via
+    /// [`DecisionEngine::routing_reason`] so any wire caller can see it.
+    pub drafter_only: bool,
 }
 
 /// Caller-owned scratch: pre-allocated once, cleared and reused per call —
@@ -746,7 +760,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     best = i;
                 }
             }
-            let raw = readout::confidence(&sc.probs[lo..lo + k]);
+            let raw = readout::confidence_with(self.cfg.readout, &sc.probs[lo..lo + k]);
             let conf = self.calibrator.apply(raw);
             let abstained = conf < self.cfg.score_threshold
                 || self.experts[di].gate.abstain_confidence(&sc.q) < self.cfg.distance_threshold;
@@ -756,6 +770,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 confidence: conf,
                 prob_lo: lo,
                 prob_len: k,
+                drafter_only: !route_active && !matches!(q.kind, QuestionKind::Noul),
             });
             sc.domains.push(di);
         }
@@ -881,6 +896,14 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             s.push_str(&format!(" {}={}", e.name(), counts[i]));
         }
         s.push_str("; fused abstain (score+distance) armed");
+        // Issue 036 T1: disclose the weakest-scorer posture — a caller whose
+        // request mints per-request options (neither all resolving to domain
+        // names nor k == N) must be able to SEE that the engine answered
+        // from the drafter delta alone.
+        let drafter_only = sc.slots.iter().filter(|s| s.drafter_only).count();
+        if drafter_only > 0 {
+            s.push_str(&format!("; drafter-only={drafter_only}"));
+        }
         s
     }
 }
@@ -1023,6 +1046,52 @@ mod tests {
         let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
         assert_eq!(bits(&a.probs), bits(&b.probs));
         assert_eq!(b.slots[0].pick, 2, "music");
+    }
+
+    /// Issue 036 T1: the weakest-scorer posture is disclosed. A choice
+    /// question whose options neither resolve to domains by name nor hit
+    /// `k == N` runs the drafter delta ALONE (the degenerate dynamic-option
+    /// shape); the response's routing reason must say so, and a fully
+    /// resolved question must not.
+    #[test]
+    fn routing_reason_discloses_drafter_only_questions() {
+        let mut eng: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        // Dynamic option space: 2 minted options, no domain names (k=2 != N=4).
+        let dynamic = DecisionRequest {
+            state: "form: signup".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "next action?",
+                ["fill Given name: Isla", "check"].iter().map(|s| s.to_string()).collect(),
+                None,
+            )],
+        };
+        let resp = eng.decide(&dynamic).unwrap();
+        let reason = resp.routing.reason.expect("modelless always carries a reason");
+        assert!(
+            reason.contains("drafter-only=1"),
+            "the dynamic-option question must be disclosed as drafter-only, got: {reason}"
+        );
+        // Fully resolved: all four options name the domains (k == N, by name).
+        let resolved = DecisionRequest {
+            state: "play my playlist from that artist".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                ["deploy", "weather", "music", "billing"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                None,
+            )],
+        };
+        let resp = eng.decide(&resolved).unwrap();
+        let reason = resp.routing.reason.expect("modelless always carries a reason");
+        assert!(
+            !reason.contains("drafter-only"),
+            "a fully resolved question must not be disclosed, got: {reason}"
+        );
     }
 
     /// Issue 030: a noul question must NEVER take route terms — its

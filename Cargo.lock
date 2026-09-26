@@ -3511,6 +3511,7 @@ dependencies = [
  "katgpt-forward",
  "katgpt-speculative",
  "katgpt-transformer",
+ "katgpt-types",
  "log",
  "memmap2",
  "rayon",

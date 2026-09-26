@@ -18,6 +18,7 @@
 
 use serde::Serialize;
 use serde_json::{Map, Value, json};
+use std::collections::HashMap;
 
 /// Question type (§1.1 `QTYPES`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -888,7 +889,24 @@ pub fn stratified_selection_slices(
             by_label[li].push(ri);
         }
     }
-    let mut cursors = vec![0usize; labels.len()];
+    let picks = round_robin_picks(&by_label, budget);
+    let wrap = |idxs: &[usize]| wrap_rows(&rows, idxs);
+    let mut rest: Vec<usize> = (0..rows.len()).filter(|ri| !picks.contains(ri)).collect();
+    let mut permuted_idx = picks.clone();
+    permuted_idx.append(&mut rest);
+    SelectionSlices {
+        front: wrap(&picks),
+        permuted: wrap(&permuted_idx),
+        n_picks: picks.len(),
+    }
+}
+
+/// The round-robin label-cyclic index picks over per-label index lists —
+/// the stratified-front core shared by the Issue-013 selection slices and
+/// the Issue-039 test/cal splits. Deterministic by construction: fixed
+/// label order, dataset order within each label, no RNG.
+fn round_robin_picks(by_label: &[Vec<usize>], budget: usize) -> Vec<usize> {
+    let mut cursors = vec![0usize; by_label.len()];
     let mut picks: Vec<usize> = Vec::with_capacity(budget);
     if budget > 0 {
         loop {
@@ -910,21 +928,97 @@ pub fn stratified_selection_slices(
             }
         }
     }
-    let wrap = |idxs: &[usize]| {
-        let wrapped: Vec<Value> = idxs
-            .iter()
-            .enumerate()
-            .map(|(i, &ri)| serde_json::json!({ "row_idx": i, "row": rows[ri] }))
-            .collect();
-        serde_json::json!({ "rows": wrapped })
-    };
-    let mut rest: Vec<usize> = (0..rows.len()).filter(|ri| !picks.contains(ri)).collect();
-    let mut permuted_idx = picks.clone();
-    permuted_idx.append(&mut rest);
-    SelectionSlices {
-        front: wrap(&picks),
-        permuted: wrap(&permuted_idx),
+    picks
+}
+
+/// Envelope re-wrap of picked row indices (row_idx re-enumerated 0..n —
+/// the builders read `.rows[i].row`, never the original index).
+fn wrap_rows(rows: &[&Value], idxs: &[usize]) -> Value {
+    let wrapped: Vec<Value> = idxs
+        .iter()
+        .enumerate()
+        .map(|(i, &ri)| serde_json::json!({ "row_idx": i, "row": rows[ri] }))
+        .collect();
+    serde_json::json!({ "rows": wrapped })
+}
+
+/// A label-stratified split of a row envelope (Issue 039 T2).
+#[derive(Debug, Clone, PartialEq)]
+pub struct StratSplit {
+    /// The stratified front envelope (≤ `budget` rows, round-robin over
+    /// the label universe; the identity envelope when `budget` is 0 or
+    /// covers every row).
+    pub front: Value,
+    /// The complement, in original envelope order (the Issue-039 corpus
+    /// pool's source: cal rows excluded by CONSTRUCTION, not position).
+    pub rest: Value,
+    /// Rows in the front (= the case count the builders produce).
+    pub n_picks: usize,
+}
+
+/// Label-stratified split of a row envelope: `front` = round-robin one row
+/// per label per round over the WHOLE split (first-appearance label order,
+/// dataset order within each label), up to `budget` rows; `rest` = every
+/// row not picked, in original order.
+///
+/// Why: the first-N test sample is a label PREFIX on label-sorted mirrors —
+/// banking77's 500 first rows spanned 13 of 77 labels, massive's 300 spanned
+/// 30 of 60 (measured, Issue 039) — so every lane scored a non-representative
+/// slice and the questions' remaining options carried only their self-doc
+/// fallback corpus. The round-robin front spans every label proportionally.
+/// Deterministic by construction (no RNG, no seed to record).
+///
+/// Identity law: `budget == 0` (= all rows) or `budget >= rows.len()`
+/// returns the WHOLE envelope in original order — byte-identical to the
+/// first-N law it replaces, so uncapped suites never move.
+#[must_use]
+pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratSplit {
+    let rows = rows_of(rows_file);
+    if budget == 0 || rows.len() <= budget {
+        let all: Vec<usize> = (0..rows.len()).collect();
+        return StratSplit {
+            n_picks: rows.len(),
+            front: wrap_rows(&rows, &all),
+            rest: serde_json::json!({ "rows": [] }),
+        };
+    }
+    // Bucket by the row's own label, first appearance = label order. Rows
+    // failing the label rule never build cases (the builders skip them), so
+    // they stay in `rest` and never spend front budget.
+    let mut label_order: Vec<String> = Vec::new();
+    let mut label_idx: HashMap<String, usize> = HashMap::new();
+    let mut by_label: Vec<Vec<usize>> = Vec::new();
+    for (ri, row) in rows.iter().enumerate() {
+        if let Some(l) = train_row_label(suite, row) {
+            let li = match label_idx.get(&l) {
+                Some(&li) => li,
+                None => {
+                    label_order.push(l.clone());
+                    by_label.push(Vec::new());
+                    label_idx.insert(l, by_label.len() - 1);
+                    by_label.len() - 1
+                }
+            };
+            by_label[li].push(ri);
+        }
+    }
+    let picks = round_robin_picks(&by_label, budget);
+    if picks.is_empty() {
+        // No labeled rows at all: the round-robin has nothing to stratify —
+        // the identity split (never produce an empty front over rows that
+        // exist; the builders' own count floors govern what they skip).
+        let all: Vec<usize> = (0..rows.len()).collect();
+        return StratSplit {
+            n_picks: rows.len(),
+            front: wrap_rows(&rows, &all),
+            rest: serde_json::json!({ "rows": [] }),
+        };
+    }
+    let rest: Vec<usize> = (0..rows.len()).filter(|ri| !picks.contains(ri)).collect();
+    StratSplit {
         n_picks: picks.len(),
+        front: wrap_rows(&rows, &picks),
+        rest: wrap_rows(&rows, &rest),
     }
 }
 
@@ -1099,5 +1193,131 @@ mod selection_slice_tests {
             .map(|r| r.get("row").unwrap())
             .collect();
         assert_eq!(head, front);
+    }
+}
+
+#[cfg(test)]
+mod stratified_split_tests {
+    //! Issue 039 T2 — the label-stratified test/cal split.
+
+    use super::stratified_split;
+
+    /// ag_news-shaped envelope: rows is a bare array of `{label, text}`.
+    fn envelope(rows: Vec<serde_json::Value>) -> serde_json::Value {
+        let wrapped: Vec<serde_json::Value> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, r)| serde_json::json!({ "row_idx": i, "row": r }))
+            .collect();
+        serde_json::json!({ "rows": wrapped })
+    }
+
+    /// Label-GROUPED rows (the mirror shape): `per` rows of each of
+    /// `labels` labels, label blocks in first-appearance order.
+    fn grouped_rows(labels: usize, per: usize) -> Vec<serde_json::Value> {
+        (0..labels)
+            .flat_map(|l| (0..per).map(move |i| serde_json::json!({ "label": l, "text": format!("t{l}_{i}") })))
+            .collect()
+    }
+
+    fn front_texts(s: &super::StratSplit) -> Vec<String> {
+        s.front
+            .get("rows")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r.get("row").unwrap().get("text").unwrap().as_str().unwrap().to_string())
+            .collect()
+    }
+
+    fn rest_texts(s: &super::StratSplit) -> Vec<String> {
+        s.rest
+            .get("rows")
+            .unwrap()
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|r| r.get("row").unwrap().get("text").unwrap().as_str().unwrap().to_string())
+            .collect()
+    }
+
+    #[test]
+    fn front_spans_every_label_round_robin() {
+        // 3 label blocks × 4 rows, budget 6 → 2 rows per label, cyclic.
+        let s = stratified_split(&envelope(grouped_rows(3, 4)), "ag_news", 6);
+        assert_eq!(s.n_picks, 6);
+        assert_eq!(front_texts(&s), ["t0_0", "t1_0", "t2_0", "t0_1", "t1_1", "t2_1"]);
+    }
+
+    #[test]
+    fn front_and_rest_partition_the_envelope_in_order() {
+        let s = stratified_split(&envelope(grouped_rows(3, 4)), "ag_news", 6);
+        let mut all = front_texts(&s);
+        let mut rest = rest_texts(&s);
+        all.append(&mut rest);
+        all.sort();
+        let mut want: Vec<String> = (0..3)
+            .flat_map(|l| (0..4).map(move |i| format!("t{l}_{i}")))
+            .collect();
+        want.sort();
+        assert_eq!(all, want);
+        // rest preserves original (label-grouped) order.
+        assert_eq!(rest_texts(&s), ["t0_2", "t0_3", "t1_2", "t1_3", "t2_2", "t2_3"]);
+    }
+
+    #[test]
+    fn budget_zero_is_the_identity_split() {
+        let s = stratified_split(&envelope(grouped_rows(3, 4)), "ag_news", 0);
+        assert_eq!(s.n_picks, 12);
+        assert_eq!(front_texts(&s).len(), 12);
+        assert_eq!(rest_texts(&s).len(), 0);
+    }
+
+    #[test]
+    fn budget_ge_rows_is_the_identity_split() {
+        let s = stratified_split(&envelope(grouped_rows(3, 4)), "ag_news", 12);
+        assert_eq!(s.n_picks, 12);
+        // original order, not round-robin — the first-N law preserved.
+        assert_eq!(front_texts(&s)[0], "t0_0");
+        assert_eq!(front_texts(&s)[1], "t0_1");
+    }
+
+    #[test]
+    fn unbalanced_labels_get_proportional_picks() {
+        // banking77 shape: many labels, budget spanning all with a remainder
+        // — every label picks at least once, no label more than one extra.
+        let s = stratified_split(&envelope(grouped_rows(7, 2)), "ag_news", 10);
+        assert_eq!(s.n_picks, 10);
+        let mut per_label: std::collections::HashMap<char, usize> =
+            std::collections::HashMap::new();
+        for t in front_texts(&s) {
+            *per_label.entry(t.chars().nth(1).unwrap()).or_insert(0) += 1;
+        }
+        assert_eq!(per_label.len(), 7);
+        assert!(per_label.values().all(|&n| (1..=2).contains(&n)));
+    }
+
+    #[test]
+    fn unlabeled_rows_never_pick_and_stay_in_rest() {
+        let mut rows = grouped_rows(2, 2);
+        rows.push(serde_json::json!({ "text": "no_label" }));
+        let s = stratified_split(&envelope(rows), "ag_news", 2);
+        assert_eq!(s.n_picks, 2);
+        assert!(!front_texts(&s).iter().any(|t| t == "no_label"));
+        assert!(rest_texts(&s).contains(&"no_label".to_string()));
+    }
+
+    #[test]
+    fn massive_label_rule_buckets_by_label_text() {
+        // label_text rows (massive/label_text rule), first-appearance order.
+        let rows = vec![
+            serde_json::json!({ "label_text": "audio", "text": "a0" }),
+            serde_json::json!({ "label_text": "play", "text": "p0" }),
+            serde_json::json!({ "label_text": "audio", "text": "a1" }),
+            serde_json::json!({ "label_text": "play", "text": "p1" }),
+        ];
+        let s = stratified_split(&envelope(rows), "massive_intent_en", 2);
+        assert_eq!(front_texts(&s), ["a0", "p0"]);
     }
 }
