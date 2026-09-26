@@ -508,6 +508,28 @@ activation MUST be written to its own contiguous buffer, or the next
 matmul reads row 0's gate as row 1's input (measured 223× divergence,
 fixed in `riir/ops.rs::glu_gelu_gate`).
 
+**The typed-trio decomposition + T12 (2026-09-26, riir-infer `be46033` + the
+`typed_case_split` probe `abbcbb3`):** the per-dispatch GPU profile drained
+PER STAGE at real typed_decisions 5-q cases puts the ENCODER at 90.1% of
+case GPU (sgemm narrow 85.7% of that, flash_attn 7.5%) and the head+copy
+at 9.9% — the +22.3% typed·english deficit is the encoder GEMM at big-m
+vs MPS, NOT the head; the v2 packed head stays bounded at a few percent
+(the issue's sizing, measured twice). The wall split alone MISLEADS: the
+encoder's GPU work hides inside the FIRST question's drain (encoder
+enqueue 0.6% of wall, head walls 99.4%). T12 (`LAYA_HEAD_DEFER=1`,
+default-OFF) defers the packed case's head reads into two drain classes
+(15 → 2 per 5-q case); bit-identical both postures (raw-bit same-shape
+gate), measured ~1–3% against a ±15–35% noise floor — Metal's enqueue
+already runs ahead inside a case, so the composed form's drains mostly
+find an empty pipeline; promotion waits for a proven-quiet A/B (the
+rope-hoist precedent). The priced next rung: fold the residual-add + GLU
+epilogues into the NARROW (non-split) sgemm — the landed folds engage
+ONLY on split-K calls, which typed·english's big-m shapes are not
+(≈5.7% of case GPU rides unfused: add 56 + glu 28 dispatches/case).
+massive_intent_en's +2.8% is UNADJUDICABLE by the paired instrument at
+ms quantization (1 ms of 63 ms = 1.6%, inside the 2% tie band) — the
+rerun would be decorative.
+
 **Threading posture (Bench 001 addenda 3–4, both bit-transparent):**
 the gemms run `min(available_parallelism, 8)` rayon workers — 8 is the
 measured latency optimum on the 12P+4E M3 (E-cores pace every join at

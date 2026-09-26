@@ -1,6 +1,6 @@
 # Issue 020 — the riir Metal lane must BEAT the python torch MPS oracle on every published cell (p50 AND p99)
 
-**Status:** OPEN — **the every-cell bar's deficit is now ONE suite: the paired per-suite A/B ran at publication posture (Bench 046, 2026-09-26) and the stable band FLIPPED — ag_news −4.0% / banking77 −5.2% (reproduced byte-identical on a second paired sample) / emotion −17.6% / sst5 −10.0% / xnli_en −17.4% p50, all WINS with p99 8/9 — the fold-epilogue rung was PROMOTED default-on on its paired evidence (riir-infer `53334f9`: 24/24 wins on every shape within the split rule's reach, medians −1.5…−5.9%, the no-op control flat at 1.002/1.001 above the crossover; bit gates + G5 both postures green). Remaining: typed_decisions (english +22.3% p50 AND +21.3% p99 — the only double loss; multilingual +6.6%, typed +5.7% p50) and massive_intent_en +2.8% (within-tol, sup 4 — rerun before calling). The named next lever for the typed trio is unchanged (T5 packed-at-1q re-price post-T7 / the v2 packed head)** — prior state: the paired per-suite A/B instrument LANDED 2026-09-26 (`scripts/paired_suite_ab.sh` + `paired_suite_ab_summary.py`, mechanically validated on a loaded box, NOT FOR PUBLICATION posture) — the every-cell bar's adjudicator is now one command; the fold-epilogue rung LANDED default-OFF (riir-infer `b519ea0`): both splits — reduce + residual add (`LAYA_METAL_FOLD_RES`) and reduce + GLU gate (`LAYA_METAL_FOLD_GLU`) — bit-identity gated raw-bit green, G5 green both postures, promotion A/B written and waiting on a quiet box T11 rungs 3–5 LANDED 2026-09-25 (riir-infer `512477e` split-K, `ed1cb74` the measured split rule, `9b0e55c` `ln_rows_wide`): the arena tetris spot sentence — the widest losing cell — is now at PARITY with torch MPS, paired 0.993 / 0.998 (Rust faster on 198 and 233 of 372 spots; a same-run baseline engine reads 1.38–1.39). Bench 041 republished the suite table (m3 + 4090 modelless together): Rust faster on **14/17 p99** and **8/17 p50** cells in one sequential run — the every-cell bar is NOT met (typed·english +30.6%, code_fixtures +39.7%, short suites +5–10% at ms quantization); a paired per-suite A/B is the next instrument** — **the closing same-run table is TAKEN (Bench 035, three full 15-suite `--laya-python` runs 2026-09-25): the published Class-A losses FLIPPED — typed/english and multilingual now WIN by 20–30% (was +19.3/+37.9%), every former loss narrowed to +3–12% — but the issue's every-cell bar is NOT met: a stable band of short-sequence, single-question suites remains +3–12% behind (banking77 ≈ +3–4%, massive_intent ≈ +5%, ag_news, sst5, emotion, xnli), and the next lever is FIXED-COST amortization at small m (the loop path those suites run, T5 packing being 1-q-excluded by its own measured +4.5% regression — re-pricing packed-at-1q POST-T7 is the named candidate rung)** — waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed); **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 CLOSED** — rung 1 (the dispatch band) LANDED **and its suite-p50 row PASSED 2026-09-25 (Bench 032/SUITE_AB: NEW/OLD −29…−36% p50 median on all three suites, 6/6 rounds, both load classes)**, the occupancy axis REFUTED at kernel level (bk32/bn32 both lose; code reverted), and the follow-up axes are now ALL measured-closed: **the MMA-roofline probe (`riir-infer-laya/examples/sgemm_roofline.rs`) measured the narrow instance staging-bound — shipped 3.1–4.9 TF/s vs MMA-only 5.1–10.2 TF/s (+63…+134% headroom) — and its f16-B arm then REFUTED the byte-halving lever (flat within ±2% on every cell; B fits L2, so re-reads were never DRAM traffic — the binding cost is the TG-issue path) — five axes now refuted at kernel level (occupancy, BK48, coalescing ×2, f16-B); narrow's shape is the measured local optimum, the lossy backend rung is dead before being built, and the GEMM axis reopens only on a Metal/toolchain change or an L2-oversized working set (n > ~4096)**; **T10 rung 2 (rope hoist) MEASURED 2026-09-25 and NOT PROMOTED (Bench 033: clean-round medians banking77 p50 −4.4% 2/3, banking77 p99 −14.3%, code_fixtures p99 −3.3%, massive flat — thinner than the rung-1/3 promotion bands; stays opt-in `LAYA_METAL_ROPE_HOIST=1`, not reverted — the attention-heavy p99 profile and a post-f16 re-price remain open doors)**
+**Status:** OPEN — **the typed-trio lever was PRICED 2026-09-26 and re-aimed (the follow-up below): typed_decisions is 100% multi-q (5 q/case), so the packed-at-1q re-price cannot touch it; the stage decomposition (typed_case_split probe) puts the encoder at 90.1% of case GPU (sgemm narrow 85.7% of that) and the head at 9.9%, so the v2 packed head stays bounded at a few percent — the +22.3% deficit is the encoder GEMM at big-m vs MPS, the axis whose reopening conditions are owner-gated (Metal-stack/f16). T12 (the packed-head deferred-read rung, `LAYA_HEAD_DEFER=1`) is built, bit-identical under both postures, and NOT promoted: ~1–3% measured against a ±15–35% noise floor — opt-in pending a proven-quiet A/B. The priced next rung: fold the residual-add + GLU epilogues into the NARROW (non-split) sgemm — the landed folds only engage on split-K calls, which typed·english's big-m shapes are not (≈5.7% of case GPU rides unfused). Remaining cells: typed·english +22.3% p50/p99, typed +5.7%, ml +6.6%, massive_intent_en +2.8% (within-tol, rerun pending a quiet window). Prior state: the paired per-suite A/B ran at publication posture (Bench 046, 2026-09-26) and the stable band FLIPPED — ag_news −4.0% / banking77 −5.2% (reproduced byte-identical on a second paired sample) / emotion −17.6% / sst5 −10.0% / xnli_en −17.4% p50, all WINS with p99 8/9 — the fold-epilogue rung was PROMOTED default-on on its paired evidence (riir-infer `53334f9`: 24/24 wins on every shape within the split rule's reach, medians −1.5…−5.9%, the no-op control flat at 1.002/1.001 above the crossover; bit gates + G5 both postures green)** — prior state: the paired per-suite A/B instrument LANDED 2026-09-26 (`scripts/paired_suite_ab.sh` + `paired_suite_ab_summary.py`, mechanically validated on a loaded box, NOT FOR PUBLICATION posture) — the every-cell bar's adjudicator is now one command; the fold-epilogue rung LANDED default-OFF (riir-infer `b519ea0`): both splits — reduce + residual add (`LAYA_METAL_FOLD_RES`) and reduce + GLU gate (`LAYA_METAL_FOLD_GLU`) — bit-identity gated raw-bit green, G5 green both postures, promotion A/B written and waiting on a quiet box T11 rungs 3–5 LANDED 2026-09-25 (riir-infer `512477e` split-K, `ed1cb74` the measured split rule, `9b0e55c` `ln_rows_wide`): the arena tetris spot sentence — the widest losing cell — is now at PARITY with torch MPS, paired 0.993 / 0.998 (Rust faster on 198 and 233 of 372 spots; a same-run baseline engine reads 1.38–1.39). Bench 041 republished the suite table (m3 + 4090 modelless together): Rust faster on **14/17 p99** and **8/17 p50** cells in one sequential run — the every-cell bar is NOT met (typed·english +30.6%, code_fixtures +39.7%, short suites +5–10% at ms quantization); a paired per-suite A/B is the next instrument** — **the closing same-run table is TAKEN (Bench 035, three full 15-suite `--laya-python` runs 2026-09-25): the published Class-A losses FLIPPED — typed/english and multilingual now WIN by 20–30% (was +19.3/+37.9%), every former loss narrowed to +3–12% — but the issue's every-cell bar is NOT met: a stable band of short-sequence, single-question suites remains +3–12% behind (banking77 ≈ +3–4%, massive_intent ≈ +5%, ag_news, sst5, emotion, xnli), and the next lever is FIXED-COST amortization at small m (the loop path those suites run, T5 packing being 1-q-excluded by its own measured +4.5% regression — re-pricing packed-at-1q POST-T7 is the named candidate rung)** — waves 1–2 LANDED and measured on AC; T5 batch-vs-loop A/B measured on a quiet box (Bench 006 Addendum 7: 5-q/case −8…−9% p50, 1-q gate landed); **T6 CLOSED NEGATIVE** (host/GPU split probe: the whole encoder host side incl. all allocation churn is 1.0–1.6% of forward wall — pooling cannot move case wall); **T7 CLOSED** — rung 1 (the dispatch band) LANDED **and its suite-p50 row PASSED 2026-09-25 (Bench 032/SUITE_AB: NEW/OLD −29…−36% p50 median on all three suites, 6/6 rounds, both load classes)**, the occupancy axis REFUTED at kernel level (bk32/bn32 both lose; code reverted), and the follow-up axes are now ALL measured-closed: **the MMA-roofline probe (`riir-infer-laya/examples/sgemm_roofline.rs`) measured the narrow instance staging-bound — shipped 3.1–4.9 TF/s vs MMA-only 5.1–10.2 TF/s (+63…+134% headroom) — and its f16-B arm then REFUTED the byte-halving lever (flat within ±2% on every cell; B fits L2, so re-reads were never DRAM traffic — the binding cost is the TG-issue path) — five axes now refuted at kernel level (occupancy, BK48, coalescing ×2, f16-B); narrow's shape is the measured local optimum, the lossy backend rung is dead before being built, and the GEMM axis reopens only on a Metal/toolchain change or an L2-oversized working set (n > ~4096)**; **T10 rung 2 (rope hoist) MEASURED 2026-09-25 and NOT PROMOTED (Bench 033: clean-round medians banking77 p50 −4.4% 2/3, banking77 p99 −14.3%, code_fixtures p99 −3.3%, massive flat — thinner than the rung-1/3 promotion bands; stays opt-in `LAYA_METAL_ROPE_HOIST=1`, not reverted — the attention-heavy p99 profile and a post-f16 re-price remain open doors)**
 ([Bench 006](../.benchmarks/006_issue020_latency_wave1.md) Addendum 2, which
 supersedes the battery-era §2/§3 deltas). Class B (the first-forward cliff)
 is **closed** at −64…−68% (reproduced on AC). Class A is **NOT closed**: the
@@ -727,6 +727,69 @@ whole HTTP round-trip is 0.64 ms p50), which is not enough to close a
 line (the loop path, fixed cost at small m), and it is the widest cell
 measured there so far. The arena now publishes it with the device named,
 so closing it would show directly on reflex.gist.rs/arena.
+
+## Follow-up 2026-09-26 — the typed-trio decomposition: the deficit is the ENCODER GEMM, not the head
+
+The named lever ("T5 packed-at-1q re-price post-T7 / the v2 packed head")
+was PRICED before building, and the pricing re-aimed the campaign:
+
+1. **The packed-at-1q re-price is irrelevant for typed_decisions** — the
+   suite is 100% multi-q (all 400 cases carry exactly 5 questions;
+   histogram over `.raw/datasets/typed_decisions/test-*.json`). The loop
+   path never runs there. (The re-price stays open only for the 1-q
+   suites, which Bench 046 already flipped to wins.)
+2. **The stage decomposition** (new probe `examples/typed_case_split.rs`,
+   16 evenly-spaced real cases × 3 checkpoints; wall pass + the substrate
+   `LAYA_METAL_PROFILE=1` per-dispatch profiler drained PER STAGE; english
+   geometry, `PROVENANCE: power=AC powermode=2(high)`, load 2.0–5.1
+   across the session):
+   - Wall pass: encoder *enqueue* is 0.6% of case wall; the per-question
+     head walls carry 99.4% — because the encoder's GPU work hides inside
+     the FIRST question's drain. A wall split alone cannot separate the
+     two; the profile mode can.
+   - **Profile mode: encoder = 90.1% of case GPU** (sgemm narrow 85.7% of
+     encoder GPU, flash_attn 7.5%, glu_gelu_gate 3.8%, add 1.9%,
+     ln_rows_wide 0.9%), **head+copy = 9.9%** across all 5 questions
+     (head sgemm 65.5% of head GPU, add_bias_row 11.8%, xwide 9.3%).
+   - The head runs 5 passes × 3 host reads = 15 drains per case; wall ≈
+     GPU-busy + ~22 ms (probe medians 250 wall vs 228 GPU at Σseq ~1700).
+3. **Verdict on the v2 packed head**: bounded at a few percent of case
+   wall — the issue's own sizing, now measured twice (kernel shares +
+   drain structure). NOT the closer for +22.3%. The deficit is the
+   encoder sgemm at big-m (python/MPS runs the same FLOPs padded and
+   still wins ~1.4× on GEMM throughput there) — the axis the T7
+   sweep + roofline probe closed among OUR instances, reopening only on
+   an owner-gated Metal-stack/f16 change.
+4. **T12 (the packed-head deferred-read rung) built, gated, and NOT
+   promoted** (riir-infer `be46033`): `Head::forward` splits into
+   `forward_enqueue` / `reads_of` / `act_of`; the packed driver gains the
+   three-phase posture behind `LAYA_HEAD_DEFER=1` (2 drain classes per
+   case instead of 3 reads × questions). Bit-identical: the raw-bit
+   same-shape gate green under BOTH postures, packed_forward_equiv +
+   metal_ops_smoke + G5 both postures + the reflex batch-parity replay
+   green. Promotion REFUSED for now: the position-balanced old-vs-new
+   interleave (7 rounds, isolated pre-edit worktree) measured ~1–3% —
+   below the box's ±15–35% swing (load 2–5; Metal's enqueue already runs
+   ahead of the GPU inside a case, so most of the composed form's drains
+   find an empty pipeline — the rung removes sync latencies, not pipeline
+   waits). The rope-hoist precedent: opt-in, not reverted; the A/B waits
+   for a proven-quiet window.
+5. **The priced next rung** (from the decomposition, bounded ≈4–6% of
+   case GPU): fold the residual-add and GLU epilogues into the NARROW
+   (non-split) sgemm instance. The landed fold rungs engage ONLY when the
+   whole call splits (`splitk_reduce_add` / `splitk_reduce_glu`) — at
+   typed·english's big-m the calls don't split (sgemm_splitk is 3.5 of
+   ~119 encoder GEMM dispatches/case), so the encoder's unfused `add`
+   (56/case) + `glu_gelu_gate` (28/case) ride as separate elementwise
+   kernels ≈ 5.7% of case GPU. A narrow-instance epilogue arm recovers
+   part of that; bit-identical by the same argument as the split folds
+   (same GEMM accumulation + exact elementwise).
+
+Probe details: `examples/typed_case_split.rs` (reflex `abbcbb3`) —
+`cargo run --release --features laya-riir-metal --example typed_case_split
+-- english` (walls + loop arm) and `LAYA_METAL_PROFILE=1 …` (per-stage
+kernel shares). Env: `LAYA_SPLIT_CASES`, `LAYA_SPLIT_ROUNDS`,
+`LAYA_SPLIT_LOOP=0`.
 
 ## Follow-up 2026-09-26 — the paired per-suite A/B instrument (the bar's adjudicator)
 
