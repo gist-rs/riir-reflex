@@ -88,3 +88,81 @@ Appended by `scripts/ane_convert.py` per run. Artifacts themselves are local-onl
   BATTERY power** (loadavg 7–36 across the runs, sibling agents compiling concurrently;
   free RAM ~30 GiB). Placement verdicts are correctness facts and do not depend on load;
   no latency number is recorded here (that is P1's serialized bench).
+## Table e8 — multilingual — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model multilingual --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [256000, 768] (checkpoint sha256 9d628fd971b70038… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0998535, 0.418945]
+- sidecar: `assets/ane/multilingual/table_e8.safetensors` — 197632160 bytes, blake3 `0276e83f3cfb6e2ba70990d80387c075d080bc5b94d294e5d773442e402558ee` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · first emission (rerun the command to close the cross-run golden)
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 2e4d47246130a5b3… before == after; L64 blake3-dir b46a95d1d66bc19e… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 3.35, "load5": 3.91, "load15": 4.06, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.9}
+
+## Table e8 — english — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model english --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [50368, 1024] (checkpoint sha256 891102d372688fc2… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0930786, 2.26562]
+- sidecar: `assets/ane/english/table_e8.safetensors` — 51778464 bytes, blake3 `ebaf93be4d3046886d9e6277d68bfcc3c97d1856578739939720f04400345c4d` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · first emission (rerun the command to close the cross-run golden)
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 1b50ccf4ba6c0d8b… before == after; L64 blake3-dir 7a56479c4c17b353… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 3.15, "load5": 3.85, "load15": 4.03, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.3}
+
+## Table e8 — typed — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model typed --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [50368, 1024] (checkpoint sha256 4fa56de72383a9d3… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0930786, 2.26562]
+- sidecar: `assets/ane/typed/table_e8.safetensors` — 51778464 bytes, blake3 `1899dcdb1e4b1bb1f64ab33137eac1fcda0470a8c383a9c9a30a45ec4f0f86e2` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · first emission (rerun the command to close the cross-run golden)
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 01085c6c3ae7e007… before == after; L64 blake3-dir 0b1d0302eb69a992… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 3.15, "load5": 3.85, "load15": 4.03, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.4}
+
+## Table e8 — multilingual — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model multilingual --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [256000, 768] (checkpoint sha256 9d628fd971b70038… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0998535, 0.418945]
+- sidecar: `assets/ane/multilingual/table_e8.safetensors` — 197632160 bytes, blake3 `0276e83f3cfb6e2ba70990d80387c075d080bc5b94d294e5d773442e402558ee` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · cross-run golden closed — rewrite digest match 0276e83f3cfb6e2ba70990d80387c075d080bc5b94d294e5d773442e402558ee == fresh bytes
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 2e4d47246130a5b3… before == after; L64 blake3-dir b46a95d1d66bc19e… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 2.99, "load5": 3.78, "load15": 4.0, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.6}
+
+## Table e8 — english — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model english --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [50368, 1024] (checkpoint sha256 891102d372688fc2… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0930786, 2.26562]
+- sidecar: `assets/ane/english/table_e8.safetensors` — 51778464 bytes, blake3 `ebaf93be4d3046886d9e6277d68bfcc3c97d1856578739939720f04400345c4d` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · cross-run golden closed — rewrite digest match ebaf93be4d3046886d9e6277d68bfcc3c97d1856578739939720f04400345c4d == fresh bytes
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 1b50ccf4ba6c0d8b… before == after; L64 blake3-dir 7a56479c4c17b353… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 2.99, "load5": 3.78, "load15": 4.0, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.6}
+
+## Table e8 — typed — 2026-09-26 21:43 +07
+- command: `scripts/ane_convert.py table --model typed --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or is needed)
+- source: `encoder.embeddings.tok_embeddings.weight` F16 [50368, 1024] (checkpoint sha256 4fa56de72383a9d3… verified at resolve)
+- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range [0.0930786, 2.26562]
+- sidecar: `assets/ane/typed/table_e8.safetensors` — 51778464 bytes, blake3 `1899dcdb1e4b1bb1f64ab33137eac1fcda0470a8c383a9c9a30a45ec4f0f86e2` (tensors `scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted tensors, no timestamps in the bytes)
+- determinism (T3, asserted): in-run double quantize payload byte-identical · cross-run golden closed — rewrite digest match 1899dcdb1e4b1bb1f64ab33137eac1fcda0470a8c383a9c9a30a45ec4f0f86e2 == fresh bytes
+- serves buckets: L64, L128 — one sidecar per checkpoint; the table is per-checkpoint, not per-bucket
+- artifacts untouched (T4): L128 blake3-dir 01085c6c3ae7e007… before == after; L64 blake3-dir 0b1d0302eb69a992… before == after
+- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` (encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ 5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue with new evidence
+- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` @ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; per-column lets one outlier row set every column's range); their size arithmetic cannot distinguish the axes (<1 MB of scales either way); flipping is a one-line change + sidecar regen, decided by G1, never by their precedent
+- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving behavior (the fp16 table stays the default posture)
+- box: {"machine": "arm64", "macos": "26.6.2", "load1": 3.15, "load5": 3.8, "load15": 4.01, "power": "Now drawing from 'AC Power'", "free_ram_gb_approx": 42.7}
+

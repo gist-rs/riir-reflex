@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""ANE offline conversion + numerical smoke (Plan 002 P0 / Issue 017).
+"""ANE offline conversion + numerical smoke + e8 table sidecar
+(Plan 002 P0 / Issue 017 / Plan 612 Phase 1 / Issue 037).
 
 ONE-TIME, OFFLINE tool — never runs at serving or bench time (the no-Python
 boundary; its output is the shipped artifact, the GGUF-export posture).
@@ -20,6 +21,24 @@ What it does:
            probabilities. Top-1 agreement + max prob err are OBSERVED data
            (expected 0.008-0.013 class for FP16 ANE math), never a gate;
            near-ties are listed row by row, never hidden.
+
+  table    Emit the e8 int8 embedding-table sidecar (Plan 612 Phase 1 /
+           issue 037): linear-symmetric int8 over the checkpoint's
+           tok_embeddings table with PER-ROW (vocab-axis) f32 scales ->
+           assets/ane/<model>/table_e8.safetensors (tensors `table` I8 +
+           `scales` F32, hand-written safetensors container, sorted tensor
+           names, no timestamps in the bytes). One sidecar per checkpoint
+           serves every bucket of that checkpoint; the .mlpackage artifacts
+           are never opened (their blake3-dir digests are verified untouched
+           before/after — the table lives in the pinned model.safetensors,
+           NOT in the artifacts, which exclude it: the token->embedding
+           gather is host-side). Encoder-weight int8 and sub-8-bit palettes
+           are REFUSED — the FluidUse w8/w8e/w6/w4 ANE-parity evidence is
+           the adopted refusal boundary. Determinism (T3) is ASSERTED, not
+           assumed: two in-run quantize passes must be payload-byte
+           identical, and a rewrite must reproduce the existing file's
+           blake3 exactly or the tool refuses. numpy + blake3 only — no
+           coremltools/torch on this lane.
 
 The artifact is the ENCODER STACK: embeddings [1,L,d] fp16 + pad_bias
 [1,1,1,L] fp16 -> hidden_state [1,L,d] fp16. The token->embedding gather is
@@ -51,6 +70,8 @@ Usage:
   uv run --python 3.12 --with coremltools --with "torch==2.7.0" \
       --with safetensors --with numpy --with blake3 --with "tokenizers==0.22.0" \
       scripts/ane_convert.py smoke --model multilingual
+  uv run --python 3.12 --with numpy --with blake3 \
+      scripts/ane_convert.py table --model multilingual --table-precision e8
 
 Python 3.12 is REQUIRED: coremltools 9.x ships its compiled CoreML bindings
 (libcoremlpython — the compute-plan API this tool's T0.3 gate is built on)
@@ -73,6 +94,7 @@ import os
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import time
@@ -86,6 +108,10 @@ LOG = OUT_ROOT / "conversion_log.md"
 MANIFEST = OUT_ROOT / "manifest.json"
 
 MODELS = ["english", "multilingual", "typed"]
+
+# The embedding-table tensor the e8 sidecar quantizes (Plan 612 Phase 1) —
+# the same name cmd_convert validates against the config vocab.
+TABLE_TENSOR = "encoder.embeddings.tok_embeddings.weight"
 
 # ── the repo's weight pins (src/laya/weights.rs, mirrored verbatim) ──────
 
@@ -505,7 +531,7 @@ def cmd_convert(args) -> int:
         f"sliding={sum(cfg.sliding)}/{cfg.layers}"
     )
     W = load_file(paths["model.safetensors"])
-    tok_name = "encoder.embeddings.tok_embeddings.weight"
+    tok_name = TABLE_TENSOR
     if W[tok_name].shape[0] != cfg.vocab:
         raise SystemExit(
             f"ane_convert: tok_embeddings rows {W[tok_name].shape[0]} != config vocab {cfg.vocab}"
@@ -609,6 +635,18 @@ def cmd_convert(args) -> int:
 
 
 def merge_manifest(model: str, bucket_key: str, entry: dict):
+    manifest, meta = _manifest_base()
+    line = f"{entry['created']} {model}/{bucket_key} ane={entry['placement']['ane_ops']}/{entry['placement']['device_ops']}"
+    if line not in meta["history"]:
+        meta["history"].append(line)
+    manifest.setdefault("artifacts", {})[f"{model}/{bucket_key}"] = entry
+    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n")
+
+
+def _manifest_base():
+    """Load (or seed) manifest.json and return (manifest, _meta) with the
+    tool + history plumbing ready. Shared by the artifact and table lanes."""
     manifest = {}
     if MANIFEST.exists():
         manifest = json.loads(MANIFEST.read_text())
@@ -624,12 +662,7 @@ def merge_manifest(model: str, bucket_key: str, entry: dict):
     )
     meta["tool"] = "scripts/ane_convert.py"
     meta.setdefault("history", [])
-    line = f"{entry['created']} {model}/{bucket_key} ane={entry['placement']['ane_ops']}/{entry['placement']['device_ops']}"
-    if line not in meta["history"]:
-        meta["history"].append(line)
-    manifest.setdefault("artifacts", {})[f"{model}/{bucket_key}"] = entry
-    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n")
+    return manifest, meta
 
 
 def log_append(text: str):
@@ -642,6 +675,321 @@ def log_append(text: str):
         )
     with open(LOG, "a") as f:
         f.write(text.rstrip() + "\n\n")
+
+
+# ── Issue 037 / Plan 612 Phase 1: the e8 embedding-table sidecar ─────────
+#
+# Linear-symmetric int8 over the checkpoint's tok_embeddings table, PER-ROW
+# (vocab-axis) f32 scales — closed-form min/max, no codebooks, no encoder
+# weights, no sub-8-bit (the refusal boundary adopted from the FluidUse
+# evidence: their w8/w8e/w6/w4 all fail ANE parity; embedding-table-only
+# int8 is the frontier this plan stands on). The table lives in the pinned
+# model.safetensors — NOT in the .mlpackage artifacts (they exclude it; the
+# token->embedding gather is host-side), so this lane never touches the
+# artifacts and needs no coremltools: numpy + blake3 only.
+
+_ST_DTYPE_BYTES = {
+    "BOOL": 1, "U8": 1, "I8": 1,
+    "F16": 2, "BF16": 2, "I16": 2, "U16": 2,
+    "I32": 4, "U32": 4, "F32": 4,
+    "I64": 8, "U64": 8, "F64": 8,
+}
+
+
+def st_tensor_info(path: Path, name: str):
+    """Hand-parse a safetensors header: (dtype str, shape, data abs offset).
+    The header discipline is loud: a wrong span for dtype*shape is a refusal,
+    never a read past the fact."""
+    with open(path, "rb") as f:
+        raw = f.read(8)
+        if len(raw) != 8:
+            raise SystemExit(f"ane_convert: {path} too small for a safetensors header")
+        n = struct.unpack("<Q", raw)[0]
+        hdr_b = f.read(n)
+        if len(hdr_b) != n:
+            raise SystemExit(f"ane_convert: {path} header truncated")
+    try:
+        hdr = json.loads(hdr_b.decode("utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError) as e:
+        raise SystemExit(f"ane_convert: {path} header unparsable: {e}")
+    if name not in hdr:
+        raise SystemExit(f"ane_convert: tensor {name!r} not in {path.name}")
+    info = hdr[name]
+    dt, shape = info["dtype"], [int(x) for x in info["shape"]]
+    if dt not in _ST_DTYPE_BYTES:
+        raise SystemExit(f"ane_convert: {path.name}:{name} unknown dtype {dt}")
+    want = math.prod(shape) * _ST_DTYPE_BYTES[dt]
+    s, e = int(info["data_offsets"][0]), int(info["data_offsets"][1])
+    if e - s != want:
+        raise SystemExit(
+            f"ane_convert: {path.name}:{name} offsets span {e - s} bytes, dtype/shape need {want}"
+        )
+    return dt, shape, 8 + n + s
+
+
+def quantize_table_e8(st_path: Path, abs_off: int, vocab: int, hidden: int, block: int = 16384):
+    """Closed-form per-row min/max symmetric int8 — a PURE function of the
+    file bytes: f16 rows read as exact f32, amax[r] = max|w[r,:]| (f32),
+    scale[r] = amax[r]/127 (f32), q = clip(rint(w/scale), -127, 127) (numpy
+    rint = half-to-even, deterministic). An all-zero row keeps scale 0.0 and
+    quantizes to zeros (dequant 0*0 = 0, exact); a NaN/Inf row is a loud
+    refusal, never quantized through."""
+    import numpy as np
+
+    mm = np.memmap(st_path, dtype="<f2", mode="r", offset=abs_off, shape=(vocab, hidden))
+    q = np.empty((vocab, hidden), dtype=np.int8)
+    scales = np.empty(vocab, dtype=np.float32)
+    zero_rows = 0
+    amax_min = amax_max = None
+    for r0 in range(0, vocab, block):
+        r1 = min(r0 + block, vocab)
+        blk = np.asarray(mm[r0:r1], dtype=np.float32)  # f16 -> f32 is exact
+        if not np.isfinite(blk).all():
+            raise SystemExit(
+                f"ane_convert: {TABLE_TENSOR} rows [{r0},{r1}) hold non-finite values — "
+                "a NaN/Inf embedding row is a fact to surface, never to quantize through"
+            )
+        amax = np.abs(blk).max(axis=1)
+        scale = amax / np.float32(127.0)
+        safe = np.where(scale > np.float32(0.0), scale, np.float32(1.0))
+        qq = np.rint(blk / safe[:, None])
+        np.clip(qq, np.float32(-127.0), np.float32(127.0), out=qq)
+        zero = scale == np.float32(0.0)
+        if zero.any():
+            qq[zero, :] = np.float32(0.0)
+            zero_rows += int(zero.sum())
+        q[r0:r1] = qq.astype(np.int8)
+        scales[r0:r1] = scale
+        lo, hi = float(amax.min()), float(amax.max())
+        amax_min = lo if amax_min is None else min(amax_min, lo)
+        amax_max = hi if amax_max is None else max(amax_max, hi)
+    del mm
+    return q, scales, {"zero_rows": zero_rows, "amax_f32_min": amax_min, "amax_f32_max": amax_max}
+
+
+def build_safetensors_bytes(tensors) -> bytes:
+    """Hand-written safetensors container, deterministic by construction:
+    u64-le header length + compact JSON header + data; tensor names sorted;
+    header space-padded so the data section starts 8-byte aligned; no
+    __metadata__ (the one smuggler of nondeterminism — omitted on purpose)."""
+    import numpy as np
+
+    dt_map = {np.dtype(np.int8): "I8", np.dtype(np.float32): "F32"}
+    names = [n for n, _ in tensors]
+    if names != sorted(names):
+        raise SystemExit(f"ane_convert: sidecar tensor names must be sorted, got {names}")
+    header, body, off = {}, bytearray(), 0
+    for name, arr in tensors:
+        a = np.ascontiguousarray(arr)
+        if a.dtype not in dt_map:
+            raise SystemExit(f"ane_convert: unsupported sidecar dtype {a.dtype}")
+        if a.dtype.byteorder == ">":
+            raise SystemExit(f"ane_convert: big-endian {name} refused (safetensors is little-endian)")
+        raw = a.tobytes()
+        header[name] = {
+            "dtype": dt_map[a.dtype],
+            "shape": list(a.shape),
+            "data_offsets": [off, off + len(raw)],
+        }
+        body += raw
+        off += len(raw)
+    hb = json.dumps(header, separators=(",", ":")).encode("utf-8")
+    hb += b" " * ((8 - (8 + len(hb)) % 8) % 8)
+    out = struct.pack("<Q", len(hb)) + hb + bytes(body)
+    n = struct.unpack("<Q", out[:8])[0]
+    if json.loads(out[8 : 8 + n]) != header or 8 + n + len(body) != len(out):
+        raise SystemExit("ane_convert: sidecar self-check failed (header round-trip)")
+    return out
+
+
+def _blake3_bytes(data: bytes) -> str:
+    import blake3
+
+    h = blake3.blake3()
+    h.update(data)
+    return h.hexdigest()
+
+
+def merge_table_manifest(model: str, entry: dict):
+    manifest, meta = _manifest_base()
+    meta.setdefault(
+        "sidecar_digest_algo",
+        "blake3 plain file digest (a table sidecar is one file; mlpackage bundles use blake3-dir-v1)",
+    )
+    line = (
+        f"{entry['created']} {model}/table_e8 "
+        f"table_i8={entry['table']['shape'][0]}x{entry['table']['shape'][1]} bytes={entry['bytes']}"
+    )
+    if line not in meta["history"]:
+        meta["history"].append(line)
+    manifest.setdefault("artifacts", {})[f"{model}/table_e8"] = entry
+    MANIFEST.parent.mkdir(parents=True, exist_ok=True)
+    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n")
+
+
+def cmd_table(args) -> int:
+    import blake3
+    import numpy as np
+
+    if args.table_precision != "e8":  # argparse choices already refuse; belt and braces
+        raise SystemExit(f"ane_convert: table precision {args.table_precision!r} refused — only e8")
+    model = args.model
+    paths = ensure_checkpoint(model)
+    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text()), model)
+    st_path = Path(paths["model.safetensors"])
+    dt, shape, abs_off = st_tensor_info(st_path, TABLE_TENSOR)
+    if dt != "F16":
+        raise SystemExit(
+            f"ane_convert: {model} {TABLE_TENSOR} dtype {dt} — this quantizer reads the F16 checkpoint table"
+        )
+    vocab, hidden = shape
+    if (vocab, hidden) != (cfg.vocab, cfg.hidden):
+        raise SystemExit(
+            f"ane_convert: {model} table {vocab}x{hidden} != encoder_config {cfg.vocab}x{cfg.hidden}"
+        )
+    print(f"ane_convert: {model} table F16 [{vocab}, {hidden}] — e8 per-row symmetric int8")
+
+    def ml_digests() -> dict:
+        d = {}
+        for L in (64, 128):
+            p = OUT_ROOT / model / f"L{L}.mlpackage"
+            if p.exists():
+                d[f"L{L}"] = blake3_dir(p)["digest"]
+        return d
+
+    before = ml_digests()
+
+    q1, s1, stats = quantize_table_e8(st_path, abs_off, vocab, hidden)
+    q2, s2, _ = quantize_table_e8(st_path, abs_off, vocab, hidden)  # T3: assert, never assume
+    if q1.tobytes() != q2.tobytes() or s1.tobytes() != s2.tobytes():
+        raise SystemExit("ane_convert: DETERMINISM BREAK — two in-run quantize passes differ")
+    del q2, s2
+
+    file_bytes = build_safetensors_bytes([("scales", s1), ("table", q1)])
+    new_digest = _blake3_bytes(file_bytes)
+
+    out = OUT_ROOT / model / "table_e8.safetensors"
+    prev_digest = hash_file(out, "blake3") if out.exists() else None
+    if prev_digest is not None and prev_digest != new_digest:
+        raise SystemExit(
+            f"ane_convert: DETERMINISM BREAK — fresh sidecar blake3 {new_digest} != existing "
+            f"{prev_digest}; the closed-form quantizer must be a pure function of the checkpoint; "
+            "refusing to overwrite"
+        )
+    out.parent.mkdir(parents=True, exist_ok=True)
+    tmp = out.with_name(out.name + ".part")
+    tmp.write_bytes(file_bytes)
+    tmp.rename(out)
+    print(f"ane_convert: wrote {out} ({len(file_bytes)} bytes, blake3 {new_digest})")
+
+    after = ml_digests()
+    if before != after:
+        moved = sorted(set(before.items()) ^ set(after.items()))
+        raise SystemExit(
+            f"ane_convert: REFUSED — mlpackage digests moved during a table-only run: {moved}"
+        )
+
+    serves = []
+    if MANIFEST.exists():
+        man = json.loads(MANIFEST.read_text())
+        serves = sorted(
+            {
+                v["bucket_L"]
+                for k, v in man.get("artifacts", {}).items()
+                if k.split("/", 1)[0] == model and isinstance(v.get("bucket_L"), int)
+            }
+        )
+
+    entry = {
+        "path": str(out.relative_to(REPO)),
+        "bytes": len(file_bytes),
+        "digest": {"algo": "blake3", "digest": new_digest, "files": 1, "bytes": len(file_bytes)},
+        "source": {
+            "tensor": TABLE_TENSOR,
+            "safetensors_sha256": WEIGHT_SHA256[model],
+            "dtype": "F16",
+            "shape": [vocab, hidden],
+        },
+        "table": {"tensor": "table", "dtype": "int8", "shape": [vocab, hidden]},
+        "scales": {"tensor": "scales", "dtype": "float32", "shape": [vocab]},
+        "quant": {
+            "scheme": "linear_symmetric_minmax",
+            "axis": "per_row_vocab",
+            "levels": [-127, 127],
+            "scale_formula": "scale[r] = float32(max|w[r,:]|) / 127.0; all-zero row -> scale 0.0, q 0",
+            "round": "numpy rint (half-to-even), clip to [-127, 127]",
+            "input_note": "f16 checkpoint rows read as exact f32; closed form, no codebooks, no iterations",
+            "zero_rows": stats["zero_rows"],
+            "amax_f32_min": stats["amax_f32_min"],
+            "amax_f32_max": stats["amax_f32_max"],
+        },
+        "format": {
+            "container": "safetensors, hand-written (u64-le header length + compact JSON header + "
+            "data; tensors sorted; header space-padded to 8-byte data alignment; no __metadata__)",
+            "tensor_order": ["scales", "table"],
+        },
+        "serves_buckets": serves,
+        "artifacts_untouched": {"digests": before, "before_eq_after": True},
+        "determinism": {
+            "in_run_double_quantize": "payload bytes identical",
+            "rewrite_vs_existing": (
+                "first emission" if prev_digest is None else f"digest match {prev_digest[:16]}…"
+            ),
+        },
+        "python": platform.python_version(),
+        "numpy": np.__version__,
+        "blake3": getattr(blake3, "__version__", "unknown"),
+        "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "box_state": box_state(),
+    }
+    merge_table_manifest(model, entry)
+
+    zero_note = f"; {stats['zero_rows']} all-zero rows (scale 0.0, q 0)" if stats["zero_rows"] else ""
+    det_note = (
+        "first emission (rerun the command to close the cross-run golden)"
+        if prev_digest is None
+        else f"cross-run golden closed — rewrite digest match {prev_digest} == fresh bytes"
+    )
+    log_append(
+        f"## Table e8 — {model} — {time.strftime('%Y-%m-%d %H:%M')} {time.strftime('%Z')}\n"
+        "- command: `scripts/ane_convert.py table --model "
+        f"{model} --table-precision e8` (Plan 612 Phase 1 / issue 037 T1; numpy + blake3 only — "
+        "no coremltools/torch: the table lives in the pinned checkpoint safetensors, NOT in the "
+        "artifacts, which exclude it (host-side gather); no mlpackage weights reader exists or "
+        "is needed)\n"
+        f"- source: `{TABLE_TENSOR}` F16 [{vocab}, {hidden}] (checkpoint sha256 "
+        f"{WEIGHT_SHA256[model][:16]}… verified at resolve)\n"
+        "- scheme: linear-symmetric int8, PER-ROW (vocab-axis) f32 scales — closed form "
+        "scale[r] = max|w[r,:]|/127 (f32), q = clip(rint(w/scale), -127, 127); amax range "
+        f"[{stats['amax_f32_min']:.6g}, {stats['amax_f32_max']:.6g}]{zero_note}\n"
+        f"- sidecar: `{entry['path']}` — {len(file_bytes)} bytes, blake3 `{new_digest}` (tensors "
+        "`scales` F32 [vocab] + `table` I8 [vocab, hidden]; hand-written container, sorted "
+        "tensors, no timestamps in the bytes)\n"
+        f"- determinism (T3, asserted): in-run double quantize payload byte-identical · {det_note}\n"
+        f"- serves buckets: {', '.join(f'L{b}' for b in serves) if serves else '(no artifact rows yet)'} — "
+        "one sidecar per checkpoint; the table is per-checkpoint, not per-bucket\n"
+        "- artifacts untouched (T4): "
+        + "; ".join(f"{k} blake3-dir {v[:16]}… before == after" for k, v in sorted(before.items()))
+        + "\n"
+        "- refused-variant boundary (adopted, Plan 612 Non-goals): FluidUse's `w8`/`w8e` "
+        "(encoder-int8) and `w6`/`w4` (k-means palettes) FAIL ANE parity (their Benchmarks.md, "
+        "M5 Pro; sources pinned in riir-infer `.research/002` — FluidUse @ 0a5c85e7, mobius @ "
+        "5beb3400) — embedding-table-only int8 is the ecosystem's proven frontier; this repo "
+        "refuses encoder-weight int8 and sub-8-bit palettes; re-opening one needs a new issue "
+        "with new evidence\n"
+        "- axis prior (Plan 612 Phase 0): mobius `models/computer-use/laya/coreml/quantize.py` "
+        "@ 5beb3400 dequantizes PER-CHANNEL — recorded as a PRIOR ONLY; our default is per-row "
+        "f32 scales on accuracy grounds (an outlier token's range stays isolated to its own row; "
+        "per-column lets one outlier row set every column's range); their size arithmetic cannot "
+        "distinguish the axes (<1 MB of scales either way); flipping is a one-line change + "
+        "sidecar regen, decided by G1, never by their precedent\n"
+        "- runtime half NOT in this repo: `gather_e8`, the `LAYA_ANE_TABLE=e8` env and the "
+        "G5-ANE re-pass are riir-infer Plan 612 Phases 2-3; this sidecar changes no serving "
+        "behavior (the fp16 table stays the default posture)\n"
+        f"- box: {json.dumps(box_state())}"
+    )
+    print(f"ane_convert: PASS {model} table_e8 — manifest + log updated")
+    return 0
 
 
 # ── T0.5: the numerical smoke — render/tokenize/head mirrors ─────────────
@@ -1043,6 +1391,19 @@ def main() -> int:
     s.add_argument("--model", required=True, choices=MODELS)
     s.add_argument("--fixtures", type=int, default=8)
     s.set_defaults(fn=cmd_smoke)
+
+    t = sub.add_parser(
+        "table", help="emit the e8 int8 embedding-table sidecar (Plan 612 Phase 1 / issue 037)"
+    )
+    t.add_argument("--model", required=True, choices=MODELS)
+    t.add_argument(
+        "--table-precision",
+        default="e8",
+        choices=["e8"],
+        help="only 'e8': per-row-scaled linear-symmetric int8 — encoder-int8 and sub-8-bit "
+        "are REFUSED (the FluidUse w8/w8e/w6/w4 ANE-parity evidence, Plan 612)",
+    )
+    t.set_defaults(fn=cmd_table)
 
     args = ap.parse_args()
     return args.fn(args)

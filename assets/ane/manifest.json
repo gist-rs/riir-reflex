@@ -10,8 +10,15 @@
       "2026-09-24T10:47:25+0700 multilingual/L128 ane=1387/1387 transitions=0",
       "2026-09-24T10:46:52+0700 multilingual/L64 ane=1373/1373 transitions=0",
       "2026-09-24T10:51:27+0700 typed/L128 ane=1763/1763 transitions=0",
-      "2026-09-24T10:50:32+0700 typed/L64 ane=1745/1745 transitions=0"
-    ]
+      "2026-09-24T10:50:32+0700 typed/L64 ane=1745/1745 transitions=0",
+      "2026-09-26T21:43:08+0700 multilingual/table_e8 table_i8=256000x768 bytes=197632160",
+      "2026-09-26T21:43:18+0700 english/table_e8 table_i8=50368x1024 bytes=51778464",
+      "2026-09-26T21:43:20+0700 typed/table_e8 table_i8=50368x1024 bytes=51778464",
+      "2026-09-26T21:43:33+0700 multilingual/table_e8 table_i8=256000x768 bytes=197632160",
+      "2026-09-26T21:43:35+0700 english/table_e8 table_i8=50368x1024 bytes=51778464",
+      "2026-09-26T21:43:38+0700 typed/table_e8 table_i8=50368x1024 bytes=51778464"
+    ],
+    "sidecar_digest_algo": "blake3 plain file digest (a table sidecar is one file; mlpackage bundles use blake3-dir-v1)"
   },
   "artifacts": {
     "multilingual/L64": {
@@ -757,6 +764,255 @@
         "free_ram_gb_approx": 27.5
       },
       "bytes_note": "total file bytes inside the .mlpackage bundle (the bundle is a directory)"
+    },
+    "multilingual/table_e8": {
+      "path": "assets/ane/multilingual/table_e8.safetensors",
+      "bytes": 197632160,
+      "digest": {
+        "algo": "blake3",
+        "digest": "0276e83f3cfb6e2ba70990d80387c075d080bc5b94d294e5d773442e402558ee",
+        "files": 1,
+        "bytes": 197632160
+      },
+      "source": {
+        "tensor": "encoder.embeddings.tok_embeddings.weight",
+        "safetensors_sha256": "9d628fd971b700382ac6f65920a86f149777b2e748e0c955fb3b19695aa8f204",
+        "dtype": "F16",
+        "shape": [
+          256000,
+          768
+        ]
+      },
+      "table": {
+        "tensor": "table",
+        "dtype": "int8",
+        "shape": [
+          256000,
+          768
+        ]
+      },
+      "scales": {
+        "tensor": "scales",
+        "dtype": "float32",
+        "shape": [
+          256000
+        ]
+      },
+      "quant": {
+        "scheme": "linear_symmetric_minmax",
+        "axis": "per_row_vocab",
+        "levels": [
+          -127,
+          127
+        ],
+        "scale_formula": "scale[r] = float32(max|w[r,:]|) / 127.0; all-zero row -> scale 0.0, q 0",
+        "round": "numpy rint (half-to-even), clip to [-127, 127]",
+        "input_note": "f16 checkpoint rows read as exact f32; closed form, no codebooks, no iterations",
+        "zero_rows": 0,
+        "amax_f32_min": 0.099853515625,
+        "amax_f32_max": 0.4189453125
+      },
+      "format": {
+        "container": "safetensors, hand-written (u64-le header length + compact JSON header + data; tensors sorted; header space-padded to 8-byte data alignment; no __metadata__)",
+        "tensor_order": [
+          "scales",
+          "table"
+        ]
+      },
+      "serves_buckets": [
+        64,
+        128
+      ],
+      "artifacts_untouched": {
+        "digests": {
+          "L64": "b46a95d1d66bc19e2682878b8d7801e2895798beb54d468d979d087c1ae1fe16",
+          "L128": "2e4d47246130a5b3a5619c31b5d800b57d308811faae31a11cdc8602d1d1deeb"
+        },
+        "before_eq_after": true
+      },
+      "determinism": {
+        "in_run_double_quantize": "payload bytes identical",
+        "rewrite_vs_existing": "digest match 0276e83f3cfb6e2b\u2026"
+      },
+      "python": "3.12.11",
+      "numpy": "2.5.3",
+      "blake3": "1.0.9",
+      "created": "2026-09-26T21:43:33+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 2.99,
+        "load5": 3.78,
+        "load15": 4.0,
+        "power": "Now drawing from 'AC Power'",
+        "free_ram_gb_approx": 42.6
+      }
+    },
+    "english/table_e8": {
+      "path": "assets/ane/english/table_e8.safetensors",
+      "bytes": 51778464,
+      "digest": {
+        "algo": "blake3",
+        "digest": "ebaf93be4d3046886d9e6277d68bfcc3c97d1856578739939720f04400345c4d",
+        "files": 1,
+        "bytes": 51778464
+      },
+      "source": {
+        "tensor": "encoder.embeddings.tok_embeddings.weight",
+        "safetensors_sha256": "891102d372688fc2a094dac56a384bc537b87c63f21f9f3dac0be2b7cbc8d86c",
+        "dtype": "F16",
+        "shape": [
+          50368,
+          1024
+        ]
+      },
+      "table": {
+        "tensor": "table",
+        "dtype": "int8",
+        "shape": [
+          50368,
+          1024
+        ]
+      },
+      "scales": {
+        "tensor": "scales",
+        "dtype": "float32",
+        "shape": [
+          50368
+        ]
+      },
+      "quant": {
+        "scheme": "linear_symmetric_minmax",
+        "axis": "per_row_vocab",
+        "levels": [
+          -127,
+          127
+        ],
+        "scale_formula": "scale[r] = float32(max|w[r,:]|) / 127.0; all-zero row -> scale 0.0, q 0",
+        "round": "numpy rint (half-to-even), clip to [-127, 127]",
+        "input_note": "f16 checkpoint rows read as exact f32; closed form, no codebooks, no iterations",
+        "zero_rows": 0,
+        "amax_f32_min": 0.09307861328125,
+        "amax_f32_max": 2.265625
+      },
+      "format": {
+        "container": "safetensors, hand-written (u64-le header length + compact JSON header + data; tensors sorted; header space-padded to 8-byte data alignment; no __metadata__)",
+        "tensor_order": [
+          "scales",
+          "table"
+        ]
+      },
+      "serves_buckets": [
+        64,
+        128
+      ],
+      "artifacts_untouched": {
+        "digests": {
+          "L64": "7a56479c4c17b353aac30a027b317cc758a5542d64684ae86e79abe4a13f8478",
+          "L128": "1b50ccf4ba6c0d8bf07fd4dd5dc9598bce32df62cd682067854249c64a31d0f2"
+        },
+        "before_eq_after": true
+      },
+      "determinism": {
+        "in_run_double_quantize": "payload bytes identical",
+        "rewrite_vs_existing": "digest match ebaf93be4d304688\u2026"
+      },
+      "python": "3.12.11",
+      "numpy": "2.5.3",
+      "blake3": "1.0.9",
+      "created": "2026-09-26T21:43:35+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 2.99,
+        "load5": 3.78,
+        "load15": 4.0,
+        "power": "Now drawing from 'AC Power'",
+        "free_ram_gb_approx": 42.6
+      }
+    },
+    "typed/table_e8": {
+      "path": "assets/ane/typed/table_e8.safetensors",
+      "bytes": 51778464,
+      "digest": {
+        "algo": "blake3",
+        "digest": "1899dcdb1e4b1bb1f64ab33137eac1fcda0470a8c383a9c9a30a45ec4f0f86e2",
+        "files": 1,
+        "bytes": 51778464
+      },
+      "source": {
+        "tensor": "encoder.embeddings.tok_embeddings.weight",
+        "safetensors_sha256": "4fa56de72383a9d3efa9cfa78955733c81b9fc8067a587ca4beb82c78107a24e",
+        "dtype": "F16",
+        "shape": [
+          50368,
+          1024
+        ]
+      },
+      "table": {
+        "tensor": "table",
+        "dtype": "int8",
+        "shape": [
+          50368,
+          1024
+        ]
+      },
+      "scales": {
+        "tensor": "scales",
+        "dtype": "float32",
+        "shape": [
+          50368
+        ]
+      },
+      "quant": {
+        "scheme": "linear_symmetric_minmax",
+        "axis": "per_row_vocab",
+        "levels": [
+          -127,
+          127
+        ],
+        "scale_formula": "scale[r] = float32(max|w[r,:]|) / 127.0; all-zero row -> scale 0.0, q 0",
+        "round": "numpy rint (half-to-even), clip to [-127, 127]",
+        "input_note": "f16 checkpoint rows read as exact f32; closed form, no codebooks, no iterations",
+        "zero_rows": 0,
+        "amax_f32_min": 0.09307861328125,
+        "amax_f32_max": 2.265625
+      },
+      "format": {
+        "container": "safetensors, hand-written (u64-le header length + compact JSON header + data; tensors sorted; header space-padded to 8-byte data alignment; no __metadata__)",
+        "tensor_order": [
+          "scales",
+          "table"
+        ]
+      },
+      "serves_buckets": [
+        64,
+        128
+      ],
+      "artifacts_untouched": {
+        "digests": {
+          "L64": "0b1d0302eb69a992e83c02eee6f1e5117584841e5b3a0b9815f7a3b62a800d66",
+          "L128": "01085c6c3ae7e007a0549665acdf60bcf8052099b0a2e95b0572ca73ca45a5de"
+        },
+        "before_eq_after": true
+      },
+      "determinism": {
+        "in_run_double_quantize": "payload bytes identical",
+        "rewrite_vs_existing": "digest match 1899dcdb1e4b1bb1\u2026"
+      },
+      "python": "3.12.11",
+      "numpy": "2.5.3",
+      "blake3": "1.0.9",
+      "created": "2026-09-26T21:43:38+0700",
+      "box_state": {
+        "machine": "arm64",
+        "macos": "26.6.2",
+        "load1": 3.15,
+        "load5": 3.8,
+        "load15": 4.01,
+        "power": "Now drawing from 'AC Power'",
+        "free_ram_gb_approx": 42.7
+      }
     }
   }
 }
