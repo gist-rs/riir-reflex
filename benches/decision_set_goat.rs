@@ -101,6 +101,115 @@ verified the health endpoints and the error budget is clean."
     }
 }
 
+fn demo_specs() -> Vec<ExpertSpec> {
+    vec![
+        ExpertSpec::new("ops", &[OPS_DOC.to_string()]),
+        ExpertSpec::new("support", &[SUPPORT_DOC.to_string()]),
+    ]
+}
+
+/// Issue 038's armed request: 2-option choices (k == N, index-aligned —
+/// the tables fire) interleaved with noul.
+#[cfg(feature = "nb_scope")]
+fn nb_request(n_questions: usize) -> katgpt_core::decision_wire::DecisionRequest {
+    use katgpt_core::decision_wire::Question;
+    let questions = (0..n_questions)
+        .map(|i| match i % 2 {
+            0 => Question::choice(
+                format!("q{i}"),
+                "Which team owns this?",
+                vec!["ops".to_string(), "support".to_string()],
+                None,
+            ),
+            _ => Question::noul(format!("q{i}"), "Is this an ops matter?"),
+        })
+        .collect();
+    katgpt_core::decision_wire::DecisionRequest {
+        state: "The release candidate passed staging smoke tests; the on-call engineer \
+verified the health endpoints and the error budget is clean."
+            .to_string(),
+        questions,
+    }
+}
+
+/// Warmup + determinism + G2 (p99 ≤ 1 ms) + G4 (solve_into alloc-free
+/// after warmup) for one engine posture. Returns the p99 (µs).
+fn run_gates(
+    label: &str,
+    mut engine: DecisionEngine<2, EMBED_DIM>,
+    req: &katgpt_core::decision_wire::DecisionRequest,
+    n_questions: usize,
+) -> u64 {
+    println!("── posture: {label} ──");
+    // ── Warmup: grow every scratch once (drafter, wire Vecs, Vec<i32> …) ─
+    let mut sc: Scratch<EMBED_DIM> = Scratch::new();
+    sc.prepare(n_questions);
+    let warm = engine.decide_with(req, &mut sc).unwrap();
+    warm.validate_against(req)
+        .expect("engine output must satisfy the wire contract");
+    println!(
+        "[warm] {} answers, routing: {}",
+        warm.answers.len(),
+        warm.routing.reason.as_deref().unwrap_or("")
+    );
+
+    // ── Determinism (modelless lane, caveat-3 scoped) ────────────────────
+    let j1 = serde_json::to_string(&engine.decide_with(req, &mut sc).unwrap()).unwrap();
+    let j2 = serde_json::to_string(&engine.decide_with(req, &mut sc).unwrap()).unwrap();
+    assert_eq!(j1, j2, "repeat runs must be bit-identical (modelless lane)");
+    println!("[determinism] repeat runs bit-identical");
+
+    // ── G2: per-request latency, p99 with tail support printed ───────────
+    const REPS: usize = 300;
+    let mut durations_us: Vec<u64> = Vec::with_capacity(REPS);
+    for _ in 0..REPS {
+        let t0 = Instant::now();
+        let resp = black_box(engine.decide_with(black_box(req), &mut sc).unwrap());
+        black_box(&resp);
+        durations_us.push(t0.elapsed().as_micros() as u64);
+    }
+    durations_us.sort_unstable();
+    // p99 index — nearest-rank: idx = ceil(0.99 * n) - 1.
+    let idx = (REPS * 99).div_ceil(100) - 1;
+    let p99 = durations_us[idx];
+    let p50 = durations_us[REPS / 2];
+    let tail_support = REPS - idx;
+    println!(
+        "[G2] per-request p50 = {p50} µs · p99 = {p99} µs (tail support {tail_support}/{REPS}) · ns/question ≈ {}",
+        p50 * 1000 / n_questions as u64
+    );
+    assert!(
+        p99 <= 1_000,
+        "G2 FAIL ({label}): p99 per decision set {p99} µs exceeds the 1 ms bar"
+    );
+
+    // ── G4: solve_into alloc-free after warmup ───────────────────────────
+    let a0 = ALLOCS.load(Ordering::Relaxed);
+    const G4_REPS: usize = 200;
+    for _ in 0..G4_REPS {
+        engine.solve_into(black_box(req), &mut sc).unwrap();
+        black_box(&sc);
+    }
+    let core_allocs = ALLOCS.load(Ordering::Relaxed) - a0;
+    println!("[G4] solve_into × {G4_REPS} after warmup: {core_allocs} allocations");
+    assert_eq!(
+        core_allocs, 0,
+        "G4 FAIL ({label}): the zero-alloc core allocated {core_allocs} time(s) after warmup"
+    );
+
+    // Wire materialization allocates BY DESIGN (the boundary, not the hot
+    // path) — reported, never asserted.
+    let a1 = ALLOCS.load(Ordering::Relaxed);
+    for _ in 0..G4_REPS {
+        black_box(engine.decide_with(black_box(req), &mut sc).unwrap());
+    }
+    let full_allocs = ALLOCS.load(Ordering::Relaxed) - a1;
+    println!(
+        "[G4] full decide_with × {G4_REPS} (wire boundary included): {full_allocs} allocations (reported, not gated)"
+    );
+    p99
+}
+
 fn main() {
     println!("═══════════════════════════════════════════════════════════════");
     println!("  decision_set_goat — G2 latency + G4 alloc (modelless lane)");
@@ -119,83 +228,28 @@ fn main() {
     println!("[canary] allocator counted {canary_count} alloc(s) — instrument live");
 
     let engine: DecisionEngine<2, EMBED_DIM> = DecisionEngine::build_specs(
-        vec![
-            ExpertSpec::new("ops", &[OPS_DOC.to_string()]),
-            ExpertSpec::new("support", &[SUPPORT_DOC.to_string()]),
-        ],
+        demo_specs(),
         EngineConfig::default(),
     )
     .expect("demo corpus well-formed");
-    let mut engine = engine;
     let n_questions = 8;
-    let req = request(n_questions);
+    let p99 = run_gates("default", engine, &request(n_questions), n_questions);
 
-    // ── Warmup: grow every scratch once (drafter, wire Vecs, Vec<i32> …) ─
-    let mut sc: Scratch<EMBED_DIM> = Scratch::new();
-    sc.prepare(n_questions);
-    let warm = engine.decide_with(&req, &mut sc).unwrap();
-    warm.validate_against(&req)
-        .expect("engine output must satisfy the wire contract");
-    println!(
-        "[warm] {} answers, routing: {}",
-        warm.answers.len(),
-        warm.routing.reason.as_deref().unwrap_or("")
-    );
-
-    // ── Determinism (modelless lane, caveat-3 scoped) ────────────────────
-    let j1 = serde_json::to_string(&engine.decide_with(&req, &mut sc).unwrap()).unwrap();
-    let j2 = serde_json::to_string(&engine.decide_with(&req, &mut sc).unwrap()).unwrap();
-    assert_eq!(j1, j2, "repeat runs must be bit-identical (modelless lane)");
-    println!("[determinism] repeat runs bit-identical");
-
-    // ── G2: per-request latency, p99 with tail support printed ───────────
-    const REPS: usize = 300;
-    let mut durations_us: Vec<u64> = Vec::with_capacity(REPS);
-    for _ in 0..REPS {
-        let t0 = Instant::now();
-        let resp = black_box(engine.decide_with(black_box(&req), &mut sc).unwrap());
-        black_box(&resp);
-        durations_us.push(t0.elapsed().as_micros() as u64);
+    // ── Issue 038: the same gates with the count tables ARMED — a request
+    // whose choice options index-align with the domains (k == N) so the
+    // tables fire, plus a noul with a configured polarity. The default
+    // request above never arms them (its options name no domain).
+    #[cfg(feature = "nb_scope")]
+    {
+        let cfg = EngineConfig {
+            nb_scale: 4.0,
+            nb_noul_domain: Some(0),
+            ..EngineConfig::default()
+        };
+        let engine: DecisionEngine<2, EMBED_DIM> =
+            DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
+        run_gates("nb_scope armed", engine, &nb_request(n_questions), n_questions);
     }
-    durations_us.sort_unstable();
-    // p99 index — nearest-rank: idx = ceil(0.99 * n) - 1.
-    let idx = (REPS * 99).div_ceil(100) - 1;
-    let p99 = durations_us[idx];
-    let p50 = durations_us[REPS / 2];
-    let tail_support = REPS - idx;
-    println!(
-        "[G2] per-request p50 = {p50} µs · p99 = {p99} µs (tail support {tail_support}/{REPS}) · ns/question ≈ {}",
-        p50 * 1000 / n_questions as u64
-    );
-    assert!(
-        p99 <= 1_000,
-        "G2 FAIL: p99 per decision set {p99} µs exceeds the 1 ms bar"
-    );
-
-    // ── G4: solve_into alloc-free after warmup ───────────────────────────
-    let a0 = ALLOCS.load(Ordering::Relaxed);
-    const G4_REPS: usize = 200;
-    for _ in 0..G4_REPS {
-        engine.solve_into(black_box(&req), &mut sc).unwrap();
-        black_box(&sc);
-    }
-    let core_allocs = ALLOCS.load(Ordering::Relaxed) - a0;
-    println!("[G4] solve_into × {G4_REPS} after warmup: {core_allocs} allocations");
-    assert_eq!(
-        core_allocs, 0,
-        "G4 FAIL: the zero-alloc core allocated {core_allocs} time(s) after warmup"
-    );
-
-    // Wire materialization allocates BY DESIGN (the boundary, not the hot
-    // path) — reported, never asserted.
-    let a1 = ALLOCS.load(Ordering::Relaxed);
-    for _ in 0..G4_REPS {
-        black_box(engine.decide_with(black_box(&req), &mut sc).unwrap());
-    }
-    let full_allocs = ALLOCS.load(Ordering::Relaxed) - a1;
-    println!(
-        "[G4] full decide_with × {G4_REPS} (wire boundary included): {full_allocs} allocations (reported, not gated)"
-    );
 
     println!("═══════════════════════════════════════════════════════════════");
     println!(
