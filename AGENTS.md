@@ -171,6 +171,17 @@ GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
 # wins); det ✗ = their disclosed bf16 HTTP wobble, picks stable — bench 039.
 AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
   cargo run --release --bin harness -- --agentjev --suites typed_decisions --skip-laya
+
+# The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
+# never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
+# coremltools subprocess (scripts/cua_s1_lane.py, their preprocessing.py
+# imported verbatim) beside our lanes on THEIR test split (BLAKE3-pinned).
+# Setup (hf download + uv venv under gitignored .raw/cua-s1-forms/) is in
+# the example's module doc; missing model/venv/laya weights SKIP loud.
+# Sanity: coreml must read 24,359/24,370 (their published result).
+scripts/bench_preflight.sh
+LAYA_DEVICE=metal cargo run --release --features laya-riir-metal \
+  --example cua_s1_forms_arena -- --lanes coreml,modelless,laya --n-laya 2437
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the

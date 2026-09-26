@@ -1,0 +1,562 @@
+{
+  "fixture": {
+    "repo": "cua-ai/cua-s1-forms",
+    "revision": "8273f34778b99ac2e12d9f6e7d57dad99ae20845",
+    "file": "test.jsonl",
+    "rows": 24370,
+    "blake3": "78223e7a5ac8557ae0deea3acf484b4e5a40c6ea4c439fe3fb55ca08167ae14b",
+    "sha256": "d63a7e0db195d4d20154a40b2f8dd09ce3bb65487a158c638da5c609d4475e7c"
+  },
+  "box": {
+    "start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 4.19,
+      "swap_used_mb": 1443.62,
+      "latency_quotable": true,
+      "refusals": []
+    },
+    "end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 5.06,
+      "swap_used_mb": 1435.62,
+      "latency_quotable": true,
+      "refusals": []
+    }
+  },
+  "cap": 64,
+  "prompt": "Choose the one action for the ELEMENT: fill it with the matching document entry, or check, click, or skip it.",
+  "lanes": [
+    {
+      "lane": "cua-s1-forms · coreml",
+      "detail": "FluidInference/cua-s1-forms-coreml cua_s1_forms_fp16_options32.mlpackage · CPU_AND_NE · coremltools 9.0 · load 773.7 ms",
+      "n": 24370,
+      "correct": 24359,
+      "per_action": "fill 9802/9802 · check 816/816 · click 1040/1040 · skip 12701/12712",
+      "picked": "fill 9813 · check 816 · click 1040 · skip 12701",
+      "latency": {
+        "p50_ms": 2.19925,
+        "p95_ms": 2.5955829999999995,
+        "p99_ms": 2.718375,
+        "tail_support_p95": 1219,
+        "tail_support_p99": 244,
+        "n": 24370
+      },
+      "latency_2nd": {
+        "p50_ms": 2.1149,
+        "p95_ms": 2.4905,
+        "p99_ms": 2.5959,
+        "tail_support_p95": 1219,
+        "tail_support_p99": 244,
+        "n": 24370
+      },
+      "floor_chance": 0.05566970801173736,
+      "floor_skip": 0.5216249487074271,
+      "first_errors": [
+        {
+          "row": 137,
+          "gold": "skip",
+          "pick": "fill Last: Novak"
+        },
+        {
+          "row": 3216,
+          "gold": "skip",
+          "pick": "fill Email address: oivanova66@yahoo.com"
+        },
+        {
+          "row": 6631,
+          "gold": "skip",
+          "pick": "fill Physician: Dr. Fischer"
+        },
+        {
+          "row": 6748,
+          "gold": "skip",
+          "pick": "fill ST: NE"
+        },
+        {
+          "row": 7280,
+          "gold": "skip",
+          "pick": "fill First name: Tomas"
+        },
+        {
+          "row": 10703,
+          "gold": "skip",
+          "pick": "fill Family name: Silva"
+        },
+        {
+          "row": 12255,
+          "gold": "skip",
+          "pick": "fill National ID: 813-20-3361"
+        },
+        {
+          "row": 13480,
+          "gold": "skip",
+          "pick": "fill Company reg: REG3878384"
+        },
+        {
+          "row": 15214,
+          "gold": "skip",
+          "pick": "fill Reg plate: WN9-8147"
+        },
+        {
+          "row": 21022,
+          "gold": "skip",
+          "pick": "fill National ID: 794-03-1212"
+        },
+        {
+          "row": 23671,
+          "gold": "skip",
+          "pick": "fill Email: lchen6@yahoo.com"
+        }
+      ]
+    },
+    {
+      "lane": "reflex · modelless",
+      "detail": "in-process, cap 64/action, route terms inactive",
+      "n": 24370,
+      "correct": 1063,
+      "per_action": "fill 247/9802 · check 816/816 · click 0/1040 · skip 0/12712",
+      "picked": "fill 1052 · check 23318 · click 0 · skip 0",
+      "latency": {
+        "p50_ms": 0.128625,
+        "p95_ms": 0.20725,
+        "p99_ms": 0.231166,
+        "tail_support_p95": 1219,
+        "tail_support_p99": 244,
+        "n": 24370
+      },
+      "latency_2nd": null,
+      "floor_chance": 0.05566970801173736,
+      "floor_skip": 0.5216249487074271,
+      "first_errors": [
+        {
+          "row": 0,
+          "gold": "fill Given name: Isla",
+          "pick": "check"
+        },
+        {
+          "row": 1,
+          "gold": "fill Address: 8195 Bridge Lane",
+          "pick": "check"
+        },
+        {
+          "row": 2,
+          "gold": "fill Date of incident: 16 Dec 2025",
+          "pick": "check"
+        },
+        {
+          "row": 3,
+          "gold": "fill Policy ID: POL-91579056",
+          "pick": "check"
+        },
+        {
+          "row": 4,
+          "gold": "fill Earliest start: 2027-05-21",
+          "pick": "check"
+        },
+        {
+          "row": 5,
+          "gold": "fill Business tel: 782-759-9314",
+          "pick": "check"
+        },
+        {
+          "row": 6,
+          "gold": "fill Postcode: 80202",
+          "pick": "check"
+        },
+        {
+          "row": 7,
+          "gold": "fill Nationality: Canadian",
+          "pick": "check"
+        },
+        {
+          "row": 8,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 9,
+          "gold": "fill DOB: 03/20/1966",
+          "pick": "fill Postcode: 80202"
+        },
+        {
+          "row": 10,
+          "gold": "fill Email: isla.andersen@outlook.com",
+          "pick": "check"
+        },
+        {
+          "row": 11,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 12,
+          "gold": "fill Sex: Male",
+          "pick": "check"
+        },
+        {
+          "row": 13,
+          "gold": "fill Emergency contact phone: (891) 844-2198",
+          "pick": "check"
+        },
+        {
+          "row": 14,
+          "gold": "fill Contact number: (206) 305-1824",
+          "pick": "check"
+        },
+        {
+          "row": 15,
+          "gold": "fill Emergency contact relation: Brother",
+          "pick": "check"
+        },
+        {
+          "row": 17,
+          "gold": "click",
+          "pick": "check"
+        },
+        {
+          "row": 18,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 19,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 20,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 21,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 22,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 23,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 24,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 25,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 26,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 27,
+          "gold": "fill Insured: Dmitri O'Brien",
+          "pick": "check"
+        },
+        {
+          "row": 28,
+          "gold": "fill Date of birth: 15 May 2003",
+          "pick": "check"
+        },
+        {
+          "row": 29,
+          "gold": "fill Start date: 02/11/2026",
+          "pick": "check"
+        },
+        {
+          "row": 30,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 31,
+          "gold": "fill Email address: dobrien21@outlook.com",
+          "pick": "check"
+        },
+        {
+          "row": 32,
+          "gold": "fill Driver's license: E3712906",
+          "pick": "check"
+        },
+        {
+          "row": 33,
+          "gold": "fill Status: Divorced",
+          "pick": "check"
+        },
+        {
+          "row": 34,
+          "gold": "fill Citizen of: American",
+          "pick": "check"
+        },
+        {
+          "row": 35,
+          "gold": "fill Home address: 5025 Birch Ave",
+          "pick": "check"
+        },
+        {
+          "row": 36,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 37,
+          "gold": "fill Work phone: 923-540-1273",
+          "pick": "check"
+        },
+        {
+          "row": 38,
+          "gold": "fill Policy no: NJH5245367",
+          "pick": "check"
+        },
+        {
+          "row": 39,
+          "gold": "fill Postcode: 83702",
+          "pick": "check"
+        },
+        {
+          "row": 40,
+          "gold": "skip",
+          "pick": "check"
+        }
+      ]
+    },
+    {
+      "lane": "reflex · laya-riir·typed",
+      "detail": "zero-shot, device metal",
+      "n": 2437,
+      "correct": 730,
+      "per_action": "fill 563/1014 · check 35/59 · click 79/114 · skip 53/1250",
+      "picked": "fill 1584 · check 348 · click 449 · skip 56",
+      "latency": {
+        "p50_ms": 50.964583,
+        "p95_ms": 59.997792000000004,
+        "p99_ms": 64.056,
+        "tail_support_p95": 122,
+        "tail_support_p99": 25,
+        "n": 2437
+      },
+      "latency_2nd": null,
+      "floor_chance": 0.05562642672073156,
+      "floor_skip": 0.5129257283545343,
+      "first_errors": [
+        {
+          "row": 20,
+          "gold": "skip",
+          "pick": "fill Given name: Isla"
+        },
+        {
+          "row": 30,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 40,
+          "gold": "skip",
+          "pick": "fill Emergency number: +1 873 805 2102"
+        },
+        {
+          "row": 50,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 70,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 80,
+          "gold": "fill Year: 2012",
+          "pick": "fill Vehicle model: F-150"
+        },
+        {
+          "row": 100,
+          "gold": "skip",
+          "pick": "fill Page: 1 of 2"
+        },
+        {
+          "row": 110,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 120,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 130,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 140,
+          "gold": "fill Region: CO",
+          "pick": "check"
+        },
+        {
+          "row": 160,
+          "gold": "skip",
+          "pick": "fill ICE phone: (978) 682-5016"
+        },
+        {
+          "row": 170,
+          "gold": "fill Apt: Apt 4B",
+          "pick": "fill City: Boston"
+        },
+        {
+          "row": 180,
+          "gold": "skip",
+          "pick": "fill Page: 1 of 4"
+        },
+        {
+          "row": 200,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 210,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 220,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 240,
+          "gold": "skip",
+          "pick": "fill Telephone: 619-686-9002"
+        },
+        {
+          "row": 250,
+          "gold": "skip",
+          "pick": "fill First: Grace"
+        },
+        {
+          "row": 270,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 280,
+          "gold": "skip",
+          "pick": "fill Region: MA"
+        },
+        {
+          "row": 290,
+          "gold": "fill Vehicle ID: GE6WJ3CSR0U1HHR41",
+          "pick": "check"
+        },
+        {
+          "row": 300,
+          "gold": "skip",
+          "pick": "fill Page: 1 of 2"
+        },
+        {
+          "row": 310,
+          "gold": "fill Profile: linkedin.com/in/diego-ivanova",
+          "pick": "fill First: Diego"
+        },
+        {
+          "row": 320,
+          "gold": "skip",
+          "pick": "fill First: Diego"
+        },
+        {
+          "row": 330,
+          "gold": "skip",
+          "pick": "fill First: Diego"
+        },
+        {
+          "row": 340,
+          "gold": "skip",
+          "pick": "fill Taking: None"
+        },
+        {
+          "row": 350,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 360,
+          "gold": "fill Studied: MBA",
+          "pick": "fill Model: Corolla"
+        },
+        {
+          "row": 370,
+          "gold": "skip",
+          "pick": "fill Model: Corolla"
+        },
+        {
+          "row": 380,
+          "gold": "skip",
+          "pick": "fill Model: Corolla"
+        },
+        {
+          "row": 400,
+          "gold": "fill Sort code: 689245196",
+          "pick": "fill Institution: Chase"
+        },
+        {
+          "row": 410,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 420,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 440,
+          "gold": "skip",
+          "pick": "check"
+        },
+        {
+          "row": 450,
+          "gold": "skip",
+          "pick": "fill National ID: 900-56-2250"
+        },
+        {
+          "row": 460,
+          "gold": "skip",
+          "pick": "fill Passport: K92596287"
+        },
+        {
+          "row": 470,
+          "gold": "skip",
+          "pick": "click"
+        },
+        {
+          "row": 490,
+          "gold": "check",
+          "pick": "fill Patient: Ravi Novak"
+        },
+        {
+          "row": 500,
+          "gold": "skip",
+          "pick": "fill Patient: Ravi Novak"
+        }
+      ]
+    }
+  ],
+  "skipped": [],
+  "floors_full": {
+    "chance": 0.05566970801173736,
+    "skip": 0.5216249487074271
+  }
+}

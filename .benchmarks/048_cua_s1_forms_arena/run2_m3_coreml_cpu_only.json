@@ -1,0 +1,122 @@
+{
+  "fixture": {
+    "repo": "cua-ai/cua-s1-forms",
+    "revision": "8273f34778b99ac2e12d9f6e7d57dad99ae20845",
+    "file": "test.jsonl",
+    "rows": 24370,
+    "blake3": "78223e7a5ac8557ae0deea3acf484b4e5a40c6ea4c439fe3fb55ca08167ae14b",
+    "sha256": "d63a7e0db195d4d20154a40b2f8dd09ce3bb65487a158c638da5c609d4475e7c"
+  },
+  "box": {
+    "start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 5.5,
+      "swap_used_mb": 1427.62,
+      "latency_quotable": true,
+      "refusals": []
+    },
+    "end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 6.02,
+      "swap_used_mb": 1427.62,
+      "latency_quotable": false,
+      "refusals": [
+        "load 6.02 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "cap": 64,
+  "prompt": "Choose the one action for the ELEMENT: fill it with the matching document entry, or check, click, or skip it.",
+  "lanes": [
+    {
+      "lane": "cua-s1-forms · coreml",
+      "detail": "FluidInference/cua-s1-forms-coreml cua_s1_forms_fp16_options32.mlpackage · CPU_ONLY · coremltools 9.0 · load 124.5 ms",
+      "n": 24370,
+      "correct": 24359,
+      "per_action": "fill 9802/9802 · check 816/816 · click 1040/1040 · skip 12701/12712",
+      "picked": "fill 9813 · check 816 · click 1040 · skip 12701",
+      "latency": {
+        "p50_ms": 2.230042,
+        "p95_ms": 2.457959,
+        "p99_ms": 2.5890420000000005,
+        "tail_support_p95": 1219,
+        "tail_support_p99": 244,
+        "n": 24370
+      },
+      "latency_2nd": {
+        "p50_ms": 2.1169000000000002,
+        "p95_ms": 2.3308,
+        "p99_ms": 2.4524,
+        "tail_support_p95": 1219,
+        "tail_support_p99": 244,
+        "n": 24370
+      },
+      "floor_chance": 0.05566970801173736,
+      "floor_skip": 0.5216249487074271,
+      "first_errors": [
+        {
+          "row": 137,
+          "gold": "skip",
+          "pick": "fill Last: Novak"
+        },
+        {
+          "row": 3216,
+          "gold": "skip",
+          "pick": "fill Email address: oivanova66@yahoo.com"
+        },
+        {
+          "row": 6631,
+          "gold": "skip",
+          "pick": "fill Physician: Dr. Fischer"
+        },
+        {
+          "row": 6748,
+          "gold": "skip",
+          "pick": "fill ST: NE"
+        },
+        {
+          "row": 7280,
+          "gold": "skip",
+          "pick": "fill First name: Tomas"
+        },
+        {
+          "row": 10703,
+          "gold": "skip",
+          "pick": "fill Family name: Silva"
+        },
+        {
+          "row": 12255,
+          "gold": "skip",
+          "pick": "fill National ID: 813-20-3361"
+        },
+        {
+          "row": 13480,
+          "gold": "skip",
+          "pick": "fill Company reg: REG3878384"
+        },
+        {
+          "row": 15214,
+          "gold": "skip",
+          "pick": "fill Reg plate: WN9-8147"
+        },
+        {
+          "row": 21022,
+          "gold": "skip",
+          "pick": "fill National ID: 794-03-1212"
+        },
+        {
+          "row": 23671,
+          "gold": "skip",
+          "pick": "fill Email: lchen6@yahoo.com"
+        }
+      ]
+    }
+  ],
+  "skipped": [],
+  "floors_full": {
+    "chance": 0.05566970801173736,
+    "skip": 0.5216249487074271
+  }
+}

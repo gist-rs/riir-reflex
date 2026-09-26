@@ -31,6 +31,21 @@ accuracy bar moved to ~79% and our README/bench docs cite only laya.
 | laya-riir·typed | OUR harness (`aa37823`, m3, metal, 2026-09-23) | **74.45%** | choice 73.33 / noul 78.50 / score 72.25 | 1312 ms p50/case |
 | laya-python·typed | OUR harness (torch oracle) | 74.45% (identical — G5 holding) | same | 279 ms p50/case |
 | modelless | OUR harness | 31.90% | choice 18.67 / noul 53.17 / score 25.87 | **0.472 ms** p50/case |
+| cua-s1-forms (Cua, FP16 CoreML by FluidInference) | **CoreML/ANE posture — their stack serves** (coremltools subprocess, CPU_AND_NE), our Rust measures; OUR harness on THEIR test split (Bench 048, m3, 2026-09-26) — **not this split** | n/a here · 99.95% on its own fixture (24,359/24,370; laya-typed zero-shot 29.95%, modelless 4.36% degenerate, constant-skip floor 52.16%) | — | 2.20 ms p50 round-trip/decision |
+
+The cua-s1-forms row (Issue 035, `.benchmarks/048_cua_s1_forms_arena.md`) is the
+fourth serving posture — CoreML/ANE, macOS — and it is measured on ITS fixture, not
+ours: a 706K-param Cua form-filling specialist (same one-pass option-scorer CONTRACT
+as the family, independent weights) is out-of-distribution on our 15 suites by
+construction, so the cell is their published synthetic test split (`cua-ai/cua-s1-forms`
+@ `8273f347`, 24,370 supplied-option decisions) with our lanes answering the same
+choice questions. It reproduces FluidInference's published 24,359/24,370 exactly; our
+zero-shot laya-typed (29.95%, N=2437 stride) and modelless (4.36% — a constant `check`
+pick, Issue 036) both sit under the constant-`skip` floor. Read it as "a 1.5 MB
+task-trained specialist wins its home task", never as an arena ranking. Their
+probabilities fail strict conversion parity (their report), so the row carries no
+calibration claim; on the M3 the ANE posture showed no latency edge over CoreML-CPU
+(sequential readings overlap, ~2.1–2.5 ms model-only p50).
 
 Protocol differences (footnote-grade, not excuses): their accuracy is
 agreement with the public teacher argmax and their run held out 120 dev + 120

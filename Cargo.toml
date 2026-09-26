@@ -225,6 +225,19 @@ required-features = ["modelless"]
 name = "route_scale_probe"
 required-features = ["modelless"]
 
+# The cua-s1-forms arena arm (`.issues/035`, measurement only — never a
+# gate, never in the default run): THEIR CoreML model on ANE (coremltools
+# subprocess, `scripts/cua_s1_lane.py`) beside our modelless + laya lanes on
+# THEIR published test split. The file opens with
+# `#![cfg(feature = "modelless")]` (the laya_fixture_timing law — without
+# this row a --no-default-features clippy dies E0601). The coreml arm is an
+# ITEM-level `target_os = "macos"` cfg with a loud SKIP elsewhere, and the
+# laya arm an item-level `laya-riir` cfg with a loud SKIP — required-features
+# cannot express either OR, so neither is a whole-file gate.
+[[example]]
+name = "cua_s1_forms_arena"
+required-features = ["modelless"]
+
 # The sgemm shape-timing probe (measurement only — never a gate): the
 # kernel-rung A/B instrument over the forward's real matmul_w geometries.
 # NO required-features row: the posture arms are item-level cfgs (metal on
