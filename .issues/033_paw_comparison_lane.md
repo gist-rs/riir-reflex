@@ -1,6 +1,6 @@
 # Issue 033 — PAW comparison lane: ProgramAsWeights as the third external classifier oracle
 
-**Status:** OPEN — lane LANDED (`2e9f351`) + first cells MEASURED keyless (Bench 049, hosted anonymous posture, 4-suite subset, 2026-09-26). Open: `paw-ft-bs48` finetune cells, Posture B lane wiring, arena republish, HISTORY close. Filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`).
+**Status:** OPEN — lane LANDED (`2e9f351`) + first cells MEASURED keyless (Bench 049, hosted anonymous posture, 4-suite subset, 2026-09-26). **`paw-ft-bs48` finetune cells DONE (Bench 053, 2026-09-26): the tier claim measures TRUE on every suite (+0.8 to +32.4 pt over their default compiler); banking77's gain is refusals converting (74.8% → 34.4%); both postures re-measured at the Bench-052 stratified sample (049's first-N cells are the old case sets).** Open: Posture B lane (local runtime subprocess oracle), arena republish (deferred to the Issue-039 T5 both-hosts re-run), HISTORY close. Filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`).
 
 ## Finding
 
@@ -83,8 +83,14 @@ protocol, `temperature=0` fixed. No API key needed; heavier setup (base GGUF dow
       refusal accounting, anonymous vs authenticated posture).
 - [x] First cells + `.benchmarks/` record — **Bench 049** (hosted anonymous, compiler
       `paw-4b-qwen3-0.6b-20260407`, accuracy-only: the box was not latency-quotable).
-- [ ] `paw-ft-bs48` finetune-compiler cells (the "much higher accuracy" tier; async path
-      implemented, anonymous tier allows it — just compile budget + ~2–5 min/suite).
+- [x] `paw-ft-bs48` finetune-compiler cells (the "much higher accuracy" tier; async path
+      implemented, anonymous tier allows it — just compile budget + ~2–5 min/suite). —
+      **Bench 053** (`.benchmarks/053_paw_ft_bs48/`, hosted-anonymous,
+      `paw-ft-bs48-20260530`, compiles 88–264 s/suite, the default-compiler rows
+      re-measured beside them at the same stratified sample): ag_news 0.7900 ·
+      emotion 0.5000 · sst5 0.3933 · banking77 **0.4200** (refusals 374 → 172 —
+      the tier's whole banking77 story is refusals converting). Modelless leads
+      every suite at the same sample (banking77 0.8260 vs 0.4200).
 - [ ] Posture B lane: local runtime as a Python subprocess oracle (gliner precedent),
       full-N deterministic cells — feasibility MEASURED keyless (Findings).
 - [ ] Arena republish via `../reflex-site/scripts/publish_bench.py` lane-update merge.
