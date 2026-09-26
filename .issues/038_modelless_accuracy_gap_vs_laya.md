@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 DECIDED (`e845fe5`): frozen-encoder lane not built; replaced by T4′ cascade lane. Open, in order: T7 (NBSVM/ridge, typed option-conditioned scorer) → T4′ cascade → T5 blend self-evolve.
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. Open here: T7 (NBSVM/ridge, typed option-conditioned scorer), T5 blend self-evolve.
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -102,7 +102,14 @@ tried.
       a negation-mismatch flag, a number-mismatch flag, and length ratio. Feed them into
       T1's table. Honest ceiling: lexical NLI tops out around 55–65%, so this closes part
       of the gap, not 86%.
-- [-] **T4 — frozen-encoder lane — DECIDED 2026-09-26: NOT built as written; replaced by T4′.**
+- [-] **T4 — REVISED 2026-09-26 (owner pushback, accepted):** the model-based lane IS
+      wanted; katgpt-rs Proposal 014 always planned three lanes (model-based /
+      modelless / hybrid). It moves to the PRIVATE `riir-instinct` repo (riir-ai
+      Proposal 047; trainer = riir-train Issue 576), because hybrid wiring and
+      weights are product moat (Research 003:74), and this repo is public. This
+      repo keeps the modelless lane (the drafter/pruner the hybrid consumes).
+      The earlier "not built" reasoning, which applied only to putting an
+      encoder INSIDE the modelless lane:
       Why: (a) laya's encoder + our head is laya-with-a-worse-head at laya's
       latency, so it can't honestly "beat laya"; (b) Bonsai/Gemma embedders are
       2B+ params, bigger and slower than laya's 421M (Bonsai ~50 s/chunk on CPU,
