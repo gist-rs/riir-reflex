@@ -174,7 +174,8 @@ history-strategy work item of its own, separate from the carve.
 
 ## The refactor — how (phases; each independently landable)
 
-- **P0 — contract first** (no code): this issue + riir-ai's mirror issue;
+- **P0 — contract first** (no code): this issue + riir-infer's mirror issue
+  (`.issues/998` there since the 2026-09-26 doc move; was riir-ai's mirror);
   BOUNDARY rows, dep-direction rows, repo_set registration, the 003
   amendment note.
 - **P1 — carve v1**: create `/git/riir-infer` (fresh init). Move
@@ -225,8 +226,11 @@ wiring.
 ## Tasks
 
 - [x] **T1** riir-ai mirror issue + BOUNDARY / dep-direction rows + the
-      003-amendment note (P0) — landed 2026-09-22: mirror is riir-ai
-      `.issues/996`; BOUNDARY rows (Owns strikethrough, Does-not-own,
+      003-amendment note (P0) — landed 2026-09-22: mirror was riir-ai
+      `.issues/996`, now `../riir-infer/.issues/998` (the mirror moved to the
+      subject repo 2026-09-26; note the 008 text's "996" pointed at a sibling
+      issue — the promotion mirror itself was riir-ai `.issues/998` from its
+      filing commit `8433ddcc7` onward); BOUNDARY rows (Owns strikethrough, Does-not-own,
       May-depend-on, CANONICAL matrix, D4 T-B annotation) + the Research
       003 dated amendment + this repo's BOUNDARY amendment (Private-forever
       note + the pre-declared riir-infer row) all in the same window.
@@ -407,7 +411,7 @@ wiring.
       landed.
 
 ## P3 progress (the GPU kernel migration — executing in slices, plan:
-## riir-ai `.plans/610_riir_infer_gpu_carve_slice1.md`)
+## riir-infer `.plans/610_riir_infer_gpu_carve_slice1.md`, moved from riir-ai 2026-09-26)
 
 - [x] **S1 LANDED 2026-09-23** — the base GPU runtime cluster moved:
       `buffer`, `context`, `pool_poison`, `weight_buffer_cache`,
