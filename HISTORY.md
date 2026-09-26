@@ -7,6 +7,27 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26
 
+- **Issue 035 CLOSED — the cua-s1-forms CoreML/ANE arena arm (the
+  System-One family's fourth serving posture).** T1 lineage (`a3c69f3`): Cua's
+  independent jev-like option scorer (MIT, 706,048 params), converted to FP16
+  CoreML by FluidInference — the family tie is the one-pass option-scorer
+  CONTRACT, not the weights. T2–T5 (`6fadb5d`): serving = THEIR stack
+  (`scripts/cua_s1_lane.py`, coremltools 9.0 subprocess, CPU_AND_NE, their
+  `preprocessing.py` imported verbatim; HF model @ `8e18ee41`, all 64 files
+  checksum-verified), our Rust measures (`examples/cua_s1_forms_arena.rs` —
+  macOS item cfg, loud SKIP per absent lane, exit 2 on absent fixture,
+  `required-features = ["modelless"]`, never in the default run). Fixture =
+  their published test split (`cua-ai/cua-s1-forms` @ `8273f347`, 24,370 rows,
+  SHA-256 matches their card, BLAKE3-pinned in the example), one row → one
+  choice question — our 15 suites are OOD for a form specialist. **Bench 048**
+  (M3 Max, AC, preflight quoted): coreml **24,359/24,370 = 99.9549%**, their
+  published result reproduced exactly (same 11 fill-for-skip errors), 2.20 ms
+  p50 round-trip; laya-typed zero-shot 29.95% (N=2437 stride, metal, G5 green
+  on that build); modelless 4.36% — a constant `check` pick (route terms
+  inactive on request-time options) → **Issue 036** (open). Constant-skip
+  floor 52.16%: neither of our lanes clears it. No ANE-vs-CPU latency edge on
+  the M3 (sequential readings overlap). Research 002 landscape row landed with
+  the posture labeled. Code comments citing `.issues/035` resolve here.
 - **Issues 032 + 034 CLOSED — the head-select publish landed both hosts
   full-lane; the publisher wipe's real mechanism measured + walled.**
   - **Issue 034's finding CORRECTED by re-measurement (the session's
