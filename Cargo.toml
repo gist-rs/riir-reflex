@@ -48,7 +48,7 @@ blake3 = { version = "1", optional = true }
 # vs floors, G2/G4 gates land WITH the lane), not whether the binary exists.
 # `--no-default-features` is the tested flag-OFF posture (empty-ish lib, no
 # bin — the [[bin]] row carries required-features).
-default = ["modelless"]
+default = ["modelless", "nb_scope"]
 modelless = [
     "katgpt-core/action_bridge",
     "katgpt-core/sigmoid_calibration",
@@ -60,10 +60,13 @@ modelless = [
     "katgpt-core/template_decode",
     "dep:blake3",
 ]
-# Issue 038 T1: per-label naive-Bayes count tables (katgpt-core
+# Issue 038 T1/T3: per-label naive-Bayes count tables (katgpt-core
 # `contrastive_scope`, GOAT-passed at katgpt-rs Bench 669 — frozen counts,
-# log2-odds, BLAKE3-committed). Opt-in until the GOAT verdict; the engine
-# knob `nb_scale` stays 0 (byte-identical) unless a caller arms it.
+# log2-odds, BLAKE3-committed). PROMOTED default-on at Bench 051 (G1–G4
+# PASS, +13 to +37 pt on 5 suites, unarmed suites bit-identical); the
+# engine knob `nb_scale` stays 0 (byte-identical serving posture) unless a
+# caller — or the harness's `--nb-select` arena protocol — arms it (the
+# Issue 030 heads precedent).
 nb_scope = ["modelless", "katgpt-core/contrastive_scope"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED

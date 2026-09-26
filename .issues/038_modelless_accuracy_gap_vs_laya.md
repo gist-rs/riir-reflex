@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — filed 2026-09-26. Diagnosis + ranked levers; nothing measured yet under this issue.
+**Status:** OPEN — T1 + T3 LANDED and PROMOTED (Bench 051, `d66ef21` / `0d8eaa0` / `32aee61`; `nb_scope` default-on, arena protocol `--nb-select`); T2 (20k pull) in flight; T4/T5/T6-next open.
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -74,9 +74,14 @@ tried.
 
 ## Plan (ranked by expected gap closed per unit of work)
 
-- [ ] **T1 — per-label naive-Bayes log-odds scorer (`nb_label_scope`, opt-in).** One
+- [x] **T1 — per-label naive-Bayes log-odds scorer** — LANDED as `nb_scope`
+      (`d66ef21`), promoted default-on (Bench 051): ag_news .510→.875,
+      emotion .283→.595 (past laya .593), massive .793→.927, banking77
+      .684→.870; G1–G4 PASS; unarmed suites bit-identical. Original spec
+      below kept for the record.
+      **(spec)** One
       `katgpt_core::contrastive_scope::ContrastiveScoreBuilder` per label, one-vs-rest
-      (label docs in, all other labels out). Vocabulary: 2^18 hashed unigrams + bigrams,
+      (label docs in, all other labels out). Vocabulary: 2^18 (shipped at 2^17, `NB_VOCAB`) hashed unigrams + bigrams,
       NOT the 256-dim embed. Score = `scope_score` → sigmoid; it is either a new option
       term beside route/head, or the replacement for the drafter delta (measure both).
       The new dependency is one forwarded feature, `katgpt-core/contrastive_scope`
@@ -89,7 +94,10 @@ tried.
       once and scoring is O(query tokens), independent of pool size. So the Bench 003
       perf/sec refusal (drafter cost ∝ corpus) does not apply to this term, but measure
       p50/p99 anyway.
-- [ ] **T3 — pair-structured xnli features, modelless.** Namespace the hash by sentence
+- [x] **T3 — pair-structured xnli features** — LANDED (`0d8eaa0`) as
+      `NbView::Pair`, cal-selected: xnli .347→.520 (train-only hold-out
+      before building: .386→.505). Spec below kept for the record.
+      **(spec)** Namespace the hash by sentence
       (`p:` / `h:`), and add cross features: hypothesis-token coverage by the premise,
       a negation-mismatch flag, a number-mismatch flag, and length ratio. Feed them into
       T1's table. Honest ceiling: lexical NLI tops out around 55–65%, so this closes part
@@ -106,11 +114,34 @@ tried.
       genome line, and hill-`climb` on the **cal/validation slice only**, accepting only
       above a fixed margin. Optionally fuse the rankers with RRF (`riir-rag/src/rrf.rs`
       shape). Read test once, at the end.
-- [ ] **T6 — GOAT gate.** Promote a lever to default only if (G1) accuracy was selected
+- [x] **T6 — GOAT gate** — run for T1/T3 at Bench 051: G1 PASS all suites, G2 p99 43 µs, G3 unarmed suites byte-identical, G4 0 allocs armed → PROMOTED (`nb_scope` default-on). Re-run per new lever. Promote a lever to default only if (G1) accuracy was selected
       on cal and read on test once and beats the current default by ≥ 5 pt on a suite
       without regressing any other suite beyond noise; (G2) p50 stays sub-ms class
       (current 0.46 ms); (G3) nothing changes on suites where the lever is not armed;
       (G4) the hot path stays alloc-free (pre-built tables). A loser is demoted.
+
+- [x] **T1b — noul polarity** (`0d8eaa0`): `nb_noul_domain`, one
+      candidate per domain on noul suites, selected on the cal slice.
+      prompt_injections still selects OFF: its train-derived slice reads
+      ~.50 for both polarities, reproduced outside the harness at the same
+      split. That is a slice property, and the protocol declines it.
+- [x] **Transductive column** (owner ask, 2026-09-26): published beside
+      the headline, never in it. Measured +0.3 to −4.0 pt (Bench 051): train
+      already supplies the vocabulary; self-labelling feeds back errors.
+- [ ] **T7 — next levers (from the 2026-09-26 GOAT hunt, none tried yet):**
+      (a) closed-form ridge / NBSVM readout — katgpt-core
+      `linalg::ridge_solve` (default-on via karc_forecaster, deterministic,
+      no gradient) over sketched features scaled by the contrastive-scope
+      log-count ratio (NBSVM, the standard sst5/emotion winner);
+      (b) option-conditioned scorer for typed_decisions (question ⊗ option
+      ⊗ state-field bindings; `tpr` role binding is the principled form),
+      because the tables never arm there; (c) BM25 kNN vote
+      (riir-neuron-db `bm25.rs`) fused additively; (d) Hebbian bilinear map
+      over premise/hypothesis sketches for xnli cross terms. The suspected
+      "T-pass / looped transformer / shallow reasoning" items were checked
+      and all need a model (LT2 `forward_looped` is a throughput GOAT only;
+      "shallow reasoning" is a positioning phrase whose shipped form is a
+      kNN + operator tokenizer). None applies to the modelless lane.
 
 ## Protocol rule — test data NEVER enters a corpus, grammar, or vocabulary
 

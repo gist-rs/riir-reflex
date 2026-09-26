@@ -1,0 +1,2011 @@
+{
+  "meta": {
+    "date_utc": "2026-09-26T12:48:12Z",
+    "git_sha": "d66ef21",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 4.11,
+        "swap_used_mb": 2550.75,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 3.81,
+        "swap_used_mb": 2550.75,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "ON — cal-selected per suite (ladder 0/0.25/0.5/1, forced cal-slice accuracy, ties → 0 = off; issue 030 lever 4; per-row candidates in the results)",
+    "nb_posture": "ON — cal-selected per suite (scale 0/1/4/16 × α observed-laplace/fixed-1, promotion bar +5 pt over off on the stratified slice; + noul polarity per domain on noul suites; + bag/pair view on multi-field states; count tables from TRAIN rows only, uncapped). Transductive column: TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; harness_cache_reuse is LLM-lane only (the modelless lane has no KV cache) and reports a loud SKIPPED absence without the laya-riir feature"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.319,
+          "macro_f1": 0.22702839476857317,
+          "ece": 0.0526939541324973,
+          "brier": 0.692362680899722,
+          "nll": 1.2331409843321257,
+          "aurc": 0.5524917750489949,
+          "mean_confidence": 0.3567014487311244,
+          "acc_at_50_coverage": 0.44,
+          "acc_at_80_coverage": 0.35625
+        },
+        "readout_ece": 0.0805,
+        "raw_abstain": {
+          "abstain_rate": 0.8225,
+          "selective_accuracy": 0.30704225352112674,
+          "selective_n": 355
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.927,
+          "selective_accuracy": 0.3493150684931507,
+          "selective_n": 146
+        },
+        "readout_ece_raw": 0.2932733073830604,
+        "readout_ece_calibrated": 0.0805,
+        "floor_ece": 0.30867664670658757,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.18666666666666668,
+            "macro_f1": 0.12985683228357467,
+            "ece": 0.0828303127239148,
+            "brier": 0.7769624957656895,
+            "nll": 1.4815341327230407,
+            "aurc": 0.7976803203375109,
+            "mean_confidence": 0.2694969793905814,
+            "acc_at_50_coverage": 0.20666666666666667,
+            "acc_at_80_coverage": 0.2125
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.5316666666666666,
+            "macro_f1": 0.49233840493088155,
+            "ece": 0.02498750900228819,
+            "brier": 0.4984774838645589,
+            "nll": 0.6916244926748621,
+            "aurc": 0.44317220064712814,
+            "mean_confidence": 0.5066791576643784,
+            "acc_at_50_coverage": 0.6033333333333334,
+            "acc_at_80_coverage": 0.575
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.25875,
+            "macro_f1": 0.24642825239143065,
+            "ece": 0.05395645271986724,
+            "brier": 0.7743267175266066,
+            "nll": 1.452983491781909,
+            "aurc": 0.7251775706115582,
+            "mean_confidence": 0.3096215190365911,
+            "acc_at_50_coverage": 0.315,
+            "acc_at_80_coverage": 0.2765625
+          }
+        },
+        "soft_acc": 0.31661825518144127,
+        "brier_soft": 0.24587373303692228,
+        "score_mae": 0.7393541365825154,
+        "within_1": 0.70375,
+        "latency_p50_ms": 0.569,
+        "latency_p99_ms": 1.756,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.202,
+          "max_ms": 1.847,
+          "argmax_case": 337
+        },
+        "determinism_ok": true,
+        "seconds": 1.69104275,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.013926566,
+        "distance_threshold": 0.9213104,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.013926566,
+            "status": "fitted",
+            "targetAccuracy": 0.41428572,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.9213104,
+            "status": "fitted",
+            "targetAccuracy": 0.47142857,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.338
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.338
+            }
+          ]
+        },
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 72,
+            "share_of_errors": 0.0666049953746531
+          },
+          {
+            "gold": "investigate",
+            "pred": "contain",
+            "count": 66,
+            "share_of_errors": 0.06105457909343201
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 62,
+            "share_of_errors": 0.05735430157261795
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 51,
+            "share_of_errors": 0.04717853839037928
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.04625346901017576
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "Mild frustration, but the relationship is intact.",
+            "count": 47,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "None: everything reconciles.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 47,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 45,
+            "share_of_errors": 0.041628122109158186
+          },
+          {
+            "gold": "approve",
+            "pred": "manual_review",
+            "count": 45,
+            "share_of_errors": 0.041628122109158186
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 37,
+            "share_of_errors": 0.034227567067530065
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 36,
+            "share_of_errors": 0.03330249768732655
+          },
+          {
+            "gold": "human_review",
+            "pred": "continue",
+            "count": 36,
+            "share_of_errors": 0.03330249768732655
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "ag_news",
+      "n_cases": 400,
+      "n_questions": 400,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.875,
+          "macro_f1": 0.8661401629662255,
+          "ece": 0.39470889002084725,
+          "brier": 0.41823832857173343,
+          "nll": 0.8239595019372947,
+          "aurc": 0.05374243751897536,
+          "mean_confidence": 0.48422827273607255,
+          "acc_at_50_coverage": 0.94,
+          "acc_at_80_coverage": 0.93125
+        },
+        "readout_ece": 0.012499999701976787,
+        "raw_abstain": {
+          "abstain_rate": 0.3725,
+          "selective_accuracy": 0.9482071713147411,
+          "selective_n": 251
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.785,
+          "selective_accuracy": 0.9651162790697675,
+          "selective_n": 86
+        },
+        "readout_ece_raw": 0.7502873672544955,
+        "readout_ece_calibrated": 0.012499999701976787,
+        "floor_ece": 0.18565920398009972,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.159,
+        "latency_p99_ms": 0.205,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.178,
+          "max_ms": 0.234,
+          "argmax_case": 24
+        },
+        "determinism_ok": true,
+        "seconds": 0.819590625,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.015094578,
+        "distance_threshold": 0.37085578,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.015094578,
+            "status": "fitted",
+            "targetAccuracy": 0.76428574,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.37085578,
+            "status": "fitted",
+            "targetAccuracy": 0.62857145,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.495
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.505
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 16.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.82
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.83
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.795
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.815
+            }
+          ]
+        },
+        "transductive": {
+          "accuracy": 0.875,
+          "honest_accuracy": 0.875,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "sci_tech",
+            "pred": "business",
+            "count": 11,
+            "share_of_errors": 0.22
+          },
+          {
+            "gold": "business",
+            "pred": "sci_tech",
+            "count": 8,
+            "share_of_errors": 0.16
+          },
+          {
+            "gold": "world",
+            "pred": "business",
+            "count": 7,
+            "share_of_errors": 0.14
+          },
+          {
+            "gold": "world",
+            "pred": "sports",
+            "count": 7,
+            "share_of_errors": 0.14
+          },
+          {
+            "gold": "sports",
+            "pred": "world",
+            "count": 5,
+            "share_of_errors": 0.1
+          },
+          {
+            "gold": "business",
+            "pred": "world",
+            "count": 3,
+            "share_of_errors": 0.06
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "world",
+            "count": 3,
+            "share_of_errors": 0.06
+          },
+          {
+            "gold": "world",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.06
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "sports",
+            "count": 2,
+            "share_of_errors": 0.04
+          },
+          {
+            "gold": "business",
+            "pred": "sports",
+            "count": 1,
+            "share_of_errors": 0.02
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "emotion",
+      "n_cases": 400,
+      "n_questions": 400,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.595,
+          "macro_f1": 0.413218585051447,
+          "ece": 0.3633762955293059,
+          "brier": 0.7452308684421645,
+          "nll": 1.559392047583134,
+          "aurc": 0.2507104185568109,
+          "mean_confidence": 0.23162370447069405,
+          "acc_at_50_coverage": 0.75,
+          "acc_at_80_coverage": 0.6375
+        },
+        "readout_ece": 0.000028360784053771404,
+        "raw_abstain": {
+          "abstain_rate": 0.58,
+          "selective_accuracy": 0.6547619047619048,
+          "selective_n": 168
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.36,
+          "selective_accuracy": 0.58203125,
+          "selective_n": 256
+        },
+        "readout_ece_raw": 0.581427507251501,
+        "readout_ece_calibrated": 0.000028360784053771404,
+        "floor_ece": 0.1418532338308458,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.12,
+        "latency_p99_ms": 0.144,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.125,
+          "max_ms": 0.156,
+          "argmax_case": 276
+        },
+        "determinism_ok": true,
+        "seconds": 0.616539834,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.0068379045,
+        "distance_threshold": 0.41526416,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0068379045,
+            "status": "fitted",
+            "targetAccuracy": 0.6785714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41526416,
+            "status": "fitted",
+            "targetAccuracy": 0.5714286,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.185
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.21
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.185
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.41
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.28
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.28
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.29
+            }
+          ]
+        },
+        "transductive": {
+          "accuracy": 0.555,
+          "honest_accuracy": 0.595,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "sadness",
+            "pred": "joy",
+            "count": 34,
+            "share_of_errors": 0.20987654320987653
+          },
+          {
+            "gold": "anger",
+            "pred": "joy",
+            "count": 32,
+            "share_of_errors": 0.19753086419753085
+          },
+          {
+            "gold": "love",
+            "pred": "joy",
+            "count": 30,
+            "share_of_errors": 0.18518518518518517
+          },
+          {
+            "gold": "fear",
+            "pred": "joy",
+            "count": 23,
+            "share_of_errors": 0.1419753086419753
+          },
+          {
+            "gold": "surprise",
+            "pred": "joy",
+            "count": 9,
+            "share_of_errors": 0.05555555555555555
+          },
+          {
+            "gold": "anger",
+            "pred": "sadness",
+            "count": 8,
+            "share_of_errors": 0.04938271604938271
+          },
+          {
+            "gold": "fear",
+            "pred": "sadness",
+            "count": 7,
+            "share_of_errors": 0.043209876543209874
+          },
+          {
+            "gold": "joy",
+            "pred": "sadness",
+            "count": 6,
+            "share_of_errors": 0.037037037037037035
+          },
+          {
+            "gold": "love",
+            "pred": "sadness",
+            "count": 5,
+            "share_of_errors": 0.030864197530864196
+          },
+          {
+            "gold": "sadness",
+            "pred": "fear",
+            "count": 4,
+            "share_of_errors": 0.024691358024691357
+          },
+          {
+            "gold": "anger",
+            "pred": "fear",
+            "count": 2,
+            "share_of_errors": 0.012345679012345678
+          },
+          {
+            "gold": "fear",
+            "pred": "anger",
+            "count": 1,
+            "share_of_errors": 0.006172839506172839
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "sst5",
+      "n_cases": 600,
+      "n_questions": 600,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.21666666666666667,
+          "macro_f1": 0.21644209435416006,
+          "ece": 0.0019752679516871798,
+          "brier": 0.7991945661583396,
+          "nll": 1.607280233965262,
+          "aurc": 0.7984710138714025,
+          "mean_confidence": 0.2156042873611053,
+          "acc_at_50_coverage": 0.17666666666666667,
+          "acc_at_80_coverage": 0.2125
+        },
+        "readout_ece": 0.02148964275916418,
+        "raw_abstain": {
+          "abstain_rate": 0.54,
+          "selective_accuracy": 0.18478260869565216,
+          "selective_n": 276
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.315,
+          "selective_accuracy": 0.20437956204379562,
+          "selective_n": 411
+        },
+        "readout_ece_raw": 0.2155029884974162,
+        "readout_ece_calibrated": 0.02148964275916418,
+        "floor_ece": 0.3461691542288557,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.178447996104757,
+        "within_1": 0.43166666666666664,
+        "latency_p50_ms": 0.102,
+        "latency_p99_ms": 0.126,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 0.1,
+          "max_ms": 0.197,
+          "argmax_case": 378
+        },
+        "determinism_ok": true,
+        "seconds": 0.4981565,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": 0.0004144907,
+        "distance_threshold": 0.39729577,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0004144907,
+            "status": "fitted",
+            "targetAccuracy": 0.22857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.39729577,
+            "status": "fitted",
+            "targetAccuracy": 0.19285715,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.5,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.245
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.255
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.25
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.255
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.255
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.27
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.275
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.265
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.275
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.28
+            }
+          ]
+        },
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "negative",
+            "pred": "neutral",
+            "count": 57,
+            "share_of_errors": 0.12127659574468085
+          },
+          {
+            "gold": "positive",
+            "pred": "very negative",
+            "count": 44,
+            "share_of_errors": 0.09361702127659574
+          },
+          {
+            "gold": "very positive",
+            "pred": "neutral",
+            "count": 40,
+            "share_of_errors": 0.0851063829787234
+          },
+          {
+            "gold": "negative",
+            "pred": "very negative",
+            "count": 39,
+            "share_of_errors": 0.08297872340425531
+          },
+          {
+            "gold": "negative",
+            "pred": "positive",
+            "count": 36,
+            "share_of_errors": 0.07659574468085106
+          },
+          {
+            "gold": "positive",
+            "pred": "neutral",
+            "count": 34,
+            "share_of_errors": 0.07234042553191489
+          },
+          {
+            "gold": "very positive",
+            "pred": "very negative",
+            "count": 26,
+            "share_of_errors": 0.05531914893617021
+          },
+          {
+            "gold": "very positive",
+            "pred": "positive",
+            "count": 25,
+            "share_of_errors": 0.05319148936170213
+          },
+          {
+            "gold": "very negative",
+            "pred": "neutral",
+            "count": 24,
+            "share_of_errors": 0.05106382978723404
+          },
+          {
+            "gold": "neutral",
+            "pred": "positive",
+            "count": 23,
+            "share_of_errors": 0.04893617021276596
+          },
+          {
+            "gold": "neutral",
+            "pred": "very negative",
+            "count": 18,
+            "share_of_errors": 0.03829787234042553
+          },
+          {
+            "gold": "positive",
+            "pred": "negative",
+            "count": 16,
+            "share_of_errors": 0.03404255319148936
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "prompt_injections",
+      "n_cases": 116,
+      "n_questions": 116,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.4827586206896552,
+          "macro_f1": 0.32558139534883723,
+          "ece": 0.022828569699977985,
+          "brier": 0.5004477568680457,
+          "nll": 0.6935949573654817,
+          "aurc": 0.3981011944900889,
+          "mean_confidence": 0.5055871903896332,
+          "acc_at_50_coverage": 0.6551724137931034,
+          "acc_at_80_coverage": 0.5978260869565217
+        },
+        "readout_ece": 0.366293152858471,
+        "raw_abstain": {
+          "abstain_rate": 0.41379310344827586,
+          "selective_accuracy": 0.4117647058823529,
+          "selective_n": 68
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.41379310344827586,
+          "selective_accuracy": 0.4117647058823529,
+          "selective_n": 68
+        },
+        "readout_ece_raw": 0.4826684984667548,
+        "readout_ece_calibrated": 0.366293152858471,
+        "floor_ece": 0.5073403892113333,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.058,
+        "latency_p99_ms": 0.077,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.034,
+          "max_ms": 0.084,
+          "argmax_case": 38
+        },
+        "determinism_ok": true,
+        "seconds": 0.185966208,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": 0.00009012222,
+        "distance_threshold": 0.40791556,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00009012222,
+            "status": "fitted",
+            "targetAccuracy": 0.85,
+            "support": {
+              "n": 100,
+              "nPass": 100,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.40791556,
+            "status": "fitted",
+            "targetAccuracy": 0.8428571,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.5
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.52
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.52
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.52
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.5
+            }
+          ]
+        },
+        "transductive": null,
+        "confusion": [],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.52,
+          "macro_f1": 0.5026257820072253,
+          "ece": 0.1337533641854922,
+          "brier": 0.6183264251347217,
+          "nll": 1.0299433788289234,
+          "aurc": 0.3048621575592662,
+          "mean_confidence": 0.3862466358145078,
+          "acc_at_50_coverage": 0.6733333333333333,
+          "acc_at_80_coverage": 0.5708333333333333
+        },
+        "readout_ece": 0.0033333333333333305,
+        "raw_abstain": {
+          "abstain_rate": 0.6166666666666667,
+          "selective_accuracy": 0.6434782608695652,
+          "selective_n": 115
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.94,
+          "selective_accuracy": 0.9444444444444444,
+          "selective_n": 18
+        },
+        "readout_ece_raw": 0.5093210244178772,
+        "readout_ece_calibrated": 0.0033333333333333305,
+        "floor_ece": 0.14630182421227197,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.09,
+        "latency_p99_ms": 0.109,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.1,
+          "max_ms": 0.166,
+          "argmax_case": 218
+        },
+        "determinism_ok": true,
+        "seconds": 0.613097041,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.0019045472,
+        "distance_threshold": 0.5123883,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0019045472,
+            "status": "fitted",
+            "targetAccuracy": 0.57857144,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.5123883,
+            "status": "fitted",
+            "targetAccuracy": 0.5642857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.355
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.36
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "fixed-1",
+          "selected_noul_domain": null,
+          "selected_view": "pair",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.345
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.32
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.345
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.345
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.495
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.535
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.535
+            }
+          ]
+        },
+        "transductive": {
+          "accuracy": 0.49333333333333335,
+          "honest_accuracy": 0.52,
+          "n_pseudo": 300,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 46,
+            "share_of_errors": 0.3194444444444444
+          },
+          {
+            "gold": "neutral",
+            "pred": "contradiction",
+            "count": 29,
+            "share_of_errors": 0.2013888888888889
+          },
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 25,
+            "share_of_errors": 0.1736111111111111
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 19,
+            "share_of_errors": 0.13194444444444445
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 17,
+            "share_of_errors": 0.11805555555555555
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 8,
+            "share_of_errors": 0.05555555555555555
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "massive_intent_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.9266666666666666,
+          "macro_f1": 0.9211337510138158,
+          "ece": 0.8153426031023263,
+          "brier": 0.8298652124214467,
+          "nll": 2.208274952749837,
+          "aurc": 0.008555650643623909,
+          "mean_confidence": 0.11419696929554145,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.975
+        },
+        "readout_ece": 0.12183503985404964,
+        "raw_abstain": {
+          "abstain_rate": 0.42333333333333334,
+          "selective_accuracy": 0.9826589595375722,
+          "selective_n": 173
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.35333333333333333,
+          "selective_accuracy": 0.9432989690721649,
+          "selective_n": 194
+        },
+        "readout_ece_raw": 0.8153426031023263,
+        "readout_ece_calibrated": 0.12183503985404964,
+        "floor_ece": 0.32255389718076294,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.097,
+        "latency_p99_ms": 0.129,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.109,
+          "max_ms": 0.131,
+          "argmax_case": 221
+        },
+        "determinism_ok": true,
+        "seconds": 4.596402125,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.08843972,
+        "distance_threshold": 0.63190293,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.08843972,
+            "status": "fitted",
+            "targetAccuracy": 0.9357143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.63190293,
+            "status": "fitted",
+            "targetAccuracy": 0.80714285,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 1.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.585
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.595
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.61
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.69
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.685
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.655
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.635
+            }
+          ]
+        },
+        "transductive": {
+          "accuracy": 0.93,
+          "honest_accuracy": 0.9266666666666666,
+          "n_pseudo": 300,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "alarm_query",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "audio_volume_down",
+            "pred": "audio_volume_up",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "audio_volume_other",
+            "pred": "audio_volume_down",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "audio_volume_up",
+            "pred": "play_radio",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "general_quirky",
+            "pred": "music_query",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "general_quirky",
+            "pred": "play_music",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_cleaning",
+            "pred": "news_query",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_cleaning",
+            "pred": "qa_factoid",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_hue_lightchange",
+            "pred": "alarm_query",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_hue_lighton",
+            "pred": "iot_hue_lightdim",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_hue_lighton",
+            "pred": "iot_hue_lightup",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "iot_wemo_off",
+            "pred": "alarm_remove",
+            "count": 1,
+            "share_of_errors": 0.045454545454545456
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.87,
+          "macro_f1": 0.48819048986058866,
+          "ece": 0.8378931491710245,
+          "brier": 0.9517531593657731,
+          "nll": 3.5069684696481693,
+          "aurc": 0.022356568076916807,
+          "mean_confidence": 0.032106850828975436,
+          "acc_at_50_coverage": 0.988,
+          "acc_at_80_coverage": 0.97
+        },
+        "readout_ece": 0.0,
+        "raw_abstain": {
+          "abstain_rate": 0.974,
+          "selective_accuracy": 1.0,
+          "selective_n": 13
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.994,
+          "selective_accuracy": 1.0,
+          "selective_n": 3
+        },
+        "readout_ece_raw": 0.8378931491710245,
+        "readout_ece_calibrated": 0.0,
+        "floor_ece": 0.8403383084577115,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.375,
+        "latency_p99_ms": 0.753,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.481,
+          "max_ms": 0.789,
+          "argmax_case": 192
+        },
+        "determinism_ok": true,
+        "seconds": 6.586408459,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.04436166,
+        "distance_threshold": 0.473041,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.04436166,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.473041,
+            "status": "fitted",
+            "targetAccuracy": 0.29285714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 1.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.625
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.65
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.68
+            }
+          ]
+        },
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.68
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.87
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.865
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.865
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.83
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.835
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.815
+            }
+          ]
+        },
+        "transductive": {
+          "accuracy": 0.864,
+          "honest_accuracy": 0.87,
+          "n_pseudo": 500,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "card arrival",
+            "pred": "card linking",
+            "count": 11,
+            "share_of_errors": 0.16923076923076924
+          },
+          {
+            "gold": "card arrival",
+            "pred": "card delivery estimate",
+            "count": 8,
+            "share_of_errors": 0.12307692307692308
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "exchange via app",
+            "count": 6,
+            "share_of_errors": 0.09230769230769231
+          },
+          {
+            "gold": "card arrival",
+            "pred": "transfer not received by recipient",
+            "count": 5,
+            "share_of_errors": 0.07692307692307693
+          },
+          {
+            "gold": "card arrival",
+            "pred": "card payment fee charged",
+            "count": 3,
+            "share_of_errors": 0.046153846153846156
+          },
+          {
+            "gold": "card arrival",
+            "pred": "pending top up",
+            "count": 3,
+            "share_of_errors": 0.046153846153846156
+          },
+          {
+            "gold": "card arrival",
+            "pred": "card payment not recognised",
+            "count": 2,
+            "share_of_errors": 0.03076923076923077
+          },
+          {
+            "gold": "card arrival",
+            "pred": "getting virtual card",
+            "count": 2,
+            "share_of_errors": 0.03076923076923077
+          },
+          {
+            "gold": "card arrival",
+            "pred": "lost or stolen card",
+            "count": 2,
+            "share_of_errors": 0.03076923076923077
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card linking",
+            "count": 2,
+            "share_of_errors": 0.03076923076923077
+          },
+          {
+            "gold": "automatic top up",
+            "pred": "card payment not recognised",
+            "count": 1,
+            "share_of_errors": 0.015384615384615385
+          },
+          {
+            "gold": "automatic top up",
+            "pred": "contactless not working",
+            "count": 1,
+            "share_of_errors": 0.015384615384615385
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    }
+  ]
+}
