@@ -65,7 +65,12 @@ modelless = [
 # substrate-side (the encoder-lane move): the model math + the whole lane
 # substrate live in the inference substrate's `riir-infer-laya` crate;
 # this feature simply forwards. `gemm` is the ONE kernel dep there.
-laya-riir = ["riir-infer-laya/laya-riir"]
+# `dep:blake3` rides along because the lane's gates (laya_riir_parity,
+# laya_batch_parity) + the laya_oracle_batch example hash the frozen
+# capture with it — without this row the `--no-default-features
+# --features laya-riir --all-targets` posture fails E0433 (the
+# parity-file blake3 usage predates the posture's last run).
+laya-riir = ["riir-infer-laya/laya-riir", "dep:blake3"]
 # The riir forward's OWN Metal backend — MOVED with the lane
 # (`riir-infer-laya/laya-riir-metal`, where the dep is macOS
 # TARGET-SCOPED, so the feature is inert on Linux/Windows instead of a

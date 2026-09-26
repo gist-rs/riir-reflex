@@ -61,3 +61,37 @@ move in ONE publish (m3's published 0.69-class cells are pre-head-select;
 both docs carry the promoted values). 4090 status: blocked behind the
 riir-train `plan410_stage0_train` GPU job (GPU exclusivity law; checked
 twice this session).
+
+## Addendum 2026-09-26 — the laya-lane de-leaked columns (issue 024 T5 close-out)
+
+T5's tail. The `acc_deleaked` plumbing reached the laya lanes at T3 but
+the columns had never been READ — the runner threads the leak flags
+through `assemble_laya_lane_result` (served_flags remapped through the
+ANE bucket skips, `&f[..cases.len()]` on the python lane), and this run's
+results carry them on every checkpoint row of every leak-scope suite.
+Per-suite (headline hard accuracy → acc_deleaked; riir and py agree to
+all printed digits per suite — same cases, same mask, the determinism
+cross-check):
+
+| suite | exact/near | modelless | laya·english | py/english |
+|---|---|---|---|---|
+| ag_news | 1/26 | 0.5100 → 0.5067 | 0.9500 → 0.9491 | 0.9500 → 0.9491 |
+| emotion | 0/0 | 0.2825 → 0.2825 | 0.5925 → 0.5925 | 0.5925 → 0.5925 |
+| sst5 | 1/0 | 0.2167 → 0.2170 | 0.3717 → 0.3723 | 0.3717 → 0.3723 |
+| prompt_injections | 0/2 | 0.4828 → 0.4737 | 0.6983 → 0.6930 | 0.6983 → 0.6930 |
+| xnli_en | 0/0 | 0.3467 → 0.3467 | 0.8600 → 0.8600 | 0.8600 → 0.8600 |
+| massive_intent_en | 4/17 | 0.7933 → 0.7814 | 0.7500 → **0.7634** | 0.7500 → **0.7634** |
+| banking77 | 0/17 | 0.6840 → 0.6832 | 0.4980 → 0.4948 | 0.4980 → 0.4948 |
+
+The honest reads: (1) the laya lanes DROP with the leaks removed on the
+near-leak-heavy suites (banking77 −0.32 pt, ag_news −0.09 pt,
+prompt_injections −0.53 pt) — the shared leak inflates them too, the
+disclosure is not a modelless-only concern; (2) massive_intent_en moves
+UP (+1.34 pt) — its 21 flagged rows were net UNLUCKY for the lane, so
+the de-leaked read is not mechanically lower; (3) emotion / xnli_en /
+sst5 are flat (0 / 0 / 1 exact-only flags). typed_decisions stays
+`not_applicable` (templated rows). The laya clippy postures T3 owed are
+discharged in the same window (`--no-default-features --features
+laya-riir --all-targets` needed `laya-riir = [..., "dep:blake3"]` — the
+parity files' capture hashing predates the posture's last run; both
+parity gates re-run green at that posture).

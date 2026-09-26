@@ -54,8 +54,7 @@ lives in `.issues/` and `.plans/`, never here.
     comparisons + ane rows alive, `harness_cache_reuse` present (the
     034 reappearance checkpoint confirmed).
   - **Issue 024 T5's host halves both landed** (045 M3 + 047 4090 with
-    Bench 044's 4090 run); the issue stays open on the laya-lane
-    de-leaked tail only.
+    Bench 044's 4090 run); CLOSED later the same day — see the 024 close-out below.
   - **Issue 020 T11's fold rung PROMOTED default-on** (riir-infer
     `53334f9`): `LAYA_METAL_FOLD_RES`/`_GLU` flip to the `!= Ok("0")`
     kill-switch spelling on the paired A/B's evidence — 24/24 wins on
@@ -72,6 +71,52 @@ lives in `.issues/` and `.plans/`, never here.
     pre-created (the log redirect died pre-measurement) +
     provenance.txt carried the NOT-FOR-PUBLICATION default even when
     preflight PASSED (marker and evidence disagreeing).
+- **Issue 024 CLOSED — the laya-lane de-leaked columns were already in
+  the Bench 045 results; the write-up landed and the owed clippy
+  postures discharged** (this session, `bfc19b0`-successor commit): the
+  T3 plumbing (`served_flags` through `assemble_laya_lane_result`) had
+  produced `acc_deleaked` on every laya checkpoint row of all 7
+  leak-scope suites in 045's results.json — the issue's "still to take"
+  note was stale, the data existed unwritten up. The 045 BENCH.md
+  addendum renders the per-suite headline → de-leaked table: laya DROPS
+  with the leaks removed on banking77 (−0.32 pt) / ag_news (−0.09 pt) /
+  prompt_injections (−0.53 pt) — the shared leak inflates the laya lanes
+  too, the disclosure was never a modelless-only concern — while
+  massive_intent_en moves UP +1.34 pt (its 21 flagged rows were net
+  unlucky for the lane; de-leaked is not mechanically lower), and
+  emotion / xnli_en / sst5 are flat (0 / 0 / 1 exact-only flags).
+  riir ≡ py to all printed digits per suite (same cases, same mask —
+  the determinism cross-check). The T3-owed laya clippy verification
+  ran in the same window and caught a REAL pre-existing breakage:
+  `--no-default-features --features laya-riir --all-targets` failed
+  E0433 — the parity files hash the frozen capture with blake3, which
+  only `modelless` pulled; fixed by `laya-riir = [..., "dep:blake3"]`,
+  all three laya clippy postures clean, both parity gates re-run green
+  at the no-default posture. Issue file removed; this entry is the
+  record.
+- **Issue 020's typed-trio lever PRICED and RE-AIMED; T12 built opt-in**
+  (riir-infer `be46033`, the `typed_case_split` probe `abbcbb3`, docs
+  `bfc19b0`): typed_decisions measured 100% multi-q (all 400 cases =
+  exactly 5 questions) — the packed-at-1q re-price cannot touch it; the
+  stage decomposition (per-stage per-dispatch GPU profile at real 5-q
+  cases) puts the ENCODER at 90.1% of case GPU (sgemm narrow 85.7% of
+  that, flash_attn 7.5%) and head+copy at 9.9% — so the v2 packed head
+  stays bounded at a few percent and the +22.3% typed·english deficit is
+  the encoder GEMM at big-m vs MPS (the axis whose reopening conditions
+  are owner-gated). The wall split alone misleads: the encoder's GPU
+  work hides inside the FIRST question's drain (encoder enqueue 0.6% of
+  wall). **T12** (`LAYA_HEAD_DEFER=1`, default-OFF) defers the packed
+  case's head reads into two drain classes (15 → 2 per 5-q case);
+  bit-identical both postures (raw-bit same-shape gate green under
+  both), measured ~1–3% against a ±15–35% noise floor (Metal's enqueue
+  already runs ahead inside a case) — opt-in pending a proven-quiet A/B,
+  the rope-hoist precedent. The priced next rung: fold the residual-add
+  + GLU epilogues into the NARROW (non-split) sgemm — the landed folds
+  engage only on split-K calls, which typed·english's big-m shapes are
+  not (≈5.7% of case GPU rides unfused: add 56 + glu 28
+  dispatches/case). massive_intent_en's +2.8% ruled UNADJUDICABLE at ms
+  quantization (1 ms of 63 ms = 1.6% sits inside the 2% tie band) — the
+  rerun would be decorative. Issue 020 stays OPEN on the trio.
 
 ## 2026-09-25
 
