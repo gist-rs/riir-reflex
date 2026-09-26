@@ -115,6 +115,9 @@ fn harness_main() {
     let mut kv_dir: Option<std::path::PathBuf> = None;
     let mut save_corpus: Vec<String> = Vec::new();
     let mut e0 = false;
+    let mut distill = false;
+    let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
+    let mut distill_limit = 0usize;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -146,6 +149,21 @@ fn harness_main() {
             "--head-select" => opts.head_select = true,
             "--nb-select" => opts.nb_select = true,
             "--e0" => e0 = true,
+            "--distill" => distill = true,
+            "--distill-out" => {
+                i += 1;
+                distill_out = args
+                    .get(i)
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| die("--distill-out needs a path"));
+            }
+            "--limit" => {
+                i += 1;
+                distill_limit = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--limit needs a number (0 = the whole split)"));
+            }
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
@@ -271,6 +289,62 @@ fn harness_main() {
         die(
             "--e0 needs the `nb_scope` feature — rebuild: cargo build --release \
              --features nb_scope --bin harness",
+        );
+    }
+    if e0 && distill {
+        die("--e0 and --distill are both exclusive early-exit modes — pass one");
+    }
+
+    // riir-train Issue 576 T3: the Arm-B TEACHER pass — laya probabilities
+    // over the train rows of the six Arm-A suites, dumped as frozen data
+    // (magic `RIDT` + a `.blake3` sidecar per suite) for the distillation
+    // student in ../riir-train. Early-exit like --e0: no eval lane, no test
+    // row. Needs `laya-riir` (the lane); a missing feature is a loud refusal
+    // naming the rebuild (the build-stamp law).
+    #[cfg(feature = "laya-riir")]
+    if distill {
+        println!(
+            "harness --distill: datasets {} · suites {:?} · limit {} · out {}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            distill_limit,
+            distill_out.display()
+        );
+        let out = match runner::run_distill(&opts, &distill_out, distill_limit) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&distill_out) {
+            die(&format!("create {}: {e}", distill_out.display()));
+        }
+        let json_path = distill_out.join("distill.json");
+        let md_path = distill_out.join("DISTILL.md");
+        let json = serde_json::to_string_pretty(&out).expect("distill serialize");
+        let md = runner::render_distill_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --distill: absence: {e}");
+        }
+        println!(
+            "harness --distill: PASSED — {} suite(s) dumped, {} absence(s); wrote {} + {}",
+            out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    #[cfg(not(feature = "laya-riir"))]
+    if distill {
+        die(
+            "--distill needs the `laya-riir` feature — rebuild: cargo build --release \
+             --features laya-riir-metal --bin harness (macOS; elsewhere: laya-riir)",
         );
     }
 
