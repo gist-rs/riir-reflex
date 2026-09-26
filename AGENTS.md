@@ -551,6 +551,18 @@ massive_intent_en's +2.8% is UNADJUDICABLE by the paired instrument at
 ms quantization (1 ms of 63 ms = 1.6%, inside the 2% tie band) — the
 rerun would be decorative.
 
+**Issue 020 CLOSED by T13/T13b (2026-09-26, riir-infer `b0de034` +
+`5e18da4`, Bench 050):** unsplit batch-1 dense GEMMs dispatch Apple's
+`MPSMatrixMultiplication` (the oracle's own kernel family) — bit-identical
+to the narrow instance, whole forward 0.575–0.741× at m 106–895; and under
+MPS the split rule is `SplitRule::WITH_MPS` (split-K only at m ≤ 32; MPS
+takes m 33–96 at 0.73–0.81×, a drift-budget change G5 holds at LOWER
+drift). The paired per-suite A/B then read **9/9 p50 AND 9/9 p99 wins**
+vs torch MPS (−26…−44% p50). Kill-switches `LAYA_METAL_MPS=0` /
+`LAYA_METAL_MPS_SPLIT=0`. The lesson that re-opened a "closed" axis: five
+kernel-level refutations among OUR instances said nothing about Apple's —
+a vendor library is a Metal-stack change worth pricing before a rewrite.
+
 **Threading posture (Bench 001 addenda 3–4, both bit-transparent):**
 the gemms run `min(available_parallelism, 8)` rayon workers — 8 is the
 measured latency optimum on the 12P+4E M3 (E-cores pace every join at

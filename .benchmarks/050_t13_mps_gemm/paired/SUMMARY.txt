@@ -1,0 +1,17 @@
+PROVENANCE: power=AC Power load=4.28 swap=2702.75M canary=117.1us/best5 powermode=2(high)
+
+suite                  ckpt            rust p50    py p50     Δp50  rust p99    py p99     Δp99  sup  verdict
+ag_news                english            34.0      52.0   -34.6%      48.0     122.0   -60.7%    5  p50 WIN  p99 WIN  acc 0.950/0.950
+banking77              english            39.0      60.0   -35.0%      46.0      95.0   -51.6%    6  p50 WIN  p99 WIN  acc 0.498/0.498
+emotion                english            15.0      23.0   -34.8%      23.0      62.0   -62.9%    5  p50 WIN  p99 WIN  acc 0.593/0.593
+massive_intent_en      english            28.0      38.0   -26.3%      32.0      70.0   -54.3%    4  p50 WIN  p99 WIN  acc 0.750/0.750
+sst5                   english            17.0      26.0   -34.6%      21.0      56.0   -62.5%    7  p50 WIN  p99 WIN  acc 0.372/0.372
+typed_decisions        english           214.0     352.0   -39.2%     372.0     563.0   -33.9%    5  p50 WIN  p99 WIN  acc 0.357/0.357
+typed_decisions        multilingual       96.0     153.0   -37.3%     172.0     304.0   -43.4%    5  p50 WIN  p99 WIN  acc 0.349/0.349
+typed_decisions        typed             225.0     400.0   -43.8%     427.0     706.0   -39.5%    5  p50 WIN  p99 WIN  acc 0.745/0.745
+xnli_en                english            21.0      34.0   -38.2%      29.0      66.0   -56.1%    4  p50 WIN  p99 WIN  acc 0.860/0.860
+
+cells 9: p50 wins 9 losses 0 · p99 wins 9 losses 0 · ties(±2%) 0
+EVERY-CELL BAR: MET on this paired sample (no cell behind, no tie band losses)
+(paired per-suite sample — quote WITH the preflight line; a single
+ sample is one sample: rerun before acting on any within-tol cell)

@@ -1,0 +1,264 @@
+{
+  "meta": {
+    "date_utc": "2026-09-26T11:36:05Z",
+    "git_sha": "9dbdca5",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": true,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "metal (LAYA_DEVICE or the build's macOS default)",
+    "laya_python_lane": "on — the ORIGINAL torch reference as a JSONL subprocess oracle: same cases, the reference's own rounded-4 probabilities, latency = subprocess round-trip (IPC included)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 6.55,
+        "swap_used_mb": 2678.75,
+        "latency_quotable": false,
+        "refusals": [
+          "load 6.55 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 5.67,
+        "swap_used_mb": 2678.75,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; harness_cache_reuse is LLM-lane only (the modelless lane has no KV cache) and reports a loud SKIPPED absence without the laya-riir feature"
+    ]
+  },
+  "suites": [
+    {
+      "name": "sst5",
+      "n_cases": 600,
+      "n_questions": 600,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.21666666666666667,
+          "macro_f1": 0.20435678340021904,
+          "ece": 0.006458489596843725,
+          "brier": 0.7987621951665289,
+          "nll": 1.6062599833429725,
+          "aurc": 0.7848771082839169,
+          "mean_confidence": 0.21020817706982295,
+          "acc_at_50_coverage": 0.20666666666666667,
+          "acc_at_80_coverage": 0.21666666666666667
+        },
+        "readout_ece": 0.016502360676725704,
+        "raw_abstain": {
+          "abstain_rate": 0.5716666666666667,
+          "selective_accuracy": 0.20622568093385213,
+          "selective_n": 257
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.315,
+          "selective_accuracy": 0.20681265206812652,
+          "selective_n": 411
+        },
+        "readout_ece_raw": 0.21590353677670163,
+        "readout_ece_calibrated": 0.016502360676725704,
+        "floor_ece": 0.330016583747927,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.1774115174263715,
+        "within_1": 0.445,
+        "latency_p50_ms": 0.102,
+        "latency_p99_ms": 0.17,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 0.11,
+          "max_ms": 0.27,
+          "argmax_case": 503
+        },
+        "determinism_ok": true,
+        "seconds": 0.170732833,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": 0.00017118454,
+        "distance_threshold": 0.39729577,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00017118454,
+            "status": "fitted",
+            "targetAccuracy": 0.22857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.39729577,
+            "status": "fitted",
+            "targetAccuracy": 0.19285715,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "confusion": [
+          {
+            "gold": "negative",
+            "pred": "neutral",
+            "count": 58,
+            "share_of_errors": 0.12340425531914893
+          },
+          {
+            "gold": "very positive",
+            "pred": "neutral",
+            "count": 52,
+            "share_of_errors": 0.11063829787234042
+          },
+          {
+            "gold": "positive",
+            "pred": "neutral",
+            "count": 42,
+            "share_of_errors": 0.08936170212765958
+          },
+          {
+            "gold": "negative",
+            "pred": "very negative",
+            "count": 33,
+            "share_of_errors": 0.07021276595744681
+          },
+          {
+            "gold": "positive",
+            "pred": "very negative",
+            "count": 33,
+            "share_of_errors": 0.07021276595744681
+          },
+          {
+            "gold": "negative",
+            "pred": "positive",
+            "count": 32,
+            "share_of_errors": 0.06808510638297872
+          },
+          {
+            "gold": "very positive",
+            "pred": "positive",
+            "count": 27,
+            "share_of_errors": 0.0574468085106383
+          },
+          {
+            "gold": "very negative",
+            "pred": "neutral",
+            "count": 25,
+            "share_of_errors": 0.05319148936170213
+          },
+          {
+            "gold": "neutral",
+            "pred": "negative",
+            "count": 20,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "positive",
+            "pred": "negative",
+            "count": 20,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "very positive",
+            "pred": "very negative",
+            "count": 19,
+            "share_of_errors": 0.04042553191489362
+          },
+          {
+            "gold": "very negative",
+            "pred": "negative",
+            "count": 17,
+            "share_of_errors": 0.036170212765957444
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {
+        "py/english": {
+          "lane": "laya-python",
+          "model": "english",
+          "hard": {
+            "n": 600,
+            "accuracy": 0.37166666666666665,
+            "macro_f1": 0.32915341205482057,
+            "ece": 0.24778999999999993,
+            "brier": 0.8171821949666691,
+            "nll": 1.7291473733884497,
+            "aurc": 0.5279207298357831,
+            "mean_confidence": 0.6194566666666664,
+            "acc_at_50_coverage": 0.45666666666666667,
+            "acc_at_80_coverage": 0.4041666666666667
+          },
+          "readout_ece": 0.0810926666666667,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 26.0,
+          "latency_p99_ms": 56.0,
+          "latency_tail_support": 7,
+          "latency_extremes": {
+            "first_ms": 17.0,
+            "max_ms": 67.0,
+            "argmax_case": 436
+          },
+          "determinism_ok": true,
+          "seconds": 23.233925375,
+          "n_cases": 600,
+          "n_questions": 600,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "confusion": null,
+          "pair_head_ab": null
+        }
+      }
+    }
+  ]
+}

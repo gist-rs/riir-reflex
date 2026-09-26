@@ -1,0 +1,1 @@
+PROVENANCE (paired_suite_ab): power=AC Power load=4.50 swap=2702.75M canary=114.8us/best5 powermode=2(high)

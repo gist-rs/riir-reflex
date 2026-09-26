@@ -7,6 +7,42 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26
 
+- **Issue 020 CLOSED — the riir Metal lane beats the python torch MPS
+  oracle on every published cell, p50 AND p99** (owner directive 2026-09-24:
+  *"make rust faster as it should in all cost"*). Final evidence
+  ([Bench 050](.benchmarks/050_t13_mps_gemm/BENCH.md)): the paired per-suite
+  A/B reads **9/9 p50 + 9/9 p99 wins** (−26…−44% p50), and the same-run
+  full-lane table **17/17 p50 + 17/17 p99** (was 8/17 · 14/17 at Bench 041),
+  published at reflex-site `6074b2b` and deployed live.
+  - **Class B (the first-forward cliff):** T1, warm-at-load, −64…−68%.
+  - **Class A (steady-state p50), the ladder in riir-infer:** T2/T3 waste
+    removal; T4 coalesced Wᵀ; T5 packed multi-question forward (`da30007`);
+    T7 rung 1 (the dispatch band, −29…−36% suite p50); T10 flash_attn
+    softmax rungs (`0ec88a9`, `14af99f`); T11 split-K + its measured rule +
+    `ln_rows_wide` (`512477e`, `ed1cb74`, `9b0e55c`) and the split-K fold
+    epilogues (`53334f9`); T12 the packed-head deferred read (`40d15dd`).
+    Two live correctness bugs were found and fixed on the way (the
+    download-resolution aliasing, `2ea0197` + the most-recently-touched
+    rule).
+  - **The closer, T13/T13b (`b0de034`, `5e18da4`):** the residual was the
+    encoder GEMM at big m, an axis T7 + the roofline probe had closed among
+    OUR kernels (five refutations). The reopen was the Metal-stack change
+    the issue named: unsplit batch-1 GEMMs dispatch Apple's
+    `MPSMatrixMultiplication`, the oracle's own kernel family. It is
+    bit-identical to the narrow instance and runs the whole forward at
+    0.575–0.741× for m 106–895. T13b then lets MPS take m 33–96 from
+    split-K (0.73–0.81×). That is a reduction-order change, and G5 holds it
+    at LOWER drift. Kill-switches `LAYA_METAL_MPS=0` /
+    `LAYA_METAL_MPS_SPLIT=0`.
+  - Measured-negative rungs kept on record: T6 (host pooling, 1–1.6% of
+    wall), the T7 occupancy / BK48 / coalescing / f16-B axes, T10 rung 2
+    rope hoist (opt-in, not promoted), T11 rung 1 packed-at-1q.
+  - **Deferred, not owed by the bar:** the `.metallib` precompile (a
+    process-start cost, not a request cost); rope-table caching.
+  - The lesson: five refutations among your own instances say nothing
+    about the vendor's. Price the library call before a kernel rewrite.
+  - Full life: `git log --follow -- .issues/020_riir_metal_latency_parity.md`.
+
 - **Issue 008 CLOSED — the riir-infer consolidation (the public
   LLM-inference substrate).** Owner directive 2026-09-22: open-source the
   LLM-inference part (and reflex) without leaking anything else, and put

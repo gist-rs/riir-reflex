@@ -1,0 +1,310 @@
+{
+  "meta": {
+    "date_utc": "2026-09-26T11:34:14Z",
+    "git_sha": "9dbdca5",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": true,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "metal (LAYA_DEVICE or the build's macOS default)",
+    "laya_python_lane": "on — the ORIGINAL torch reference as a JSONL subprocess oracle: same cases, the reference's own rounded-4 probabilities, latency = subprocess round-trip (IPC included)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 4.34,
+        "swap_used_mb": 2702.75,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 5.19,
+        "swap_used_mb": 2678.75,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; harness_cache_reuse is LLM-lane only (the modelless lane has no KV cache) and reports a loud SKIPPED absence without the laya-riir feature"
+    ]
+  },
+  "suites": [
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.446,
+          "macro_f1": 0.15148625136268878,
+          "ece": 0.4274835483469069,
+          "brier": 0.9777866627008501,
+          "nll": 4.027861981157648,
+          "aurc": 0.42526179602863307,
+          "mean_confidence": 0.0185164516530931,
+          "acc_at_50_coverage": 0.568,
+          "acc_at_80_coverage": 0.515
+        },
+        "readout_ece": 0.1810258904695511,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.23,
+          "selective_accuracy": 0.5324675324675324,
+          "selective_n": 385
+        },
+        "readout_ece_raw": 0.4274835483469069,
+        "readout_ece_calibrated": 0.1810258904695511,
+        "floor_ece": 0.4410248756218905,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.343,
+        "latency_p99_ms": 0.753,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.443,
+          "max_ms": 0.779,
+          "argmax_case": 205
+        },
+        "determinism_ok": true,
+        "seconds": 0.444865459,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.03604986,
+        "distance_threshold": 0.473041,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.03604986,
+            "status": "fitted",
+            "targetAccuracy": 0.24285714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.473041,
+            "status": "fitted",
+            "targetAccuracy": 0.3,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "confusion": [
+          {
+            "gold": "lost or stolen card",
+            "pred": "card linking",
+            "count": 25,
+            "share_of_errors": 0.09025270758122744
+          },
+          {
+            "gold": "card arrival",
+            "pred": "card linking",
+            "count": 20,
+            "share_of_errors": 0.07220216606498195
+          },
+          {
+            "gold": "card not working",
+            "pred": "card linking",
+            "count": 20,
+            "share_of_errors": 0.07220216606498195
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card linking",
+            "count": 19,
+            "share_of_errors": 0.06859205776173286
+          },
+          {
+            "gold": "pending cash withdrawal",
+            "pred": "pending top up",
+            "count": 15,
+            "share_of_errors": 0.05415162454873646
+          },
+          {
+            "gold": "automatic top up",
+            "pred": "top up limits",
+            "count": 14,
+            "share_of_errors": 0.05054151624548736
+          },
+          {
+            "gold": "card payment wrong exchange rate",
+            "pred": "exchange rate",
+            "count": 14,
+            "share_of_errors": 0.05054151624548736
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "exchange via app",
+            "count": 10,
+            "share_of_errors": 0.036101083032490974
+          },
+          {
+            "gold": "automatic top up",
+            "pred": "card linking",
+            "count": 6,
+            "share_of_errors": 0.021660649819494584
+          },
+          {
+            "gold": "card not working",
+            "pred": "card acceptance",
+            "count": 6,
+            "share_of_errors": 0.021660649819494584
+          },
+          {
+            "gold": "automatic top up",
+            "pred": "card arrival",
+            "count": 4,
+            "share_of_errors": 0.01444043321299639
+          },
+          {
+            "gold": "card arrival",
+            "pred": "activate my card",
+            "count": 4,
+            "share_of_errors": 0.01444043321299639
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {
+        "english": {
+          "lane": "laya-riir",
+          "model": "english",
+          "hard": {
+            "n": 500,
+            "accuracy": 0.498,
+            "macro_f1": 0.15191500821572465,
+            "ece": 0.31576060000000006,
+            "brier": 0.7995906914600379,
+            "nll": 5.375112539696478,
+            "aurc": 0.3141148971888702,
+            "mean_confidence": 0.8089594000000006,
+            "acc_at_50_coverage": 0.688,
+            "acc_at_80_coverage": 0.5725
+          },
+          "readout_ece": 0.33140999999999976,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 39.0,
+          "latency_p99_ms": 46.0,
+          "latency_tail_support": 6,
+          "latency_extremes": {
+            "first_ms": 38.0,
+            "max_ms": 47.0,
+            "argmax_case": 393
+          },
+          "determinism_ok": true,
+          "seconds": 23.829243375,
+          "n_cases": 500,
+          "n_questions": 500,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "confusion": null,
+          "pair_head_ab": null
+        },
+        "py/english": {
+          "lane": "laya-python",
+          "model": "english",
+          "hard": {
+            "n": 500,
+            "accuracy": 0.498,
+            "macro_f1": 0.15191500821572465,
+            "ece": 0.3157606000000001,
+            "brier": 0.7995899373000378,
+            "nll": 5.37511158155054,
+            "aurc": 0.31412179374059435,
+            "mean_confidence": 0.8089594000000004,
+            "acc_at_50_coverage": 0.688,
+            "acc_at_80_coverage": 0.5725
+          },
+          "readout_ece": 0.3314097999999997,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 60.0,
+          "latency_p99_ms": 95.0,
+          "latency_tail_support": 6,
+          "latency_extremes": {
+            "first_ms": 52.0,
+            "max_ms": 100.0,
+            "argmax_case": 218
+          },
+          "determinism_ok": true,
+          "seconds": 39.087711666,
+          "n_cases": 500,
+          "n_questions": 500,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "confusion": null,
+          "pair_head_ab": null
+        }
+      }
+    }
+  ]
+}
