@@ -1,6 +1,6 @@
 # Issue 033 — PAW comparison lane: ProgramAsWeights as the third external classifier oracle
 
-**Status:** OPEN — filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`). Nothing landed yet.
+**Status:** OPEN — lane LANDED (`2e9f351`) + first cells MEASURED keyless (Bench 049, hosted anonymous posture, 4-suite subset, 2026-09-26). Open: `paw-ft-bs48` finetune cells, Posture B lane wiring, arena republish, HISTORY close. Filed 2026-09-25 from `.research/004_ProgramAsWeights_Serving_Landscape.md` (PAW distill, sdk @ `74919f6958b127f10776689277f5a74321857b40`).
 
 ## Finding
 
@@ -63,23 +63,72 @@ protocol, `temperature=0` fixed. No API key needed; heavier setup (base GGUF dow
 
 ## Tasks
 
-- [ ] Author per-suite PAW specs (start subset: banking77, ag_news, emotion, sst5 —
-      banking77 77-way is the stress cell) + commit them with the lane.
-- [ ] Posture A client (compile + infer REST, key from env, loud skip without key),
-      program-id cache keyed (suite, spec-BLAKE3).
-- [ ] Lane wiring in `src/harness/runner.rs` (`--paw` flag, no feature gate — the
-      gliner precedent) + `src/lanes/paw.rs` (or scripts-side subprocess helper for
-      posture B).
-- [ ] Mapping law implementation + refusal accounting in the tables; no confidence
-      columns (disclosed divergence).
-- [ ] First cells + `.benchmarks/` record; arena republish via
-      `../reflex-site/scripts/publish_bench.py` lane-update merge.
+- [x] Author per-suite PAW specs (start subset: banking77, ag_news, emotion, sst5 —
+      banking77 77-way is the stress cell) + commit them with the lane. — `2e9f351`,
+      `scripts/paw_specs/<suite>.txt`: zero-shot (task line + the option set verbatim, one
+      per line); a drift guard refuses a spec that stops naming a served option.
+- [x] Posture A client (compile + infer REST, key from env, ~~loud skip without key~~),
+      program-id cache keyed (suite, ~~spec-BLAKE3~~ compiler, spec-BLAKE3). — `2e9f351`,
+      `src/lanes/paw.rs`: sync compile + `compile/async` polling (`PAW_COMPILE_ASYNC=1` +
+      `PAW_COMPILER`), `curl` subprocess transport (hosted PAW is HTTPS-only, no TLS client
+      in-tree, no new dep — BOUNDARY), key via a 0600 header file never argv, cache
+      `.raw/paw/programs.json` (malformed = loud). The key is OPTIONAL — see Findings.
+- [x] Lane wiring in `src/harness/runner.rs` (`--paw` flag, no feature gate — the
+      gliner precedent) + `src/lanes/paw.rs`. — `2e9f351` (module rides `modelless` for
+      the in-tree blake3; native-only; runner edits are thin: flag, `SuiteResult.paw`,
+      meta line, table row + refusal detail line).
+- [x] Mapping law implementation + refusal accounting in the tables; no confidence
+      columns (disclosed divergence). — `2e9f351` (law in Findings; 9 in-module tests incl.
+      the stub-HTTP wire pin: compile + infer shapes, cache hit = zero recompiles,
+      refusal accounting, anonymous vs authenticated posture).
+- [x] First cells + `.benchmarks/` record — **Bench 049** (hosted anonymous, compiler
+      `paw-4b-qwen3-0.6b-20260407`, accuracy-only: the box was not latency-quotable).
+- [ ] `paw-ft-bs48` finetune-compiler cells (the "much higher accuracy" tier; async path
+      implemented, anonymous tier allows it — just compile budget + ~2–5 min/suite).
+- [ ] Posture B lane: local runtime as a Python subprocess oracle (gliner precedent),
+      full-N deterministic cells — feasibility MEASURED keyless (Findings).
+- [ ] Arena republish via `../reflex-site/scripts/publish_bench.py` lane-update merge.
 - [ ] Close into HISTORY.md with hashes; record which posture the published cells used.
+
+## Findings (2026-09-26, `2e9f351` + Bench 049)
+
+- **The key is NOT required — the issue's "no key = SKIP" premise was wrong.** Their SDK
+  AGENTS.md: "Sign in for higher rate limits and program naming. Everything works without
+  it." Measured: anonymous compile + infer both work (anonymous: 20 compiles/h, 1
+  concurrent; infer window limit 10000). One catch, measured: an anonymous compile with
+  `public: false` → HTTP 401 `auth_required` — **anonymous programs must be public**. The
+  lane therefore runs anonymous (public) when `PAW_API_KEY` is unset, printed loud and
+  stamped `hosted-anonymous` in the row; with a key it sends `X-API-Key` and compiles
+  private. The owner key question is now only about rate limits / private programs, not
+  about whether cells can exist.
+- **Other SDK-vs-issue corrections:** base URL env is `PAW_API_URL` (SDK name); sync
+  compile answers HTTP 202 with `status: "ready"` inline; the default mapper compiler
+  compiles in ~4 s (not minutes) — only `paw-ft-*` finetunes take minutes (async only).
+- **Mapping law as landed:** trim → strip ONE matched surrounding quote pair → trim → exact
+  case-sensitive key match, else unique exact description match; else a REFUSAL (counted,
+  scored wrong, never guessed). The quote strip exists because compiled pseudo-programs
+  emit `"neutral"` with literal quotes (seen on train rows before any test cell) and is
+  counted per suite (`quote_stripped`).
+- **Cells (Bench 049, accuracy with refusal = wrong):** ag_news 0.7825 (0 refusals) ·
+  emotion 0.4750 (2) · sst5 0.3283 (0; det ✗ — hosted is not repeat-stable) · banking77
+  **0.1400 with 365/500 = 73% refusals** (answers in its own vocabulary: "card status",
+  "track new card"…; answered-acc 0.5185). The refusal-dominance open question below is
+  answered: yes, publish — the refusal column is the banking77 finding.
+- **Posture B keyless: FEASIBLE, measured.** `uv`-installed `programasweights==0.4.10`, no
+  key: `paw.function(<public program id>)` downloads the program + the 594 MB base
+  (1002 s on this link) and runs locally; 5/5 sst5 test rows repeat byte-identically and
+  agree with hosted at the decision level (one surface diff: local `neutral` vs hosted
+  `"neutral"` — same label under the law). Hub programs were NOT used: our own compiled
+  programs match our label sets exactly by construction (the drift guard), which a
+  community hub program cannot promise.
 
 ## Open questions
 
 - Owner: is a `PAW_API_KEY` provisioned for bench use (paid/authenticated rate limits)?
   Posture B avoids the key entirely at setup cost.
+  → **Narrowed 2026-09-26:** cells exist without one (anonymous tier, Findings). A key
+  buys only 60 vs 20 compiles/h, 2 concurrent, and private (unlisted) programs — still
+  owner-gated, no longer blocking.
 - Suite priority: full 15 or the 4-suite subset first? (Compile cost is per-suite,
   one-time, but server-side finetune latency is unknown until first run.)
 - If PAW's accuracy is dominated by refusal/parse-failure on multi-class suites, do we

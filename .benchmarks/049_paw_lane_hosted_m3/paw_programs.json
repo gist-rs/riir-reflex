@@ -1,0 +1,28 @@
+{
+  "entries": {
+    "ag_news|server-default|c5d5b475b88da357364a5f3ae3d87b02424a72bb4b16331fb9b59b0d1d543063": {
+      "program_id": "06f283857d30b77a18fc",
+      "compiler_snapshot": "paw-4b-qwen3-0.6b-20260407",
+      "compile_wall_s": 4.561474542,
+      "posture": "hosted-anonymous"
+    },
+    "banking77|server-default|387c823cb86efe63d4cbba2e8b299f213f5a2487f3b7b049fe07315348ff2d43": {
+      "program_id": "f2c6df69e759026ade01",
+      "compiler_snapshot": "paw-4b-qwen3-0.6b-20260407",
+      "compile_wall_s": 4.300574917,
+      "posture": "hosted-anonymous"
+    },
+    "emotion|server-default|ab8a01c6e1d96ca06ce9d40c5c57bd491e7ab3d53b18a8b3e7d51ac8a794baf4": {
+      "program_id": "25f883f21290e923a627",
+      "compiler_snapshot": "paw-4b-qwen3-0.6b-20260407",
+      "compile_wall_s": 4.087880584,
+      "posture": "hosted-anonymous"
+    },
+    "sst5|server-default|03ec007949af34227f6e88bc5d008ac7c6825f6fde9f6aed344aa643493fa71f": {
+      "program_id": "0e0968ebe6a700f0f4ad",
+      "compiler_snapshot": "paw-4b-qwen3-0.6b-20260407",
+      "compile_wall_s": 0.825593708,
+      "posture": "hosted-anonymous"
+    }
+  }
+}
