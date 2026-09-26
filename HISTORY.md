@@ -7,6 +7,56 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26
 
+- **Issue 008 CLOSED — the riir-infer consolidation (the public
+  LLM-inference substrate).** Owner directive 2026-09-22: open-source the
+  LLM-inference part (and reflex) without leaking anything else, and put
+  the related Metal work in one layer consumed by both riir-ai and reflex.
+  The verdict was FEASIBLE: riir-ai Proposal 041's `riir-infer-core` was
+  already the clean leaf, and this issue was 041's Phase 2 trigger T-B
+  firing. All seven tasks landed:
+  - **T1 (contract):** riir-ai mirror, now `../riir-infer/.issues/998`;
+    BOUNDARY rows; the Research 003 dated amendment.
+  - **T2:** the riir-gpu module audit (171 modules, CLEAN 98 / SEAM 34 /
+    STAYS 39).
+  - **T3:** carve v1 at riir-infer `86a5986`, name-unchanged, no shim;
+    registered as the 23rd contract repo (katgpt-rs `bd2ce3cca`).
+  - **P3 (the GPU kernel migration):** slices S1–S7 per riir-infer plan
+    610. The S6b full edge-drop is owner-gated on the training-families
+    home (riir-infer `.issues/1003`).
+  - **T4 (the encoder-lane move):** `src/laya` moved to
+    `riir-infer-laya` (riir-infer `c6716a4`), with the metal 0.31 bump
+    needing zero API fixes, and G5 88/88 at both postures from the new
+    home.
+  - **T5:** the fence gate.
+  - **T6:** both repos opened PUBLIC 2026-09-23 with fresh sanitized
+    histories. `publish = false` stays; crates.io is owner-gated.
+  - **T7 (the op-layer unification, riir-infer plan 611):** a portable
+    CubeCL backend of the laya `Backend` trait over riir-infer-gpu's op
+    layer, plus the engine-side GAP kernels (mean-centered two-pass
+    LayerNorm, batched row-softmax, offset/head-batched matmuls,
+    rope/split/merge/gather).
+    - Its G5 posture surfaced and fixed riir-infer 016 (`gather_rows`
+      residency) and 018: a CubeCL row-softmax write-after-read race,
+      fixed at `2a34bd3`, found by this session's isolated A/B (probe
+      43/120 → 0/120). The G5 cubecl arm was re-armed at `ccb5bd0`.
+    - **Bench 006** (riir-infer; pre-registered `fac0dfd`, results
+      `ac85c8e`): CubeCL is 5.1–8.4× slower than the hand Metal lane
+      (0/12 wins in every cell), so **the Metal lane stays the macOS
+      default**. It beats the CPU lane on short sequences (0.54–0.72) and
+      on 1q (0.75), so **the CubeCL arm is kept opt-in**
+      (`laya-riir-cubecl`, never in `RELEASE_FEATURES`). **Nothing was
+      deleted or promoted.**
+  - Standing follow-ups:
+    - The lane's weights cache path still names this repo
+      (`~/.cache/riir-reflex/laya`; `LAYA_WEIGHTS_DIR`/`LAYA_HOME`
+      override).
+    - riir-infer 998 keeps its D4 re-narrowing residue.
+    - The T4 sibling-WIP snapshot lives untracked at
+      `.issues/020_wip_snapshot_t4move/` in the main checkout.
+  - Citations of `.issues/008` (BOUNDARY.md, AGENTS.md, bench 006, issue
+    020, riir-ai / riir-infer docs) resolve here; the full file is
+    `git log --follow -- .issues/008_riir_infer_consolidation.md`.
+
 - **Issue 035 CLOSED — the cua-s1-forms CoreML/ANE arena arm (the
   System-One family's fourth serving posture).** T1 lineage (`a3c69f3`): Cua's
   independent jev-like option scorer (MIT, 706,048 params), converted to FP16

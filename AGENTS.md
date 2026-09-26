@@ -16,7 +16,8 @@ conflict with prose in this file, BOUNDARY.md wins.
 - **Read it before** adding any dep, crate, module — the default build stays
   ONE foreign code-level dep (`katgpt-core`); `serde_json` is the HTTP/JSON
   edge only.
-- **The laya lane is SUBSTRATE-SIDE** (`.issues/008` T4, 2026-09-24): the
+- **The laya lane is SUBSTRATE-SIDE** (Issue 008 T4, 2026-09-24; closed —
+  HISTORY.md): the
   lane + its deps (`tokenizers`/`sha2`/`gemm`/`libm`, + macOS
   target-scoped `metal`/`objc2`) live in `../riir-infer`'s
   `riir-infer-laya` crate; reflex consumes it via the `src/laya/mod.rs`
@@ -27,7 +28,11 @@ conflict with prose in this file, BOUNDARY.md wins.
   harness consumes it at default features), but compiles to just that
   writer until a forwarding feature lights the lane. A lane dep bump (or
   any lane change) re-runs G5 at both postures before a number is
-  published.
+  published. A third, opt-in posture exists: `laya-riir-cubecl`, the
+  portable CubeCL/wgpu backend, with its G5 arm armed. The Issue 008 T7
+  verdict (riir-infer Bench 006) keeps it opt-in: it runs 5–8× slower
+  than Metal and beats the CPU lane on short sequences. It is never in
+  `RELEASE_FEATURES`.
 - **No candle anywhere** (`.issues/006`, owner directive): stands — and
   now trivially, the lane that could have carried it moved substrate-side.
 - **No Python anywhere** (owner directive): no sidecar, no `uv`, no HF
