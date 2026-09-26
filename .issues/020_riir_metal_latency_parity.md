@@ -785,6 +785,34 @@ was PRICED before building, and the pricing re-aimed the campaign:
    Kill-switch `LAYA_HEAD_DEFER=0` (the `LAYA_METAL_LN_WIDE` spelling).
    Provenance: `power=AC load=5.14→4.59 canary=116.9–120.3us/best5
    powermode=2(high)`.
+   - **T12-inclusive site republish DEFERRED (same day, two refused
+     attempts):** the full M3 leg is cheap (~12 min wall, the `seconds`
+     columns) but the box went into a sustained `fskitd`+`UVFSXPC`
+     I/O storm after the promotion landed. Attempt 1 ran anyway and
+     was refused on the per-lane comparison: EVERY lane incl. the
+     python oracle and modelless read ×1.1–1.6 vs 045 — environmental,
+     not code (the preflight's fixed-kernel canary passed; it cannot
+     see I/O contention — a stated blind spot of the launch gate).
+     Attempt 2 was REFUSED by the preflight at launch (load 6.25) but
+     ran anyway — **the launch command's own fault:
+     `preflight | tail -2 && harness` gates on `tail`'s exit code
+     (always 0), never the preflight's — the `pipefail_discard`
+     class in one line; gate on the exit directly.** Its table
+     reproduced the degradation (typed/english 502 ms vs 045's 309,
+     ×1.63; every laya lane ×1.16–1.63; py lanes ×1.16–1.48). Both
+     result dirs deleted unpublished — a table showing the fleet
+     +60% regressed is worse than no table; the promotion's paired
+     A/B is the durable evidence. Re-run shape, ready to go:
+     `REFLEX_BENCH_HOST=m3 cargo run --release --features
+     slice_leak,laya-riir,laya-riir-metal --bin harness --
+     --head-select --laya-python --out .benchmarks/048_t12_m3_republish`
+     behind a DIRECT preflight gate (no pipe between), then
+     `../reflex-site/scripts/republish_bench.sh` on the fresh
+     `results.json` (the 4090 leg 047 carries over — T12 is
+     Metal-only). The box-state-stamp lesson stands: the harness's
+     own start/end load stamps read quotable (4.4–5.3) during BOTH
+     poisoned runs — the per-lane comparison against the reference
+     leg is the detector that actually caught it.
 5. **The priced next rung — RE-PRICED DOWN and PARKED (same follow-up,
    second pass):** the original read ("fold the residual-add + GLU
    epilogues into the NARROW sgemm, ≈5.7% of case GPU") does not
