@@ -83,6 +83,12 @@ pub mod game_heads;
 #[cfg(feature = "modelless")]
 pub mod label_heads;
 
+/// Per-label naive-Bayes count tables (issue 038 T1): one-vs-rest
+/// `contrastive_scope` tables over the embedder's hashed lexicon at 2^17
+/// width — frozen counts, sigmoid blend, default-off behind `nb_scale`.
+#[cfg(feature = "nb_scope")]
+pub mod nb_scope;
+
 /// The laya native-Rust comparison lane (Plan 603 T1.4) — the riir-owned
 /// forward (opt-in `laya-riir`). MOVED substrate-side (the consolidation
 /// issue's encoder-lane move): the lane lives in the inference substrate's

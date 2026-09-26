@@ -83,6 +83,7 @@ fn main() {
         pair_head_ab: false,
         head_scale: 0.0,
         head_select: false,
+        nb_select: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -117,6 +118,7 @@ fn main() {
                     .unwrap_or_else(|| die("--head-scale needs a number (0 = off)"));
             }
             "--head-select" => opts.head_select = true,
+            "--nb-select" => opts.nb_select = true,
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
@@ -150,6 +152,16 @@ fn main() {
                     .get(i)
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--out needs a path"));
+            }
+            "--datasets-dir" => {
+                // Issue 038 T2: read a non-canonical dataset pull (e.g. a
+                // TRAIN_CAP=20000 fetch into its own dir). Disclosed in the
+                // run meta's datasets line like the default.
+                i += 1;
+                opts.datasets_dir = args
+                    .get(i)
+                    .map(Into::into)
+                    .unwrap_or_else(|| die("--datasets-dir needs a path"));
             }
             "--runs-kv" => runs_kv = true,
             "--kv-dir" => {

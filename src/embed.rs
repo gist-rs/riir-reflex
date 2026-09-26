@@ -101,6 +101,33 @@ impl Embedder {
     }
 }
 
+/// Hashed token ids for count tables (issue 038, the `nb_scope` lane): the
+/// SAME tokenizer and FNV-1a word/bigram hashes as [`Embedder::embed_into`]
+/// (one lexicon, two projections), reduced `mod vocab` into `out`
+/// (cleared first; capacity reused — zero-alloc once warm). Unsigned ids,
+/// no weights: a count table wants integer events, and bigram evidence is
+/// one event like a word.
+pub fn hashed_tokens_into(text: &[u8], vocab: usize, out: &mut Vec<u32>) {
+    debug_assert!(vocab > 0 && vocab <= u32::MAX as usize);
+    out.clear();
+    let mut prev: Option<u64> = None;
+    for raw in text.split(|b: &u8| b.is_ascii_whitespace()) {
+        let t = token(raw);
+        if t.is_empty() {
+            continue;
+        }
+        let h = fnv1a_word(t, WORD_SALT);
+        out.push((h % vocab as u64) as u32);
+        if let Some(p) = prev {
+            let mut pair = [0u8; 16];
+            pair[..8].copy_from_slice(&p.to_le_bytes());
+            pair[8..].copy_from_slice(&h.to_le_bytes());
+            out.push((fnv1a_word(&pair, BIGRAM_SALT) % vocab as u64) as u32);
+        }
+        prev = Some(h);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

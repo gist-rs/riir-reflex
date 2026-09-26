@@ -60,6 +60,11 @@ modelless = [
     "katgpt-core/template_decode",
     "dep:blake3",
 ]
+# Issue 038 T1: per-label naive-Bayes count tables (katgpt-core
+# `contrastive_scope`, GOAT-passed at katgpt-rs Bench 669 — frozen counts,
+# log2-odds, BLAKE3-committed). Opt-in until the GOAT verdict; the engine
+# knob `nb_scale` stays 0 (byte-identical) unless a caller arms it.
+nb_scope = ["modelless", "katgpt-core/contrastive_scope"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane

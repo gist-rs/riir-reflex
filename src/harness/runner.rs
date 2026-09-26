@@ -60,6 +60,10 @@ use crate::harness::suites::{
 };
 use crate::pyjson::serialize_state;
 
+/// Issue 038: the count-table lever's selection + the separate transductive column.
+mod nb_lane;
+pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
+
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
 
@@ -551,6 +555,13 @@ pub struct LaneResult {
     /// ran (the flag was off, the suite is ineligible, or the lane has no
     /// cal slice / no corpus).
     pub head_selection: Option<HeadScaleSelection>,
+    /// The cal-selected count-table posture (issue 038, `--nb-select`).
+    /// None = no selection ran (flag off / ineligible suite / laya lanes).
+    pub nb_selection: Option<NbSelection>,
+    /// The TRANSDUCTIVE column (issue 038): a different protocol, published
+    /// beside `hard.accuracy`, never inside it. None unless the count
+    /// tables are armed on this row.
+    pub transductive: Option<TransductiveReport>,
     /// Top-K categorical (gold → pred) confusion pairs, forced raw eval
     /// (modelless only; Issue 013 lever-3 probe instrumentation — report-
     /// only, never a gate). None on the laya lanes.
@@ -1085,6 +1096,8 @@ pub struct RunMeta {
     /// non-zero `head_scale` is a different engine posture, disclosed here
     /// so a table is never read against the wrong engine.
     pub head_posture: String,
+    /// Issue 038 count-table posture + the transductive-column protocol.
+    pub nb_posture: String,
     pub divergences: Vec<String>,
 }
 
@@ -1151,6 +1164,24 @@ fn build_engine<const N: usize>(
     cap_per_label: usize,
     cfg: EngineConfig,
 ) -> Result<DecisionEngine<N, EMBED_DIM>, String> {
+    build_engine_with::<N>(suite, train, labels, cap_per_label, cfg, &[])
+}
+
+/// [`build_engine`] plus issue 038's count-table corpus: when the config
+/// arms `nb_scale`, each label's tables read EVERY pool doc of that label
+/// (uncapped — table scoring cost is independent of how many docs built
+/// it) plus `extra_nb` (the transductive column's pseudo-labelled docs;
+/// empty on every honest build). The drafter corpus stays capped.
+fn build_engine_with<const N: usize>(
+    suite: &str,
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    cfg: EngineConfig,
+    extra_nb: &[TrainDoc],
+) -> Result<DecisionEngine<N, EMBED_DIM>, String> {
+    #[cfg(not(feature = "nb_scope"))]
+    let _ = extra_nb;
     assert_eq!(
         labels.len(),
         N,
@@ -1172,7 +1203,22 @@ fn build_engine<const N: usize>(
             // unscorable). Reported in the run meta via corpus_protocol.
             docs.push(label.clone());
         }
-        specs.push(ExpertSpec::new(label.as_str(), &docs));
+        #[allow(unused_mut)]
+        let mut spec = ExpertSpec::new(label.as_str(), &docs);
+        #[cfg(feature = "nb_scope")]
+        if cfg.nb_scale > 0.0 {
+            let mut nb_docs: Vec<String> = train
+                .iter()
+                .chain(extra_nb.iter())
+                .filter(|d| d.label == *label)
+                .map(|d| d.text.clone())
+                .collect();
+            if nb_docs.is_empty() {
+                nb_docs = docs.clone();
+            }
+            spec = spec.with_nb_docs(nb_docs);
+        }
+        specs.push(spec);
     }
     DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
         .map_err(|e| format!("engine build ({suite}): {e}"))
@@ -1448,6 +1494,9 @@ struct ModellessInput<'a> {
     /// Cal-slice head-scale selection (ties → 0). When true, `head_scale`
     /// is the FALLBACK for ineligible suites (synthetic families).
     head_select: bool,
+    /// Cal-slice count-table selection (issue 038, `--nb-select`).
+    #[cfg_attr(not(feature = "nb_scope"), allow(dead_code))]
+    nb_select: bool,
     /// The cap's base source when no cal-slice selection ran
     /// ("registry" or "--corpus-cap override").
     cap_source_base: &'static str,
@@ -1594,6 +1643,59 @@ pub struct HeadScaleSelection {
     pub candidates: Vec<HeadScaleCandidate>,
 }
 
+/// The stratified selection slice every cal-side selection shares (cap,
+/// head scale, issue-038 nb posture): the suite's own builder over the
+/// label-stratified permuted envelope, and the corpus pool MINUS the
+/// selection docs by content (a selection case must never score against
+/// its own text). One instrument, three consumers.
+struct SelSlice {
+    cases: Vec<SuiteCase>,
+    state_strs: Vec<String>,
+    pool: Vec<TrainDoc>,
+}
+
+fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, String> {
+    let spec = inp.spec;
+    let pool_from = spec.cal_cap.min(inp.train.len());
+    let slices = stratified_selection_slices(
+        inp.train_rows,
+        spec.name,
+        inp.labels,
+        pool_from,
+        spec.cal_cap,
+    );
+    if slices.n_picks == 0 {
+        return Err(format!(
+            "{}: {tag} selection produced an empty stratified slice",
+            spec.name
+        ));
+    }
+    let sel_suite = (spec.build)(&slices.permuted, slices.n_picks);
+    let state_strs: Vec<String> = sel_suite
+        .cases
+        .iter()
+        .map(|c| serialize_state(&c.state))
+        .collect();
+    let sel_docs = train_docs(&slices.front, spec.name);
+    let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
+    let pool: Vec<TrainDoc> = inp.train[pool_from..]
+        .iter()
+        .filter(|d| !excluded.contains(d.text.as_str()))
+        .cloned()
+        .collect();
+    eprintln!(
+        "    {tag}: stratified slice {} case(s); corpora pool {} → {} doc(s)",
+        sel_suite.cases.len(),
+        inp.train.len() - pool_from,
+        pool.len()
+    );
+    Ok(SelSlice {
+        cases: sel_suite.cases,
+        state_strs,
+        pool,
+    })
+}
+
 /// Cal-slice head-scale selection, on the STRATIFIED selection slice —
 /// the same instrument the cap selection uses. Measured reason this is
 /// NOT the raw cal cases: the registry cal prefix is label-clustered in
@@ -1609,43 +1711,11 @@ fn build_head_scale_selection<const N: usize>(
     effective_cap: usize,
 ) -> Result<HeadScaleSelection, String> {
     let spec = inp.spec;
-    let pool_from = spec.cal_cap.min(inp.train.len());
-    let slices = stratified_selection_slices(
-        inp.train_rows,
-        spec.name,
-        inp.labels,
-        pool_from,
-        spec.cal_cap,
-    );
-    if slices.n_picks == 0 {
-        return Err(format!(
-            "{}: head-scale selection produced an empty stratified slice",
-            spec.name
-        ));
-    }
-    // The selection cases: the suite's own builder over the permuted
-    // envelope, and the same content exclusion as the cap selection —
-    // pool minus the selection docs (a selection case must never score
-    // against its own text).
-    let sel_suite = (spec.build)(&slices.permuted, slices.n_picks);
-    let sel_state_strs: Vec<String> = sel_suite
-        .cases
-        .iter()
-        .map(|c| serialize_state(&c.state))
-        .collect();
-    let sel_docs = train_docs(&slices.front, spec.name);
-    let excluded: HashSet<&str> = sel_docs.iter().map(|d| d.text.as_str()).collect();
-    let pool: Vec<TrainDoc> = inp.train[pool_from..]
-        .iter()
-        .filter(|d| !excluded.contains(d.text.as_str()))
-        .cloned()
-        .collect();
-    eprintln!(
-        "    head-select: stratified slice {} case(s); corpora pool {} → {} doc(s)",
-        sel_suite.cases.len(),
-        inp.train.len() - pool_from,
-        pool.len()
-    );
+    let SelSlice {
+        cases: sel_cases,
+        state_strs: sel_state_strs,
+        pool,
+    } = selection_slice(inp, "head-select")?;
     let mut rows = Vec::with_capacity(HEAD_SCALE_LADDER.len());
     for &scale in &HEAD_SCALE_LADDER {
         let mut engine = build_engine::<N>(
@@ -1661,8 +1731,8 @@ fn build_head_scale_selection<const N: usize>(
                 ..EngineConfig::default()
             },
         )?;
-        let (ev, _) = eval_engine(&mut engine, &sel_suite.cases, &sel_state_strs, false)?;
-        let cal_acc = hard_metrics(&ev.forced_rows(&sel_suite.cases)).accuracy;
+        let (ev, _) = eval_engine(&mut engine, &sel_cases, &sel_state_strs, false)?;
+        let cal_acc = hard_metrics(&ev.forced_rows(&sel_cases)).accuracy;
         rows.push(HeadScaleCandidate { scale, cal_acc });
         eprintln!(
             "    head-select: scale {scale} → sel-slice acc {cal_acc:.4}"
@@ -1743,10 +1813,30 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let selected_scale = head_selected
         .as_ref()
         .map_or(inp.head_scale, |s| s.selected);
-    let default_cfg = EngineConfig {
+    // ── Count-table posture selection (issue 038 T1): same slice, same
+    // promotion bar, at the selected cap + head scale; test read once.
+    #[cfg(feature = "nb_scope")]
+    let nb_selected = if inp.nb_select
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        Some(nb_lane::build_nb_selection::<N>(inp, effective_cap, selected_scale)?)
+    } else {
+        None
+    };
+    #[cfg(not(feature = "nb_scope"))]
+    let nb_selected: Option<NbSelection> = None;
+    #[allow(unused_mut)]
+    let mut default_cfg = EngineConfig {
         head_scale: selected_scale,
         ..EngineConfig::default()
     };
+    #[cfg(feature = "nb_scope")]
+    if let Some(sel) = &nb_selected {
+        default_cfg.nb_scale = sel.selected_scale;
+        default_cfg.nb_alpha = nb_lane::alpha_of(sel.selected_alpha);
+        default_cfg.nb_noul_domain = sel.selected_noul_domain;
+    }
 
     // Corpus pool = the train docs AFTER the calibration slice — the cal
     // cases must not be members of their own reference corpora (a cal case
@@ -1886,6 +1976,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let (raw_eval, lat) = eval_engine(&mut raw_engine, &suite.cases, state_strs, true)?;
 
     // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
+    let fitted_cfg_for_transductive = cfg.clone();
     let mut fitted = build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)?;
     let mut moved = false;
     for p in &cal_pairs {
@@ -2036,6 +2127,17 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         }
     }
 
+    // ── The transductive column (issue 038): after the honest test read,
+    // from the honest RAW eval's own forced picks — never gold.
+    let transductive = nb_lane::transductive_pass::<N>(
+        inp,
+        &raw_eval,
+        hard.accuracy,
+        &fitted_cfg_for_transductive,
+        corpus_pool,
+        effective_cap,
+    )?;
+
     let cap_source = if selection.is_some() {
         "cal-slice selection (stratified slice; corpora exclude the selection docs)"
     } else if spec.synthetic.is_some() || spec.corpus_cap_per_label == usize::MAX {
@@ -2079,6 +2181,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             selection: selection.map(|s| s.rows),
         }),
         head_selection: head_selected,
+        nb_selection: nb_selected,
+        transductive,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
         pair_head_ab: if inp.pair_head_ab {
             let (top2_ab, pred_ab) = pair_head_ab_pass(
@@ -2515,6 +2619,8 @@ fn assemble_laya_lane_result(
         threshold_recommendation: None,
         corpus_cap: None, // the laya lanes have no corpus
         head_selection: None, // no fitted heads on the laya lanes
+        nb_selection: None,
+        transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
     }
@@ -3625,6 +3731,13 @@ pub struct RunOptions {
     /// candidates + selection ride the result. Mutually exclusive with a
     /// non-zero [`RunOptions::head_scale`].
     pub head_select: bool,
+    /// Cal-slice count-table selection (issue 038 T1; `--nb-select`): per
+    /// eligible dataset suite, (scale × α) candidates scored on the
+    /// stratified selection slice under the heads' promotion bar, test read
+    /// once; also emits the SEPARATE transductive column wherever the
+    /// tables end up armed. Needs the `nb_scope` feature (a loud error
+    /// without it, never a silent no-op).
+    pub nb_select: bool,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -3651,6 +3764,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         return Err(
             "--head-scale and --head-select are mutually exclusive: one pins the head \
              scale, the other selects it on the cal slice"
+                .to_string(),
+        );
+    }
+    if opts.nb_select && !cfg!(feature = "nb_scope") {
+        return Err(
+            "--nb-select needs the nb_scope feature (issue 038): rebuild with \
+             --features nb_scope"
                 .to_string(),
         );
     }
@@ -3782,6 +3902,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 pair_head_ab: opts.pair_head_ab,
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
+                nb_select: opts.nb_select,
                 leak_flags: leak_flags_ref,
             };
             macro_rules! dispatch {
@@ -4127,6 +4248,15 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "OFF (head_scale 0 — the published baseline posture)".to_string()
         },
+        nb_posture: if opts.nb_select {
+            format!(
+                "ON — cal-selected per suite (scale 0/1/4/16 × α observed-laplace/fixed-1, \
+                 promotion bar +5 pt over off on the stratified slice; count tables from \
+                 TRAIN rows only, uncapped). Transductive column: {TRANSDUCTIVE_PROTOCOL}"
+            )
+        } else {
+            "OFF (nb_scale 0 — the published baseline posture)".to_string()
+        },
         clm_lane: if opts.clm {
             "on — the external Contrastive-LM reference over /v1/systemone \
              (clm-serve; comparison lane, Apache-2.0, not affiliated): same cases, \
@@ -4280,6 +4410,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.corpus_cap_mode
     ));
     s.push_str(&format!("- label heads: {}\n", out.meta.head_posture));
+    s.push_str(&format!("- count tables (issue 038): {}\n", out.meta.nb_posture));
     s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
@@ -4348,6 +4479,49 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 s.push_str(&format!("| {}{} | {} |\n", c.scale, mark, fmt4(c.cal_acc)));
             }
             s.push('\n');
+        }
+        // The count-table disclosure (issue 038) + the transductive column,
+        // printed apart from the headline row on purpose.
+        if let Some(m) = &suite.modelless
+            && let Some(ns) = &m.nb_selection
+        {
+            s.push_str(&format!(
+                "**count tables:** cal-selected scale {} α {} (promotion bar +5 pt over off)\n\n",
+                ns.selected_scale, ns.selected_alpha
+            ));
+            s.push_str("| nb scale | α | noul yes→domain | cal acc |\n|---|---|---|---|\n");
+            for c in &ns.candidates {
+                let mark = if c.scale == ns.selected_scale
+                    && c.alpha == ns.selected_alpha
+                    && c.noul_domain == ns.selected_noul_domain
+                {
+                    " ← selected"
+                } else {
+                    ""
+                };
+                s.push_str(&format!(
+                    "| {}{} | {} | {} | {} |\n",
+                    c.scale,
+                    mark,
+                    c.alpha,
+                    c.noul_domain.map_or("—".to_string(), |d| d.to_string()),
+                    fmt4(c.cal_acc)
+                ));
+            }
+            s.push('\n');
+        }
+        if let Some(m) = &suite.modelless
+            && let Some(t) = &m.transductive
+        {
+            s.push_str(&format!(
+                "**transductive column (NOT the headline):** acc {} vs honest {} ({:+.1} pt; \
+                 {} pseudo-labelled test docs) — {}\n\n",
+                fmt4(t.accuracy),
+                fmt4(t.honest_accuracy),
+                (t.accuracy - t.honest_accuracy) * 100.0,
+                t.n_pseudo,
+                t.protocol
+            ));
         }
         let Some(m) = &suite.modelless else {
             if suite.laya.is_empty() {

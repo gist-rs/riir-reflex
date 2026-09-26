@@ -38,8 +38,12 @@ FORCE="${FORCE:-0}"
 BASE="https://datasets-server.huggingface.co"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
-OUT="$ROOT/.raw/datasets"
-MAX_PARTS=200   # hard stop: 200 pages x 100 rows is far above every cap here
+# OUT / TRAIN_CAP overrides (issue 038 T2): a larger train pull goes to a
+# SEPARATE dir so the canonical .raw/datasets (the manifest-digested set
+# every published table reads) is never rewritten under a sibling run.
+OUT="${OUT:-$ROOT/.raw/datasets}"
+TRAIN_CAP="${TRAIN_CAP:-4000}"
+MAX_PARTS=$(( TRAIN_CAP / 100 > 200 ? TRAIN_CAP / 100 + 1 : 200 ))   # hard stop: never below the 200-page birth guard
 
 FILES=0
 ROWS=0
@@ -330,19 +334,19 @@ main() {
     log "[suite] ag_news fancyzhx/ag_news config=default split=test cap=400"
     fetch_suite ag_news "fancyzhx%2Fag_news" default test 400
     log "[suite] ag_news config=default split=train cap=4000"
-    fetch_suite ag_news "fancyzhx%2Fag_news" default train 4000
+    fetch_suite ag_news "fancyzhx%2Fag_news" default train "$TRAIN_CAP"
 
     # 3. emotion
     log "[suite] emotion dair-ai/emotion config=split split=test cap=400"
     fetch_suite emotion "dair-ai%2Femotion" split test 400
     log "[suite] emotion config=split split=train cap=4000"
-    fetch_suite emotion "dair-ai%2Femotion" split train 4000
+    fetch_suite emotion "dair-ai%2Femotion" split train "$TRAIN_CAP"
 
     # 4. sst5
     log "[suite] sst5 SetFit/sst5 config=default split=test cap=600"
     fetch_suite sst5 "SetFit%2Fsst5" default test 600
     log "[suite] sst5 config=default split=train cap=4000"
-    fetch_suite sst5 "SetFit%2Fsst5" default train 4000
+    fetch_suite sst5 "SetFit%2Fsst5" default train "$TRAIN_CAP"
 
     # 5. banking77 — currently 404s on /rows (script-based dataset; see
     #    header). Attempted so every run records the gap honestly.
@@ -353,7 +357,7 @@ main() {
     log "[suite] banking77 mteb/banking77 config=default split=test cap=all (universe rows; eval cap lives in the harness)"
     fetch_suite banking77 "mteb%2Fbanking77" default test all
     log "[suite] banking77 mteb/banking77 config=default split=train cap=4000"
-    fetch_suite banking77 "mteb%2Fbanking77" default train 4000
+    fetch_suite banking77 "mteb%2Fbanking77" default train "$TRAIN_CAP"
 
     # 6. prompt_injections — test: ALL (~116); train: first 1000 (actual
     #    size 546 per /size probe, so the cap exhausts the split).
@@ -367,13 +371,13 @@ main() {
     log "[suite] massive_intent_en mteb/amazon_massive_intent config=en split=test cap=all (universe rows; eval cap lives in the harness)"
     fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en test all
     log "[suite] massive_intent_en config=en split=train cap=4000"
-    fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en train 4000
+    fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en train "$TRAIN_CAP"
 
     # 8. xnli_en
     log "[suite] xnli_en facebook/xnli config=en split=test cap=300"
     fetch_suite xnli_en "facebook%2Fxnli" en test 300
     log "[suite] xnli_en config=en split=train cap=4000"
-    fetch_suite xnli_en "facebook%2Fxnli" en train 4000
+    fetch_suite xnli_en "facebook%2Fxnli" en train "$TRAIN_CAP"
 
     log ""
     log "summary: files=$FILES rows=$ROWS failed_requests=$FAILED"
