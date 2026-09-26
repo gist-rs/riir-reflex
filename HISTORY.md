@@ -10,8 +10,11 @@ lives in `.issues/` and `.plans/`, never here.
 - **Issue 033 ft-cells: cross-box CONFIRMATION — [Bench
   054](.benchmarks/054_paw_ft_cells_win4090.md)** (the 4090 Windows box, full
   test pulls at the 049 caps, hosted anonymous, run in parallel with the M3
-  session's [Bench 053](.benchmarks/053_paw_ft_bs48/BENCH.md) — the Issue-825
-  twin-repair, not a duplicate: different sample, every direction agreeing).
+  session's [Bench 055](.benchmarks/055_paw_ft_bs48_m3/BENCH.md) — the Issue-825
+  twin-repair, not a duplicate: different sample, every direction agreeing;
+  ⚠ the M3 record was RENUMBERED 053→055 on 2026-09-27 — the two sessions
+  dual-allocated 053 the same day (`053_e0_evidence_density` is the earlier
+  allocation, `299a3af`, and keeps 053; the paw record's `5cf57b1` moves).
   ft-bs48 strictly beats the mapper tier on all 4 suites: ag_news
   0.7825→0.7925, emotion 0.4750→0.5025, sst5 0.3283→0.3933, banking77
   0.1400→**0.3940** (refusals 73%→42.2%, answered-acc 0.6817). Compile ~12

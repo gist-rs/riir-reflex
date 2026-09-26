@@ -1,6 +1,6 @@
-# Bench 053 — Issue 033: the `paw-ft-bs48` finetune-compiler cells, at the Bench-052 stratified sample
+# Bench 055 — Issue 033: the `paw-ft-bs48` finetune-compiler cells, at the Bench-052 stratified sample
 
-**Status:** MEASURED 2026-09-26 (M3, hosted-anonymous posture, compiler `paw-ft-bs48-20260530`). The default-compiler rows were RE-MEASURED beside them (cached programs, zero recompiles) because Bench 052's stratified split changed every suite's cases — the Bench-049 cells (first-N sample) and these are not the same case sets, and both postures needed an apples-to-apples table.
+**Status:** MEASURED 2026-09-26 (M3, hosted-anonymous posture, compiler `paw-ft-bs48-20260530`). The default-compiler rows were RE-MEASURED beside them (cached programs, zero recompiles) because Bench 052's stratified split changed every suite's cases — the Bench-049 cells (first-N sample) and these are not the same case sets, and both postures needed an apples-to-apples table. ⚠ **RENUMBERED 053→055 (2026-09-27):** 053 was dual-allocated the same day — this record's commit (`5cf57b1`) and [`053_e0_evidence_density`](../053_e0_evidence_density/BENCH.md) (commit `299a3af`, the EARLIER allocation — it keeps 053, and AGENTS.md pins its path). Content untouched under the new number; a renumber consumes 055 exactly like a fresh allocation. Cross-box twin: [Bench 054](../054_paw_ft_cells_win4090.md).
 
 **Box state:** accuracy-only rows (the hosted lane's p50 ≈ 1 s/call includes their network; sibling sessions active). Determinism: none promised — hosted inference is not repeat-stable (the 049 finding, unchanged).
 

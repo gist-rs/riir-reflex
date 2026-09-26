@@ -3,8 +3,10 @@
 **Status:** RECORD — measured 2026-09-26/27 on the 4090 Windows box (shikuwa); one run,
 artifacts in `054_paw_ft_cells_win4090/`. ⚑ **TWIN-RECORD NOTE (the Issue-825
 discipline, repair-beats-delete):** an independent session measured the same
-lane posture in parallel — [Bench 053](053_paw_ft_bs48/BENCH.md) (M3,
-stratified sample, re-measured default rows beside). Every direction AGREES
+lane posture in parallel — [Bench 055](055_paw_ft_bs48_m3/BENCH.md) (M3,
+stratified sample, re-measured default rows beside; renumbered from 053 —
+same-day dual allocation, the earlier `053_e0` allocation keeps 053). Every
+direction AGREES
 across the two boxes: ft strictly beats the mapper tier on all 4 suites; the
 win concentrates at banking77 (refusals collapse 74.8%→34.4% theirs /
 73%→42.2% mine; strict +32.4pt theirs / +25.4pt mine); sst5 +6.2/+6.5;
