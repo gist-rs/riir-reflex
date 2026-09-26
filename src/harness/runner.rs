@@ -1285,7 +1285,7 @@ fn build_engine_with<const N: usize>(
 /// Python-JSON law (the SAME bytes the laya lane sequences), prompt =
 /// instructions, options from the criteria structure, criteria text None
 /// (the modelless context is state + prompt, its serving path).
-fn engine_request(
+pub fn engine_request(
     case: &SuiteCase,
     state_str: &str,
 ) -> Result<katgpt_core::decision_wire::DecisionRequest, String> {
@@ -1950,18 +1950,25 @@ fn readout_report_on_cal<const N: usize>(
     }))
 }
 
-#[allow(clippy::too_many_lines)]
-fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult, String> {
-    let spec = inp.spec;
-    let suite = inp.suite;
-    let train = inp.train;
-    let state_strs = inp.state_strs;
-    let cal_cases = inp.cal_cases;
-    let cal_state_strs = inp.cal_state_strs;
-    let labels = inp.labels;
-    let want_by_type = inp.want_by_type;
-    let t_start = Instant::now();
+/// The posture prologue of [`run_modelless`], extracted so the seat ([`seat`])
+/// can fit the SAME deployed posture for a downstream lane — one source of
+/// truth for the selections, never a re-derivation. Byte-identical to the
+/// inline prologue it replaced (same operations, same order; the only
+/// reordering is the pure report-only readout report, which now runs after
+/// the fused-gate fit in [`run_modelless`]).
+struct FittedPosture {
+    effective_cap: usize,
+    selection: Option<CapSelection>,
+    head_selected: Option<HeadScaleSelection>,
+    nb_selected: Option<NbSelection>,
+    default_cfg: EngineConfig,
+    score_threshold: f32,
+    distance_threshold: f32,
+    threshold_recommendation: FusedGateRecommendation,
+}
 
+fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedPosture, String> {
+    let spec = inp.spec;
     // ── Cal-slice cap selection (Issue 013 lever-1 protocol plumb). The
     // cap is picked ONLY on the stratified selection slice — the test
     // split is read once, at the selected cap, further down — closing the
@@ -1975,7 +1982,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         || spec.corpus_cap_per_label == usize::MAX
     {
         None
-    } else if cal_cases.is_empty() {
+    } else if inp.cal_cases.is_empty() {
         return Err("cal-slice cap selection needs a cal slice (suite cal_cap > 0)".to_string());
     } else {
         Some(build_selection_measurement::<N>(inp)?)
@@ -2028,35 +2035,6 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         default_cfg.nb_view = nb_lane::view_of(sel.selected_view);
     }
 
-    // ── Confidence-readout CANDIDATE report (Issue 039 T4, REPORT-ONLY —
-    // the arming lever was DEMOTED at Bench 052: on the wide suites it
-    // targets, Dispatch IS max_prob and inv_entropy measured worse; where a
-    // candidate won on cal, arming it overfit and regressed emotion's test
-    // G1). The wide-label G1 failures were closed by T2's stratified cal
-    // slice. The table is recorded for instrumentation; the shipped
-    // Dispatch law runs everywhere.
-    let readout_report = if cal_cases.is_empty() {
-        None
-    } else {
-        readout_report_on_cal::<N>(
-            spec.name,
-            cal_cases,
-            cal_state_strs,
-            train,
-            labels,
-            effective_cap,
-            &default_cfg,
-        )?
-    };
-
-    // Corpus pool = the train docs AFTER the calibration slice — the cal
-    // cases must not be members of their own reference corpora (a cal case
-    // scoring cos 1.0 against ITSELF inflates every cal-slice quantile and
-    // over-arms the gates on test — measured: 64→100% abstain drift on
-    // ag_news before this split). The code_fixtures suite self-splits
-    // (spec.cal_cap = 0 → the pool is its whole generated corpus, which is
-    // already disjoint by construction).
-
     // ── Fused-gate threshold fitting (the engine's own law: thresholds from
     // measured geometry, never magic numbers). The birth constants (0.35 /
     // 0.5) were measured on the birth corpus and do NOT transfer to these
@@ -2068,16 +2046,17 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     let (score_threshold, distance_threshold, threshold_recommendation) = {
         // Issue 039 T2: `train` IS the corpus pool now (the complement of
         // the stratified cal front — cal rows excluded by construction).
-        let corpus_pool: &[TrainDoc] = train;
+        let corpus_pool: &[TrainDoc] = inp.train;
         let (mut probe, _) = build_engine::<N>(
             spec.name,
             corpus_pool,
-            labels,
+            inp.labels,
             effective_cap,
             default_cfg.clone(),
         )?;
         let mut sc: Scratch<EMBED_DIM> = Scratch::new();
-        let max_cal_q = cal_cases
+        let max_cal_q = inp
+            .cal_cases
             .iter()
             .map(|c| c.questions.len())
             .max()
@@ -2093,8 +2072,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         // the T2 migration stays byte-identical.
         let mut score_obs: Vec<GateObservation> = Vec::new();
         let mut distance_obs: Vec<GateObservation> = Vec::new();
-        for (ci, case) in cal_cases.iter().enumerate() {
-            let req = engine_request(case, &cal_state_strs[ci])?;
+        for (ci, case) in inp.cal_cases.iter().enumerate() {
+            let req = engine_request(case, &inp.cal_state_strs[ci])?;
             probe
                 .solve_into(&req, &mut sc)
                 .map_err(|e| format!("cal probe ({}, case {ci}): {e}", case.id))?;
@@ -2134,6 +2113,64 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
                 .map_or(default_cfg.distance_threshold, |r| r.threshold),
             rec,
         )
+    };
+
+    Ok(FittedPosture {
+        effective_cap,
+        selection,
+        head_selected,
+        nb_selected,
+        default_cfg,
+        score_threshold,
+        distance_threshold,
+        threshold_recommendation,
+    })
+}
+
+#[allow(clippy::too_many_lines)]
+fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult, String> {
+    let spec = inp.spec;
+    let suite = inp.suite;
+    let train = inp.train;
+    let state_strs = inp.state_strs;
+    let cal_cases = inp.cal_cases;
+    let cal_state_strs = inp.cal_state_strs;
+    let labels = inp.labels;
+    let want_by_type = inp.want_by_type;
+    let t_start = Instant::now();
+
+    let FittedPosture {
+        effective_cap,
+        selection,
+        head_selected,
+        nb_selected,
+        default_cfg,
+        score_threshold,
+        distance_threshold,
+        threshold_recommendation,
+    } = fit_posture_inner::<N>(inp)?;
+
+    // ── Confidence-readout CANDIDATE report (Issue 039 T4, REPORT-ONLY —
+    // the arming lever was DEMOTED at Bench 052: on the wide suites it
+    // targets, Dispatch IS max_prob and inv_entropy measured worse; where a
+    // candidate won on cal, arming it overfit and regressed emotion's test
+    // G1). The wide-label G1 failures were closed by T2's stratified cal
+    // slice. The table is recorded for instrumentation; the shipped
+    // Dispatch law runs everywhere. (Report-only and pure: it runs after
+    // the fused-gate fit now that the posture prologue is shared with the
+    // seat — no shared state, identical outputs.)
+    let readout_report = if cal_cases.is_empty() {
+        None
+    } else {
+        readout_report_on_cal::<N>(
+            spec.name,
+            cal_cases,
+            cal_state_strs,
+            train,
+            labels,
+            effective_cap,
+            &default_cfg,
+        )?
     };
     let cfg = EngineConfig {
         score_threshold,
@@ -3903,6 +3940,222 @@ pub fn suite_lanes(name: &str) -> Option<(bool, bool)> {
         .iter()
         .find(|s| s.name == name)
         .map(|s| (s.synthetic.is_some(), s.modelless_lane))
+}
+
+/// The seat a downstream hybrid/instinct lane plugs into (riir-instinct
+/// Issue 003 T3): the harness's per-suite preparation, the DEPLOYED
+/// modelless posture, and the per-question eval, exposed so the consumer
+/// runs byte-identical questions on the SAME engine posture without
+/// re-deriving any of it. The dep edge is ONE-WAY — reflex never depends
+/// on the consumer (the lane crate lives in the consumer repo); the seat
+/// is the whole public surface the lane needs.
+pub mod seat {
+    use super::*;
+
+    /// A prepared dataset suite: the byte-identical question sets, the
+    /// corpus pool (train docs minus the stratified cal front), the cal
+    /// front, and the engine label universe. `pool_rows` feeds the
+    /// posture selections' stratification ([`fit_posture`] consumes it
+    /// internally; callers rarely name it).
+    pub struct Seat {
+        pub suite: Suite,
+        pub train: Vec<TrainDoc>,
+        pub state_strs: Vec<String>,
+        pub cal_cases: Vec<SuiteCase>,
+        pub cal_state_strs: Vec<String>,
+        pub labels: Vec<String>,
+        pub pool_rows: Value,
+    }
+
+    /// Prepare a registered DATASET suite by name (the synthetic families
+    /// and `code_fixtures` refuse — no specialist exists for them, and a
+    /// seat there would be a silent posture fork).
+    pub fn prepare_seat(name: &str, dir: &Path) -> Result<Seat, String> {
+        let spec = SUITES
+            .iter()
+            .find(|s| s.name == name)
+            .ok_or_else(|| format!("seat: unknown suite {name}"))?;
+        if spec.synthetic.is_some() || name == "code_fixtures" {
+            return Err(format!(
+                "seat: {name} is not a dataset suite (synthetic/code paths have no seat)"
+            ));
+        }
+        let p = prepare(spec, dir)?;
+        Ok(Seat {
+            suite: p.suite,
+            train: p.train,
+            state_strs: p.state_strs,
+            cal_cases: p.cal_cases,
+            cal_state_strs: p.cal_state_strs,
+            labels: p.labels,
+            pool_rows: p.pool_rows,
+        })
+    }
+
+    /// Posture-selection knobs (the deployed registry posture: selections
+    /// on, cap candidates from the CLI convention). Empty
+    /// `cal_select_caps` = the selection is off and the registry default
+    /// cap holds.
+    #[derive(Debug, Clone, Default)]
+    pub struct PostureKnobs {
+        pub head_select: bool,
+        pub nb_select: bool,
+        pub cal_select_caps: Vec<usize>,
+    }
+
+    /// The deployed modelless posture for one suite: the effective corpus
+    /// cap, the FULL engine config (selected head/nb scales + the fitted
+    /// fused-gate thresholds), and the selection rows for disclosure.
+    pub struct SeatPosture {
+        pub effective_cap: usize,
+        pub cfg: EngineConfig,
+        pub score_threshold: f32,
+        pub distance_threshold: f32,
+        pub threshold_recommendation: FusedGateRecommendation,
+        pub head_selection: Option<HeadScaleSelection>,
+        pub nb_selection: Option<NbSelection>,
+        pub cap_candidates: Option<Vec<CapCandidate>>,
+    }
+
+    /// Fit the suite's deployed posture — the same [`FittedPosture`]
+    /// prologue [`run_modelless`] uses, through the same code (one source
+    /// of truth; the seat adds no selection of its own).
+    pub fn fit_posture<const N: usize>(
+        name: &str,
+        s: &Seat,
+        knobs: &PostureKnobs,
+    ) -> Result<SeatPosture, String> {
+        let spec = SUITES
+            .iter()
+            .find(|s| s.name == name)
+            .ok_or_else(|| format!("seat: unknown suite {name}"))?;
+        let inp = ModellessInput {
+            spec,
+            suite: &s.suite,
+            train: &s.train,
+            state_strs: &s.state_strs,
+            cal_cases: &s.cal_cases,
+            cal_state_strs: &s.cal_state_strs,
+            labels: &s.labels,
+            want_by_type: false,
+            corpus_cap_per_label: spec.corpus_cap_per_label,
+            head_scale: 0.0,
+            head_select: knobs.head_select,
+            nb_select: knobs.nb_select,
+            cap_source_base: "registry",
+            cal_select_caps: &knobs.cal_select_caps,
+            pool_rows: &s.pool_rows,
+            pair_head_ab: false,
+            leak_flags: None,
+        };
+        let fp = super::fit_posture_inner::<N>(&inp)?;
+        Ok(SeatPosture {
+            effective_cap: fp.effective_cap,
+            cfg: EngineConfig {
+                score_threshold: fp.score_threshold,
+                distance_threshold: fp.distance_threshold,
+                ..fp.default_cfg
+            },
+            score_threshold: fp.score_threshold,
+            distance_threshold: fp.distance_threshold,
+            threshold_recommendation: fp.threshold_recommendation,
+            head_selection: fp.head_selected,
+            nb_selection: fp.nb_selected,
+            cap_candidates: fp.selection.map(|c| c.rows),
+        })
+    }
+
+    /// Build the suite's engine at a seat posture (the caller owns the
+    /// config; [`fit_posture`] produced it). Returns the engine + the
+    /// self-doc fallback labels (the Issue-039 disclosure).
+    pub fn build_seat_engine<const N: usize>(
+        name: &str,
+        s: &Seat,
+        cap: usize,
+        cfg: EngineConfig,
+    ) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
+        super::build_engine::<N>(name, &s.train, &s.labels, cap, cfg)
+    }
+
+    /// One question's seat answer (label space; noul is [no, yes]).
+    pub struct QuestionOut {
+        pub probs: Vec<f64>,
+        pub pick: usize,
+        pub conf: f64,
+        pub abstained: bool,
+    }
+
+    /// A seat evaluation over one case set: per-case answers + per-case
+    /// latency percentiles (µs, nearest-rank; tail support disclosed).
+    pub struct SeatEval {
+        pub cases: Vec<Vec<QuestionOut>>,
+        pub p50_us: u64,
+        pub p99_us: u64,
+        pub tail_support: usize,
+    }
+
+    /// Evaluate a seat engine over a case set (the harness's own eval
+    /// path, determinism probe off — the caller re-runs if it wants it).
+    pub fn eval_seat<const N: usize>(
+        engine: &mut DecisionEngine<N, EMBED_DIM>,
+        cases: &[SuiteCase],
+        state_strs: &[String],
+    ) -> Result<SeatEval, String> {
+        let (ev, lat) = super::eval_engine(engine, cases, state_strs, false)?;
+        Ok(SeatEval {
+            cases: ev
+                .probs
+                .iter()
+                .zip(ev.picks.iter())
+                .zip(ev.confs.iter())
+                .zip(ev.abstained.iter())
+                .map(|(((probs, picks), confs), abst)| {
+                    probs
+                        .iter()
+                        .zip(picks.iter())
+                        .zip(confs.iter())
+                        .zip(abst.iter())
+                        .map(|(((p, k), c), a)| QuestionOut {
+                            probs: p.clone(),
+                            pick: *k,
+                            conf: *c,
+                            abstained: *a,
+                        })
+                        .collect()
+                })
+                .collect(),
+            p50_us: (lat.p50_ms * 1000.0).round() as u64,
+            p99_us: (lat.p99_ms * 1000.0).round() as u64,
+            tail_support: lat.tail_support,
+        })
+    }
+
+    /// The laya escalation face of G2 (cfg `laya-riir`): per-question
+    /// wall latency of the pinned english checkpoint over the given
+    /// cases (one discarded warmup forward first — the pre-ramp law),
+    /// µs per case. LATENCY ONLY — the accuracy face of laya is the
+    /// published harness row, never re-derived here.
+    #[cfg(feature = "laya-riir")]
+    pub fn laya_escalation_latency_us(
+        cases: &[SuiteCase],
+    ) -> Result<Vec<u64>, String> {
+        use crate::laya::config::Checkpoint;
+        let agent = super::load_laya_agent("english", Checkpoint::English)?;
+        if let Some(case) = cases.first() {
+            agent
+                .system_one(&case.state, &super::case_questions(case))
+                .map_err(|e| format!("laya warmup: {e}"))?;
+        }
+        let mut durs = Vec::with_capacity(cases.len());
+        for case in cases {
+            let t0 = std::time::Instant::now();
+            agent
+                .system_one(&case.state, &super::case_questions(case))
+                .map_err(|e| format!("laya forward ({}): {e}", case.id))?;
+            durs.push(t0.elapsed().as_micros() as u64);
+        }
+        Ok(durs)
+    }
 }
 
 /// Options for one harness run.

@@ -1051,6 +1051,16 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         &self.experts[domain].gate
     }
 
+    /// The fitted count tables (issue 038), when armed — the seat for the
+    /// hybrid fusion terms (riir-instinct Issue 005 H2: the per-option
+    /// in-scope margin + the evidence count). Read-only; the tables are
+    /// frozen at build time.
+    #[cfg(feature = "nb_scope")]
+    #[must_use]
+    pub fn nb_scope(&self) -> Option<&crate::nb_scope::NbScope> {
+        self.nb.as_ref()
+    }
+
     fn routing_reason(&self, sc: &Scratch<D>) -> String {
         let mut counts = [0usize; N];
         for d in &sc.domains {
