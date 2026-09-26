@@ -1,6 +1,6 @@
 # Bench 051 — Issue 038 T1/T3: the count-table lane (`nb_scope`) — honest A/B vs the published modelless posture, + the transductive column
 
-**Status:** MEASURED 2026-09-26 (M3, 4000-row canonical train pull). The T2 corpus-size leg (20k-row pull) is appended below when its fetch lands.
+**Status:** MEASURED 2026-09-26 (M3). Two postures: the 4000-row canonical pull, and the **full pull** (T2, `TRAIN_CAP=20000`), which is the FAIR one. The 4000-row pull truncates the label universe on label-sorted mirrors (Issue 039), so read the full-pull section first.
 
 ## What ran
 
@@ -20,6 +20,65 @@ Tree: the nb run was built from the working tree later committed as
 `0d8eaa0` (its stamp reads `d66ef21`, the parent, because the pair view was
 still uncommitted at build time; the diff between them is the pair view
 plus noul polarity, both exercised in this run).
+
+## Full pull (T2) — the fair posture, read this first
+
+`TRAIN_CAP=20000` into `.raw/datasets_t20k` (every row for emotion 16000,
+sst5 8544, banking77 9993, massive 11514; the first 20000 of ag_news 120k
+and xnli 392k). Same code (`087856f`), same protocol, same test split.
+Box: AC, high, load 3.5–3.8. Baseline and nb run back to back.
+
+| suite | n | baseline (head-select) | + nb-select | Δ | selected (scale · α · view) | laya best | vs laya | G1 (nb) | p50 (nb) | transductive (Δ) |
+|---|---|---|---|---|---|---|---|---|---|---|
+| typed_decisions | 2000 | 0.3190 | **0.3190** | +0.0 | off | 0.7445 | −42.6 | PASS | 0.538 ms | — |
+| ag_news | 400 | 0.5100 | **0.8825** | +37.2 | 1 · observed-laplace · bag | 0.9500 | −6.8 | PASS | 0.151 ms | 0.8800 (−0.2) |
+| emotion | 400 | 0.2825 | **0.7375** | +45.5 | 16 · observed-laplace · bag | 0.5925 | **+14.5** | PASS | 0.116 ms | 0.7300 (−0.8) |
+| sst5 | 600 | 0.2167 | **0.3917** | +17.5 | 16 · observed-laplace · bag | 0.3717 | **+2.0** | PASS | 0.099 ms | 0.3917 (+0.0) |
+| prompt_injections | 116 | 0.4828 | **0.4828** | +0.0 | off | 0.6983 | −21.6 | PASS | 0.057 ms | — |
+| xnli_en | 300 | 0.3467 | **0.5233** | +17.7 | 4 · fixed-1 · pair | 0.8600 | −33.7 | PASS | 0.089 ms | 0.5067 (−1.7) |
+| massive_intent_en | 300 | 0.7367 | **0.8967** | +16.0 | 1 · observed-laplace · bag | 0.7500 | **+14.7** | FAIL ¹ | 0.119 ms | 0.9033 (+0.7) |
+| banking77 | 500 | 0.5940 | **0.7700** | +17.6 | 4 · observed-laplace · bag | 0.4980 | **+27.2** | FAIL ¹ | 0.371 ms | 0.7680 (−0.2) |
+
+On the 8 dataset suites, modelless at or above laya: **4/8** (emotion,
+sst5, massive, banking77). The fair baseline was **1/8** (banking77 only):
+the published massive "win" (0.7933) was an Issue 039 artifact, and the fair
+baseline is 0.7367, below laya. The count tables win massive back honestly.
+
+¹ **G1 at the full pull fails on massive and banking77, and the BASELINE
+fails it there too** (baseline: massive cal 0.2600 vs floor 0.0964, banking77
+0.3938 vs 0.1689, ag_news 0.3797 vs 0.2506). The truncated label universe
+had flattered calibration as well as accuracy. The lever does not regress
+G1: it flips ag_news fail → pass (0.0025 vs 0.155) and cuts banking77's
+calibrated ECE 0.3938 → 0.1394. The floor fell further (→ 0.042), so the
+wide-label suites still fail. That is a pre-existing calibrator gap on
+77/60-way maxp readouts, filed under Issue 039.
+
+T2 verdict: more train rows help the count tables where the 4000-row pull
+was short (emotion +14.3 over the 4k nb row, sst5 +17.5, since sst5 was
+selected off at 4k and on at the full pull). ag_news, already
+representative at 4k, gains +0.75.
+
+Artifacts: `TABLES_nb_fullpull.md` / `results_nb_fullpull.json` (all 15
+suites, the publish run) and `TABLES_base_fullpull.md` /
+`results_base_fullpull.json`.
+
+**Cross-host + publish (2026-09-26):** the publish pair was re-run at
+`754eca0` (includes the harness stack fix below) on the M3 and on the 4090
+(`REFLEX_BENCH_HOST=4090-windows`, same `datasets_t20k` bytes copied over).
+All 14 modelless suites are **bit-identical across hosts**, and the site
+publisher's drift gate re-checked that. Published lane-scoped (modelless
+lanes only; laya/clm/gliner/agentjev untouched) at reflex-site `9b8223d`,
+deployed (Worker version `a99d304b`), live-verified at reflex.gist.rs. The
+M3 re-run at `754eca0` matches the `087856f` run on every suite. 4090
+artifacts: `TABLES_nb_fullpull_4090.md` / `results_nb_fullpull_4090.json`.
+
+**Windows stack finding:** the first 4090 run died on banking77 with a
+stack overflow. The 1 MiB Windows main-thread stack could not hold the
+runner's live 77-domain engines once the transductive build joined them
+(the macOS 8 MiB default fit). Fixed at `754eca0`: the harness runs on a
+64 MiB-stack thread on every platform.
+
+## 4000-row pull (superseded by the full pull above — Issue 039)
 
 ## Headline (honest protocol)
 

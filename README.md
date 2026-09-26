@@ -245,30 +245,33 @@ the three-way table below for the current rows):
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
 | typed_decisions | 2000 | 0.3190 | **0.7445** (`typed`) | 0.5 ms | 1312 ms |
-| ag_news | 400 | 0.8750 ³ | **0.9500** | 0.2 ms | 116 ms |
-| emotion | 400 | **0.5950** ³ | 0.5925 | 0.1 ms | 66 ms |
-| sst5 | 600 | 0.2167 | **0.3717** | 0.1 ms | 88 ms |
+| ag_news | 400 | 0.8825 ³ | **0.9500** | 0.2 ms | 116 ms |
+| emotion | 400 | **0.7375** ³ | 0.5925 | 0.1 ms | 66 ms |
+| sst5 | 600 | **0.3917** ³ | 0.3717 | 0.1 ms | 88 ms |
 | prompt_injections | 116 | 0.4828 ¹ | **0.6983** | 0.1 ms | 88 ms |
-| xnli_en | 300 | 0.5200 ³ | **0.8600** | 0.1 ms | 99 ms |
-| massive_intent_en | 300 | **0.9267** ²³ | 0.7500 | 0.1 ms | 159 ms |
-| banking77 | 500 | **0.8700** ²³ | 0.4980 | 0.3 ms | 249 ms |
+| xnli_en | 300 | 0.5233 ³ | **0.8600** | 0.1 ms | 99 ms |
+| massive_intent_en | 300 | **0.8967** ²³ | 0.7500 | 0.1 ms | 159 ms |
+| banking77 | 500 | **0.7700** ²³ | 0.4980 | 0.3 ms | 249 ms |
 | code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
 
 ³ Issue 038 (Bench 051): the count-table lane (`nb_scope`, default-on
 feature; the arena protocol adds `--nb-select`). One-vs-rest naive-Bayes
 log-odds tables per label (katgpt-core `contrastive_scope`), built from
-TRAIN rows only and uncapped. The posture (scale × α × bag/pair view ×
-noul polarity) is selected on the stratified selection slice with the same
-+5 pt bar, and test is read once. ag_news 0.5100 → 0.8750, emotion
-0.2825 → 0.5950 (past laya), xnli 0.3467 → 0.5200 (the sentence-pair view),
-massive 0.7933 → 0.9267, banking77 0.6840 → 0.8700. sst5 /
-prompt_injections / typed_decisions select off and stay bit-identical.
-G1–G4 PASS (G4 re-gated with the tables armed: 0 allocs post-warmup).
-A separate **transductive** column (test TEXT self-labelled by the honest
-engine, 2-fold cross-fit, gold never read) is published beside the
-headline and never in it. It measured +0.3 to −4.0 pt: train already
-carries 91–95% of the test vocabulary, and self-labelling feeds back the
-engine's own errors. Record + disclosures:
+TRAIN rows only at the **full train pull** (Issue 038 T2; the 4000-row pull
+truncated banking77 to 32/77 labels and massive to 42/60, which inflated
+those modelless rows, including ², see Issue 039). The posture (scale × α ×
+bag/pair view × noul polarity) is selected on the stratified selection slice
+with the +5 pt bar, and test is read once. Against the fair baseline:
+ag_news 0.5100 → 0.8825, emotion 0.2825 → 0.7375 (+14.5 over laya), sst5
+0.2167 → 0.3917 (past laya), xnli 0.3467 → 0.5233 (sentence-pair view),
+massive 0.7367 → 0.8967, banking77 0.5940 → 0.7700. prompt_injections and
+typed_decisions select off and stay bit-identical. G2/G4 PASS with the
+tables armed. G1: at the full pull the baseline itself fails on the
+wide-label suites; the tables flip ag_news to PASS but massive/banking77
+stay FAIL (Issue 039). A separate **transductive** column (test TEXT
+self-labelled, 2-fold cross-fit, gold never read) is published beside the
+headline, never in it. It measured +0.7 to −1.7 pt: train already carries the
+vocabulary. Record + disclosures:
 [`051_nb_count_tables/BENCH.md`](.benchmarks/051_nb_count_tables/BENCH.md).
 
 ² Issue 030 lever 4 (Bench 040): fitted per-label heads over the

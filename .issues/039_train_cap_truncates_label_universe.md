@@ -1,6 +1,6 @@
 # Issue 039 — the 4000-row train cap truncates the label universe on label-sorted mirrors (banking77 32/77, massive 42/60): modelless rows were inflated
 
-**Status:** OPEN — filed 2026-09-26 from the Issue 038 T2 run. Measured; the repair (full train pull, T2) is in flight under Issue 038 / Bench 051.
+**Status:** OPEN — T1 done (published at the full pull, Bench 051, reflex-site `9b8223d`). T2 (stratified test sample), T3 (fallback guard) and T4 (wide-label G1 gap) open.
 
 ## Finding
 
@@ -37,9 +37,18 @@ of a label-sorted test split, so banking77's 500 cases span only 13 of 77
 labels. Every lane sees the same cases, so the comparison stays fair, but
 the number is not a representative banking77 score.
 
+Measured at the full pull (Bench 051), the **baseline** (no count tables)
+is banking77 0.5940 and massive **0.7367, below laya's 0.7500**. The
+published massive "win" was this artifact.
+
+**Calibration too:** at the full pull the baseline FAILS G1 on massive
+(cal 0.2600 vs floor 0.0964), banking77 (0.3938 vs 0.1689) and ag_news
+(0.3797 vs 0.2506). The truncated universe had flattered the G1 verdicts.
+The count tables flip ag_news to PASS; massive and banking77 stay FAIL.
+
 ## Plan
 
-- [ ] **T1** — publish at the full train pull (Issue 038 T2: `TRAIN_CAP` /
+- [x] **T1** — DONE: published at the full pull (Bench 051, both hosts bit-identical, reflex-site `9b8223d`); full-pull digests recorded in `.docs/02_protocols/dataset_manifest.md`. Original: (Issue 038 T2: `TRAIN_CAP` /
       `--datasets-dir`), with the manifest (`.docs/02_protocols/dataset_manifest.md`)
       re-recorded for the new pull. The 4000-row posture is withdrawn for
       these two suites.
@@ -47,6 +56,11 @@ the number is not a representative banking77 score.
       seeded stratified sample across the whole test split instead of the
       first N rows. This changes every lane's cases, so it needs a full
       both-hosts re-run of all lanes, laya included.
+- [ ] **T4** — the wide-label calibrator gap: G1 fails on 77/60-way maxp
+      readouts at the fair pull (baseline and count tables alike). Candidate:
+      per-suite readout selection (label-prob vs inverted entropy) refit on
+      the cal slice, or a temperature on the L1-normalized scores before the
+      readout. Selection on cal only.
 - [ ] **T3** — a harness guard: refuse (or loudly disclose) a run where a
       label offered by the questions has no train docs in the corpus pool
       (the self-doc fallback count is already known at build time).

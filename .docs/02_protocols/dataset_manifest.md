@@ -516,3 +516,28 @@ echo "wrote $M"
 | `train-037.json` | 14925 | `f9e54d14be31fd759b41816b927cf64b4118a5d15f309590e96ef1b9388390bc` |
 | `train-038.json` | 15467 | `c149ffadd9e7bd5f13f3c2397549cc145c35050ba7e32c14c0e1d816d6fa5b6c` |
 | `train-039.json` | 16644 | `49f90e92d91506419e0f92f3d426e3620bd45029333313d5125b43417e575ef6` |
+
+## Full train pull (Issue 038 T2 / Issue 039 — the fair posture, 2026-09-26)
+
+`OUT=.raw/datasets_t20k TRAIN_CAP=20000 SLEEP=4 scripts/fetch_datasets.sh`
+(the canonical 4000-row pages were copied in first; the fetch resumes past
+them). The harness reads it with `--datasets-dir .raw/datasets_t20k`. Test
+splits and every non-train page are byte-identical to the canonical set
+above. The 4000-row cap truncated the label universe on the label-sorted
+banking77 (32/77) and massive (42/60) mirrors (Issue 039), so published
+modelless rows use this pull from Bench 051 on.
+
+Aggregate digest = `b3sum` over the sorted `b3sum train-*.json` lines of
+that suite (re-derive with `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`):
+
+| suite | train pages | train rows | aggregate blake3 |
+|---|---|---|---|
+| ag_news | 200 | 20000 (of 120000) | `614e091d968c6d34223f0948b084a1c38380f1c1fd95180f78a24c70174e85b4` |
+| emotion | 160 | 16000 (all) | `d02dff7da0b759abfafa3d32370d1a8e5d664b866fbf76ce3f13641d226b19a2` |
+| sst5 | 86 | 8544 (all) | `ebfb0317ea5e171d52f743a8a2d4768a28d9ce60e7e0894b82490f324d9db07a` |
+| banking77 | 100 | 9993 (all) | `f511dac4c61bb8d9cac376c3ed9cbeb4a7d53099b01ab652e1972361dd6ee848` |
+| massive_intent_en | 116 | 11514 (all) | `9a6844027f1b1aef2bdf827e8bfd186d7c2ae251f7f8482ce5c12185e1b360c3` |
+| xnli_en | 200 | 20000 (of 392702) | `5804bb68e1bd16af0288cc9698ae08ac54718c414aca88993b5b30914d922a38` |
+
+typed_decisions and prompt_injections are unchanged (their caps already
+cover their train splits: 800 of 1200 by design, and 546 of 546).

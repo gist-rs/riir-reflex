@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1 + T3 LANDED and PROMOTED (Bench 051, `d66ef21` / `0d8eaa0` / `32aee61`; `nb_scope` default-on, arena protocol `--nb-select`); T2 (20k pull) in flight; T4/T5/T6-next open.
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). Open: T4 frozen-encoder lane (owner call), T5 blend self-evolve, T7 next levers (NBSVM/ridge, typed option-conditioned scorer).
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -89,7 +89,7 @@ tried.
       modelless: frozen counts from the train split, BLAKE3 `freeze`/`thaw`. Targets:
       ag_news, emotion, sst5, prompt_injections. Expected (not measured): topic NB on
       ag_news is typically 85–90%.
-- [ ] **T2 — corpus-size sweep under T1.** Raise the train fetch (ag_news full
+- [x] **T2 — corpus-size sweep under T1** — DONE (Bench 051 full-pull section): full train pull (`TRAIN_CAP=20000`, `--datasets-dir`) lifts emotion .595→.7375 and sst5 off→.3917 (both past laya); ag_news .875→.8825. It also EXPOSED Issue 039 (label-truncated 4k pull). Published both hosts at reflex-site `9b8223d`. Original spec: Raise the train fetch (ag_news full
       120k) and sweep the NB pool size on the cal slice. NB table build cost is O(tokens)
       once and scoring is O(query tokens), independent of pool size. So the Bench 003
       perf/sec refusal (drafter cost ∝ corpus) does not apply to this term, but measure

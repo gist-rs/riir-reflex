@@ -1,0 +1,1454 @@
+{
+  "meta": {
+    "date_utc": "2026-09-26T13:30:52Z",
+    "git_sha": "087856f",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets_t20k",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 3.48,
+        "swap_used_mb": 2542.75,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 3.71,
+        "swap_used_mb": 2542.75,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "ON — cal-selected per suite (ladder 0/0.25/0.5/1, forced cal-slice accuracy, ties → 0 = off; issue 030 lever 4; per-row candidates in the results)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; harness_cache_reuse is LLM-lane only (the modelless lane has no KV cache) and reports a loud SKIPPED absence without the laya-riir feature"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.319,
+          "macro_f1": 0.22702839476857317,
+          "ece": 0.0526939541324973,
+          "brier": 0.692362680899722,
+          "nll": 1.2331409843321257,
+          "aurc": 0.5524917750489949,
+          "mean_confidence": 0.3567014487311244,
+          "acc_at_50_coverage": 0.44,
+          "acc_at_80_coverage": 0.35625
+        },
+        "readout_ece": 0.0805,
+        "raw_abstain": {
+          "abstain_rate": 0.8225,
+          "selective_accuracy": 0.30704225352112674,
+          "selective_n": 355
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.927,
+          "selective_accuracy": 0.3493150684931507,
+          "selective_n": 146
+        },
+        "readout_ece_raw": 0.2932733073830604,
+        "readout_ece_calibrated": 0.0805,
+        "floor_ece": 0.30867664670658757,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.18666666666666668,
+            "macro_f1": 0.12985683228357467,
+            "ece": 0.0828303127239148,
+            "brier": 0.7769624957656895,
+            "nll": 1.4815341327230407,
+            "aurc": 0.7976803203375109,
+            "mean_confidence": 0.2694969793905814,
+            "acc_at_50_coverage": 0.20666666666666667,
+            "acc_at_80_coverage": 0.2125
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.5316666666666666,
+            "macro_f1": 0.49233840493088155,
+            "ece": 0.02498750900228819,
+            "brier": 0.4984774838645589,
+            "nll": 0.6916244926748621,
+            "aurc": 0.44317220064712814,
+            "mean_confidence": 0.5066791576643784,
+            "acc_at_50_coverage": 0.6033333333333334,
+            "acc_at_80_coverage": 0.575
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.25875,
+            "macro_f1": 0.24642825239143065,
+            "ece": 0.05395645271986724,
+            "brier": 0.7743267175266066,
+            "nll": 1.452983491781909,
+            "aurc": 0.7251775706115582,
+            "mean_confidence": 0.3096215190365911,
+            "acc_at_50_coverage": 0.315,
+            "acc_at_80_coverage": 0.2765625
+          }
+        },
+        "soft_acc": 0.31661825518144127,
+        "brier_soft": 0.24587373303692228,
+        "score_mae": 0.7393541365825154,
+        "within_1": 0.70375,
+        "latency_p50_ms": 0.477,
+        "latency_p99_ms": 1.631,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.206,
+          "max_ms": 1.677,
+          "argmax_case": 100
+        },
+        "determinism_ok": true,
+        "seconds": 1.027967458,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.013926566,
+        "distance_threshold": 0.9213104,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.013926566,
+            "status": "fitted",
+            "targetAccuracy": 0.41428572,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.9213104,
+            "status": "fitted",
+            "targetAccuracy": 0.47142857,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.338
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.338
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 72,
+            "share_of_errors": 0.0666049953746531
+          },
+          {
+            "gold": "investigate",
+            "pred": "contain",
+            "count": 66,
+            "share_of_errors": 0.06105457909343201
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 62,
+            "share_of_errors": 0.05735430157261795
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 51,
+            "share_of_errors": 0.04717853839037928
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.04625346901017576
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "Mild frustration, but the relationship is intact.",
+            "count": 47,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "None: everything reconciles.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 47,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 45,
+            "share_of_errors": 0.041628122109158186
+          },
+          {
+            "gold": "approve",
+            "pred": "manual_review",
+            "count": 45,
+            "share_of_errors": 0.041628122109158186
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 37,
+            "share_of_errors": 0.034227567067530065
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 36,
+            "share_of_errors": 0.03330249768732655
+          },
+          {
+            "gold": "human_review",
+            "pred": "continue",
+            "count": 36,
+            "share_of_errors": 0.03330249768732655
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "ag_news",
+      "n_cases": 400,
+      "n_questions": 400,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.51,
+          "macro_f1": 0.4724708518329902,
+          "ece": 0.2493093042075634,
+          "brier": 0.7419177820054519,
+          "nll": 1.370215777284436,
+          "aurc": 0.4899191330727605,
+          "mean_confidence": 0.2606906957924366,
+          "acc_at_50_coverage": 0.535,
+          "acc_at_80_coverage": 0.53125
+        },
+        "readout_ece": 0.37969298638403415,
+        "raw_abstain": {
+          "abstain_rate": 0.495,
+          "selective_accuracy": 0.5792079207920792,
+          "selective_n": 202
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.255,
+          "selective_accuracy": 0.5436241610738255,
+          "selective_n": 298
+        },
+        "readout_ece_raw": 0.5093436171114445,
+        "readout_ece_calibrated": 0.37969298638403415,
+        "floor_ece": 0.25059701492537306,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.157,
+        "latency_p99_ms": 0.18,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.175,
+          "max_ms": 0.185,
+          "argmax_case": 33
+        },
+        "determinism_ok": true,
+        "seconds": 0.354950417,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.000113248825,
+        "distance_threshold": 0.37085578,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.000113248825,
+            "status": "fitted",
+            "targetAccuracy": 0.14285715,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.37085578,
+            "status": "fitted",
+            "targetAccuracy": 0.07857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.48
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.495
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.505
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "sci_tech",
+            "pred": "world",
+            "count": 48,
+            "share_of_errors": 0.24489795918367346
+          },
+          {
+            "gold": "sports",
+            "pred": "world",
+            "count": 35,
+            "share_of_errors": 0.17857142857142858
+          },
+          {
+            "gold": "business",
+            "pred": "world",
+            "count": 24,
+            "share_of_errors": 0.12244897959183673
+          },
+          {
+            "gold": "business",
+            "pred": "sports",
+            "count": 19,
+            "share_of_errors": 0.09693877551020408
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "sports",
+            "count": 19,
+            "share_of_errors": 0.09693877551020408
+          },
+          {
+            "gold": "world",
+            "pred": "sports",
+            "count": 14,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "business",
+            "count": 12,
+            "share_of_errors": 0.061224489795918366
+          },
+          {
+            "gold": "world",
+            "pred": "business",
+            "count": 8,
+            "share_of_errors": 0.04081632653061224
+          },
+          {
+            "gold": "business",
+            "pred": "sci_tech",
+            "count": 6,
+            "share_of_errors": 0.030612244897959183
+          },
+          {
+            "gold": "sports",
+            "pred": "sci_tech",
+            "count": 5,
+            "share_of_errors": 0.025510204081632654
+          },
+          {
+            "gold": "sports",
+            "pred": "business",
+            "count": 3,
+            "share_of_errors": 0.015306122448979591
+          },
+          {
+            "gold": "world",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.015306122448979591
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "emotion",
+      "n_cases": 400,
+      "n_questions": 400,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.2825,
+          "macro_f1": 0.15111162181076926,
+          "ece": 0.11283036664128301,
+          "brier": 0.831889033806036,
+          "nll": 1.7873883608711258,
+          "aurc": 0.7236402674004785,
+          "mean_confidence": 0.16966963335871696,
+          "acc_at_50_coverage": 0.285,
+          "acc_at_80_coverage": 0.2875
+        },
+        "readout_ece": 0.022599939852953,
+        "raw_abstain": {
+          "abstain_rate": 0.62,
+          "selective_accuracy": 0.28289473684210525,
+          "selective_n": 152
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.36,
+          "selective_accuracy": 0.27734375,
+          "selective_n": 256
+        },
+        "readout_ece_raw": 0.2824219711124897,
+        "readout_ece_calibrated": 0.022599939852953,
+        "floor_ece": 0.2930721393034826,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.114,
+        "latency_p99_ms": 0.134,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.119,
+          "max_ms": 0.149,
+          "argmax_case": 21
+        },
+        "determinism_ok": true,
+        "seconds": 0.261078875,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.00002592802,
+        "distance_threshold": 0.41526416,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00002592802,
+            "status": "fitted",
+            "targetAccuracy": 0.31428573,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41526416,
+            "status": "fitted",
+            "targetAccuracy": 0.31428573,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.185
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.21
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "sadness",
+            "pred": "joy",
+            "count": 98,
+            "share_of_errors": 0.34146341463414637
+          },
+          {
+            "gold": "anger",
+            "pred": "joy",
+            "count": 49,
+            "share_of_errors": 0.17073170731707318
+          },
+          {
+            "gold": "fear",
+            "pred": "joy",
+            "count": 32,
+            "share_of_errors": 0.11149825783972125
+          },
+          {
+            "gold": "love",
+            "pred": "joy",
+            "count": 31,
+            "share_of_errors": 0.10801393728222997
+          },
+          {
+            "gold": "joy",
+            "pred": "love",
+            "count": 13,
+            "share_of_errors": 0.04529616724738676
+          },
+          {
+            "gold": "joy",
+            "pred": "fear",
+            "count": 9,
+            "share_of_errors": 0.0313588850174216
+          },
+          {
+            "gold": "anger",
+            "pred": "love",
+            "count": 8,
+            "share_of_errors": 0.027874564459930314
+          },
+          {
+            "gold": "sadness",
+            "pred": "love",
+            "count": 8,
+            "share_of_errors": 0.027874564459930314
+          },
+          {
+            "gold": "sadness",
+            "pred": "fear",
+            "count": 7,
+            "share_of_errors": 0.024390243902439025
+          },
+          {
+            "gold": "surprise",
+            "pred": "joy",
+            "count": 5,
+            "share_of_errors": 0.017421602787456445
+          },
+          {
+            "gold": "anger",
+            "pred": "fear",
+            "count": 4,
+            "share_of_errors": 0.013937282229965157
+          },
+          {
+            "gold": "fear",
+            "pred": "anger",
+            "count": 4,
+            "share_of_errors": 0.013937282229965157
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "sst5",
+      "n_cases": 600,
+      "n_questions": 600,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.21666666666666667,
+          "macro_f1": 0.21644209435416006,
+          "ece": 0.0019752679516871798,
+          "brier": 0.7991945661583396,
+          "nll": 1.607280233965262,
+          "aurc": 0.7984710138714025,
+          "mean_confidence": 0.2156042873611053,
+          "acc_at_50_coverage": 0.17666666666666667,
+          "acc_at_80_coverage": 0.2125
+        },
+        "readout_ece": 0.02148964275916418,
+        "raw_abstain": {
+          "abstain_rate": 0.54,
+          "selective_accuracy": 0.18478260869565216,
+          "selective_n": 276
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.315,
+          "selective_accuracy": 0.20437956204379562,
+          "selective_n": 411
+        },
+        "readout_ece_raw": 0.2155029884974162,
+        "readout_ece_calibrated": 0.02148964275916418,
+        "floor_ece": 0.3461691542288557,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.178447996104757,
+        "within_1": 0.43166666666666664,
+        "latency_p50_ms": 0.098,
+        "latency_p99_ms": 0.113,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 0.1,
+          "max_ms": 0.123,
+          "argmax_case": 16
+        },
+        "determinism_ok": true,
+        "seconds": 0.26600475,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": 0.0004144907,
+        "distance_threshold": 0.39729577,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0004144907,
+            "status": "fitted",
+            "targetAccuracy": 0.22857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.39729577,
+            "status": "fitted",
+            "targetAccuracy": 0.19285715,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.5,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.205
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.245
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.255
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.25
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "negative",
+            "pred": "neutral",
+            "count": 57,
+            "share_of_errors": 0.12127659574468085
+          },
+          {
+            "gold": "positive",
+            "pred": "very negative",
+            "count": 44,
+            "share_of_errors": 0.09361702127659574
+          },
+          {
+            "gold": "very positive",
+            "pred": "neutral",
+            "count": 40,
+            "share_of_errors": 0.0851063829787234
+          },
+          {
+            "gold": "negative",
+            "pred": "very negative",
+            "count": 39,
+            "share_of_errors": 0.08297872340425531
+          },
+          {
+            "gold": "negative",
+            "pred": "positive",
+            "count": 36,
+            "share_of_errors": 0.07659574468085106
+          },
+          {
+            "gold": "positive",
+            "pred": "neutral",
+            "count": 34,
+            "share_of_errors": 0.07234042553191489
+          },
+          {
+            "gold": "very positive",
+            "pred": "very negative",
+            "count": 26,
+            "share_of_errors": 0.05531914893617021
+          },
+          {
+            "gold": "very positive",
+            "pred": "positive",
+            "count": 25,
+            "share_of_errors": 0.05319148936170213
+          },
+          {
+            "gold": "very negative",
+            "pred": "neutral",
+            "count": 24,
+            "share_of_errors": 0.05106382978723404
+          },
+          {
+            "gold": "neutral",
+            "pred": "positive",
+            "count": 23,
+            "share_of_errors": 0.04893617021276596
+          },
+          {
+            "gold": "neutral",
+            "pred": "very negative",
+            "count": 18,
+            "share_of_errors": 0.03829787234042553
+          },
+          {
+            "gold": "positive",
+            "pred": "negative",
+            "count": 16,
+            "share_of_errors": 0.03404255319148936
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "prompt_injections",
+      "n_cases": 116,
+      "n_questions": 116,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.4827586206896552,
+          "macro_f1": 0.32558139534883723,
+          "ece": 0.022828569699977985,
+          "brier": 0.5004477568680457,
+          "nll": 0.6935949573654817,
+          "aurc": 0.3981011944900889,
+          "mean_confidence": 0.5055871903896332,
+          "acc_at_50_coverage": 0.6551724137931034,
+          "acc_at_80_coverage": 0.5978260869565217
+        },
+        "readout_ece": 0.366293152858471,
+        "raw_abstain": {
+          "abstain_rate": 0.41379310344827586,
+          "selective_accuracy": 0.4117647058823529,
+          "selective_n": 68
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.41379310344827586,
+          "selective_accuracy": 0.4117647058823529,
+          "selective_n": 68
+        },
+        "readout_ece_raw": 0.4826684984667548,
+        "readout_ece_calibrated": 0.366293152858471,
+        "floor_ece": 0.5073403892113333,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.057,
+        "latency_p99_ms": 0.065,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.033,
+          "max_ms": 0.068,
+          "argmax_case": 82
+        },
+        "determinism_ok": true,
+        "seconds": 0.051164583,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": 0.00009012222,
+        "distance_threshold": 0.40791556,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00009012222,
+            "status": "fitted",
+            "targetAccuracy": 0.85,
+            "support": {
+              "n": 100,
+              "nPass": 100,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.40791556,
+            "status": "fitted",
+            "targetAccuracy": 0.8428571,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.5
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.3466666666666667,
+          "macro_f1": 0.21509392106123304,
+          "ece": 0.0012294748425483726,
+          "brier": 0.6674267672709734,
+          "nll": 1.0996724810444833,
+          "aurc": 0.6897717467805182,
+          "mean_confidence": 0.3454371918241183,
+          "acc_at_50_coverage": 0.35333333333333333,
+          "acc_at_80_coverage": 0.32916666666666666
+        },
+        "readout_ece": 0.09651749193668369,
+        "raw_abstain": {
+          "abstain_rate": 0.64,
+          "selective_accuracy": 0.3333333333333333,
+          "selective_n": 108
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.38333333333333336,
+          "selective_accuracy": 0.34594594594594597,
+          "selective_n": 185
+        },
+        "readout_ece_raw": 0.34608602861563365,
+        "readout_ece_calibrated": 0.09651749193668369,
+        "floor_ece": 0.3173963515754561,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.087,
+        "latency_p99_ms": 0.097,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.094,
+          "max_ms": 0.101,
+          "argmax_case": 262
+        },
+        "determinism_ok": true,
+        "seconds": 0.189442167,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.00008249283,
+        "distance_threshold": 0.5123883,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00008249283,
+            "status": "fitted",
+            "targetAccuracy": 0.27142859,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.5123883,
+            "status": "fitted",
+            "targetAccuracy": 0.24285714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 0.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.355
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.36
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 94,
+            "share_of_errors": 0.47959183673469385
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 92,
+            "share_of_errors": 0.46938775510204084
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 6,
+            "share_of_errors": 0.030612244897959183
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 4,
+            "share_of_errors": 0.02040816326530612
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "massive_intent_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.7366666666666667,
+          "macro_f1": 0.7302278140762314,
+          "ece": 0.66237552617987,
+          "brier": 0.9066588738768447,
+          "nll": 2.6444649144688155,
+          "aurc": 0.104870760225812,
+          "mean_confidence": 0.07429114048679669,
+          "acc_at_50_coverage": 0.92,
+          "acc_at_80_coverage": 0.825
+        },
+        "readout_ece": 0.26000000000000006,
+        "raw_abstain": {
+          "abstain_rate": 0.27666666666666667,
+          "selective_accuracy": 0.7603686635944701,
+          "selective_n": 217
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.26,
+          "selective_accuracy": 0.7522522522522522,
+          "selective_n": 222
+        },
+        "readout_ece_raw": 0.66237552617987,
+        "readout_ece_calibrated": 0.26000000000000006,
+        "floor_ece": 0.09638474295190722,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.114,
+        "latency_p99_ms": 0.13,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.12,
+          "max_ms": 0.132,
+          "argmax_case": 70
+        },
+        "determinism_ok": true,
+        "seconds": 3.090972,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.05748382,
+        "distance_threshold": 0.5258432,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.05748382,
+            "status": "fitted",
+            "targetAccuracy": 0.62857145,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.5258432,
+            "status": "fitted",
+            "targetAccuracy": 0.47517732,
+            "support": {
+              "n": 200,
+              "nPass": 141,
+              "nAbstain": 59
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 1.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.43
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.505
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "play_music",
+            "pred": "play_game",
+            "count": 5,
+            "share_of_errors": 0.06329113924050633
+          },
+          {
+            "gold": "news_query",
+            "pred": "qa_factoid",
+            "count": 3,
+            "share_of_errors": 0.0379746835443038
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "social_query",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "datetime_query",
+            "pred": "news_query",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "news_query",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "play_music",
+            "pred": "qa_maths",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "takeaway_order",
+            "pred": "iot_wemo_off",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "weather_query",
+            "pred": "datetime_query",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "alarm_query",
+            "pred": "iot_wemo_off",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "alarm_query",
+            "pred": "play_music",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "alarm_remove",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "cooking_recipe",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    },
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.594,
+          "macro_f1": 0.16651974222137694,
+          "ece": 0.5754035411458462,
+          "brier": 0.9775264428594616,
+          "nll": 4.0468338636369765,
+          "aurc": 0.23071106109262254,
+          "mean_confidence": 0.01859645885415375,
+          "acc_at_50_coverage": 0.764,
+          "acc_at_80_coverage": 0.6825
+        },
+        "readout_ece": 0.3938053075969219,
+        "raw_abstain": {
+          "abstain_rate": 0.38,
+          "selective_accuracy": 0.7870967741935484,
+          "selective_n": 310
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.22,
+          "selective_accuracy": 0.6717948717948717,
+          "selective_n": 390
+        },
+        "readout_ece_raw": 0.5754035411458462,
+        "readout_ece_calibrated": 0.3938053075969219,
+        "floor_ece": 0.16889552238806005,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.343,
+        "latency_p99_ms": 0.673,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.42,
+          "max_ms": 0.827,
+          "argmax_case": 192
+        },
+        "determinism_ok": true,
+        "seconds": 5.138973167,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.015659504,
+        "distance_threshold": 0.47976422,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.015659504,
+            "status": "fitted",
+            "targetAccuracy": 0.21428572,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.47976422,
+            "status": "fitted",
+            "targetAccuracy": 0.2642857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": {
+          "selected": 1.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.52
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.535
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.54
+            }
+          ]
+        },
+        "nb_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "card arrival",
+            "pred": "card linking",
+            "count": 10,
+            "share_of_errors": 0.04926108374384237
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card linking",
+            "count": 7,
+            "share_of_errors": 0.034482758620689655
+          },
+          {
+            "gold": "exchange via app",
+            "pred": "exchange charge",
+            "count": 7,
+            "share_of_errors": 0.034482758620689655
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card not working",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "transfer timing",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "card not working",
+            "pred": "card linking",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "card not working",
+            "pred": "lost or stolen card",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "card payment wrong exchange rate",
+            "pred": "exchange rate",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "exchange charge",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "exchange via app",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "lost or stolen card",
+            "pred": "compromised card",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          },
+          {
+            "gold": "lost or stolen card",
+            "pred": "order physical card",
+            "count": 4,
+            "share_of_errors": 0.019704433497536946
+          }
+        ],
+        "pair_head_ab": null
+      },
+      "laya": {}
+    }
+  ]
+}
