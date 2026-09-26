@@ -14,3 +14,6 @@ assets/ane/**/*.mlmodel
 
 # Local release staging (separate git repos pushed to their own remotes) + packaged artifacts
 dist/
+
+# Agent-instructions symlink (CLAUDE.md -> AGENTS.md), local only
+CLAUDE.md
