@@ -39,6 +39,29 @@ lives in `.issues/` and `.plans/`, never here.
     rope hoist (opt-in, not promoted), T11 rung 1 packed-at-1q.
   - **Deferred, not owed by the bar:** the `.metallib` precompile (a
     process-start cost, not a request cost); rope-table caching.
+    **Priced 2026-09-26 and declined** (riir-infer
+    `examples/startup_rope_probe.rs`; M3 Max, AC, load 3.1–3.8, three
+    fresh processes):
+    - `Metal::new()` takes **205.9 ms** on the first launch after a
+      rebuild and **22.7–26.0 ms** once Apple's shader cache is warm. So
+      a precompiled metallib saves about 180 ms, once per binary per
+      machine. The engine is a long-lived server, so that cost is spread
+      over every request it serves. In exchange, the release build would
+      need the Xcode Metal toolchain. (The ~180 ms is inferred to be the
+      shader compile from the warm/cold gap; the probe does not split
+      compile time from MPS load.)
+    - The rope-table pair (both thetas, hd 64) costs **21.8 / 40.4 /
+      112.9 / 203.4 µs** at seq 106 / 188 / 512 / 895. That is ~0.1% of
+      the Bench 050 p50s (12–194 ms), far below the ±6% A/B noise, so
+      no gate could show a gain.
+    - Neither applies off macOS-native anyway. A metallib is Apple-only;
+      the browser and edge-worker lanes are the 92 KB wasm heads, with
+      no laya weights and no GPU. A vessel carries signed genomes, not
+      GPU code, and loading shaders from an artifact would widen the
+      attack surface the binary channel already covers.
+    - Reopen if the engine becomes a short-lived process per request,
+      or if a macOS update breaks or drifts the runtime MSL compile
+      (a metallib pins the front-end compiler that G5 measured).
   - The lesson: five refutations among your own instances say nothing
     about the vendor's. Price the library call before a kernel rewrite.
   - Full life: `git log --follow -- .issues/020_riir_metal_latency_parity.md`.
