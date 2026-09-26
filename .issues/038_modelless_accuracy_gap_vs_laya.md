@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). Open: T4 frozen-encoder lane (owner call), T5 blend self-evolve, T7 next levers (NBSVM/ridge, typed option-conditioned scorer).
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 DECIDED (`e845fe5`): frozen-encoder lane not built; replaced by T4′ cascade lane. Open, in order: T7 (NBSVM/ridge, typed option-conditioned scorer) → T4′ cascade → T5 blend self-evolve.
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
