@@ -516,16 +516,21 @@ at 9.9% — the +22.3% typed·english deficit is the encoder GEMM at big-m
 vs MPS, NOT the head; the v2 packed head stays bounded at a few percent
 (the issue's sizing, measured twice). The wall split alone MISLEADS: the
 encoder's GPU work hides inside the FIRST question's drain (encoder
-enqueue 0.6% of wall, head walls 99.4%). T12 (`LAYA_HEAD_DEFER=1`,
-default-OFF) defers the packed case's head reads into two drain classes
-(15 → 2 per 5-q case); bit-identical both postures (raw-bit same-shape
-gate), measured ~1–3% against a ±15–35% noise floor — Metal's enqueue
-already runs ahead inside a case, so the composed form's drains mostly
-find an empty pipeline; promotion waits for a proven-quiet A/B (the
-rope-hoist precedent). The priced next rung: fold the residual-add + GLU
-epilogues into the NARROW (non-split) sgemm — the landed folds engage
-ONLY on split-K calls, which typed·english's big-m shapes are not
-(≈5.7% of case GPU rides unfused: add 56 + glu 28 dispatches/case).
+enqueue 0.6% of wall, head walls 99.4%). T12 is **PROMOTED default-on
+2026-09-26 (riir-infer `40d15dd`)** — the packed case's head reads run in
+two drain classes (15 → 2 per 5-q case); bit-identical both postures
+(raw-bit same-shape gate); the in-process paired A/B
+(`tests/metal_head_defer_ab.rs`, the `RiirAgent::set_head_defer_override`
+seam — the fold A/B's `with_folds` pattern) resolved it decisively:
+typed 5-q median on/off **0.984 (24/24 wins)**, 5-q short **0.984
+(22/24)**, 1-q wiring control flat 1.002 — the earlier ~1–3% read was the
+sequential interleave's ±15–35% floor pricing the INSTRUMENT, not the
+rung. Kill-switch `LAYA_HEAD_DEFER=0`. The split-K epilogue folds are
+default-on too (riir-infer `53334f9`, medians −1.5…−5.9% in-band,
+kill-switches `LAYA_METAL_FOLD_RES=0`/`LAYA_METAL_FOLD_GLU=0`) — the
+narrow (non-split) sgemm remains UN-fused (the GLU half is structurally
+un-foldable into a BN=64 epilogue, the gate/up pairing 2624 columns
+apart; a two-accumulator narrow variant would be a real kernel rewrite).
 massive_intent_en's +2.8% is UNADJUDICABLE by the paired instrument at
 ms quantization (1 ms of 63 ms = 1.6%, inside the 2% tie band) — the
 rerun would be decorative.
