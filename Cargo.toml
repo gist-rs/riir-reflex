@@ -95,6 +95,22 @@ laya-riir-ane = ["laya-riir", "riir-infer-laya/laya-riir-ane"]
 # G5 parity must be green at THIS posture before any riir-CUDA number is
 # published.
 laya-riir-cuda = ["laya-riir", "riir-infer-laya/laya-riir-cuda"]
+# The riir forward's CubeCL/wgpu backend (plan 611 — the T7 op-layer
+# unification arm): ONE portable op vocabulary over the engine's CubeCL
+# kernels, behind the SAME feature name there (`riir-infer-laya/
+# laya-riir-cubecl`, the optional in-repo gpu path dep). Never a runtime
+# default; `LAYA_DEVICE=cubecl` selects it explicitly, and the G5 arm in
+# `tests/laya_riir_parity.rs` compiles in only under this feature. The
+# plan 611 S5 A/B (Metal vs Cubecl vs Cpu, one process,
+# `RiirAgent::load_with_device`) prices the arm's fate.
+#
+# The gpu tree carries this workspace's OWN [patch.crates-io] rows for
+# `cubecl-runtime` + `wgpu-hal` (the parent vendored copies — its
+# `cubecl_runtime.rs` video-memory probe compiles against them and
+# NOTHING else). [patch] does NOT propagate across workspace boundaries,
+# so the FIRST cross-workspace resolution of riir-infer-gpu (this
+# feature) must re-declare them, pointing at the parent's vendor/ tree.
+laya-riir-cubecl = ["laya-riir", "riir-infer-laya/laya-riir-cubecl"]
 # Warm-tier persistence for the harness via the released `ndb` BINARY
 # (Issue 007 P1): subprocess-only — zero storage-leaf cargo deps; the only
 # new package is blake3 (already in-tree via `modelless`). NATIVE-ONLY by
@@ -283,3 +299,13 @@ inherits = "release"
 lto = "fat"
 codegen-units = 1
 strip = true
+
+# The laya-riir-cubecl lane's gpu tree (riir-infer-gpu, via the path-dep
+# chain) compiles against the PARENT workspace's vendored copies — its
+# cubecl_runtime.rs video-memory probe needs exactly these. [patch] does
+# not cross workspace boundaries, so the rows are re-declared here at the
+# parent's vendor/ tree (plan 611 S4; the metal/cuda lanes never pulled
+# the gpu tree, which is why reflex never needed these before).
+[patch.crates-io]
+cubecl-runtime = { path = "../riir-infer/vendor/cubecl-runtime-0.11.0-pre.2" }
+wgpu-hal = { path = "../riir-infer/vendor/wgpu-hal-30.0.0" }

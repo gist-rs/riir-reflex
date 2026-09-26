@@ -4040,6 +4040,14 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         "ane (LAYA_DEVICE=ane → load_ane; whole-graph CoreML encoder, Plan 002)"
                             .to_string()
                     }
+                    Ok(DeviceKind::Cubecl) => {
+                        // The harness does NOT interpret cubecl itself: the
+                        // env value flows to RiirAgent::load -> from_env,
+                        // which refuses loudly when the laya-riir-cubecl
+                        // feature is absent (plan 611).
+                        "cubecl (LAYA_DEVICE -> load; wgpu portable op layer, plan 611)"
+                            .to_string()
+                    }
                     Err(e) => format!("unknown ({e})"),
                 }
             }

@@ -95,6 +95,30 @@ fn drift(a: &[f64], b: &[f64]) -> f64 {
 
 #[test]
 fn g5_parity_per_checkpoint_riir() -> Result<()> {
+    g5_run(&|root, ckpt| RiirAgent::load(root, ckpt))
+}
+
+/// The G5 capture at the CubeCL/wgpu posture (plan 611 S4 — the third
+/// posture, T7 op-layer unification). Same corpus, same frozen capture,
+/// same gates as [`g5_parity_per_checkpoint_riir`]; the device is the
+/// EXPLICIT constructor (`load_with_device`), never an env round-trip —
+/// an env mutation here would race every other reader in the process.
+/// Compiles in only under `laya-riir-cubecl` — without it the posture
+/// does not exist in the build and this fn is absent (the [[test]] row's
+/// `required-features` still pins `laya-riir`; the run line names the
+/// feature set it verified, the repo-birth gate discipline).
+#[cfg(feature = "laya-riir-cubecl")]
+#[test]
+fn g5_parity_cubecl_posture() -> Result<()> {
+    g5_run(&|root, ckpt| {
+        RiirAgent::load_with_device(root, ckpt, riir_reflex::laya::riir::agent::DeviceKind::Cubecl)
+    })
+}
+
+/// The shared G5 body: load per checkpoint through `build`, replay the
+/// fixture corpus, gate top-1 agreement + p-drift against the frozen
+/// capture. The posture line names what actually ran (`.issues/005` T4).
+fn g5_run(build: &dyn Fn(&std::path::Path, Checkpoint) -> Result<RiirAgent>) -> Result<()> {
     let fixtures = load_fixtures();
     let (expected, (top1_min, drift_max)) = load_expected();
 
@@ -111,7 +135,7 @@ fn g5_parity_per_checkpoint_riir() -> Result<()> {
     let mut any_gate_failed = false;
 
     for ckpt in Checkpoint::ALL {
-        let agent = RiirAgent::load(&root, ckpt)?;
+        let agent = build(&root, ckpt)?;
         let name = ckpt.fixture_name();
         // The posture line is load-bearing (`.issues/005` T4): a green run
         // must NAME the device it verified — LAYA_DEVICE selects cpu/metal.
