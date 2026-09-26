@@ -7,6 +7,32 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26/27
 
+- **Issue 039 T5 — the 4090 re-run at the Bench-052 protocol: both-hosts
+  identity LANDED** (2026-09-27; record: `.benchmarks/052_stratified_readout/`
+  §"4090 re-run" + `results_4090.json` / `TABLES_4090.md`; comparator
+  `scripts/compare_052_4090.py`). The queued "bytes already copied there"
+  premise was STALE (the box had the old `.raw/datasets` pull; its own
+  re-fetch had died on curl 429s) — `datasets_t20k` copied fresh and
+  byte-VERIFIED (977/977 files, sorted SHA256-manifest diff empty) BEFORE
+  the run. Harness `--features laya-riir,laya-riir-cuda` at `634093f` in an
+  isolated worktree on the 4090 (the checkout carried sibling WIP —
+  worktree exclusion, not stash), launched via the Bench-047 schtasks
+  one-shot pattern; 15/15 suites exit 0. Verdict: **modelless decision-level
+  bit-identity 14/14** (accuracy/macro-F1/confusion/head+nb selections/
+  thresholds/G1 exact; `code_fixtures` re-verified at the SAME snapshot
+  `634093f` on the M3 after its 052-record mismatch was explained as input
+  drift — its cases are this repo's own source spans, and the M3 record's
+  tree predates `b092869`); **one raw statistic at ulp, 5/14 suites**
+  (`readout_ece_raw` Δ ≤ 4.5e-10, the NEON↔AVX reduction-order class — no
+  pick moves, calibrated ECE exact everywhere; disclosed, not pooled into
+  the claim); **laya accuracy identical metal↔cuda 8/8** with ONE flag:
+  banking77 cuda repeat-check `determinism_ok = FALSE` (first-10
+  double-answer render differs on ≥1 repeat; every other suite True;
+  shape-scoped: the ~317-token 77-way suite) — filed to the lane owner as
+  riir-infer Issue 021. Latency indicative (UNJUDGED box state, the
+  macOS-only Issue-021 probe posture): banking77 cuda p50 23 ms vs M3 metal
+  47 ms.
+
 - **Issue 033 ft-cells: cross-box CONFIRMATION — [Bench
   054](.benchmarks/054_paw_ft_cells_win4090.md)** (the 4090 Windows box, full
   test pulls at the 049 caps, hosted anonymous, run in parallel with the M3

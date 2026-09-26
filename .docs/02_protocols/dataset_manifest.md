@@ -577,3 +577,10 @@ cases cover, the cal slices, the corpus pools — and therefore every
 published number — move from Bench 052 on. The readout-selection lever
 (T4) was measured NEGATIVE at 052 and demoted to a report-only candidate
 table; the shipped Dispatch readout runs everywhere.
+
+**Cross-host byte discipline (Issue 039 T5):** the 4090's
+`.raw/datasets_t20k` copy was verified byte-identical to this tree before
+the 2026-09-27 re-run — 977/977 files, sorted SHA256-manifest diff empty
+(the box's own re-fetch had died on curl 429s; the queued "already copied
+there" premise was stale). Copy-then-verify is the standing posture for
+cross-host runs: same bytes is a claim, not an assumption.

@@ -55,9 +55,52 @@ cargo bench --bench decision_set_goat     # G2/G4 re-pin
 
 Tree: working tree at `b1aee72` + this change set (uncommitted at run time). 15 suites, no absences; laya metal determinism `ok` on every suite. Artifacts: `results.json`, `TABLES.md` (this dir).
 
-## Both-hosts note
+## 4090 re-run — Issue 039 T5 DONE (2026-09-27)
 
-The M3 metal run is the record of note. The 4090 re-run at this protocol is queued (issue 039 T5): same `datasets_t20k` bytes, every lane (the cases changed for all of them).
+Same protocol on the 4090 (Windows, RTX 4090, `LAYA_DEVICE=cuda`,
+`REFLEX_BENCH_HOST=4090-windows`) at reflex `634093f`, harness built
+`--features laya-riir,laya-riir-cuda` in an ISOLATED WORKTREE on that box
+(the checkout's dirty sibling-WIP excluded by construction). 15/15 suites,
+no absences, exit 0. Artifacts: `results_4090.json` / `TABLES_4090.md`
+(this dir); comparator `scripts/compare_052_4090.py` (decision-level exact
+axes; latency/seconds excluded by design — box properties).
+
+- **Datasets**: the queued premise "`datasets_t20k` bytes already copied
+  there" was STALE — the box had only the old `.raw/datasets` pull and its
+  own re-fetch had died on curl 429s. Copied this session (tarball over
+  scp), then byte-identity VERIFIED before the run: 977/977 files, sorted
+  SHA256-manifest diff EMPTY vs the M3.
+- **Modelless: bit-identical at the decision level, 14/14 suites** —
+  accuracy, macro-F1, the full confusion (pick sets), head + nb
+  selections, gate-fit thresholds, and G1 verdicts all exact. 13 suites at
+  the 052 snapshot; `code_fixtures` (whose cases are this repo's OWN source
+  spans — `code_fn_slices()` include-derived, so the row moves when src/
+  moves) verified at the SAME snapshot via an M3 modelless-only re-run at
+  `634093f`: byte-identical to the 4090 (acc 0.2917, identical confusion,
+  thresholds, and the same 4-label corpus-fallback set). The 052-record
+  mismatch on that suite was input drift (its tree predates `b092869`'s
+  new fns), not cross-host divergence. `harness_cache_reuse` is LLM-lane
+  only — skipped-identical on both.
+- **One raw statistic differs at ulp level, 5/14 suites** (`readout_ece_raw`,
+  absolute Δ ≤ 4.5e-10: ag_news 4.5e-10, sst5 9.9e-11, typed_decisions
+  6.0e-11, massive 2.5e-11, banking77 2.2e-11) — the NEON↔AVX SIMD
+  reduction-order class: f32 score paths drift at ulp, NO pick or decision
+  moves anywhere, and the calibrated `readout_ece` is exact on every suite.
+  The cross-host identity claim stays at the decision level; the continuous
+  statistic is disclosed rather than pooled into the claim.
+- **laya: accuracy identical cross-backend (metal ↔ cuda) on 8/8 dataset
+  suites** — every published 052 laya cell reproduces on cuda. ONE
+  repeat-check flag: banking77 cuda `determinism_ok = FALSE` (the first-10
+  double-answer render differs on ≥1 repeat; metal True, every other cuda
+  suite True). Reported-not-claimed per `meta.determinism_scoping`; the
+  measured picks still match metal exactly. Shape-scoped (banking77 = the
+  long-sequence ~317-token, 77-way suite) — filed to riir-infer (the lane
+  owner) as riir-infer Issue 021.
+- Latency indicative only (UNJUDGED box state — the Issue-021 probes are
+  macOS; the Bench-047 precedent): banking77 cuda p50 23 ms vs the M3
+  metal 47 ms; whole run 8m33s wall. Launcher: the Bench-047 schtasks
+  one-shot pattern (ssh-launched processes die with the session); worktree
+  + task deleted after the run.
 
 ## Cross-checks
 

@@ -1,6 +1,6 @@
 # Issue 039 — the 4000-row train cap truncates the label universe on label-sorted mirrors (banking77 32/77, massive 42/60): modelless rows were inflated
 
-**Status:** CLOSED 2026-09-26 — T1 done (Bench 051, full pull); T2 + T3 done and T4 adjudicated at Bench 052 (`.benchmarks/052_stratified_readout/`, stratified sample + complement pool + fallback guard; the readout-selection lever measured NEGATIVE and demoted to a report-only table — the wide-label G1 gap closed via the stratified cal slice instead; emotion's G1 honestly regresses, its 051 pass was a sampling artifact). Both-host note: the M3 metal run is published here; the 4090 re-run is queued as follow-up work (same protocol, `datasets_t20k` bytes already on that box).
+**Status:** CLOSED 2026-09-27 — T1–T5 all done (T5: the 4090 re-run landed in `.benchmarks/052_stratified_readout/` §"4090 re-run" + `results_4090.json` — datasets copied + byte-verified 977/977, modelless decision-level bit-identity 14/14 (code_fixtures at the same snapshot via an M3 re-run), laya accuracy identical metal↔cuda on 8/8, banking77 cuda repeat-check flag filed as riir-infer Issue 021). T1 done (Bench 051, full pull); T2 + T3 done and T4 adjudicated at Bench 052 (`.benchmarks/052_stratified_readout/`, stratified sample + complement pool + fallback guard; the readout-selection lever measured NEGATIVE and demoted to a report-only table — the wide-label G1 gap closed via the stratified cal slice instead; emotion's G1 honestly regresses, its 051 pass was a sampling artifact).
 
 ## Finding
 
@@ -99,11 +99,7 @@ The count tables flip ag_news to PASS; massive and banking77 stay FAIL.
       modules with <10 fns self-doc); all dataset suites otherwise clean at
       the full pull. Selection-slice builds ignore the report (the
       starvation there is by construction).
-- [ ] **T5** — 4090 re-run at the Bench 052 protocol (both-hosts
-      bit-identity for the new sampling law; `datasets_t20k` bytes already
-      copied there; laya lanes included — every lane's cases changed).
-      Queued as follow-up; the M3 metal run published above is the record
-      of note.
+- [x] **T5** — DONE (2026-09-27): 4090 re-run at this protocol; the record + artifacts live in `.benchmarks/052_stratified_readout/` (§"4090 re-run", `results_4090.json`, `TABLES_4090.md`). Headline: modelless decision-level bit-identity 14/14, laya accuracy identical metal↔cuda 8/8, banking77 cuda repeat-check flag → riir-infer Issue 021. The "bytes already copied there" premise was stale — the copy happened (and was verified) this session.
 
 ## References
 
