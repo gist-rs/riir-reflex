@@ -102,7 +102,19 @@ tried.
       a negation-mismatch flag, a number-mismatch flag, and length ratio. Feed them into
       T1's table. Honest ceiling: lexical NLI tops out around 55–65%, so this closes part
       of the gap, not 86%.
-- [ ] **T4 — frozen-encoder lane (owner call — changes the arena framing).**
+- [-] **T4 — frozen-encoder lane — DECIDED 2026-09-26: NOT built as written; replaced by T4′.**
+      Why: (a) laya's encoder + our head is laya-with-a-worse-head at laya's
+      latency, so it can't honestly "beat laya"; (b) Bonsai/Gemma embedders are
+      2B+ params, bigger and slower than laya's 421M (Bonsai ~50 s/chunk on CPU,
+      Bench 583), giving up the latency axis modelless wins on; (c) both put
+      neural weights inside the lane the site sells as "no neural weights".
+- [ ] **T4′ — cascade lane "Reflex · cascade" (opt-in, its own named lane):**
+      modelless answers first; questions where the EXISTING fused abstain gate
+      fires escalate to the laya lane. No training, no new model. Publish
+      accuracy AND escalation rate per suite (the rate is the latency claim).
+      Gate: accuracy ≥ modelless on every suite and within noise of laya on
+      xnli/typed, with escalation < 100% on the topical suites. Runs after T7.
+      Original T4 spec, kept for the record:
       `riir_infer_laya::LayaEncoder::forward` (already in the dep tree) or
       `BonsaiEmbedder::embed_full` hidden states → mean-pool → per-label centroid /
       diagonal LDA, with `[u, v, |u−v|, u·v]` for xnli. It is modelless under
