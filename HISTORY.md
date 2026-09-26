@@ -5,6 +5,23 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-26/27
+
+- **Issue 033 ft-cells: cross-box CONFIRMATION — [Bench
+  054](.benchmarks/054_paw_ft_cells_win4090.md)** (the 4090 Windows box, full
+  test pulls at the 049 caps, hosted anonymous, run in parallel with the M3
+  session's [Bench 053](.benchmarks/053_paw_ft_bs48/BENCH.md) — the Issue-825
+  twin-repair, not a duplicate: different sample, every direction agreeing).
+  ft-bs48 strictly beats the mapper tier on all 4 suites: ag_news
+  0.7825→0.7925, emotion 0.4750→0.5025, sst5 0.3283→0.3933, banking77
+  0.1400→**0.3940** (refusals 73%→42.2%, answered-acc 0.6817). Compile ~12
+  s/suite (the issue's 2–5 min did not materialize on this tier/box); det
+  4/4 ✓ this run (recorded per run-date). Datasets fetched fresh through the
+  HF 429 walls (cooldown + re-run; mteb/banking77 test = 3,076 rows / 31
+  pages — not the 10.4k `cap=all` suggests). Modelless baselines
+  byte-identical to 049's (same pull, same caps), so the PAW columns are
+  apples-to-apples with 049's mapper rows.
+
 ## 2026-09-26
 
 - **Issue 020 CLOSED — the riir Metal lane beats the python torch MPS
