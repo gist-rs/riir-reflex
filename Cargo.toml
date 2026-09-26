@@ -238,6 +238,15 @@ name = "sgemm_shape_timing"
 name = "laya_fixture_timing"
 required-features = ["laya-riir"]
 
+# The packed-case stage-split probe (measurement only — never a gate; issue
+# 020's typed-trio lever pricing). The file opens with
+# `#![cfg(all(target_os = "macos", feature = "laya-riir-metal"))]`, so
+# without this row a default-features `clippy --all-targets` compiles it to
+# an empty crate and dies on E0601 (the laya_fixture_timing law).
+[[example]]
+name = "typed_case_split"
+required-features = ["laya-riir-metal"]
+
 # The laya parity test is GEMM-bound inside the substrate lane's `gemm`
 # calls; the local code is only orchestration. Optimizing DEPENDENCIES in
 # the dev profile keeps a plain `cargo test --features laya-riir` within
