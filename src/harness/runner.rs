@@ -1407,6 +1407,9 @@ struct Latency {
     tail_support: usize,
     extremes: Option<LatencyExtremes>,
     determinism_ok: Option<bool>,
+    /// The raw per-case wall times (µs) — the seat's consumers compose
+    /// H1's total from these ([`seat::SeatEval::durs_us`]).
+    durs_us: Vec<u64>,
 }
 
 /// Nearest-rank percentiles over µs samples; returns (p50, p99, tail support
@@ -1515,6 +1518,7 @@ fn eval_engine<const N: usize>(
             tail_support: support,
             extremes: LatencyExtremes::of(&durs_us, 1000.0),
             determinism_ok,
+            durs_us,
         },
     ))
 }
@@ -2217,6 +2221,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
                 tail_support: 0,
                 extremes: None,
                 determinism_ok: None,
+                durs_us: Vec::new(),
             },
         )
     } else {
@@ -4087,8 +4092,12 @@ pub mod seat {
 
     /// A seat evaluation over one case set: per-case answers + per-case
     /// latency percentiles (µs, nearest-rank; tail support disclosed).
+    /// `durs_us` carries the PER-CASE wall times (the hybrid's H1 total
+    /// is reflex + decision, so the consumer needs the vector, not just
+    /// the percentiles).
     pub struct SeatEval {
         pub cases: Vec<Vec<QuestionOut>>,
+        pub durs_us: Vec<u64>,
         pub p50_us: u64,
         pub p99_us: u64,
         pub tail_support: usize,
@@ -4124,6 +4133,7 @@ pub mod seat {
                         .collect()
                 })
                 .collect(),
+            durs_us: lat.durs_us.clone(),
             p50_us: (lat.p50_ms * 1000.0).round() as u64,
             p99_us: (lat.p99_ms * 1000.0).round() as u64,
             tail_support: lat.tail_support,
