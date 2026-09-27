@@ -37,9 +37,22 @@ fn stamp_names_version_and_compiled_set() {
 #[cfg(not(feature = "laya-riir"))]
 #[test]
 fn incomplete_build_prints_stale_naming_the_gap_and_rebuild() {
-    assert_eq!(missing(), vec!["laya-riir"]);
+    // The gap is pinned per posture: the release recipe minus the lane
+    // (default features on) lacks exactly `laya-riir`; a
+    // `--no-default-features` build lacks the engine feature too. The
+    // `cfg!` arm is what keeps the exact-set pin honest at both postures —
+    // assuming `modelless` here is what broke the flag-OFF gate.
+    let expected: &[&str] = if cfg!(feature = "modelless") {
+        &["laya-riir"]
+    } else {
+        &["laya-riir", "modelless"]
+    };
+    assert_eq!(missing(), expected);
     let s = stamp();
-    assert!(s.contains("STALE — missing laya-riir"), "got: {s}");
+    assert!(
+        s.contains(&format!("STALE — missing {}", expected.join(" "))),
+        "got: {s}"
+    );
     assert!(
         s.contains(riir_reflex::build_stamp::rebuild_command().as_str()),
         "got: {s}"

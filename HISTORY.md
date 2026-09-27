@@ -36,7 +36,8 @@ lives in `.issues/` and `.plans/`, never here.
   `incomplete_build_prints_stale_naming_the_gap_and_rebuild` fails at
   `--no-default-features` on clean HEAD too (`missing()` returns
   `["laya-riir", "modelless"]` vs the pinned `["laya-riir"]` — the pin
-  assumes a default-features-minus-laya build); untouched here.
+  assumes a default-features-minus-laya build); FIXED same day (see the
+  09-28 build-stamp pin row below).
 
 - **Issue 050 CLOSED — `nb_ridge` honestly declares its `option_cond` read
   (`a6e04c3`).** The feature table's `nb_ridge = ["nb_scope"]` contradicted
@@ -57,6 +58,24 @@ lives in `.issues/` and `.plans/`, never here.
   explicit `option_cond` (deliberate — the row names the consumer's
   selection set; the feature pull now makes it redundant-but-harmless,
   so no instinct commit rides this fix).
+
+- **The build-stamp pin FIXED for the flag-OFF posture.**
+  `tests/build_stamp.rs::incomplete_build_prints_stale_naming_the_gap_and_rebuild`
+  pinned `missing() == ["laya-riir"]` — true only when the engine's
+  default features are compiled in — so `cargo test
+  --no-default-features` (a tested posture per AGENTS.md) red on the
+  exact-set assert while the STALE-line assert passed (`contains` —
+  `laya-riir` sorts first either way). Repair: the expected gap derives
+  from the posture (`cfg!(feature = "modelless")` → one gap vs both),
+  keeping the exact-set pin at BOTH postures; the STALE-line assert now
+  checks the full rendered gap list. `rebuild_command()` is UNTOUCHED and
+  verified honest at every posture — `cargo build --profile dist
+  --features laya-riir` re-enables the manifest defaults on any
+  invocation (no `--no-default-features` on the command), so it supplies
+  the full release posture including the unstamped default knobs
+  (nb_scope/option_cond/nb_ridge/vessel_public_read). Validated: the
+  build_stamp suite 3/3 at default AND `--no-default-features`; clippy
+  `-D warnings` green at both.
 
 ## 2026-09-27
 
