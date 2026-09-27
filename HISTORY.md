@@ -5,6 +5,28 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-28
+
+- **Issue 050 CLOSED — `nb_ridge` honestly declares its `option_cond` read
+  (`a6e04c3`).** The feature table's `nb_ridge = ["nb_scope"]` contradicted
+  the ridge lane's unconditional `crate::option_cond::OcEvent` plumbing
+  (`ridge_lane::build_ridge_selection`'s `events_for_pool` + the unguarded
+  `oc_events_for` call in `runner.rs`), so the selective consumer posture
+  `--no-default-features --features modelless,nb_scope,nb_ridge` — the
+  exact shape `nb_ridge_probe`'s own `required-features = ["nb_ridge",
+  "option_cond"]` row anticipates — failed E0433 + E0425 (reproduced at
+  HEAD before the fix). Repair: the recommended honest declaration
+  `nb_ridge = ["nb_scope", "option_cond"]` (the two ship together — the
+  measured reality the issue records; the cfg-seam alternative was
+  declined as an `#[cfg]` through the selection signature for no
+  consumer). Validated: the repro posture, ridge-alone
+  (`modelless,nb_ridge` — option_cond now pulled transitively) and the
+  default all compile; clippy `-D warnings` green at the selective
+  posture and default. Consumer note: riir-instinct's dep row KEEPS its
+  explicit `option_cond` (deliberate — the row names the consumer's
+  selection set; the feature pull now makes it redundant-but-harmless,
+  so no instinct commit rides this fix).
+
 ## 2026-09-27
 
 - **Issue 048 CLOSED — T5 discharged: the combined-posture LCB leg is a
