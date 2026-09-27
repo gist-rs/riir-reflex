@@ -66,6 +66,10 @@ use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 /// Issue 038: the count-table lever's selection + the separate transductive column.
 mod nb_lane;
+// The genome internals are consumed only behind `nb_scope`; the mod itself
+// stays compiled in every posture (the `GenomeSelection` type is named
+// unconditionally by the report field + the flag-off None binding).
+#[cfg_attr(not(feature = "nb_scope"), allow(dead_code))]
 mod genome_lane;
 #[cfg(feature = "option_cond")]
 mod oc_lane;
@@ -1352,6 +1356,8 @@ fn specs_from_pool(
     // ignore (selection slices, where the starvation is by construction).
     let mut fallback_labels: Vec<String> = Vec::new();
     for (idx, label) in labels.iter().enumerate() {
+        #[cfg(not(feature = "nb_scope"))]
+        let _ = (idx, &nb_sets);
         let mut docs: Vec<String> = train
             .iter()
             .filter(|d| d.label == *label)
