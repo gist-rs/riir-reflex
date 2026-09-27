@@ -53,10 +53,14 @@ the gate moves).
    escalator is expected to beat the forced modelless picks (a laya-vs-modelless
    delta on the cal slice is protocol-legal selection), and disarm the cascade
    where it reads negative (banking77/massive would disarm; xnli/typed arm).
-4. **Posture-conditional refit** — refit the gate thresholds AFTER the posture is
-   armed on the SAME cal slice, verifying the realized cal abstain is ρ (if the
-   current fit already does this, the lever is void — check the fit order in
-   `run_modelless` first).
+4. ~~**Posture-conditional refit**~~ — **VOID (checked 2026-09-27, the day of
+   filing)**: the fit order in `run_modelless` is already posture-correct —
+   `default_cfg` absorbs the selected head/nb (2188) → oc (2228) → ridge
+   (2250) scales BEFORE the fused-gate probe (2276) builds its engine at
+   `default_cfg.clone()` and fits both thresholds on the cal slice at the
+   FULLY ARMED posture. The ρ=30% target is realized on cal by construction;
+   the 90–99% test-side abstain is a genuine cal→test confidence-geometry
+   shift at the armed postures, not a stale fit. The live levers are 1–3.
 
 ## Acceptance
 
