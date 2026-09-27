@@ -1717,6 +1717,15 @@ struct ModellessInput<'a> {
     /// Issue 042 lever 3: also produce the worthiness probe's modelless
     /// half — the deployed calibrated gate over the suite's CAL slice.
     pub cascade_worthiness: bool,
+    /// Issue 042 lever 1 (`--gate-fit-selection`): fit the fused-gate
+    /// thresholds on the STRATIFIED selection slice instead of the
+    /// train-tail cal slice. Dataset suites only — the synthetic/code
+    /// paths carry no pool envelope and keep the cal-slice fit.
+    pub gate_fit_selection: bool,
+    /// Issue 042 lever 2 (`--gate-distance-only`): disable the fused
+    /// gate's score axis (threshold 0.0) — abstain/escalation runs on the
+    /// corpus-distance axis alone, at its fitted ρ=30% threshold.
+    pub gate_distance_only: bool,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -2143,6 +2152,95 @@ struct FittedPosture {
     threshold_recommendation: FusedGateRecommendation,
 }
 
+/// Issue 042 levers — resolve the fitted recommendation into the deployed
+/// thresholds (pure). Default: both axes' fitted values, the birth
+/// constants as the thin-support fallback (the shipped law, unchanged).
+/// Lever 2 (`distance_only`) pins the score threshold at 0.0 — no
+/// calibrated confidence can fall below it, so the fused gate runs on the
+/// corpus-distance axis alone (the transfer-stable half, Bench 061); the
+/// distance threshold keeps its fitted value and the gate still abstains
+/// ρ≈30% on the fit surface, now entirely through that axis.
+fn resolve_gate_thresholds(
+    rec: &FusedGateRecommendation,
+    fallback: &EngineConfig,
+    distance_only: bool,
+) -> (f32, f32) {
+    let score = rec
+        .score
+        .as_ref()
+        .map_or(fallback.score_threshold, |r| r.threshold);
+    let distance = rec
+        .distance
+        .as_ref()
+        .map_or(fallback.distance_threshold, |r| r.threshold);
+    if distance_only { (0.0, distance) } else { (score, distance) }
+}
+
+#[cfg(test)]
+mod gate_lever_tests {
+    //! Issue 042 levers — the threshold-resolution law (the pure half of
+    //! the lever surface; the slice-selection half is structural and rides
+    //! the acceptance lane run).
+
+    use super::resolve_gate_thresholds;
+    use crate::engine::{
+        recommend_fused_gate, EngineConfig, GateObservation, Posture, THIN_SUPPORT_FLOOR,
+    };
+
+    fn obs(n: usize, base: f32) -> Vec<GateObservation> {
+        (0..n)
+            .map(|i| GateObservation {
+                score: base + i as f32 * 0.01,
+                correct: i % 2 == 0,
+            })
+            .collect()
+    }
+
+    fn fitted_rec() -> crate::engine::FusedGateRecommendation {
+        let rec = recommend_fused_gate(
+            &obs(40, 0.1),
+            &obs(40, 0.2),
+            Posture::Percentile { rho: 0.30 },
+        );
+        assert!(rec.score.is_some() && rec.distance.is_some());
+        rec
+    }
+
+    #[test]
+    fn lever_off_keeps_the_shipped_law() {
+        let rec = fitted_rec();
+        let fallback = EngineConfig::default();
+        let (s, d) = resolve_gate_thresholds(&rec, &fallback, false);
+        assert_eq!(s, rec.score.as_ref().unwrap().threshold);
+        assert_eq!(d, rec.distance.as_ref().unwrap().threshold);
+    }
+
+    #[test]
+    fn distance_only_pins_the_score_axis_to_zero() {
+        let rec = fitted_rec();
+        let fallback = EngineConfig::default();
+        let (s, d) = resolve_gate_thresholds(&rec, &fallback, true);
+        // The score axis can never abstain; the distance axis keeps its
+        // fitted value (the gate still abstains ρ≈30% on the fit surface).
+        assert_eq!(s, 0.0);
+        assert_eq!(d, rec.distance.as_ref().unwrap().threshold);
+    }
+
+    #[test]
+    fn distance_only_overrides_even_the_thin_support_fallback() {
+        let thin = obs(THIN_SUPPORT_FLOOR - 1, 0.1);
+        let rec = recommend_fused_gate(&thin, &thin, Posture::Percentile { rho: 0.30 });
+        assert!(rec.score.is_none() && rec.distance.is_none());
+        let fallback = EngineConfig::default();
+        let (s_off, d_off) = resolve_gate_thresholds(&rec, &fallback, false);
+        assert_eq!(s_off, fallback.score_threshold);
+        assert_eq!(d_off, fallback.distance_threshold);
+        let (s_on, d_on) = resolve_gate_thresholds(&rec, &fallback, true);
+        assert_eq!(s_on, 0.0);
+        assert_eq!(d_on, fallback.distance_threshold);
+    }
+}
+
 fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedPosture, String> {
     let spec = inp.spec;
     // ── Cal-slice cap selection (Issue 013 lever-1 protocol plumb). The
@@ -2339,28 +2437,68 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // percentile (the T1.6 arena posture, target abstain rate ρ = 30%):
     // 30% of in-corpus-distribution questions abstain, the rest pass. The
     // fitted values ride the result row.
+    //
+    // Issue 042 levers 1–2 (opt-in): lever 1 (`--gate-fit-selection`)
+    // moves the observation surface to the STRATIFIED selection slice —
+    // the same held-out instrument the cap/head/nb/genome selections
+    // share — with the probe corpus excluding the fit docs (a fit case
+    // never scores against its own text, so the observed confidence
+    // geometry matches the test side's out-of-corpus rows; the cal-slice
+    // fit is in-sample for the CALIBRATOR, which is fitted on that same
+    // slice — Bench 061's misplacement hypothesis). Lever 2
+    // (`--gate-distance-only`) pins the score threshold at 0.0 after the
+    // fit: the fused gate degenerates to the corpus-distance half — the
+    // axis that held ~31–32% test abstain in every measured posture while
+    // the score axis read 90–99%.
+    let gate_fit_slice = if inp.gate_fit_selection
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        Some(selection_slice(inp, "gate-fit")?)
+    } else {
+        None
+    };
     let (score_threshold, distance_threshold, threshold_recommendation) = {
-        // Issue 039 T2: `train` IS the corpus pool now (the complement of
-        // the stratified cal front — cal rows excluded by construction).
-        let corpus_pool: &[TrainDoc] = inp.train;
+        let fit_pool_storage: Vec<TrainDoc>;
+        let (fit_cases, fit_state_strs, corpus_pool): (&[SuiteCase], &[String], &[TrainDoc]) =
+            match &gate_fit_slice {
+                Some(sel) => {
+                    fit_pool_storage = sel.pool.clone();
+                    (&sel.cases, &sel.state_strs, &fit_pool_storage)
+                }
+                // Issue 039 T2: `train` IS the corpus pool now (the
+                // complement of the stratified cal front — cal rows
+                // excluded by construction).
+                None => (inp.cal_cases, inp.cal_state_strs, inp.train),
+            };
         #[cfg(feature = "option_cond")]
-        let (mut probe, _) = match oc_events_full.as_ref() {
-            Some(ev) => build_engine_oc_with::<N>(
-                spec.name,
-                corpus_pool,
-                inp.labels,
-                effective_cap,
-                default_cfg.clone(),
-                &[],
-                ev,
-            )?,
-            None => build_engine::<N>(
-                spec.name,
-                corpus_pool,
-                inp.labels,
-                effective_cap,
-                default_cfg.clone(),
-            )?,
+        let (mut probe, _) = {
+            // Lever 1 swaps the fit corpus, so the option-conditioned
+            // event table is rebuilt for THAT pool (oc_events_full stays
+            // the deployed builds' table over the full train pool).
+            let sel_events: Option<Vec<crate::option_cond::OcEvent>> =
+                match (&gate_fit_slice, oc_events_full.as_ref()) {
+                    (Some(sel), Some(_)) => Some(oc_events_for(inp.pool_rows, &sel.pool)),
+                    _ => None,
+                };
+            match sel_events.as_ref().or(oc_events_full.as_ref()) {
+                Some(ev) => build_engine_oc_with::<N>(
+                    spec.name,
+                    corpus_pool,
+                    inp.labels,
+                    effective_cap,
+                    default_cfg.clone(),
+                    &[],
+                    ev,
+                )?,
+                None => build_engine::<N>(
+                    spec.name,
+                    corpus_pool,
+                    inp.labels,
+                    effective_cap,
+                    default_cfg.clone(),
+                )?,
+            }
         };
         #[cfg(not(feature = "option_cond"))]
         let (mut probe, _) = build_engine::<N>(
@@ -2371,14 +2509,13 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
             default_cfg.clone(),
         )?;
         let mut sc: Scratch<EMBED_DIM> = Scratch::new();
-        let max_cal_q = inp
-            .cal_cases
+        let max_fit_q = fit_cases
             .iter()
             .map(|c| c.questions.len())
             .max()
             .unwrap_or(1);
-        sc.prepare(max_cal_q);
-        // Labeled cal-slice observations for the threshold-recommendation
+        sc.prepare(max_fit_q);
+        // Labeled fit-slice observations for the threshold-recommendation
         // surface (Issue 009): score axis = the engine readout confidence,
         // distance axis = the corpus-distance gate's abstain confidence;
         // correct = the probe's own pick vs gold on the case's LAST
@@ -2388,8 +2525,8 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // the T2 migration stays byte-identical.
         let mut score_obs: Vec<GateObservation> = Vec::new();
         let mut distance_obs: Vec<GateObservation> = Vec::new();
-        for (ci, case) in inp.cal_cases.iter().enumerate() {
-            let req = engine_request(case, &inp.cal_state_strs[ci])?;
+        for (ci, case) in fit_cases.iter().enumerate() {
+            let req = engine_request(case, &fit_state_strs[ci])?;
             probe
                 .solve_into(&req, &mut sc)
                 .map_err(|e| format!("cal probe ({}, case {ci}): {e}", case.id))?;
@@ -2422,13 +2559,9 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // to the runner's old `quantile` by the migration gate.
         let rec =
             recommend_fused_gate(&score_obs, &distance_obs, Posture::Percentile { rho: 0.30 });
-        (
-            rec.score
-                .map_or(default_cfg.score_threshold, |r| r.threshold),
-            rec.distance
-                .map_or(default_cfg.distance_threshold, |r| r.threshold),
-            rec,
-        )
+        let (score_threshold, distance_threshold) =
+            resolve_gate_thresholds(&rec, &default_cfg, inp.gate_distance_only);
+        (score_threshold, distance_threshold, rec)
     };
 
     Ok(FittedPosture {
@@ -4552,6 +4685,10 @@ pub mod seat {
         let inp = ModellessInput {
             spec,
             cascade_worthiness: false,
+            // The seat keeps the shipped posture: the arena's published
+            // face is the T1.6 cal-slice fused fit, never a lever arm.
+            gate_fit_selection: false,
+            gate_distance_only: false,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -4752,6 +4889,20 @@ pub struct RunOptions {
     /// `(escalator − modelless accuracy on the cal probe set) <` this
     /// value. Default 0.0 — arm only at parity or better.
     pub cascade_worthiness_margin: f64,
+    /// Issue 042 lever 1 (`--gate-fit-selection`): fit the fused-gate
+    /// thresholds on the STRATIFIED selection slice (the shared held-out
+    /// instrument; the probe corpus excludes the fit docs) instead of the
+    /// train-tail cal slice. Dataset suites only (the synthetic/code paths
+    /// keep the cal-slice fit). Default off = the shipped T1.6 posture,
+    /// byte-identical.
+    pub gate_fit_selection: bool,
+    /// Issue 042 lever 2 (`--gate-distance-only`): disable the fused
+    /// gate's score axis (threshold 0.0) — abstain/escalation runs on the
+    /// corpus-distance axis alone, at its fitted ρ=30% threshold. The
+    /// transfer-stable-axis lever (Bench 061: the score axis read 90–99%
+    /// test abstain at the armed postures while the distance axis held
+    /// ~31–32% in every posture). Default off = the shipped fused gate.
+    pub gate_distance_only: bool,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -5063,6 +5214,8 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 genome_accept_margin: opts.genome_accept_margin,
                 leak_flags: leak_flags_ref,
                 cascade_worthiness: opts.cascade_worthiness,
+                gate_fit_selection: opts.gate_fit_selection,
+                gate_distance_only: opts.gate_distance_only,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -5453,14 +5606,27 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                           label, capped per label (registry), self-doc fallback for \
                           labels absent from the fetched train rows"
             .to_string(),
-        calibration_protocol: "sigmoid-gate fit on a train-tail calibration slice (same \
+        calibration_protocol: {
+            let mut p = "sigmoid-gate fit on a train-tail calibration slice (same \
                                builder over the train rows); fused-gate thresholds fitted \
                                per suite at the cal-slice 30th percentile (the T1.6 arena \
                                posture rho=30%; the birth constants do not transfer — \
                                measured: 100% abstain on several suites at defaults); \
                                raw-vs-calibrated readout ECE compared per the G1 gate; \
                                no calibration claim when the calibrator never moved"
-            .to_string(),
+                .to_string();
+            if opts.gate_fit_selection {
+                p.push_str("; --gate-fit-selection: thresholds fitted on the stratified \
+                            selection slice, probe corpus excluding the fit docs \
+                            (issue 042 lever 1)");
+            }
+            if opts.gate_distance_only {
+                p.push_str("; --gate-distance-only: score axis disabled (threshold 0.0), \
+                            the fused gate runs on the corpus-distance axis alone \
+                            (issue 042 lever 2)");
+            }
+            p
+        },
         floor_definition: "conformal-naive floor = split-conformal recalibration of the raw \
                            readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — \
                            the exchangeability-valid baseline (G1 fails unless the \

@@ -12,6 +12,7 @@
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
 //!                                      [--paw-local] [--cascade]
+//!                                      [--gate-fit-selection] [--gate-distance-only]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -84,6 +85,15 @@
 //! picks (`--cascade-worthiness-margin <F64>`, default 0.0). A negative
 //! probe disarms the suite's escalation (disclosed in the row); missing
 //! cal records / thin support stay armed with the named reason.
+//! `--gate-fit-selection` (issue 042 lever 1) fits the fused-gate
+//! thresholds on the STRATIFIED selection slice instead of the train-tail
+//! cal slice — the shared held-out instrument, with the probe corpus
+//! excluding the fit docs so the observed geometry matches the test side.
+//! `--gate-distance-only` (issue 042 lever 2) disables the gate's score
+//! axis (threshold 0.0): abstain/escalation runs on the corpus-distance
+//! axis alone, at its fitted rho=30% threshold — the transfer-stable
+//! axis (Bench 061). Both are gate postures, composable with the cascade
+//! lane; default off = the shipped T1.6 fused fit.
 //! `--e0` (needs `nb_scope`) runs the riir-instinct Issue-005 E0
 //! evidence-density measurement INSTEAD of the lanes: per dataset suite, on
 //! the stratified selection slice, the distribution of seen-token counts
@@ -129,6 +139,8 @@ fn harness_main() {
         cascade: false,
         cascade_worthiness: false,
         cascade_worthiness_margin: 0.0,
+        gate_fit_selection: false,
+        gate_distance_only: false,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -180,6 +192,8 @@ fn harness_main() {
             "--skip-laya" => opts.skip_laya = true,
             "--cascade" => opts.cascade = true,
             "--cascade-worthiness" => opts.cascade_worthiness = true,
+            "--gate-fit-selection" => opts.gate_fit_selection = true,
+            "--gate-distance-only" => opts.gate_distance_only = true,
             "--cascade-worthiness-margin" => {
                 i += 1;
                 opts.cascade_worthiness_margin = args

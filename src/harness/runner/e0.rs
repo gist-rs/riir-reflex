@@ -210,6 +210,9 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
     let inp = ModellessInput {
         spec,
         cascade_worthiness: false,
+        // E0 is a report-only early-exit lane — no gate levers.
+        gate_fit_selection: false,
+        gate_distance_only: false,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,
