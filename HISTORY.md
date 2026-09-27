@@ -7,6 +7,39 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-28
 
+- **Issue 047 CLOSED measured-negative — the xnli M1 reopen executed
+  under its own pre-registration and the head itself is refuted (Bench
+  073).** The full R1–R6 protocol ran on the FRESH validation slice
+  (n=2490, fetched once; the spent test split never loaded):
+  `--nli-m1 --suites xnli_en_val` over a 19,782-item cross-fit pool.
+  Verdict **negative, overdetermined** — (a) λ* = 0 from a
+  contaminated pool ladder (the plan's "NB self-reference is
+  negligible" disclosure FALSIFIED at nb-scale 16: pool OOF A0 read
+  0.9108, self-retrieval), so the run is VOID as an M1-promotion
+  instrument under S2; (b) the salvage-rule numbers carry the negative
+  anyway: head-alone **0.5205 vs A0 0.5410** on validation at 10× the
+  old training size (the 4-feature LDA is data-saturated), oracle
+  win/loss **397/448** (net-negative component → no pick-level mechanism
+  riding it can clear +5 pt), all four promotion legs FAIL; (c) M2's
+  +1.68 pt observation and M3's zero switches close the secondaries.
+  The 068 "+5.67 pt harvest" is resolved as selection artifact, exactly
+  as the 069 review diagnosed. **Instrument finding (R6 payoff): the
+  shipped calibrated readout on xnli is NEAR-BINARY** — 95.5% of items
+  at confidence exactly 0.0, 4.5% at 1.0, zero between, 1,242 right at
+  conf-0 — so the lane's own G1 face (ECE 0.0028 PASS) is the binned-ECE
+  self-removal artifact the review's hole-5 named, and M1's
+  `logit(c_eng)` feature was a constant step function (why S2 fired
+  correctly). Honest xnli confidence work starts from the RAW max-prob
+  surface (continuous, AUROC 0.6542), never the calibrated readout.
+  The gap stands ACCEPTED: xnli −28.2 pt and ag_news −6.8 pt vs laya
+  are closed questions of the 044/047 arc. Lane + instrument remain in
+  the tree report-only; the published test-split row is untouched;
+  a future attempt needs a new slice, fold-engines, and a continuous
+  confidence source — none planned. Record:
+  `.benchmarks/073_nli_m1_validation.md`; pre-registration:
+  `.plans/006_nli_m1_reopen.md` (`6ea4bfbc`, instrument `1e19be7`,
+  pre-read fixes `b8d8f17`/`b8f4ea9`). Removed issue file: this row.
+
 - **Issue 045 reflex half LANDED — `harness_cache_reuse` answers
   modelless, POSITIVE (Bench 072).** The T3 carve-out is reversed on its
   own issue's two premises (text-decidable; no LLM-lane winner to

@@ -1,9 +1,12 @@
 # Plan 006 — Issue 047 M1: the xnli validation-slice reopen lane
 
-**Status:** IN PROGRESS — instrument implementation. The validation read
-happens ONLY after every module gate below is green. This file is the
-pre-registration: the posture, grids, seeds, promotion legs and void
-criteria are FIXED before any validation number exists.
+**Status:** COMPLETE — the read executed 2026-09-28; verdict measured
+NEGATIVE with the run VOID as an M1-promotion instrument (S2 fired on a
+degenerate primary feature; the salvage-rule numbers carry the negative
+independently: head net-negative 397/448, all promotion legs FAIL).
+Full adjudication: `.benchmarks/073_nli_m1_validation.md`. The plan's
+own "NB self-reference is measured-negligible" premise was falsified —
+recorded in the bench's Instrument finding 1.
 
 ## Why
 
