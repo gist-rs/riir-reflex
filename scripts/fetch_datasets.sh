@@ -414,8 +414,13 @@ main() {
     if want_suite xnli_en; then
         log "[suite] xnli_en facebook/xnli config=en split=test cap=300"
         fetch_suite xnli_en "facebook%2Fxnli" en test 300
-        log "[suite] xnli_en config=en split=train cap=4000"
+        log "[suite] xnli_en config=en split=train cap=$TRAIN_CAP"
         fetch_suite xnli_en "facebook%2Fxnli" en train "$TRAIN_CAP"
+        # Issue 047 R1: the M1 reopen lane's confirmation surface — the
+        # full validation split (~2490 rows), fetched once into the SAME
+        # suite dir and read ONCE by `--nli-m1 --suites xnli_en_val`.
+        log "[suite] xnli_en config=en split=validation cap=all (issue 047 confirmation surface)"
+        fetch_suite xnli_en "facebook%2Fxnli" en validation all
     fi
 
     log ""

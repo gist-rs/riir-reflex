@@ -10,6 +10,7 @@
 //!                                      [--ridge-select] [--genome-select]
 //!                                      [--genome-accept-margin F]
 //!                                      [--pair-head-ab] [--nli-feature-ab]
+//!                                      [--nli-m1]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--paw]
 //!                                      [--paw-local] [--cascade]
@@ -174,6 +175,7 @@ fn harness_main() {
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
         nli_feature_ab: false,
+        nli_m1: false,
         head_scale: 0.0,
         head_select: false,
         nb_select: false,
@@ -235,6 +237,7 @@ fn harness_main() {
             }
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--nli-feature-ab" => opts.nli_feature_ab = true,
+            "--nli-m1" => opts.nli_m1 = true,
             "--head-scale" => {
                 i += 1;
                 opts.head_scale = args

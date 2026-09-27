@@ -79,8 +79,12 @@ mod ridge_lane;
 // the mod is compiled in every posture — the record type is named
 // unconditionally by the report field + the flag-off None binding).
 mod nli_lane;
+// Issue 047 M1: the xnli VALIDATION-slice reopen lane (pre-registered by
+// .plans/006_nli_m1_reopen.md; same compile posture as nli_lane).
+mod nli_m1;
 pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
 pub use nli_lane::NliFeatureAb;
+pub use nli_m1::M1Result;
 #[cfg(feature = "option_cond")]
 pub use oc_lane::{OcCandidate, OcSelection};
 #[cfg(feature = "nb_ridge")]
@@ -116,6 +120,14 @@ struct SuiteSpec {
     /// Calibration-slice cap (train rows reused as cases; 0 = none).
     cal_cap: usize,
     corpus_cap_per_label: usize,
+    /// The eval split's file name on disk ("test" everywhere except the
+    /// Issue-047 validation-confirmation suite, which reads `validation`
+    /// and never touches the spent test split — R1).
+    eval_split: &'static str,
+    /// Runs ONLY when named in `--suites` — never a default-run member
+    /// (a 2490-case confirmation slice would tax every default run, and
+    /// its laya seat would be meaningless spend).
+    named_only: bool,
     build: fn(&Value, usize) -> Suite,
     /// Some(build) = in-process synthetic suite (Issue 004): no dataset
     /// files — `prepare` never touches `dir`, the builder self-splits
@@ -138,6 +150,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0, // all 400 — no sampling (protocols §3.1)
         cal_cap: 100,
         corpus_cap_per_label: 48,
+        eval_split: "test",
+        named_only: false,
         build: build_typed_decisions,
         synthetic: None,
         modelless_lane: true,
@@ -147,6 +161,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 400,
         cal_cap: 200,
         corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: false,
         build: build_ag_news,
         synthetic: None,
         modelless_lane: true,
@@ -156,6 +172,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 400,
         cal_cap: 200,
         corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: false,
         build: build_emotion,
         synthetic: None,
         modelless_lane: true,
@@ -165,6 +183,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 600,
         cal_cap: 200,
         corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: false,
         build: build_sst5,
         synthetic: None,
         modelless_lane: true,
@@ -174,6 +194,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0, // all 116
         cal_cap: 100,
         corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: false,
         build: build_prompt_injections,
         synthetic: None,
         modelless_lane: true,
@@ -183,6 +205,23 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 300,
         cal_cap: 200,
         corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: false,
+        build: build_xnli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    // Issue 047 R1: the M1 reopen lane's confirmation surface — the FULL
+    // xnli_en VALIDATION split (~2490 rows), read once, pre-registered by
+    // .plans/006_nli_m1_reopen.md. `named_only` keeps it out of default
+    // runs; the spent 300-item test split is never loaded (eval_split).
+    SuiteSpec {
+        name: "xnli_en_val",
+        test_cap: 0, // all validation rows — no sampling
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "validation",
+        named_only: true,
         build: build_xnli_en,
         synthetic: None,
         modelless_lane: true,
@@ -192,6 +231,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 300,
         cal_cap: 200,
         corpus_cap_per_label: 48,
+        eval_split: "test",
+        named_only: false,
         build: |v, n| build_massive_intent_en(v, n, MASSIVE_OPTION_SEED),
         synthetic: None,
         modelless_lane: true,
@@ -201,6 +242,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 500,
         cal_cap: 200,
         corpus_cap_per_label: 40,
+        eval_split: "test",
+        named_only: false,
         build: build_banking77_mteb,
         synthetic: None,
         modelless_lane: true,
@@ -210,6 +253,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0, // generated with its own gold-programmatic cal slice
         corpus_cap_per_label: usize::MAX, // the builder fixes its own corpus
+        eval_split: "test",
+        named_only: false,
         build: build_code_fixtures, // generated in-process; rows_file unused
         synthetic: None, // legacy in-process path (prepare branch below)
         modelless_lane: true,
@@ -222,6 +267,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_visibility),
         modelless_lane: true,
@@ -231,6 +278,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_permissions),
         modelless_lane: true,
@@ -240,6 +289,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_tool_fit),
         modelless_lane: true,
@@ -249,6 +300,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_routing),
         modelless_lane: true,
@@ -258,6 +311,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_sensitivity),
         modelless_lane: true,
@@ -267,6 +322,8 @@ const SUITES: &[SuiteSpec] = &[
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
         build: synthetic_build_unused,
         // Issue 045: the T3 carve-out is REVERSED — the family is
         // text-decidable ("does the described prefix still cover the
@@ -461,11 +518,11 @@ pub fn load_suite_envelope(
         ));
     }
     let suite_dir = datasets_dir.join(spec.name);
-    let test = load_rows(&suite_dir, "test")?;
+    let eval = load_rows(&suite_dir, spec.eval_split)?;
     let train = load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
     Ok(serde_json::json!({
         "suite": spec.name,
-        "test_rows": test,
+        "test_rows": eval,
         "train_rows": train,
     }))
 }
@@ -578,6 +635,12 @@ pub struct LaneResult {
     /// otherwise, and on the laya lanes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nli_feature_ab: Option<nli_lane::NliFeatureAb>,
+    /// Issue 047 M1: the xnli VALIDATION-slice reopen record
+    /// (`--nli-m1`; pre-registered by .plans/006_nli_m1_reopen.md —
+    /// per-item pick log included, R5). None otherwise, and on the laya
+    /// lanes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nli_m1: Option<nli_m1::M1Result>,
     /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
     /// the same forced-row walk `hard` reads, restricted to the unflagged
     /// cases. None = feature off / suite out of scope / every row flagged
@@ -1694,6 +1757,10 @@ struct ModellessInput<'a> {
     /// Issue 044 T3: run the NLI pair-feature head A/B (report-only;
     /// premise/hypothesis-shaped suites only — a loud skip elsewhere).
     nli_feature_ab: bool,
+    /// Issue 047 M1: run the xnli VALIDATION-slice reopen lane
+    /// (`--nli-m1`; pre-registered by .plans/006_nli_m1_reopen.md — the
+    /// pass itself loud-skips any suite but `xnli_en_val`, R1's guard).
+    nli_m1: bool,
     /// Issue 024 T3: one leak flag per eval case (true = the case has an
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
@@ -3041,6 +3108,36 @@ fn run_modelless<const N: usize>(
         } else {
             None
         },
+        nli_m1: if inp.nli_m1 {
+            // Issue 047 M1: the fit pool (cal front + corpus-excluded
+            // train rest, premise-guarded) is built at the lane's own
+            // corpus law, then read by BOTH deployed engines — the pass
+            // itself never touches an engine.
+            let (pool_cases, n_premise_excluded) =
+                nli_m1::build_pool_cases(&cal_cases, inp.pool_rows, effective_cap)?;
+            let pool_state_strs: Vec<String> = pool_cases
+                .iter()
+                .map(|c| serialize_state(&c.state))
+                .collect();
+            let (pool_raw, _) = eval_engine(&mut raw_engine, &pool_cases, &pool_state_strs, false)?;
+            let (pool_fitted, _) = eval_engine(&mut fitted, &pool_cases, &pool_state_strs, false)?;
+            nli_m1::nli_m1_pass(&nli_m1::M1Inputs {
+                spec_name: spec.name,
+                suite,
+                raw_eval: &raw_eval,
+                cal_eval_test: &cal_eval_test,
+                floor_pairs: &floor_pairs,
+                floor_ece,
+                pool_cases: &pool_cases,
+                pool_raw: &pool_raw,
+                pool_fitted: &pool_fitted,
+                n_premise_excluded,
+                cal_capacity: nli_cal_capacity,
+                cal_min_obs: nli_cal_min_obs,
+            })?
+        } else {
+            None
+        },
     },
         modelless_questions,
     ))
@@ -3563,6 +3660,7 @@ fn assemble_laya_lane_result(
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
         nli_feature_ab: None,
+        nli_m1: None,
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
     }
@@ -4605,7 +4703,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     }
 
     let suite_dir = dir.join(spec.name);
-    let test_rows = load_rows(&suite_dir, "test")?;
+    let eval_rows = load_rows(&suite_dir, spec.eval_split)?;
     // Issue 039 T2: the test sample is a label-STRATIFIED round-robin over
     // the whole split, not the first-N prefix — on label-sorted mirrors the
     // prefix is a label fraction (banking77's 500 first rows spanned 13 of
@@ -4613,8 +4711,8 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     // non-representative slice while the questions still offered every
     // label. Budget 0 (all rows) is the identity split, so uncapped suites
     // never move.
-    let test_split = stratified_split(&test_rows, spec.name, spec.test_cap);
-    let suite = (spec.build)(&test_split.front, 0);
+    let eval_split = stratified_split(&eval_rows, spec.name, spec.test_cap);
+    let suite = (spec.build)(&eval_split.front, 0);
     let train_rows =
         load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
     // The cal slice is stratified by the SAME law, and the corpus pool is
@@ -4697,7 +4795,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     // exactly as numerous as the option keys (pick index ↔ domain index).
     // Noul-only suites present no option keys — exempt (their classes ride
     // the train-doc labels).
-    if matches!(spec.name, "ag_news" | "emotion" | "sst5" | "xnli_en") {
+    if matches!(spec.name, "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val") {
         assert_eq!(
             labels.len(),
             option_key_union.len(),
@@ -4920,6 +5018,7 @@ pub mod seat {
             pool_rows: &s.pool_rows,
             pair_head_ab: false,
             nli_feature_ab: false,
+            nli_m1: false,
             leak_flags: None,
         };
         let fp = super::fit_posture_inner::<N>(&inp)?;
@@ -5182,6 +5281,13 @@ pub struct RunOptions {
     /// (a result-row record, never a gate); premise/hypothesis-shaped
     /// suites only — a loud skip elsewhere. Default off.
     pub nli_feature_ab: bool,
+    /// Issue 047 M1 (`--nli-m1`): run the xnli VALIDATION-slice reopen
+    /// lane — pick/confidence separation with an agreement gate, the
+    /// pre-registered posture of `.plans/006_nli_m1_reopen.md` (R1–R6
+    /// binding; the pass reads `xnli_en_val` ONLY and loud-skips
+    /// everything else, so the spent test split is structurally
+    /// unreachable). Default off.
+    pub nli_m1: bool,
     /// Fitted per-label head blend scale for the modelless lane (issue 030
     /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
     /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
@@ -5318,6 +5424,9 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         if !opts.suites.is_empty() && !opts.suites.iter().any(|s| s == spec.name) {
             continue;
         }
+        if opts.suites.is_empty() && spec.named_only {
+            continue; // named-only suites never tax a default run
+        }
         eprintln!("═══ suite {} ═══", spec.name);
         let prepared = match prepare(spec, &opts.datasets_dir) {
             Ok(p) => p,
@@ -5439,6 +5548,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 pool_rows: &prepared.pool_rows,
                 pair_head_ab: opts.pair_head_ab,
                 nli_feature_ab: opts.nli_feature_ab,
+                nli_m1: opts.nli_m1,
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,

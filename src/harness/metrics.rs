@@ -344,6 +344,94 @@ pub fn brier_of(pairs: &[(f64, bool)]) -> f64 {
         / pairs.len() as f64
 }
 
+/// AUROC of confidence against correctness (issue 047 R6 — the sharpness
+/// companion binned ECE needs beside it): the Mann-Whitney U statistic —
+/// the fraction of (correct, wrong) pairs whose confidence orders
+/// correctly, ties counting ½. 0.5 = no discrimination (a near-constant
+/// confidence at the base rate lands here and GAMES binned ECE); 1.0 =
+/// every correct item outranks every wrong one. O(n log n) by the rank
+/// method over a sorted copy. Empty or single-class input → NaN (no
+/// ordering question exists).
+#[must_use]
+pub fn auroc_of(pairs: &[(f64, bool)]) -> f64 {
+    let n_pos = pairs.iter().filter(|(_, ok)| *ok).count();
+    let n_neg = pairs.len() - n_pos;
+    if n_pos == 0 || n_neg == 0 {
+        return f64::NAN;
+    }
+    // Sort by confidence ascending, carry the label; ranks are 1-based and
+    // ties take their AVERAGE rank (the Mann-Whitney tie law).
+    let mut idx: Vec<usize> = (0..pairs.len()).collect();
+    idx.sort_by(|&a, &b| {
+        pairs[a]
+            .0
+            .partial_cmp(&pairs[b].0)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
+    let mut rank_sum_pos = 0.0_f64;
+    let mut i = 0usize;
+    while i < idx.len() {
+        let mut j = i;
+        while j < idx.len() && pairs[idx[j]].0 == pairs[idx[i]].0 {
+            j += 1;
+        }
+        // items i..j share one confidence → average of ranks i+1..j.
+        let avg_rank = (i + 1 + j) as f64 / 2.0; // Σ(i+1..=j)/count = (i+1+j)/2
+        for &k in &idx[i..j] {
+            if pairs[k].1 {
+                rank_sum_pos += avg_rank;
+            }
+        }
+        i = j;
+    }
+    (rank_sum_pos - n_pos as f64 * (n_pos as f64 + 1.0) / 2.0)
+        / (n_pos as f64 * n_neg as f64)
+}
+
+/// Brier decomposition over the SAME 15-bin edges `ece_of` uses — the
+/// resolution term beside ECE (issue 047 R6):
+/// `Brier = reliability − resolution + uncertainty` where
+/// `uncertainty = p̄(1−p̄)` (the irreducible term at the base rate),
+/// `reliability = Σ (n_b/N)(p̄_b − ȳ_b)²` (binned-in — what ECE measures),
+/// `resolution = Σ (n_b/N)(ȳ_b − p̄)²` (does bin membership predict
+/// outcome at all — a near-constant confidence has ~zero resolution and
+/// passes binned ECE, which is exactly the loophole the companion
+/// exists to close). Returns `(brier, resolution, uncertainty)`.
+#[must_use]
+pub fn brier_resolution_of(pairs: &[(f64, bool)]) -> (f64, f64, f64) {
+    if pairs.is_empty() {
+        return (f64::NAN, f64::NAN, f64::NAN);
+    }
+    let edges = ece_edges();
+    let n = pairs.len() as f64;
+    let base = pairs.iter().filter(|(_, ok)| *ok).count() as f64 / n;
+    let uncertainty = base * (1.0 - base);
+    let mut cnt = [0_usize; 15];
+    let mut conf_sum = [0.0_f64; 15];
+    let mut corr_cnt = [0_usize; 15];
+    for &(conf, correct) in pairs {
+        if let Some(b) = bin_of(conf, &edges) {
+            cnt[b] += 1;
+            conf_sum[b] += conf;
+            if correct {
+                corr_cnt[b] += 1;
+            }
+        }
+    }
+    let mut reliability = 0.0;
+    let mut resolution = 0.0;
+    for b in 0..15 {
+        if cnt[b] > 0 {
+            let w = cnt[b] as f64 / n;
+            let mean_conf = conf_sum[b] / cnt[b] as f64;
+            let mean_acc = corr_cnt[b] as f64 / cnt[b] as f64;
+            reliability += w * (mean_conf - mean_acc) * (mean_conf - mean_acc);
+            resolution += w * (mean_acc - base) * (mean_acc - base);
+        }
+    }
+    (reliability - resolution + uncertainty, resolution, uncertainty)
+}
+
 /// The reference ECE bin edges: `np.linspace(0, 1, 16)` — 15 equal bins.
 /// Interior edges are `i / 15`; a confidence sitting exactly on an interior
 /// edge in exact arithmetic may differ from numpy's `i * (1/15)` by 1 ulp
@@ -596,5 +684,55 @@ mod binary_pairs_metrics_tests {
         let got = brier_of(&[(0.5, true), (0.5, false)]);
         assert!((got - 0.25).abs() < 1e-12);
         assert!(brier_of(&[]).is_nan());
+    }
+
+    #[test]
+    fn auroc_known_answers() {
+        use super::auroc_of;
+        // Perfect separation: every correct item outranks every wrong one.
+        let perfect = [(0.1, false), (0.2, false), (0.8, true), (0.9, true)];
+        assert!((auroc_of(&perfect) - 1.0).abs() < 1e-12);
+        // Anti-separated: every ordering inverted.
+        let inverted = [(0.9, false), (0.8, false), (0.2, true), (0.1, true)];
+        assert!((auroc_of(&inverted) - 0.0).abs() < 1e-12);
+        // Constant confidence → all ties → exactly 0.5 (the ECE-gaming
+        // near-constant surface MUST read here, never at 1.0).
+        let flat = [(0.6, true), (0.6, false), (0.6, true), (0.6, false)];
+        assert!((auroc_of(&flat) - 0.5).abs() < 1e-12);
+        // Chance-level hand case: 1 pos @0.5, 1 neg @0.5, 1 pos @0.9,
+        // 1 neg @0.2 → orderings: (0.9pos beats both negs)=2, (0.5pos vs
+        // 0.2neg)=1, (0.5pos vs 0.5neg)=0.5 → U = 3.5 of 4 → 0.875.
+        let mixed = [(0.5, true), (0.5, false), (0.9, true), (0.2, false)];
+        assert!((auroc_of(&mixed) - 0.875).abs() < 1e-12);
+        // Single-class → NaN (no ordering question exists).
+        assert!(auroc_of(&[(0.5, true), (0.9, true)]).is_nan());
+        assert!(auroc_of(&[]).is_nan());
+    }
+
+    #[test]
+    fn brier_decomposition_known_answers() {
+        use super::{brier_of, brier_resolution_of};
+        // A sharp AND calibrated surface (sigmoid-range confidences — conf
+        // 0.0 falls in no bin per the ece_edges convention, so the exact
+        // 0/1 form is out of the decomposition's domain):
+        // reliability ≈ 1e-6 (binned-in error), resolution = base(1−base)
+        // = 0.25, uncertainty 0.25, and the Murphy identity is exact.
+        let pairs = [(0.999, true), (0.001, false)];
+        let (br, res, unc) = brier_resolution_of(&pairs);
+        assert!((br - brier_of(&pairs)).abs() < 1e-12);
+        assert!((res - 0.25).abs() < 1e-9);
+        assert!((unc - 0.25).abs() < 1e-12);
+        // A constant-confidence surface at the base rate: every item conf
+        // 0.5, half correct. One bin → mean_conf ≈ mean_acc → reliability
+        // ≈ 0 AND resolution ≈ 0 (bin membership predicts nothing) — the
+        // R6 loophole shape, Brier = uncertainty = 0.25.
+        let flat = [(0.5, true), (0.5, false), (0.5, true), (0.5, false)];
+        let (br, res, unc) = brier_resolution_of(&flat);
+        assert!((br - 0.25).abs() < 1e-9);
+        assert!(res.abs() < 1e-9);
+        assert!((unc - 0.25).abs() < 1e-12);
+        // Empty → NaNs (the ece_of convention).
+        let (br, res, unc) = brier_resolution_of(&[]);
+        assert!(br.is_nan() && res.is_nan() && unc.is_nan());
     }
 }

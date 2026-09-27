@@ -233,6 +233,7 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
         pool_rows: &prepared.pool_rows,
         pair_head_ab: false,
         nli_feature_ab: false,
+        nli_m1: false,
         leak_flags: None,
     };
     // The states: the stratified selection slice (the shared cal-side

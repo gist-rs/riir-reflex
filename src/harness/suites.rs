@@ -472,14 +472,14 @@ pub fn build_prompt_injections(rows_file: &Value, max_rows: usize) -> Suite {
 /// matters survives (both lanes of this harness see byte-identical
 /// questions); only the comparison against the recorded Python option
 /// layouts is not reproduced.
-struct SplitMix64(u64);
+pub(crate) struct SplitMix64(pub u64);
 
 impl SplitMix64 {
-    fn new(seed: u64) -> Self {
+    pub(crate) fn new(seed: u64) -> Self {
         Self(seed)
     }
 
-    fn next_u64(&mut self) -> u64 {
+    pub(crate) fn next_u64(&mut self) -> u64 {
         self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
         let mut z = self.0;
         z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
@@ -489,7 +489,7 @@ impl SplitMix64 {
 
     /// Uniform-ish in [0, n) via Lemire's multiply-shift on a 53-bit draw
     /// (unbiased for the option counts here, and fully deterministic).
-    fn below(&mut self, n: usize) -> usize {
+    pub(crate) fn below(&mut self, n: usize) -> usize {
         ((((self.next_u64() >> 11) as u128) * (n as u128)) >> 53) as usize
     }
 }
@@ -1138,7 +1138,7 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
                 })
             })
             .collect(),
-        "xnli_en" => rows
+        "xnli_en" | "xnli_en_val" => rows
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {

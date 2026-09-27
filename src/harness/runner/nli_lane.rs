@@ -228,7 +228,9 @@ pub fn pair_features(premise: &str, hypothesis: &str) -> [f64; FEAT_DIM] {
 }
 
 /// The premise/hypothesis strings of a well-shaped case, else `None`.
-fn pair_state(case: &SuiteCase) -> Option<(String, String)> {
+/// The premise/hypothesis strings of a well-shaped NLI case (`None` = not
+/// pair-shaped — the callers loud-skip whole suites that are not).
+pub(super) fn pair_state(case: &SuiteCase) -> Option<(String, String)> {
     let obj = case.state.as_object()?;
     let premise = obj.get("premise")?.as_str()?.to_string();
     let hypothesis = obj.get("hypothesis")?.as_str()?.to_string();
@@ -237,7 +239,7 @@ fn pair_state(case: &SuiteCase) -> Option<(String, String)> {
 
 /// A case is well-shaped when it carries a premise/hypothesis state and
 /// exactly one Choice question with exactly 3 options (the NLI shape).
-fn well_shaped(case: &SuiteCase) -> bool {
+pub(super) fn well_shaped(case: &SuiteCase) -> bool {
     if case.questions.len() != 1 || case.gold.len() != 1 {
         return false;
     }
@@ -869,9 +871,10 @@ fn argmax(probs: &[f64]) -> usize {
 
 /// The additive blend's first-max pick + max-normalized confidence
 /// (`q ∝ pe + λ·ph`; the same surface the blend G1 triples read). The one
-/// blend arithmetic — the cal ladder, the test read and the constrained
-/// posture all consume it, so a convention change lands once.
-fn blend_pick_conf(pe: &[f64], ph: &[f64; 3], lambda: f64) -> (usize, f64) {
+/// blend arithmetic — the cal ladder, the test read, the constrained
+/// posture AND the issue-047 M1 lane all consume it, so a convention
+/// change lands once.
+pub(super) fn blend_pick_conf(pe: &[f64], ph: &[f64; 3], lambda: f64) -> (usize, f64) {
     let mut best = 0usize;
     let mut best_s = f64::NEG_INFINITY;
     for (k, &pk) in ph.iter().enumerate() {
