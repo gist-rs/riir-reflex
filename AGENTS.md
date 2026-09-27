@@ -255,6 +255,18 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # run reproduced 10/10 at 0.16 BYTE-IDENTICALLY (every probe delta +
 # probe n matches 063@0.16; recorded in the 042 HISTORY row); the flag
 # still overrides (0.0 = arm-at-parity).
+# Issue 046 lever 4 LANDED + VERIFIED (Bench 070, `a6bfec3`):
+# `--cascade-worthiness-lcb <F>` — the support-aware arm leg,
+# `armed = delta ≥ margin || probe_LCB95 ≥ F` (two-proportion,
+# conservative on paired data). The fused family's ag_news/massive tie is
+# SUPPORT-shaped (ag_news n 190 LCB +0.0854 vs massive n 60 +0.0064,
+# sst5 −0.0059 — the three vectors pinned as unit tests); at floor 0.05
+# the preregistered run armed ag_news EXACTLY (+6.75 recovered @ 93%
+# disclosed escalation), sst5+massive stayed modelless-exact, every other
+# row byte-identical to 063@0.16. OPT-IN — defaults, the combined lane's
+# T4′ record, and the recommended lane command unchanged; combined LCB +
+# second repro deferred (046 T5). Honest limit: support-confidence, never
+# a cal→test-shift guarantee.
 # Reopen (b) per-suite cal-fit only if a fixed-bar arm-side row flips on a
 # future lane run. G3: flag-off cascade rows carry no worthiness key
 # (byte-shape identical to 061).

@@ -7,6 +7,38 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 046 CLOSED — the probe-LCB arm leg LANDED and VERIFIED EXACTLY
+  AS PREREGISTERED (Bench 070, lever `a6bfec3`).** The fused probe
+  family's ag_news/massive tie (T3's recorded +6.75 price) is a SUPPORT
+  problem, not a magnitude problem: massive outranks ag_news (+0.1500 vs
+  +0.1316) so no margin arms ag_news without the −3.0 flip, but ag_news
+  carries 3.2× the probe support and its one-sided-95% LCB clears
+  +0.0854 against the flip-prone pair's ≤ +0.0064. Lever 4
+  (`--cascade-worthiness-lcb <F>`, additive, default-off):
+  `armed = delta ≥ margin || probe_LCB95 ≥ floor` — two-proportion,
+  CONSERVATIVE on paired data (SE ≥ McNemar's whenever the reads
+  correlate). Preregistered BEFORE the run in `.issues/046` (rule, floor
+  0.05, predictions, kill criteria) with the three LCB vectors pinned as
+  unit tests; the verification lane then reproduced every prediction:
+  ag_news armed via the LCB leg (+0.0675 @ 93.0% disclosed escalation,
+  cascade 0.9500 == laya's 0.9500), sst5 + massive modelless-EXACT
+  (LCBs −0.0059 / +0.0064 < 0.05), every other row byte-identical to
+  063@0.16, probe deltas byte-identical (G5), and the live LCBs equal the
+  pinned vectors to 4dp. Fused lane armed total +0.394 → +0.4612 at the
+  same flip-safety. Preflight PASSED at launch (load 5.68) but the run
+  banner read 7.25 (sibling mid-run) → latency NOT quotable; accuracy is
+  pick-count, load-immune, and the byte-match to 063 is the load-immunity
+  witness. Posture: OPT-IN — library defaults, the combined lane's T4′
+  record, and the recommended lane command UNCHANGED; the combined LCB
+  leg + second repro deferred (046 T5) under the 042 promotion-trigger
+  discipline. Honest limitation carried verbatim: support-confidence,
+  NEVER a cal→test-shift guarantee — what it prices is the measured flip
+  class. Scope boundary stated: this bench reads the standard lane slices
+  for the escalation question only; issue 047's fresh-slice rule and its
+  A1–A4 ag_news modelless-mechanism work (count-table features) are a
+  different surface. Record: `.benchmarks/070_cascade_probe_lcb.md`;
+  issue removed per the noise-reduction rule.
+
 - **Issue 044 CLOSED — the xnli promotion path measured NEGATIVE (Bench
   069, the G1-constrained NLI blend λ).** The pre-registered reopen path
   068 recorded was executed faithfully: the `--nli-feature-ab` arm grew
