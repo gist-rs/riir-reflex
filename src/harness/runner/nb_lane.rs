@@ -270,6 +270,8 @@ pub(super) fn transductive_pass<const N: usize>(
     cfg: &EngineConfig,
     corpus_pool: &[TrainDoc],
     effective_cap: usize,
+    #[cfg(feature = "option_cond")] oc_events: Option<&[crate::option_cond::OcEvent]>,
+    #[cfg(not(feature = "option_cond"))] _oc_events: (),
 ) -> Result<Option<TransductiveReport>, String> {
     #[cfg(not(feature = "nb_scope"))]
     {
@@ -299,7 +301,31 @@ pub(super) fn transductive_pass<const N: usize>(
         for (score, source) in [(half..n, 0..half), (0..half, half..n)] {
             let extra = pseudo_docs(cases, honest, inp.labels, source);
             n_pseudo += extra.len();
-            let (mut engine, _) = build_engine_with::<N>(
+            // The oc posture (issue 038 T7b) rides unchanged — the
+            // protocol's "posture unchanged" clause — only the nb corpora
+            // gain the pseudo-docs.
+            #[cfg(feature = "option_cond")]
+            let (mut engine, _) = match oc_events {
+                Some(ev) => super::build_engine_oc_with::<N>(
+                    inp.spec.name,
+                    corpus_pool,
+                    inp.labels,
+                    effective_cap,
+                    cfg.clone(),
+                    &extra,
+                    ev,
+                )?,
+                None => super::build_engine_with::<N>(
+                    inp.spec.name,
+                    corpus_pool,
+                    inp.labels,
+                    effective_cap,
+                    cfg.clone(),
+                    &extra,
+                )?,
+            };
+            #[cfg(not(feature = "option_cond"))]
+            let (mut engine, _) = super::build_engine_with::<N>(
                 inp.spec.name,
                 corpus_pool,
                 inp.labels,

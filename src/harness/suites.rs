@@ -812,6 +812,80 @@ pub fn build_typed_decisions(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
+/// The option-conditioned fit events (issue 038 T7b): for every scorable
+/// train question, `(question id, gold option key, raw state string)` —
+/// the same parse rules as [`build_typed_decisions`] (per-question skips;
+/// the row-level workflow filter is deliberately NOT applied: a train row
+/// that never becomes a case is still train data for the tables, which is
+/// exactly what the probe validated). The option spelling is the engine's
+/// own: choice keys verbatim, score levels via the same `Value → String`
+/// rule [`engine_request`](super::runner::engine_request) uses, noul as
+/// the internal `[yes, no]` candidates (gold `true` → `yes`).
+#[cfg(feature = "option_cond")]
+#[must_use]
+pub fn typed_gold_events(rows_file: &Value) -> Vec<(String, String, String)> {
+    let all = rows_of(rows_file);
+    let mut out = Vec::new();
+    for row in &all {
+        let Some(state_raw) = row_str(row, "state") else {
+            continue;
+        };
+        let questions_v = row.get("questions").map(parse_json_string_or_value);
+        let gold_v = row.get("gold").map(parse_json_string_or_value);
+        let (Some(qmap), Some(gmap)) = (
+            questions_v.as_ref().and_then(Value::as_object),
+            gold_v.as_ref().and_then(Value::as_object),
+        ) else {
+            continue;
+        };
+        for (qid, qdef) in qmap {
+            let Some(g) = gmap.get(qid) else {
+                continue;
+            };
+            let Some(kind) = qdef_kind(qdef) else {
+                continue;
+            };
+            let Some(answer) = gold_answer(kind, qdef, g) else {
+                continue;
+            };
+            let option = match kind {
+                QKind::Noul => {
+                    if answer.idx == 1 {
+                        "yes"
+                    } else {
+                        "no"
+                    }
+                    .to_string()
+                }
+                QKind::Choice => {
+                    let Some(crit) = qdef.get("criteria") else {
+                        continue;
+                    };
+                    let Some(keys) = choice_keys(crit) else {
+                        continue;
+                    };
+                    match keys.get(answer.idx) {
+                        Some(k) => k.clone(),
+                        None => continue,
+                    }
+                }
+                QKind::Score => {
+                    let Some(levels) = qdef.get("criteria").and_then(Value::as_array) else {
+                        continue;
+                    };
+                    match levels.get(answer.idx) {
+                        Some(Value::String(s)) => s.clone(),
+                        Some(other) => other.to_string(),
+                        None => continue,
+                    }
+                }
+            };
+            out.push((qid.clone(), option, state_raw.to_string()));
+        }
+    }
+    out
+}
+
 // ── corpus helpers (modelless lane train rows) ──────────────────────────────
 
 /// One train row for the modelless lane's corpus.

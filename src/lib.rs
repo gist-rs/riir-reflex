@@ -89,6 +89,13 @@ pub mod label_heads;
 #[cfg(feature = "nb_scope")]
 pub mod nb_scope;
 
+/// Option-conditioned count tables (issue 038 T7b): one table per
+/// (question id, option key), fitted from the gold events — the typed
+/// suite's state-side signal, which the domain-level tables can never arm
+/// on. Same substrate as [`nb_scope`], default-off behind `oc_scale`.
+#[cfg(feature = "option_cond")]
+pub mod option_cond;
+
 /// The laya native-Rust comparison lane (Plan 603 T1.4) — the riir-owned
 /// forward (opt-in `laya-riir`). MOVED substrate-side (the consolidation
 /// issue's encoder-lane move): the lane lives in the inference substrate's

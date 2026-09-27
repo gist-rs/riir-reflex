@@ -123,6 +123,7 @@ fn harness_main() {
         head_scale: 0.0,
         head_select: false,
         nb_select: false,
+        oc_select: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -166,6 +167,7 @@ fn harness_main() {
             }
             "--head-select" => opts.head_select = true,
             "--nb-select" => opts.nb_select = true,
+            "--oc-select" => opts.oc_select = true,
             "--e0" => e0 = true,
             "--distill" => distill = true,
             #[cfg(feature = "laya-riir")]

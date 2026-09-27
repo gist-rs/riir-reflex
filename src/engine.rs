@@ -46,6 +46,8 @@ use crate::embed::Embedder;
 use crate::label_heads::LabelHeads;
 #[cfg(feature = "nb_scope")]
 use crate::nb_scope::{NbAlpha, NbScope, NbView, view_tokens_into};
+#[cfg(feature = "option_cond")]
+use crate::option_cond::OptionCond;
 use crate::readout;
 use katgpt_core::compression_drafter::Lz4FlexDrafter;
 use katgpt_core::decision_wire::{
@@ -259,6 +261,17 @@ pub struct EngineConfig {
     /// view (last field read against the earlier ones).
     #[cfg(feature = "nb_scope")]
     pub nb_view: NbView,
+    /// Option-conditioned count-table blend scale (issue 038 T7b, opt-in
+    /// `option_cond`). When > 0, the event-carrying constructor
+    /// ([`DecisionEngine::build_specs_oc`]) fits one (qid, option) table
+    /// per gold event group ([`crate::option_cond`]) and every option of
+    /// EVERY question kind gains `oc_scale · σ(margin / n_tokens)` —
+    /// independent of `route_active` (the typed questions this lever
+    /// targets are drafter_only today). Options whose key has no table
+    /// take NO term (never a fabricated neutral). 0.0 = OFF,
+    /// byte-identical to the pre-T7b posture.
+    #[cfg(feature = "option_cond")]
+    pub oc_scale: f32,
     /// Confidence-readout functional (Issue 039 T4). Default is the
     /// shipped Bench-817 dispatch; the harness may arm a per-suite mode
     /// selected on the cal slice (in-sample calibrated ECE, margin over
@@ -347,6 +360,8 @@ impl Default for EngineConfig {
             nb_noul_domain: None,
             #[cfg(feature = "nb_scope")]
             nb_view: NbView::Bag,
+            #[cfg(feature = "option_cond")]
+            oc_scale: 0.0,
             readout: crate::readout::ReadoutMode::Dispatch,
             drafter_fix: DrafterFix::Off,
         }
@@ -426,6 +441,12 @@ pub enum EngineError {
     /// the same fail-closed law as [`EngineError::HeadsNeedCorpora`].
     #[cfg(feature = "nb_scope")]
     NbNeedsCorpora,
+    /// `oc_scale > 0` was set but no (qid, option, doc) events were
+    /// supplied to the event-carrying constructor — the same fail-closed
+    /// law: a scale that silently never fires is the flag-does-nothing bug
+    /// class this engine refuses.
+    #[cfg(feature = "option_cond")]
+    OcNeedsEvents,
 }
 
 impl std::fmt::Display for EngineError {
@@ -449,6 +470,11 @@ impl std::fmt::Display for EngineError {
             Self::NbNeedsCorpora => write!(
                 f,
                 "nb_scale > 0 needs document corpora: use build_specs (the tables read the docs)"
+            ),
+            #[cfg(feature = "option_cond")]
+            Self::OcNeedsEvents => write!(
+                f,
+                "oc_scale > 0 needs (qid, option, doc) events: use build_specs_oc"
             ),
         }
     }
@@ -505,6 +531,11 @@ pub struct Scratch<const D: usize> {
     /// Hashed state tokens for the count tables (issue 038).
     #[cfg(feature = "nb_scope")]
     nb_tok: Vec<u32>,
+    /// Option-conditioned per-option in-scores + terms (issue 038 T7b).
+    #[cfg(feature = "option_cond")]
+    oc_in: Vec<Option<f32>>,
+    #[cfg(feature = "option_cond")]
+    oc_terms: Vec<f32>,
 }
 
 impl<const D: usize> Default for Scratch<D> {
@@ -519,6 +550,10 @@ impl<const D: usize> Default for Scratch<D> {
             scores: Vec::new(),
             #[cfg(feature = "nb_scope")]
             nb_tok: Vec::new(),
+            #[cfg(feature = "option_cond")]
+            oc_in: Vec::new(),
+            #[cfg(feature = "option_cond")]
+            oc_terms: Vec::new(),
         }
     }
 }
@@ -534,6 +569,15 @@ impl<const D: usize> Scratch<D> {
     pub fn prepare(&mut self, n_questions: usize) {
         self.domains.reserve(n_questions);
         self.slots.reserve(n_questions);
+        // The option-conditioned buffers are per-QUESTION (cleared and
+        // refilled per question), so they size to the max arity, not the
+        // question count; 32 covers every suite's option set (one-time
+        // growth, then stable capacity — the G4 law).
+        #[cfg(feature = "option_cond")]
+        {
+            self.oc_in.reserve(32);
+            self.oc_terms.reserve(32);
+        }
         self.reset();
     }
 
@@ -544,6 +588,11 @@ impl<const D: usize> Scratch<D> {
         self.ctx.clear();
         self.cand.clear();
         self.scores.clear();
+        #[cfg(feature = "option_cond")]
+        {
+            self.oc_in.clear();
+            self.oc_terms.clear();
+        }
     }
 }
 
@@ -563,6 +612,11 @@ pub struct DecisionEngine<const N: usize, const D: usize> {
     /// the build had corpora (`build_specs`); `build` refuses otherwise.
     #[cfg(feature = "nb_scope")]
     nb: Option<NbScope>,
+    /// Option-conditioned tables (issue 038 T7b) — `Some` exactly when
+    /// `oc_scale > 0` and the build had events (`build_specs_oc`); every
+    /// other path leaves it `None`.
+    #[cfg(feature = "option_cond")]
+    oc: Option<OptionCond>,
 }
 
 impl<const N: usize, const D: usize> DecisionEngine<N, D> {
@@ -582,6 +636,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         #[cfg(feature = "nb_scope")]
         if cfg.nb_scale > 0.0 {
             return Err(EngineError::NbNeedsCorpora);
+        }
+        #[cfg(feature = "option_cond")]
+        if cfg.oc_scale > 0.0 {
+            return Err(EngineError::OcNeedsEvents);
         }
         Self::build_with_heads(specs, cfg, None)
     }
@@ -607,6 +665,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             heads,
             #[cfg(feature = "nb_scope")]
             nb: None,
+            #[cfg(feature = "option_cond")]
+            oc: None,
         })
     }
 
@@ -615,6 +675,31 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
     /// wrong domain counts and empty corpora — fail-closed before any
     /// request is ever served.
     pub fn build_specs(specs: Vec<ExpertSpec>, cfg: EngineConfig) -> Result<Self, EngineError> {
+        Self::build_specs_impl(specs, cfg, &[])
+    }
+
+    /// [`DecisionEngine::build_specs`] plus the option-conditioned events
+    /// (issue 038 T7b): when `oc_scale > 0`, one (qid, option) contrastive
+    /// table per gold event group is fitted and every option of every
+    /// question kind gains the blend term. An armed scale with EMPTY
+    /// events refuses (fail-closed); an unarmed scale ignores the events
+    /// entirely (byte-identical build).
+    #[cfg(feature = "option_cond")]
+    pub fn build_specs_oc(
+        specs: Vec<ExpertSpec>,
+        cfg: EngineConfig,
+        events: &[crate::option_cond::OcEvent],
+    ) -> Result<Self, EngineError> {
+        Self::build_specs_impl(specs, cfg, events)
+    }
+
+    /// The shared build tail of the spec constructors.
+    fn build_specs_impl(
+        specs: Vec<ExpertSpec>,
+        cfg: EngineConfig,
+        #[cfg(feature = "option_cond")] oc_events: &[crate::option_cond::OcEvent],
+        #[cfg(not(feature = "option_cond"))] _oc_events: &[()],
+    ) -> Result<Self, EngineError> {
         if specs.len() != N {
             return Err(EngineError::DomainCount {
                 have: specs.len(),
@@ -633,6 +718,15 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 .collect();
             NbScope::fit(&sets, cfg.nb_alpha, cfg.nb_view)
         });
+        #[cfg(feature = "option_cond")]
+        let oc = if cfg.oc_scale > 0.0 {
+            if oc_events.is_empty() {
+                return Err(EngineError::OcNeedsEvents);
+            }
+            Some(OptionCond::fit(oc_events, cfg.nb_alpha, cfg.nb_view))
+        } else {
+            None
+        };
         for (i, s) in specs.into_iter().enumerate() {
             if s.docs.is_empty() {
                 return Err(EngineError::EmptyCorpus { domain: i });
@@ -655,6 +749,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         #[cfg(feature = "nb_scope")]
         {
             engine.nb = nb;
+        }
+        #[cfg(feature = "option_cond")]
+        {
+            engine.oc = oc;
         }
         Ok(engine)
     }
@@ -820,6 +918,45 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 }
                 _ => None,
             };
+            // Option-conditioned terms (issue 038 T7b): keyed by the
+            // question id + the option's own string, armed for EVERY
+            // question kind — the typed questions this lever targets are
+            // drafter_only (route-geometry terms never reach them). A key
+            // with no table contributes no term (a 0.0 add — bit-identical
+            // to absent).
+            #[cfg(feature = "option_cond")]
+            let oc_present = self.oc.is_some();
+            #[cfg(feature = "option_cond")]
+            if let Some(oc) = self.oc.as_ref() {
+                view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
+                let n_tok = sc.nb_tok.len();
+                sc.oc_in.clear();
+                for i in 0..k {
+                    let opt: &str = if matches!(q.kind, QuestionKind::Noul) {
+                        if i == 0 {
+                            "yes"
+                        } else {
+                            "no"
+                        }
+                    } else {
+                        q.options[i].as_str()
+                    };
+                    sc.oc_in.push(oc.in_score(q.id.as_str(), opt, &sc.nb_tok));
+                }
+                sc.oc_terms.clear();
+                for (i, slot) in sc.oc_in.iter().enumerate() {
+                    let term = match slot {
+                        Some(s) => crate::option_cond::oc_blend_term(
+                            *s,
+                            crate::option_cond::best_other(&sc.oc_in, i),
+                            n_tok,
+                            self.cfg.oc_scale,
+                        ),
+                        None => 0.0,
+                    };
+                    sc.oc_terms.push(term);
+                }
+            }
             sc.scores.clear();
             // Each option's route term is its RESOLVED domain's cosine
             // (`opt_dom`: by name, or the identity map under the legacy
@@ -904,6 +1041,13 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 #[cfg(feature = "nb_scope")]
                 if let Some((yes, no)) = noul_nb {
                     score += if i == 0 { yes } else { no };
+                }
+                // Option-conditioned term (issue 038 T7b): present ⇒ the
+                // per-option terms were computed for this question; a
+                // missing key already folded to the no-op 0.0.
+                #[cfg(feature = "option_cond")]
+                if oc_present {
+                    score += sc.oc_terms[i];
                 }
                 sc.scores.push(score);
             }

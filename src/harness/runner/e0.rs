@@ -220,6 +220,7 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
         head_scale: 0.0,
         head_select: false,
         nb_select: false,
+        oc_select: false,
         cap_source_base: "registry",
         cal_select_caps: &[],
         pool_rows: &prepared.pool_rows,

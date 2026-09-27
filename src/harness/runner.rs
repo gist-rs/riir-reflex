@@ -45,6 +45,8 @@ use crate::engine::{
     Scratch, recommend_fused_gate,
 };
 use crate::harness::families::SynthData;
+#[cfg(feature = "option_cond")]
+use crate::harness::suites::typed_gold_events;
 use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
 use crate::harness::metrics::{
     CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, conformal_naive_floor, confusion_top,
@@ -64,7 +66,11 @@ use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 /// Issue 038: the count-table lever's selection + the separate transductive column.
 mod nb_lane;
+#[cfg(feature = "option_cond")]
+mod oc_lane;
 pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
+#[cfg(feature = "option_cond")]
+pub use oc_lane::{OcCandidate, OcSelection};
 
 /// Issue 005 (riir-instinct) E0 — the count-table evidence-density
 /// measurement (T1, reflex-only). Lives beside [`nb_lane`] as a child
@@ -574,6 +580,11 @@ pub struct LaneResult {
     /// The cal-selected count-table posture (issue 038, `--nb-select`).
     /// None = no selection ran (flag off / ineligible suite / laya lanes).
     pub nb_selection: Option<NbSelection>,
+    /// The cal-selected option-conditioned posture (issue 038 T7b,
+    /// `--oc-select`). None = no selection ran (flag off / ineligible
+    /// suite / the feature is compiled out).
+    #[cfg(feature = "option_cond")]
+    pub oc_selection: Option<oc_lane::OcSelection>,
     /// The TRANSDUCTIVE column (issue 038): a different protocol, published
     /// beside `hard.accuracy`, never inside it. None unless the count
     /// tables are armed on this row.
@@ -1139,6 +1150,10 @@ pub struct RunMeta {
     pub head_posture: String,
     /// Issue 038 count-table posture + the transductive-column protocol.
     pub nb_posture: String,
+    /// Issue 038 T7b option-conditioned posture (when `--oc-select` ran).
+    #[cfg(feature = "option_cond")]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub oc_posture: String,
     pub divergences: Vec<String>,
 }
 
@@ -1246,15 +1261,26 @@ fn build_engine_with<const N: usize>(
 ) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
     #[cfg(not(feature = "nb_scope"))]
     let _ = extra_nb;
-    assert_eq!(
-        labels.len(),
-        N,
-        "suite {suite}: {N} domains armed but the option universe has {} labels",
-        labels.len()
-    );
     #[cfg(feature = "nb_scope")]
     let nb_sets = (cfg.nb_scale > 0.0).then(|| nb_doc_sets(train, labels, extra_nb));
-    let mut specs: Vec<ExpertSpec> = Vec::with_capacity(N);
+    #[cfg(not(feature = "nb_scope"))]
+    let nb_sets = None;
+    let (specs, fallback_labels) = specs_from_pool(train, labels, cap_per_label, nb_sets);
+    DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
+        .map(|e| (e, fallback_labels))
+        .map_err(|e| format!("engine build ({suite}): {e}"))
+}
+
+/// The shared per-label spec construction (domain corpora + the wider
+/// count-table sets) + the Issue-039 self-doc fallback disclosure. One body
+/// for both the plain and the option-conditioned build paths.
+fn specs_from_pool(
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    nb_sets: Option<Vec<Vec<String>>>,
+) -> (Vec<ExpertSpec>, Vec<String>) {
+    let mut specs: Vec<ExpertSpec> = Vec::with_capacity(labels.len());
     // Issue 039 T3: labels whose corpus is ONLY the self-doc fallback — the
     // build-time signal that the fetched train rows do not cover the label
     // universe (a truncated/label-sorted pull) or that a sub-pool build
@@ -1283,9 +1309,31 @@ fn build_engine_with<const N: usize>(
         if let Some(sets) = nb_sets.as_ref() {
             spec = spec.with_nb_docs(sets[idx].clone());
         }
+        #[cfg(not(feature = "nb_scope"))]
+        let _ = &mut spec;
         specs.push(spec);
     }
-    DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
+    (specs, fallback_labels)
+}
+
+/// [`build_engine_with`] plus the option-conditioned events (issue 038
+/// T7b): non-empty events route the build through `build_specs_oc`, which
+/// fits the (qid, option) tables when `oc_scale > 0` (and refuses an armed
+/// scale with empty events — the fail-closed law).
+#[cfg(feature = "option_cond")]
+#[allow(clippy::too_many_arguments)]
+fn build_engine_oc_with<const N: usize>(
+    suite: &str,
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    cfg: EngineConfig,
+    extra_nb: &[TrainDoc],
+    oc_events: &[crate::option_cond::OcEvent],
+) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
+    let nb_sets = (cfg.nb_scale > 0.0).then(|| nb_doc_sets(train, labels, extra_nb));
+    let (specs, fallback_labels) = specs_from_pool(train, labels, cap_per_label, nb_sets);
+    DecisionEngine::<N, EMBED_DIM>::build_specs_oc(specs, cfg, oc_events)
         .map(|e| (e, fallback_labels))
         .map_err(|e| format!("engine build ({suite}): {e}"))
 }
@@ -1567,6 +1615,9 @@ struct ModellessInput<'a> {
     /// Cal-slice count-table selection (issue 038, `--nb-select`).
     #[cfg_attr(not(feature = "nb_scope"), allow(dead_code))]
     nb_select: bool,
+    /// Cal-slice option-conditioned selection (issue 038 T7b, `--oc-select`).
+    #[cfg_attr(not(feature = "option_cond"), allow(dead_code))]
+    oc_select: bool,
     /// The cap's base source when no cal-slice selection ran
     /// ("registry" or "--corpus-cap override").
     cap_source_base: &'static str,
@@ -1725,6 +1776,24 @@ struct SelSlice {
     pool: Vec<TrainDoc>,
 }
 
+/// The option-conditioned gold events for a corpus pool (issue 038 T7b):
+/// the suite's train-row events filtered to the pool's own texts, so a
+/// selection slice (or a cal-front complement) never scores against its
+/// own text — the shared selection-slice law, applied at the event level.
+#[cfg(feature = "option_cond")]
+fn oc_events_for(
+    pool_rows: &Value,
+    pool: &[TrainDoc],
+) -> Vec<crate::option_cond::OcEvent> {
+    let texts: std::collections::HashSet<&str> =
+        pool.iter().map(|d| d.text.as_str()).collect();
+    typed_gold_events(pool_rows)
+        .into_iter()
+        .filter(|(_, _, state)| texts.contains(state.as_str()))
+        .map(|(qid, option, doc)| crate::option_cond::OcEvent { qid, option, doc })
+        .collect()
+}
+
 fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, String> {
     let spec = inp.spec;
     // Issue 039 T2: pool-envelope input, pool_from = 0 (see
@@ -1878,6 +1947,7 @@ const READOUT_MIN_CAL_PAIRS: usize = 32;
 /// recovered from that eval and only the confidence scalar is recomputed
 /// per mode. `None` = thin cal (below [`READOUT_MIN_CAL_PAIRS`]) — nothing
 /// to report.
+#[allow(clippy::too_many_arguments)]
 fn readout_report_on_cal<const N: usize>(
     suite: &str,
     cal_cases: &[SuiteCase],
@@ -1886,6 +1956,8 @@ fn readout_report_on_cal<const N: usize>(
     labels: &[String],
     cap: usize,
     cfg: &EngineConfig,
+    #[cfg(feature = "option_cond")] oc_events: Option<&[crate::option_cond::OcEvent]>,
+    #[cfg(not(feature = "option_cond"))] _oc_events: (),
 ) -> Result<Option<ReadoutReport>, String> {
     let n_pairs: usize = cal_cases.iter().map(|c| c.questions.len()).sum();
     if n_pairs < READOUT_MIN_CAL_PAIRS {
@@ -1899,6 +1971,12 @@ fn readout_report_on_cal<const N: usize>(
     // Probs + picks are mode-independent — one cal eval. The engine is
     // built at the caller's posture (heads/nb resolved); its own readout
     // field is irrelevant here (only probs/picks are read back).
+    #[cfg(feature = "option_cond")]
+    let (mut engine, _) = match oc_events {
+        Some(ev) => build_engine_oc_with::<N>(suite, corpus_pool, labels, cap, cfg.clone(), &[], ev)?,
+        None => build_engine::<N>(suite, corpus_pool, labels, cap, cfg.clone())?,
+    };
+    #[cfg(not(feature = "option_cond"))]
     let (mut engine, _) = build_engine::<N>(suite, corpus_pool, labels, cap, cfg.clone())?;
     let (ev, _) = eval_engine(&mut engine, cal_cases, cal_state_strs, false)?;
     let mut rows = Vec::with_capacity(candidates.len());
@@ -1974,6 +2052,8 @@ struct FittedPosture {
     selection: Option<CapSelection>,
     head_selected: Option<HeadScaleSelection>,
     nb_selected: Option<NbSelection>,
+    #[cfg(feature = "option_cond")]
+    oc_selected: Option<oc_lane::OcSelection>,
     default_cfg: EngineConfig,
     score_threshold: f32,
     distance_threshold: f32,
@@ -2047,6 +2127,44 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         default_cfg.nb_noul_domain = sel.selected_noul_domain;
         default_cfg.nb_view = nb_lane::view_of(sel.selected_view);
     }
+    #[cfg(not(feature = "nb_scope"))]
+    let _ = &mut default_cfg;
+    // ── Option-conditioned selection (issue 038 T7b): same slice, same
+    // promotion bar, at the selected cap + head + nb posture; test read
+    // once. Events filter to the corpus pool's texts (the selection cases
+    // never score against their own text).
+    #[cfg(feature = "option_cond")]
+    let oc_selected = if inp.oc_select
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        Some(oc_lane::build_oc_selection::<N>(
+            inp,
+            effective_cap,
+            selected_scale,
+            &default_cfg,
+            |pool| oc_events_for(inp.pool_rows, pool),
+        )?)
+    } else {
+        None
+    };
+    #[cfg(feature = "option_cond")]
+    if let Some(sel) = &oc_selected {
+        default_cfg.oc_scale = sel.selected_scale;
+    }
+    #[cfg(not(feature = "option_cond"))]
+    let _ = inp.oc_select;
+    // The full-pool events (corpus pool = the complement of the cal front),
+    // needed by EVERY build made at the selected posture (the threshold
+    // probe here, the three run_modelless builds, the readout report and
+    // the transductive pass). None when the lever never arms — every build
+    // path stays the plain one.
+    #[cfg(feature = "option_cond")]
+    let oc_events_full: Option<Vec<crate::option_cond::OcEvent>> =
+        (default_cfg.oc_scale > 0.0).then(|| oc_events_for(inp.pool_rows, inp.train));
+    #[cfg(not(feature = "option_cond"))]
+    let oc_events_full: Option<std::convert::Infallible> = None;
+    let _ = &oc_events_full;
 
     // ── Fused-gate threshold fitting (the engine's own law: thresholds from
     // measured geometry, never magic numbers). The birth constants (0.35 /
@@ -2060,6 +2178,26 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // Issue 039 T2: `train` IS the corpus pool now (the complement of
         // the stratified cal front — cal rows excluded by construction).
         let corpus_pool: &[TrainDoc] = inp.train;
+        #[cfg(feature = "option_cond")]
+        let (mut probe, _) = match oc_events_full.as_ref() {
+            Some(ev) => build_engine_oc_with::<N>(
+                spec.name,
+                corpus_pool,
+                inp.labels,
+                effective_cap,
+                default_cfg.clone(),
+                &[],
+                ev,
+            )?,
+            None => build_engine::<N>(
+                spec.name,
+                corpus_pool,
+                inp.labels,
+                effective_cap,
+                default_cfg.clone(),
+            )?,
+        };
+        #[cfg(not(feature = "option_cond"))]
         let (mut probe, _) = build_engine::<N>(
             spec.name,
             corpus_pool,
@@ -2133,6 +2271,8 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         selection,
         head_selected,
         nb_selected,
+        #[cfg(feature = "option_cond")]
+        oc_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
@@ -2157,11 +2297,22 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         selection,
         head_selected,
         nb_selected,
+        #[cfg(feature = "option_cond")]
+        oc_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
         threshold_recommendation,
     } = fit_posture_inner::<N>(inp)?;
+
+    // The event-aware build path (issue 038 T7b): when the lever armed,
+    // every engine built from here on (readout report included) carries the
+    // (qid, option) tables. None → the plain path, byte-identical.
+    #[cfg(feature = "option_cond")]
+    let oc_events_full: Option<Vec<crate::option_cond::OcEvent>> =
+        (default_cfg.oc_scale > 0.0).then(|| oc_events_for(inp.pool_rows, train));
+    #[cfg(not(feature = "option_cond"))]
+    let oc_events_full: Option<std::convert::Infallible> = None;
 
     // ── Confidence-readout CANDIDATE report (Issue 039 T4, REPORT-ONLY —
     // the arming lever was DEMOTED at Bench 052: on the wide suites it
@@ -2183,6 +2334,10 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
             labels,
             effective_cap,
             &default_cfg,
+            #[cfg(feature = "option_cond")]
+            oc_events_full.as_deref(),
+            #[cfg(not(feature = "option_cond"))]
+            (),
         )?
     };
     let cfg = EngineConfig {
@@ -2191,12 +2346,32 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         ..default_cfg
     };
 
+    // The event-aware build path (issue 038 T7b): when the lever armed,
+    // every engine built from here on carries the (qid, option) tables.
+    // None → the plain path, byte-identical.
+    let corpus_pool: &[TrainDoc] = train;
+    let build_at_posture = |cfg: EngineConfig| -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
+        #[cfg(feature = "option_cond")]
+        if let Some(ev) = oc_events_full.as_ref() {
+            return build_engine_oc_with::<N>(
+                spec.name,
+                corpus_pool,
+                labels,
+                effective_cap,
+                cfg,
+                &[],
+                ev,
+            );
+        }
+        #[cfg(not(feature = "option_cond"))]
+        let _ = &oc_events_full;
+        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)
+    };
+
     // Corpus corpora: eval-cap docs per label, from the SAME pool the
     // thresholds were fitted on (the complement of the stratified cal
     // front — cal rows excluded by construction, Issue 039 T2).
-    let corpus_pool: &[TrainDoc] = train;
-    let (mut raw_engine, corpus_fallbacks) =
-        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
+    let (mut raw_engine, corpus_fallbacks) = build_at_posture(cfg.clone())?;
     if !corpus_fallbacks.is_empty() {
         eprintln!(
             "  [issue-039 corpus guard] {}: {} option label(s) with NO train docs in the \
@@ -2208,8 +2383,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
     }
 
     // Calibration pairs from a RAW (uncalibrated) engine over the cal slice.
-    let (mut cal_engine, _) =
-        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg.clone())?;
+    let (mut cal_engine, _) = build_at_posture(cfg.clone())?;
     let cal_cases: Vec<SuiteCase> = if cal_cases.is_empty() {
         Vec::new()
     } else {
@@ -2251,7 +2425,7 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
 
     // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
     let fitted_cfg_for_transductive = cfg.clone();
-    let (mut fitted, _) = build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)?;
+    let (mut fitted, _) = build_at_posture(cfg)?;
     let mut moved = false;
     for p in &cal_pairs {
         moved |= fitted.observe(p.conf as f32, p.correct);
@@ -2410,6 +2584,10 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         &fitted_cfg_for_transductive,
         corpus_pool,
         effective_cap,
+        #[cfg(feature = "option_cond")]
+        oc_events_full.as_deref(),
+        #[cfg(not(feature = "option_cond"))]
+        (),
     )?;
 
     let cap_source = if selection.is_some() {
@@ -2458,6 +2636,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         }),
         head_selection: head_selected,
         nb_selection: nb_selected,
+        #[cfg(feature = "option_cond")]
+        oc_selection: oc_selected,
         transductive,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
         pair_head_ab: if inp.pair_head_ab {
@@ -2907,6 +3087,8 @@ fn assemble_laya_lane_result(
         corpus_cap: None, // the laya lanes have no corpus
         head_selection: None, // no fitted heads on the laya lanes
         nb_selection: None,
+        #[cfg(feature = "option_cond")]
+        oc_selection: None,
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
@@ -4025,6 +4207,13 @@ pub mod seat {
     pub struct PostureKnobs {
         pub head_select: bool,
         pub nb_select: bool,
+        /// Option-conditioned selection (issue 038 T7b). Needs the
+        /// `option_cond` feature; a knob set without it is a silent no-op
+        /// at the seat level — the HARNESS level refuses loud (the CLI
+        /// flag), so seat callers on a feature-less build get the baseline
+        /// posture by construction.
+        #[cfg(feature = "option_cond")]
+        pub oc_select: bool,
         pub cal_select_caps: Vec<usize>,
     }
 
@@ -4039,6 +4228,8 @@ pub mod seat {
         pub threshold_recommendation: FusedGateRecommendation,
         pub head_selection: Option<HeadScaleSelection>,
         pub nb_selection: Option<NbSelection>,
+        #[cfg(feature = "option_cond")]
+        pub oc_selection: Option<super::oc_lane::OcSelection>,
         pub cap_candidates: Option<Vec<CapCandidate>>,
     }
 
@@ -4067,6 +4258,10 @@ pub mod seat {
             head_scale: 0.0,
             head_select: knobs.head_select,
             nb_select: knobs.nb_select,
+            #[cfg(feature = "option_cond")]
+            oc_select: knobs.oc_select,
+            #[cfg(not(feature = "option_cond"))]
+            oc_select: false,
             cap_source_base: "registry",
             cal_select_caps: &knobs.cal_select_caps,
             pool_rows: &s.pool_rows,
@@ -4086,6 +4281,8 @@ pub mod seat {
             threshold_recommendation: fp.threshold_recommendation,
             head_selection: fp.head_selected,
             nb_selection: fp.nb_selected,
+            #[cfg(feature = "option_cond")]
+            oc_selection: fp.oc_selected,
             cap_candidates: fp.selection.map(|c| c.rows),
         })
     }
@@ -4099,6 +4296,24 @@ pub mod seat {
         cap: usize,
         cfg: EngineConfig,
     ) -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
+        // An armed option-conditioned posture (issue 038 T7b) needs the
+        // (qid, option) events — derived from the same pool rows the
+        // harness feeds, filtered to the seat's own corpus pool.
+        #[cfg(feature = "option_cond")]
+        if cfg.oc_scale > 0.0 {
+            let events = super::oc_events_for(&s.pool_rows, &s.train);
+            return super::build_engine_oc_with::<N>(
+                name,
+                &s.train,
+                &s.labels,
+                cap,
+                cfg,
+                &[],
+                &events,
+            );
+        }
+        #[cfg(not(feature = "option_cond"))]
+        let _ = name;
         super::build_engine::<N>(name, &s.train, &s.labels, cap, cfg)
     }
 
@@ -4268,6 +4483,12 @@ pub struct RunOptions {
     /// tables end up armed. Needs the `nb_scope` feature (a loud error
     /// without it, never a silent no-op).
     pub nb_select: bool,
+    /// Cal-slice option-conditioned selection (issue 038 T7b;
+    /// `--oc-select`): per eligible dataset suite, the (qid, option) table
+    /// scale selected on the stratified selection slice under the heads'
+    /// promotion bar, test read once. Needs the `option_cond` feature (a
+    /// loud error without it, never a silent no-op). Default off.
+    pub oc_select: bool,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -4433,6 +4654,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,
+                oc_select: opts.oc_select,
                 leak_flags: leak_flags_ref,
             };
             macro_rules! dispatch {
@@ -4833,6 +5055,16 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             )
         } else {
             "OFF (nb_scale 0 — the published baseline posture)".to_string()
+        },
+        #[cfg(feature = "option_cond")]
+        oc_posture: if opts.oc_select {
+            "ON — cal-selected per suite (scale 0/0.25/0.5/1/2, promotion bar +5 pt over off \
+             on the stratified slice; one contrastive table per (question id, gold option) \
+             from the TRAIN rows, events filtered to the corpus pool; every question kind \
+             armed — typed_decisions is the target suite)"
+                .to_string()
+        } else {
+            String::new()
         },
         sampling_protocol: "test sample = label-STRATIFIED round-robin over the whole test \
                             split (budget = the registry test cap; first-appearance label \

@@ -577,7 +577,7 @@ fn main() {
                 // The drafter-fix posture is part of the row's identity.
                 if fix != DrafterFix::Off && run.name.starts_with("reflex · modelless") {
                     run.name = format!("reflex · modelless [{}", fix.as_str());
-                    run.name.push_str("]");
+                    run.name.push(']');
                     run.detail = format!("{} + drafter_fix {}", run.detail, fix.as_str());
                 }
                 eprintln!("  [{lane}] {} rows in {:.1}s", run.rows.len(), t0.elapsed().as_secs_f64());

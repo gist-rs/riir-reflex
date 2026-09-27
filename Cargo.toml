@@ -68,6 +68,13 @@ modelless = [
 # caller — or the harness's `--nb-select` arena protocol — arms it (the
 # Issue 030 heads precedent).
 nb_scope = ["modelless", "katgpt-core/contrastive_scope"]
+# Issue 038 T7b: option-conditioned count tables — one table per (question
+# id, option key), fitted from gold events; the typed suite's state-side
+# signal, which the domain-level tables can never arm on (k != N on every
+# question shape there). Same substrate as `nb_scope`, default-off behind
+# the engine's `oc_scale` knob (byte-identical at 0 — the Issue-030 heads
+# / 038 nb_scope promotion discipline).
+option_cond = ["nb_scope"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane
