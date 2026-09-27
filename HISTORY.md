@@ -7,6 +7,37 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-28
 
+- **Issue 045 reflex half LANDED — `harness_cache_reuse` answers
+  modelless, POSITIVE (Bench 072).** The T3 carve-out is reversed on its
+  own issue's two premises (text-decidable; no LLM-lane winner to
+  protect at 0.5000): the family ships the authored per-class corpus
+  (12 docs) + cal front (20 cases) it always lacked, `modelless_lane:
+  true`, and the noul count-table polarity (issue 038) is the lever —
+  cal-selected, never fixed: yes→domain 1 arms at +25 pt over off on the
+  cal front (polarity-0 reads 0.2500, inverted), and the single test
+  read lands **0.9167 (11/12)** vs the LLM lane's 0.5000 — the suite
+  flips. G2 p50 0.009 ms; bit-identical across three runs. Two enabling
+  changes worth naming: `selection_slice` gained the synthetic fallback
+  (no pool rows → the authored cal front is the labelled selection
+  slice; before this, ANY select knob on ANY synthetic suite errored
+  "empty stratified slice"), and NB-selection eligibility extends to
+  synthetic suites while HEADS stay dataset-only (the families'
+  choice-route baseline rows are the harness sanity pins — byte-identical
+  posture for the five siblings, no published row moved). Gates: families
+  7/7 (noul-aware smoke; the LLM-only gate REPLACED by
+  `cache_reuse_grounded_posture_discriminates` through the production
+  seat path), seat 5/5, clippy clean at default + selective. The 12 eval
+  fixtures + gold are byte-unchanged (non-goal law, gate-pinned). G1
+  power statement in the bench record: n=12 → Wilson [0.646, 0.985],
+  published with wide bars, no accuracy claim. Owed: the reflex-site
+  publish half (045 T3, the reflex-site session); the instinct arena can
+  now seat the family (its Bench-011 refusal is gone upstream). Pre
+  existing on the side: `tests/build_stamp.rs`
+  `incomplete_build_prints_stale_naming_the_gap_and_rebuild` fails at
+  `--no-default-features` on clean HEAD too (`missing()` returns
+  `["laya-riir", "modelless"]` vs the pinned `["laya-riir"]` — the pin
+  assumes a default-features-minus-laya build); untouched here.
+
 - **Issue 050 CLOSED — `nb_ridge` honestly declares its `option_cond` read
   (`a6e04c3`).** The feature table's `nb_ridge = ["nb_scope"]` contradicted
   the ridge lane's unconditional `crate::option_cond::OcEvent` plumbing

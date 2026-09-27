@@ -309,7 +309,11 @@ pub fn run_e0(opts: &RunOptions) -> Result<E0Output, String> {
             continue;
         }
         if spec.synthetic.is_some() || !spec.modelless_lane {
-            skipped.push(format!("{}: synthetic family / LLM-lane only — no corpus pool", spec.name));
+            skipped.push(format!(
+                "{}: synthetic family / no modelless lane — no pool evidence to \
+                 measure",
+                spec.name
+            ));
             continue;
         }
         if spec.name == "code_fixtures" {

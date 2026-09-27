@@ -1,11 +1,10 @@
 //! The six harness decision-point families (Issue 004, from Research 579 —
 //! the "Jev Engineering for Coding Agents" six-per-turn-question map):
 //! `harness_visibility` · `harness_permissions` · `harness_tool_fit` ·
-//! `harness_routing` · `harness_sensitivity` (modelless DEFAULT) and
-//! `harness_cache_reuse` (LLM-lane ONLY — the modelless lane has no KV
-//! cache, so a modelless answer there would be a fake task; without the
-//! `laya` feature the runner reports it as a loud SKIPPED absence, never a
-//! silent zero).
+//! `harness_routing` · `harness_sensitivity` · `harness_cache_reuse`
+//! (all six modelless DEFAULT — Issue 045 lifted the LLM-only carve-out:
+//! the family is text-decidable like the other five, and the LLM lane's
+//! published 0.5000 row had no winner to protect).
 //!
 //! Pure data + builders (ungated), the `code_fixtures` shape: in-process
 //! synthetic fixtures with programmatic gold, self-split into three
@@ -1084,16 +1083,24 @@ static SENS: FamilyDef = FamilyDef {
     ],
 };
 
-// ── cache_reuse (T3): LLM-lane ONLY ────────────────────────────────────────
+// ── cache_reuse (Issue 045): modelless DEFAULT ───────────────────────────
+// The T3 carve-out is REVERSED (Issue 045): the family is text-decidable
+// ("does the described prefix still cover the described next turn"), the
+// 12 eval fixtures keep their programmatic gold, and the family now ships
+// the two slices the other five always had — the authored per-class corpus
+// and the cal front. The lever that makes the answer live is the noul
+// count-table polarity (issue 038's `nb_noul_domain`, cal-selected — noul
+// never takes route terms by the issue-030 law, so the corpus reaches the
+// decision through the NB tables, not the drafter).
 
 pub const CACHE_REUSE_NAME: &str = "harness_cache_reuse";
 const CACHE_REUSE_INSTR: &str = "Should the harness reuse the cached prefix, or \
 rebuild the context? yes = reuse (the prefix still serves the coming turn); \
 no = rebuild (the context no longer matches the task).";
 const CACHE_REUSE_NOTE: &str = "authored prefix scenarios; gold = reuse-vs-rebuild by \
-construction. LLM-lane ONLY (Issue 004 T3): the modelless lane has no KV \
-cache, ships no corpus here, and is skipped by the runner — never a fake \
-modelless answer.";
+construction. Modelless since Issue 045 (the T3 carve-out reversed): the \
+corpus + cal slices below teach the coverage-vs-divergence distinction; the \
+12 eval fixtures and their gold are UNCHANGED from the T3 authoring.";
 
 static CACHE_REUSE_EVAL: [FamilyText; 12] = [
     FamilyText {
@@ -1146,45 +1153,220 @@ static CACHE_REUSE_EVAL: [FamilyText; 12] = [
     },
 ];
 
-/// The LLM-only family's fixture set, exposed for the gate tests (the
-/// runner consumes [`synth_cache_reuse`] instead).
+/// The LLM-era fixture set, exposed for the gate tests (the runner
+/// consumes [`synth_cache_reuse`] instead). UNCHANGED from the T3
+/// authoring — the non-goal law: gold and fixture text never move.
 #[must_use]
 pub fn cache_reuse_eval() -> &'static [FamilyText] {
     &CACHE_REUSE_EVAL
 }
 
+/// The coverage class (gold 1 = yes/reuse): the coming turn's subject
+/// lives INSIDE what the window already holds. Class-distinctive by
+/// vocabulary per the fixture law; the docs do not carry the yes/no
+/// question words (issue 030: those are question vocabulary, never label
+/// tokens — and the noul drafter never reads option text anyway).
+static CACHE_REUSE_CORPUS: [(usize, &str); 12] = [
+    (
+        1,
+        "A prefix still serving the coming turn is the one to keep. The transcript \
+         holds the file the user is asking about, and the next question reads a \
+         symbol from that same file — nothing about the task has moved.",
+    ),
+    (
+        1,
+        "Keep the cached context while the work stays inside it. A schema the user \
+         is iterating on covers the field-level refinement they now request; the \
+         bytes are already in place.",
+    ),
+    (
+        1,
+        "The failing test output in the window is exactly what the follow-up question \
+         is about, so the assembled context still serves the turn — dropping it \
+         would throw away the evidence the answer needs.",
+    ),
+    (
+        1,
+        "An already-loaded diff supports another pass over the same code. The \
+         reviewed lines are the lines being discussed; the context and the task \
+         still point at each other.",
+    ),
+    (
+        1,
+        "Loaded API reference earns its window while the questions stay on the \
+         documented surface. A user asking about one of the function's flags is \
+         reading from the pages already present.",
+    ),
+    (
+        1,
+        "The test of whether a prefix serves is containment: the coming turn's \
+         subject lives inside what the window already holds, so nothing new must \
+         be fetched to answer it.",
+    ),
+    (
+        0,
+        "A window full of one subsystem's history cannot serve a task that has moved \
+         to another. The stale transcript gets rebuilt from the sources the new \
+         question actually reads.",
+    ),
+    (
+        0,
+        "Superseded material justifies a rebuild. The plan text in the context was \
+         abandoned an hour ago; carrying it forward would anchor every answer to \
+         a design the task no longer follows.",
+    ),
+    (
+        0,
+        "Context from an unrelated project poisons the turn it sits in. The new \
+         request concerns this repository's engine, so the foreign logs are \
+         dropped and the context rebuilt around the real subject.",
+    ),
+    (
+        0,
+        "When a migration changes the layout wholesale, the cached schema no longer \
+         describes the world. The old version in the window is discarded so the \
+         answer reflects the current shape.",
+    ),
+    (
+        0,
+        "Finished work does not serve a fresh task. The window of resolved review \
+         comments gives way to a rebuild when the next request starts new code \
+         in another module.",
+    ),
+    (
+        0,
+        "The test of whether a prefix serves is divergence: the coming turn's \
+         subject sits outside what the window holds, so the context is torn down \
+         and reassembled from the task's own sources.",
+    ),
+];
+
+/// The calibration front (10 per class, ≥ 16 total — the runner law).
+/// Statement-only scenarios in the family's third-person shape, pairwise
+/// disjoint from the corpus and the eval texts (the self-inclusion law).
+static CACHE_REUSE_CAL: [FamilyText; 20] = [
+    FamilyText {
+        text: "The window holds the parser module the user has been editing; the \
+              next question asks why one of its branches mis-scores a boundary case.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The assembled context carries the deployment manifest under \
+              discussion; the follow-up changes one of its replica counts.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The prefix contains the crash report the session opened with; the \
+              user now asks which allocation site it points at.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The session context holds the benchmark table being discussed; the \
+              next request asks for the worst row's configuration.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The transcript holds the design doc the user summarized; the \
+              follow-up quotes one of its paragraphs back for clarification.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The loaded trace covers the failing request end to end; the user \
+              asks what the second hop returned.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The context carries the type's definition and its doc comment; the \
+              question concerns one of the documented invariants.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The window holds the migration script mid-review; the next comment \
+              asks about the rollback leg of that same script.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The prefix holds the search results the user requested; the \
+              follow-up narrows them to the two hits in the auth module.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The assembled context contains the customer's reproduced bug; the \
+              user now asks for the smallest patch that dismisses it.",
+        gold: 1,
+    },
+    FamilyText {
+        text: "The window is still full of yesterday's load-generator session; \
+              today's task is a documentation rewrite in an untouched directory.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The prefix carries the first prototype's interface notes; the ABI \
+              was redesigned from scratch since, and the task now concerns the \
+              new one.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The context holds another team's incident postmortem; the user's \
+              next request is about this repository's release checklist.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The transcript contains the shopping-cart service's logs; the \
+              question that follows targets the auth service, which shares no \
+              code with it.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The prefix is filled with the winter roadmap; priorities changed \
+              last week and the task now executes the spring plan.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The window holds the retired parser's grammar; the language was \
+              replaced wholesale, and the user asks about the replacement's \
+              lexer.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The context carries the closed bug's full timeline; the next task \
+              files a brand-new report about an unrelated crash.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The assembled context is one long finished interview; the user now \
+              starts a clean-slate design session with new participants.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The prefix contains the retired crawler's configuration; the task \
+              configures its event-driven successor, which shares no knobs.",
+        gold: 0,
+    },
+    FamilyText {
+        text: "The window holds the onboarding checklist the user completed this \
+              morning; the next request is an advanced internals question it \
+              never covered.",
+        gold: 0,
+    },
+];
+
+static CACHE_REUSE: FamilyDef = FamilyDef {
+    name: CACHE_REUSE_NAME,
+    qid: "cache_reuse",
+    kind: QKind::Noul,
+    labels: &["false", "true"],
+    instructions: CACHE_REUSE_INSTR,
+    score_levels: &[],
+    note: CACHE_REUSE_NOTE,
+    corpus: &CACHE_REUSE_CORPUS,
+    cal: &CACHE_REUSE_CAL,
+    eval: &CACHE_REUSE_EVAL,
+};
+
 #[must_use]
 pub fn synth_cache_reuse() -> SynthData {
-    let cases: Vec<SuiteCase> = CACHE_REUSE_EVAL
-        .iter()
-        .enumerate()
-        .map(|(i, t)| SuiteCase {
-            id: format!("{CACHE_REUSE_NAME}:eval:{i}"),
-            state: Value::String(t.text.to_string()),
-            questions: vec![SuiteQuestion {
-                qid: "cache_reuse".to_string(),
-                kind: QKind::Noul,
-                instructions: CACHE_REUSE_INSTR.to_string(),
-                criteria: Value::Null,
-            }],
-            gold: vec![GoldAnswer {
-                idx: t.gold,
-                soft: vec![0.0; 2],
-                gold_score: None,
-            }],
-        })
-        .collect();
-    SynthData {
-        suite: Suite {
-            name: "harness_cache_reuse",
-            cases,
-            option_counts_note: CACHE_REUSE_NOTE,
-        },
-        // No modelless corpus BY DESIGN — the family has no modelless lane.
-        cal_cases: Vec::new(),
-        docs: Vec::new(),
-        labels: vec!["false".to_string(), "true".to_string()],
-    }
+    build_family(&CACHE_REUSE)
 }
 
 // ── the shared builder ─────────────────────────────────────────────────────
@@ -1257,25 +1439,19 @@ fn build_family(def: &'static FamilyDef) -> SynthData {
     }
 }
 
-/// The five modelless family definitions (registry order = suite order).
-pub const FAMILY_DEFS: &[&FamilyDef] = &[&VIS, &PERM, &TOOL, &ROUTE, &SENS];
+/// The six modelless family definitions (registry order = suite order).
+pub const FAMILY_DEFS: &[&FamilyDef] = &[&VIS, &PERM, &TOOL, &ROUTE, &SENS, &CACHE_REUSE];
 
-/// Lookup by suite name (`None` for `harness_cache_reuse` — it has no
-/// FamilyDef; use [`synth_cache_reuse`]).
+/// Lookup by suite name (all six families carry a `FamilyDef`).
 #[must_use]
 pub fn family_def(name: &str) -> Option<&'static FamilyDef> {
     FAMILY_DEFS.iter().copied().find(|d| d.name == name)
 }
 
-/// Build any family's [`SynthData`] by suite name (all six, including the
-/// LLM-only `harness_cache_reuse`).
+/// Build any family's [`SynthData`] by suite name (all six).
 #[must_use]
 pub fn synth_by_name(name: &str) -> Option<SynthData> {
-    match family_def(name) {
-        Some(def) => Some(build_family(def)),
-        None if name == CACHE_REUSE_NAME => Some(synth_cache_reuse()),
-        None => None,
-    }
+    family_def(name).map(build_family)
 }
 
 #[must_use]

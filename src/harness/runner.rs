@@ -121,9 +121,11 @@ struct SuiteSpec {
     /// files — `prepare` never touches `dir`, the builder self-splits
     /// corpus/cal/eval, and the caps above are ignored.
     synthetic: Option<fn() -> SynthData>,
-    /// false = LLM-lane ONLY (Issue 004 T3): the modelless lane has no KV
-    /// cache, so it has no honest answer for the family — the runner skips
-    /// it LOUDLY (an absence line, never a silent zero) when `laya` is off.
+    /// false = the modelless lane has no honest answer for the suite —
+    /// the runner skips it LOUDLY (an absence line, never a silent zero)
+    /// when no LLM lane is compiled. All six harness families are true
+    /// since Issue 045; the flag stays as the declared-inability
+    /// machinery for any future suite that needs it.
     modelless_lane: bool,
 }
 
@@ -213,8 +215,8 @@ const SUITES: &[SuiteSpec] = &[
         modelless_lane: true,
     },
     // ── Issue 004 (Research 579): the six harness decision-point families ──
-    // In-process synthetic suites (no datasets); five modelless by default,
-    // cache_reuse LLM-lane only (loud skip without `laya`).
+    // In-process synthetic suites (no datasets); all six modelless by
+    // default since Issue 045 lifted cache_reuse's LLM-only carve-out.
     SuiteSpec {
         name: "harness_visibility",
         test_cap: 0,
@@ -266,10 +268,14 @@ const SUITES: &[SuiteSpec] = &[
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
         build: synthetic_build_unused,
-        // Issue 004 T3: the modelless lane has no KV cache — the family is
-        // answered by the `laya` lane only, and the default build reports a
-        // loud SKIPPED absence instead of a fake answer.
-        modelless_lane: false,
+        // Issue 045: the T3 carve-out is REVERSED — the family is
+        // text-decidable ("does the described prefix still cover the
+        // described next turn") and ships its authored corpus + cal; the
+        // noul polarity (issue 038, cal-selected) is the lever that arms
+        // it. The `modelless_lane = false` mechanism below stays as the
+        // declared-inability machinery for any future suite the modelless
+        // lane genuinely cannot answer.
+        modelless_lane: true,
         synthetic: Some(families_synth_cache_reuse),
     },
 ];
@@ -1863,6 +1869,43 @@ fn oc_events_for(
 
 fn selection_slice(inp: &ModellessInput<'_>, tag: &str) -> Result<SelSlice, String> {
     let spec = inp.spec;
+    // Synthetic suites carry no pool rows (Issue 045): the labelled
+    // selection slice IS the authored cal front — the same labelled data
+    // the fused-gate thresholds fit on, never the test cases — and the
+    // corpus pool is the family's own docs minus any text the cal front
+    // carries (the same self-inclusion exclusion the dataset path
+    // enforces; the families' slices are disjoint by construction, the
+    // gate asserts it).
+    if inp.pool_rows.is_null() {
+        if inp.cal_cases.is_empty() {
+            return Err(format!(
+                "{}: {tag} selection on a synthetic suite with no cal front",
+                spec.name
+            ));
+        }
+        let excluded: HashSet<&str> = inp
+            .cal_cases
+            .iter()
+            .filter_map(|c| c.state.as_str())
+            .collect();
+        let pool: Vec<TrainDoc> = inp
+            .train
+            .iter()
+            .filter(|d| !excluded.contains(d.text.as_str()))
+            .cloned()
+            .collect();
+        eprintln!(
+            "    {tag}: synthetic cal front {} case(s); corpus pool {} → {} doc(s)",
+            inp.cal_cases.len(),
+            inp.train.len(),
+            pool.len()
+        );
+        return Ok(SelSlice {
+            cases: inp.cal_cases.to_vec(),
+            state_strs: inp.cal_state_strs.to_vec(),
+            pool,
+        });
+    }
     // Issue 039 T2: pool-envelope input, pool_from = 0 (see
     // build_selection_measurement).
     let slices = stratified_selection_slices(inp.pool_rows, spec.name, inp.labels, 0, spec.cal_cap);
@@ -2248,8 +2291,10 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // STRATIFIED selection slice (forced accuracy, ties → 0 = off), and
     // the test split is read ONCE at the selected posture. Runs at the
     // selected cap; eligible = the dataset suites (the cap-selection
-    // eligibility); synthetic families keep the CLI posture (default
-    // 0 = off — their baseline rows are the harness sanity pins).
+    // eligibility) — the synthetic families keep the default CLI posture
+    // for HEADS: their choice-route baseline rows are the harness sanity
+    // pins, and cache_reuse's lever is the NB polarity (below), not
+    // heads.
     let head_selected = if inp.head_select
         && spec.synthetic.is_none()
         && spec.corpus_cap_per_label != usize::MAX
@@ -2263,10 +2308,16 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         .map_or(inp.head_scale, |s| s.selected);
     // ── Count-table posture selection (issue 038 T1): same slice, same
     // promotion bar, at the selected cap + head scale; test read once.
+    // Eligible = the dataset suites, and — since Issue 045's synthetic
+    // selection fallback — the synthetic families whose cal front can
+    // carry the selection (cache_reuse's noul polarity is the lane's
+    // whole lever). `corpus_cap_per_label == usize::MAX` marks the
+    // registry-fixed-corpus suites (code_fixtures + the families); the
+    // synthetic eligibility rides the synthetic flag alone now.
     #[cfg(feature = "nb_scope")]
     let nb_selected = if inp.nb_select
-        && spec.synthetic.is_none()
-        && spec.corpus_cap_per_label != usize::MAX
+        && (spec.synthetic.is_some()
+            || (spec.synthetic.is_none() && spec.corpus_cap_per_label != usize::MAX))
     {
         Some(nb_lane::build_nb_selection::<N>(inp, effective_cap, selected_scale)?)
     } else {
@@ -4497,6 +4548,9 @@ struct Prepared {
 fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     if let Some(synth) = spec.synthetic {
         if !spec.modelless_lane && !cfg!(feature = "laya-riir") && !cfg!(feature = "clm-lane") {
+            // Unreachable over the current registry (every suite is
+            // modelless since Issue 045) — the declared-inability skip is
+            // kept for any future `modelless_lane: false` suite.
             return Err(format!(
                 "{}: SKIPPED \u{2014} LLM-lane only (Issue 004 T3): the modelless lane has \
                  no KV cache, so a modelless answer here would be a fake task; \
@@ -4735,13 +4789,11 @@ pub mod seat {
         pub synthetic: bool,
     }
 
-    /// Prepare a suite by name. The five MODELESS harness families +
+    /// Prepare a suite by name. The six MODELESS harness families +
     /// `code_fixtures` seat through their in-process builds (Issue 049
     /// T1/T2 — the seat marks them `synthetic`, so the posture fork the
-    /// old blanket refusal feared is now explicit); `harness_cache_reuse`
-    /// stays REFUSED (T3: the modelless lane has no KV cache — a modelless
-    /// seat there would be a fake task, and the lane is the seat's only
-    /// posture) with the reason naming the decision; dataset suites are
+    /// old blanket refusal feared is now explicit; cache_reuse joined
+    /// them at Issue 045, its T3 carve-out reversed); dataset suites are
     /// unchanged.
     pub fn prepare_seat(name: &str, dir: &Path) -> Result<Seat, String> {
         let spec = SUITES
@@ -4751,14 +4803,15 @@ pub mod seat {
             as &SuiteSpec;
         let synthetic = spec.synthetic.is_some() || name == "code_fixtures";
         if synthetic && !spec.modelless_lane {
-            // harness_cache_reuse (Issue 004 T3): the seat's only posture
-            // is the modelless one, and that lane has no honest answer for
-            // the family — the refusal is the DECISION, recorded in Issue
-            // 049 T3, never a silent fork.
+            // Unreachable over the current registry (Issue 045 made every
+            // synthetic suite modelless) — the declared-inability refusal
+            // is kept for any future `modelless_lane: false` suite: the
+            // seat's only posture is the modelless one, and a suite the
+            // modelless lane cannot answer refuses rather than forks.
             return Err(format!(
-                "seat: {name} refuses a modelless seat (no KV cache in the modelless \
-                 lane — Issue 004 T3 / Issue 049 T3); compile laya-lane consumers \
-                 answer it through the laya lane instead"
+                "seat: {name} refuses a modelless seat (no honest modelless answer \
+                 for this suite); compile laya-lane consumers answer it through \
+                 the laya lane instead"
             ));
         }
         let p = prepare(spec, dir)?;
@@ -5358,8 +5411,9 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         let leak_flags_ref: Option<&[bool]> = leak_flags.as_deref();
 
         // Modelless lane (const-generic dispatch over the domain count).
-        // Skipped entirely for LLM-only families (Issue 004 T3) — an honest
-        // None, never a fabricated row.
+        // The `else` arm below is the declared-inability skip — dead over
+        // the current registry since Issue 045, kept for any future
+        // `modelless_lane: false` suite.
         let mut modelless_questions: Option<super::cascade::ModellessQuestions> = None;
         let modelless = if spec.modelless_lane {
             let inp = ModellessInput {

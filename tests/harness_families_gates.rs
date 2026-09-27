@@ -1,11 +1,11 @@
 //! Issue 004 (Research 579) T6 gates for the six harness decision-point
 //! families — `harness_visibility` · `harness_permissions` ·
-//! `harness_tool_fit` · `harness_routing` · `harness_sensitivity`
-//! (modelless DEFAULT) and `harness_cache_reuse` (LLM-lane ONLY).
+//! `harness_tool_fit` · `harness_routing` · `harness_sensitivity` ·
+//! `harness_cache_reuse` (all six modelless DEFAULT since Issue 045
+//! reversed cache_reuse's LLM-only carve-out).
 //!
 //! What is asserted here:
-//! - registry contract: all six registered synthetic; cache_reuse marked
-//!   `modelless_lane = false` (the loud-skip contract);
+//! - registry contract: all six registered synthetic AND modelless;
 //! - count floors: eval ≥ 12, cal ≥ 16 (the fused-gate thresholds cannot
 //!   fit below 16 cal observations — runner law), corpus ≥ 8, every class
 //!   covered in all three slices;
@@ -13,16 +13,17 @@
 //!   disjoint per family (a cal case scoring against itself inflates every
 //!   cal-slice quantile);
 //! - gold/option agreement: gold indexes in range, score families carry
-//!   `gold_score == level`;
+//!   `gold_score == level`, noul families carry null criteria and 0/1
+//!   gold (Issue 045: cache_reuse is the first noul family in the
+//!   modelless registry);
 //! - engine smoke over every modelless family: wire-valid answers,
-//!   L1-normalized probabilities, per-request G2 < 1 ms, bit-identical
-//!   repeats, anti-pathology accuracy floors (0.8× chance), and the
-//!   DISCRIMINATION floor — distinct picks AND distinct probability vectors
-//!   across the eval slice (the degenerate-lane lesson: a constant,
-//!   input-independent pick sits at exactly chance on class-balanced
-//!   fixtures, so accuracy alone cannot see it — only distinct counts can);
-//! - cache_reuse: fixtures exist, noul-shaped, and its SynthData ships NO
-//!   modelless corpus (the honest absence, by construction).
+//!   normalized probabilities (noul: the single p_yes in [0, 1]),
+//!   per-request G2 < 1 ms, bit-identical repeats, anti-pathology accuracy
+//!   floors (0.8× chance), and the DISCRIMINATION floor — distinct picks
+//!   AND distinct probability vectors across the eval slice (the
+//!   degenerate-lane lesson: a constant, input-independent pick sits at
+//!   exactly chance on class-balanced fixtures, so accuracy alone cannot
+//!   see it — only distinct counts can);
 
 #![cfg(feature = "modelless")]
 
@@ -40,6 +41,7 @@ const MODELLESS_FAMILIES: &[&str] = &[
     "harness_tool_fit",
     "harness_routing",
     "harness_sensitivity",
+    "harness_cache_reuse",
 ];
 
 /// Anti-pathology forced-accuracy floors per family — 0.8× chance. The
@@ -65,17 +67,11 @@ fn families_are_registered_with_the_right_lanes() {
         let (synthetic, modelless) = runner::suite_lanes(name)
             .unwrap_or_else(|| panic!("{name} missing from the suite registry"));
         assert!(synthetic, "{name} must be an in-process synthetic suite");
-        assert!(modelless, "{name} is modelless by default (Issue 004)");
+        assert!(
+            modelless,
+            "{name} is modelless by default (Issue 004 / Issue 045)"
+        );
     }
-    let (synthetic, modelless) =
-        runner::suite_lanes("harness_cache_reuse").expect("harness_cache_reuse registered");
-    assert!(synthetic);
-    assert!(
-        !modelless,
-        "harness_cache_reuse is LLM-lane only (Issue 004 T3) — the registry \
-         must mark it modelless_lane = false or the runner would fabricate a \
-         modelless row for a family the modelless lane cannot answer"
-    );
 }
 
 #[test]
@@ -183,7 +179,15 @@ fn synthdata_gold_and_options_agree() {
                         "{name}: score gold_score must equal the level"
                     );
                 }
-                QKind::Noul => panic!("{name}: modelless families do not use noul"),
+                QKind::Noul => {
+                    assert!(q.criteria.is_null(), "{name}: noul criteria must be null");
+                    assert!(
+                        g.idx < 2,
+                        "{name}: noul gold {} out of the yes/no pair",
+                        g.idx
+                    );
+                    assert!(g.gold_score.is_none(), "{name}: noul carries no gold_score");
+                }
             }
         }
         // Labels: every label has corpus docs; docs labels ⊆ labels.
@@ -304,15 +308,33 @@ fn engine_answers_families_deterministically_fast_and_above_chance() {
                     "{}: non-finite probability",
                     $name
                 );
-                let sum: f32 = a.probabilities.iter().sum();
-                assert!(
-                    (sum - 1.0).abs() < 1e-2,
-                    "{}: probabilities not L1-normalized (sum {sum})",
-                    $name
-                );
+                // Noul carries exactly ONE wire probability (p_yes — the
+                // engine's internal [yes, no] pair stays internal).
+                if d.suite.cases[0].questions[0].kind == QKind::Noul {
+                    assert_eq!(
+                        a.probabilities.len(),
+                        1,
+                        "{}: noul must carry exactly one wire probability",
+                        $name
+                    );
+                    let p_yes = f64::from(a.probabilities[0]);
+                    assert!(
+                        (0.0..=1.0).contains(&p_yes),
+                        "{}: noul p_yes {p_yes} outside [0, 1]",
+                        $name
+                    );
+                } else {
+                    let sum: f32 = a.probabilities.iter().sum();
+                    assert!(
+                        (sum - 1.0).abs() < 1e-2,
+                        "{}: probabilities not L1-normalized (sum {sum})",
+                        $name
+                    );
+                }
                 let pick = match &a.outcome {
                     Some(katgpt_core::decision_wire::Outcome::Choice { index }) => *index as usize,
                     Some(katgpt_core::decision_wire::Outcome::Score { level }) => *level as usize,
+                    Some(katgpt_core::decision_wire::Outcome::Noul { yes }) => usize::from(*yes),
                     _ => a
                         .probabilities
                         .iter()
@@ -348,6 +370,7 @@ fn engine_answers_families_deterministically_fast_and_above_chance() {
     let _tool = run_family!(6, "harness_tool_fit");
     let _route = run_family!(4, "harness_routing");
     let _sens = run_family!(5, "harness_sensitivity");
+    let _cache = run_family!(2, "harness_cache_reuse");
 }
 
 /// Discrimination floor (verdict round 3, the degenerate-lane lesson): a
@@ -375,6 +398,7 @@ fn families_discriminate_their_inputs() {
                 picks.push(match &a.outcome {
                     Some(katgpt_core::decision_wire::Outcome::Choice { index }) => *index as usize,
                     Some(katgpt_core::decision_wire::Outcome::Score { level }) => *level as usize,
+                    Some(katgpt_core::decision_wire::Outcome::Noul { yes }) => usize::from(*yes),
                     _ => a
                         .probabilities
                         .iter()
@@ -426,6 +450,11 @@ fn families_discriminate_their_inputs() {
     discriminate!(6, "harness_tool_fit");
     discriminate!(4, "harness_routing");
     discriminate!(5, "harness_sensitivity");
+    // cache_reuse is deliberately NOT here: at the DEFAULT config its noul
+    // candidates are the question vocabulary yes/no (issue-030 no-route
+    // law), so the pick is the length-prior constant and the discrimination
+    // floor would fail BY DESIGN. Its live-lane discrimination is asserted
+    // at the grounded posture in `cache_reuse_grounded_posture_discriminates`.
 }
 
 #[test]
@@ -465,27 +494,87 @@ fn sensitivity_scores_within_one_level() {
     );
 }
 
+/// Issue 045: the family's grounding gate — the count-table polarity
+/// (issue 038) selected on the authored CAL front must arm AND the
+/// grounded engine must discriminate the eval fixtures. This runs the
+/// PRODUCTION seat path (`prepare_seat` → `fit_posture` with
+/// `nb_select`) — the same code a harness `--nb-select` run executes —
+/// so the gate cannot drift from the runner.
+///
+/// Fixture-preservation pin (the non-goal law): the 12 eval fixtures and
+/// their gold are UNCHANGED from the T3 authoring — count + gold balance
+/// only; the texts are the binary's own statics.
 #[test]
-fn cache_reuse_is_llm_only_by_construction() {
+fn cache_reuse_grounded_posture_discriminates() {
+    // Fixture preservation (unchanged from the T3 authoring).
     let fixtures = families::cache_reuse_eval();
-    assert!(
-        fixtures.len() >= 12,
-        "cache_reuse: {} fixtures < 12 — the family needs a measurable set",
-        fixtures.len()
+    assert_eq!(fixtures.len(), 12, "eval fixture count moved");
+    assert_eq!(
+        fixtures.iter().filter(|t| t.gold == 1).count(),
+        6,
+        "eval gold balance moved"
     );
-    for t in fixtures {
-        assert!(t.gold < 2, "cache_reuse gold must be noul (0/1)");
-    }
-    let d = families::synth_cache_reuse();
-    assert!(
-        d.docs.is_empty() && d.cal_cases.is_empty(),
-        "cache_reuse must ship NO modelless corpus/cal — a modelless answer \
-         here is the fake task Issue 004 T3 refuses"
+
+    let seat = runner::seat::prepare_seat("harness_cache_reuse", std::path::Path::new("."))
+        .expect("cache_reuse seats since Issue 045");
+    let posture = runner::seat::fit_posture::<2>(
+        "harness_cache_reuse",
+        &seat,
+        &runner::seat::PostureKnobs {
+            nb_select: true,
+            ..Default::default()
+        },
+    )
+    .expect("posture fit");
+    let nb = posture
+        .nb_selection
+        .as_ref()
+        .expect("nb selection must run under nb_select");
+    assert_eq!(
+        nb.selected_noul_domain,
+        Some(1),
+        "the cal-selected polarity must read yes as the 'true' domain — got \
+         {:?} (selected scale {}, best cal {:.4}); the authored corpus is \
+         mislabelled or the classes' vocabulary no longer separates",
+        nb.selected_noul_domain,
+        nb.selected_scale,
+        nb.candidates
+            .iter()
+            .filter(|c| c.scale > 0.0)
+            .map(|c| c.cal_acc)
+            .fold(0.0_f64, f64::max)
     );
-    assert!(d.suite.cases.len() == fixtures.len());
-    // Every case is noul-shaped with the reuse/rebuild question.
-    for c in &d.suite.cases {
-        assert_eq!(c.questions[0].kind, QKind::Noul);
-        assert!(c.questions[0].criteria.is_null());
-    }
+
+    // The grounded engine discriminates: ≥ 2 distinct picks over the 12
+    // eval fixtures (the discrimination floor, at the LIVE posture).
+    let (mut engine, _) = runner::seat::build_seat_engine::<2>(
+        "harness_cache_reuse",
+        &seat,
+        posture.effective_cap,
+        posture.cfg.clone(),
+    )
+    .expect("seat engine");
+    let eval = runner::seat::eval_seat::<2>(&mut engine, &seat.suite.cases, &seat.state_strs)
+        .expect("seat eval");
+    let mut picks: Vec<usize> = eval.cases.iter().map(|c| c[0].pick).collect();
+    picks.sort_unstable();
+    picks.dedup();
+    assert!(
+        picks.len() >= 2,
+        "the grounded noul engine emitted {picks:?} — a constant pick over 12 \
+         fixtures means the polarity armed on cal but does not transfer (the \
+         honest negative would be recorded in the issue, not pinned here)"
+    );
+    let hits = eval
+        .cases
+        .iter()
+        .zip(&seat.suite.cases)
+        .filter(|(slots, case)| slots[0].pick == case.gold[0].idx)
+        .count();
+    println!(
+        "[recorded] cache_reuse: grounded forced acc {hits}/{} (zero-shot losses \
+         are published, not gated — the G1 power statement lives in the bench \
+         record)",
+        seat.suite.cases.len()
+    );
 }
