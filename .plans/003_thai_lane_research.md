@@ -17,9 +17,9 @@ The owner ask: *handle Thai without contaminating EN code as possible, e.g. arou
 
 ## Phase 1 — Thai posture pins (tests only, zero runtime code)
 
-- [ ] T1.1 Modelless Thai posture pin (`tests/`, modelless-gated): embed + full engine decide on the G5 `ml-thai` fixture text (reuse the exact state strings from `laya_parity_v1.jsonl`) → assert determinism (bit-identical ×2) and RECORD the distance-gate verdict honestly: abstain expected; if the engine answers with confidence, that is a FINDING (file it — do not tune it away silently).
-- [ ] T1.2 Serve-edge Thai safe-degradation pin: `/decide` on a Thai state returns a well-formed answer (expected: abstain-forward) — no panic, no NaN, no 5xx; the zero-vector law covers empty embeddings.
-- [ ] T1.3 Record the pinned posture in `.docs/` (one row in the appropriate protocol/doc page — the posture table from research 003 becomes repo-visible).
+- [x] T1.1 Modelless Thai posture pin (`tests/`, modelless-gated): embed + full engine decide on the G5 `ml-thai` fixture text (reuse the exact state strings from `laya_parity_v1.jsonl`) → assert determinism (bit-identical ×2) and RECORD the distance-gate verdict honestly: abstain expected; if the engine answers with confidence, that is a FINDING (file it — do not tune it away silently). **LANDED 2026-09-27 (`tests/thai_posture_pins.rs`): the verdict is ABSTAIN, and the recorded finding is a mechanism CORRECTION — the note's "clause-unit hash bag" guess was wrong; `token()` empties pure-Thai clauses before hashing → ZERO-vector embed → distance-gate abstain by construction (conf ≈ 0.057 < 0.5). Errata written into research 003; full record `.docs/02_protocols/thai_posture.md`.**
+- [x] T1.2 Serve-edge Thai safe-degradation pin: `/decide` on a Thai state returns a well-formed answer (expected: abstain-forward) — no panic, no NaN, no 5xx; the zero-vector law covers empty embeddings. **LANDED (`serve_edge_thai_degrades_safely`, real loopback socket, the serve_cors pattern): 200 + wire-valid + finite + abstain-forward.**
+- [x] T1.3 Record the pinned posture in `.docs/` (one row in the appropriate protocol/doc page — the posture table from research 003 becomes repo-visible). **LANDED: `.docs/02_protocols/thai_posture.md` (+ the 02_protocols README index row) — the whole table repo-visible, with the measured mechanism.**
 
 ## Phase 2 — the `--openthai` comparison lane (self-contained module)
 

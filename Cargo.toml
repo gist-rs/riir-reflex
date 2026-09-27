@@ -248,6 +248,13 @@ required-features = ["laya-riir-ane"]
 name = "serve_cors"
 required-features = ["modelless"]
 
+# Plan 003 Phase 1 (T1.1 + T1.2): the Thai posture pins — tests only,
+# zero runtime code; the shipped modelless posture's Thai behavior pinned
+# as contract (abstain expected; a confident answer is a FINDING).
+[[test]]
+name = "thai_posture_pins"
+required-features = ["modelless"]
+
 # The Plan 603 T1.5 known-answer units — imports the gated runner slice,
 # so it carries the repo-birth pair (file-level #![cfg] in the file + this
 # row) that lets a --no-default-features run skip loud instead of dying at

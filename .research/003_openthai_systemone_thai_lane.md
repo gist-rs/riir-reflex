@@ -10,7 +10,7 @@ The **fifth named entry** in the System-One typed-decision family (TypeSafe Jev 
 
 The owner's actual question — *"plan to handle Thai without contaminating EN code, e.g. around tokenizer and other"* — has a measured three-part answer, and **none of it is tokenizer surgery**:
 
-1. **Our lanes already degrade safely on Thai** (pinned, not accidental): the laya script-detector router (ported `lang.rs`/`router.rs`) collapses the EN checkpoints on non-Latin script (frozen G5 row `ml-thai-collapse`, conf 0.0002 → abstain), and the modelless embedder hashes Thai deterministically (`embed.rs` passes non-ASCII bytes through) — but its **posture is UNPINNED** (expected: clause-unit hash bag → distance-gate abstain; a confident answer would be a finding). Plan 003 Phase 1 pins it.
+1. **Our lanes already degrade safely on Thai** (pinned, not accidental): the laya script-detector router (ported `lang.rs`/`router.rs`) collapses the EN checkpoints on non-Latin script (frozen G5 row `ml-thai-collapse`, conf 0.0002 → abstain). The modelless posture is now PINNED (Plan 003 Phase 1, `tests/thai_posture_pins.rs` + `.docs/02_protocols/thai_posture.md`) — and the measurement CORRECTED this note's guess: the mechanism is NOT a clause-unit hash bag. `embed.rs`'s `token()` trims non-alphanumeric-ASCII edges BEFORE hashing, so a pure-Thai clause empties to zero tokens → the state embeds to the ZERO vector → the distance gate abstains by construction (conf ≈ 0.057 < 0.5). ("`embed.rs` passes non-ASCII bytes through" is true of `fnv1a_word` but moot — the token never reaches it.) Broader than Thai (every non-ASCII-alphanumeric script), weaker than a language gate (mixed EN+Thai tokenizes its ASCII half normally). A confident answer on pure-Thai input reds the pin = the finding path.
 2. **The laya multilingual checkpoint already answers Thai** (frozen G5 row `ml-thai`).
 3. **Real Thai capability = an external specialist consumed as a measurement lane** — their FastAPI server serves, our Rust measures (the agentjev/clm lane family law). Zero deps, zero EN-path edits.
 
@@ -41,7 +41,7 @@ Latency: 44 ms batch-1 255-option (H100, shared); 154 ms M3 Max MPS (3-question 
 |---|---|---|
 | laya english / typed-decisions | script-detected → collapse conf 0.0002 → abstain | frozen G5 row `ml-thai-collapse` |
 | laya multilingual | **answers** | frozen G5 row `ml-thai` |
-| modelless | deterministic clause-unit hashed bag (ASCII-whitespace split → whole Thai clauses as tokens) → **expected** distance-gate abstain — UNPINNED | `src/embed.rs`; plan 003 Ph.1 pins it |
+| modelless | **zero-vector embed → distance-gate abstain** (`token()` empties non-ASCII-only clauses before hashing; conf ≈ 0.057) | **PINNED** — `tests/thai_posture_pins.rs` (plan 003 Ph.1); `.docs/02_protocols/thai_posture.md` |
 | openthai lane (new) | their specialist answers | plan 003 |
 
 Thai between spaces = one giant "word" to `embed.rs`; FNV-hashed deterministically; no crash, no NaN (zero-vector law). The risk worth pinning: a long Thai text fills many hash buckets and *could* land near a corpus centroid with false confidence. Phase 1 measures and records the honest verdict either way.
