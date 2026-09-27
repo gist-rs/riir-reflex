@@ -75,7 +75,9 @@ be designed against the recorded failure modes, not repeat them.
   | 8 | 0.1158 | 0.1326 | 0.6583 | 0.6465 | 0.6692 → 0.6169 |
 
   (0.25/1/2/4 in the same shape; full table in the landing commit.)
-  Verdict per this issue's fork: (a) **λ=8 is the literal
+  Population-robust: the dump is BYTE-IDENTICAL on `.raw/datasets` and
+  `.raw/datasets_t20k` (same xnli cal slice in both pulls) — re-verified
+  2026-09-28. Verdict per this issue's fork: (a) **λ=8 is the literal
   "NLL improves while ECE worsens" cell** — the "Platt minimizes NLL,
   not binned ECE" story holds; (b) **fit-half NLL improves at ALL 8
   rungs incl. λ=0** — the undamped `refit` solver descends its own
@@ -112,9 +114,23 @@ be designed against the recorded failure modes, not repeat them.
 
 ## ag_news (−6.8 pt) — diagnose before building
 
-- [ ] A1 — **Confusion matrix first**: if the gap concentrates in
-  Business↔Sci/Tech, the disambiguation hypothesis stands; if spread
-  across classes, it does not (record either way before building).
+- [x] A1 — **MEASURED 2026-09-28 from the already-committed
+  published-posture artifact (`.benchmarks/044_close_gaps/results.json`,
+  the Bench-068 byte-exact 0.8825 re-confirmation, n=400, 47 errors) —
+  no new test read consumed. The disambiguation hypothesis STANDS:**
+  business↔sci_tech is 18 of 47 errors (**38.3% of ALL errors**, both
+  directions: business→sci_tech 10 / 21.3% + sci_tech→business 8 /
+  17.0% — the top-2 rows, 2.6× the next directed row), while world's
+  16 errors SPREAD across three targets (business 7 / sports 6 /
+  sci_tech 3). The boundary between the two classes is blurred BOTH
+  ways — a mutual disambiguation failure, consistent with the T1
+  residual (encoder-owned word-order) and exactly the surface A2's
+  bigrams + A3's case/title weighting target. A2–A4 are GO to design
+  against, with the recorded bar: the gap to win is 6.8 pt; the
+  pair holds 38.3% of the error mass, so even a strong pair-specialist
+  lever must recover well over half of the pair's errors to move the
+  suite — volume (Bench 065) and joint blends (064/065) already
+  measured NEGATIVE on the shipped view.
 - [ ] A2 — **Hashed n-gram view on the nb lane's existing view axis**
   (bag/pair already selected per suite): hash `(w_i, w_{i+1})` into the
   same count table — the cheapest order signal; bigrams are the usual
