@@ -7,6 +7,41 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 040 RESOLVED — the lane-pairing population guard (T1–T5) complete;
+  the site's `identical on 11/14` was a sample mismatch, not a port
+  regression (guards `448f652` + `b30f5b1`; data repair Bench 062).** Root
+  cause (measured): the 09-27 republish refreshed the rust lanes to the
+  052 STRATIFIED protocol while the python comparison lane survived on the
+  old first-N sample (`9dbdca5`) — on 3 suites (massive_intent_en,
+  banking77, code_fixtures) the case sets genuinely differed, and the
+  TL;DR counted different question sets as parity failures. The guard:
+  `cases_digest` (stable FNV-1a64 over the canonical serde_json of the
+  served cases, dependency-free — harness must compile at
+  `--no-default-features` where blake3 is absent) stamped per run, carried
+  per lane cell by the publisher, paired on identity in the TL;DR (three
+  states — same / different-sample-disclosed / excluded, never pooled),
+  and `check_lane_pairing.py` fail-loud at publish with an opt-in
+  `PUBLISH_ALLOW_SAMPLE_MISMATCH` ack that reds when stale. T5 (Bench 061,
+  isolated worktree at `6199e5e8`, preflight PASSED at the default 6.0
+  reds when stale. T5 (Bench 062, isolated worktree at `6199e5e8`,
+  preflight PASSED at the default 6.0
+  ceiling — load 5.20, canary 138.9 µs): py reference re-run at the 052
+  protocol in the SAME run as the rust lanes — **all 15 suites read exact
+  accuracy AND macro-F1 equality rust == py** (massive 0.6933==0.6933,
+  banking77 0.4220==0.4220, code_fixtures 0.6667==0.6667); even the
+  predicted G5-class argmax wobble did not materialize. Ack retired (no
+  env set at republish — the stale-ack ratchet forces its removal now that
+  every pair matches); TL;DR reads `identical on 14/14`. Latency note: py
+  p50 ≈ 1.5–2× riir Metal across suites (subprocess IPC + torch vs the
+  Metal kernel ladder) — consistent with the lane's historical
+  relationship, pairing-independent.
+  relationship, pairing-independent. ⛔ Numbering note: the run dir was
+  allocated 061 and RENAMED 062 pre-commit — the concurrent Issue-038
+  session had taken `061_cascade_lane` from the same `.highwater` in the
+  same worktree (the same-box blind spot of `dual_allocation_gate`:
+  checkout-vs-origin only, sibling untracked WIP invisible). Renumber +
+  citation rewrite per the collision law; highwater bumped to 062.
+
 - **Issue 038 T7(a)+(b) LANDED — the two biggest modelless gaps closed
   (Plan 004, Bench 057, commits `0abb222` T7b + `de67f50` T7a); the issue
   stays OPEN for T5/T4′/T7(c)/(d).** The option-conditioned count tables
