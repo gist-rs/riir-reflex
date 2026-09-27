@@ -168,7 +168,7 @@ cargo run --release --features laya-riir-metal --bin harness -- --distill \
 # one-time helper — no Python at serving time). Default-OFF, never in the
 # release set; the harness column + the determinism pin ride T3. The
 # optional T4 T-Rex re-run (their harness under our protocol, the 027
-# window laws) is Bench 057 — `.benchmarks/057_clm_trex_4090/`; issue 019
+# window laws) is Bench 059 — `.benchmarks/057_clm_trex_4090/`; issue 019
 # is closed+removed, its record lives there + HISTORY.md.
 cargo test --features clm-lane --lib lanes::  # the law goldens + the stub-HTTP wire pins
 

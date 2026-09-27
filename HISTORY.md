@@ -8,7 +8,7 @@ lives in `.issues/` and `.plans/`, never here.
 ## 2026-09-27
 
 - **Issue 019 CLOSED — the CLM T4 T-Rex re-run under OUR protocol (Bench
-  057, `.benchmarks/057_clm_trex_4090/`, this commit); issue file removed
+  059, `.benchmarks/057_clm_trex_4090/`, this commit); issue file removed
   (noise-reduction) with all seven tasks done.** Upstream had force-pushed
   `main` and stripped `examples/t_rex/` from its tree — the pin commit
   `cca045ff` is no longer reachable from `main` but GitHub still serves it
