@@ -7,6 +7,31 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 041 RESOLVED — the ag_news full-pull volume lever measured
+  NEGATIVE (Bench 064).** The full 120k train pull
+  (`.raw/datasets_agnews_full/`, a measurement sidecar — the canonical
+  t20k basis is UNCHANGED, no protocol column, no republish owed) moved
+  ag_news modelless accuracy **+0.25 pt** (0.8825 → 0.8850) against the
+  expected 0.90–0.92; the corpus-cap axis moved **exactly nothing** (cap
+  64 == cap 1000 at full volume — identical accuracy, +17× p50 cost,
+  provisional latency); and the T5 joint blend-genome walk over the
+  full-volume posture ended **HELD** (no volume × posture interaction).
+  The T2-POC volume law did not transfer because the engine changed —
+  T7's uncapped count tables already dominate the pick at the t20k
+  volume, and ~1000 docs/label saturates the unigram signal. The
+  remaining −6.5 pt gap to laya (0.9500) is not volume-reachable on any
+  measured axis; the issue's fallback (word-order/disambiguation the
+  encoder owns) is the only live hypothesis on this suite. 041's
+  non-lever note (prompt_injections' selection slice cannot see the
+  pure-NB posture: 0.8362 probe vs 0.7672 shipped) filed forward as
+  issue 043. Tooling rider: `scripts/fetch_datasets.sh` gained a
+  `SUITES` filter (a 120k TRAIN_CAP without it would pointlessly pull
+  ~120k xnli rows); datasets-server limiter measured at ~300 pages per
+  burst sustained (4 burst→cooldown→resume cycles; the skip logic
+  resumes exactly). Byte-identity law verified 204/204 shared pages;
+  full per-file digest table + fold digest in the bench record.
+  Record: `.benchmarks/064_agnews_full_volume.md` + the three run dirs.
+
 - **Issue 038 T5 steps 2+ LANDED — the joint blend-genome lane
   (`--genome-select`, Plan 005 / Bench 064).** `{route, head, nb(+α,+view),
   oc, ridge}` as one genome line, coordinate descent on the cal slice with
@@ -26,7 +51,11 @@ lives in `.issues/` and `.plans/`, never here.
   have refused it; hypothesis on record: the ridge fit overfits its own
   pool distribution, the count tables generalize). RRF DECLINED on measured
   rationale. Site republish deferred to the post-041 whole re-run
-  (`publish_bench` has no G1 filter). Two protocol costs disclosed: the
+  (`publish_bench` has no G1 filter). Note (same-day): the 041 full-pull
+  question was answered NEGATIVE (Bench 064 — the volume lever buys
+  +0.25 pt), so that deferred whole re-run happens at the CANONICAL t20k
+  basis with the genome winners, not at a new corpus volume. Two
+  protocol costs disclosed: the
   0.03 refinement round spends 4 more test reads than the house bar, and
   its one catastrophe is the price of the 3 wins — the bar value is now a
   measured trade-off, not a convention.

@@ -43,6 +43,12 @@ ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 # every published table reads) is never rewritten under a sibling run.
 OUT="${OUT:-$ROOT/.raw/datasets}"
 TRAIN_CAP="${TRAIN_CAP:-4000}"
+# SUITES (issue 041): comma-separated subset filter, e.g.
+#   SUITES=ag_news OUT=$ROOT/.raw/datasets_agnews_full TRAIN_CAP=120000 scripts/fetch_datasets.sh
+# Default "all" = the birth behavior (every suite's blocks run). The
+# probes at the top of main() honor the filter too — a filtered run
+# spends its politeness budget only on the named suites.
+SUITES="${SUITES:-all}"
 MAX_PARTS=$(( TRAIN_CAP / 100 > 200 ? TRAIN_CAP / 100 + 1 : 200 ))   # hard stop: never below the 200-page birth guard
 
 FILES=0
@@ -51,6 +57,13 @@ FAILED=0
 
 log() { printf '%s\n' "$*"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+
+# True when SUITES is "all" or names <suite> in its comma list.
+want_suite() {
+    [ "$SUITES" = "all" ] && return 0
+    case ",$SUITES," in *",$1,"*) return 0 ;; esac
+    return 1
+}
 
 # Python interpreter for the jq-less fallback paths (Issue 018: the windows
 # lane). `python3` on Windows is the Microsoft Store alias STUB — it exists
@@ -312,41 +325,59 @@ main() {
     mkdir -p "$OUT"
 
     log ""
-    log "[probe] typed_decisions /splits"
-    probe_splits typed_decisions "LocalLLaMA%2Ftyped-decisions"
-    log "[probe] massive_intent_en /splits"
-    probe_splits massive_intent_en "mteb%2Famazon_massive_intent"
-    log "[probe] prompt_injections /size"
-    probe_size prompt_injections "deepset%2Fprompt-injections"
+    log "fetch_datasets.sh: out=$OUT page=$PAGE force=$FORCE suites=$SUITES"
+    log "digest tool seen on this box (used by the manifest): $digest_tool"
+    mkdir -p "$OUT"
+
+    if want_suite typed_decisions; then
+        log "[probe] typed_decisions /splits"
+        probe_splits typed_decisions "LocalLLaMA%2Ftyped-decisions"
+    fi
+    if want_suite massive_intent_en; then
+        log "[probe] massive_intent_en /splits"
+        probe_splits massive_intent_en "mteb%2Famazon_massive_intent"
+    fi
+    if want_suite prompt_injections; then
+        log "[probe] prompt_injections /size"
+        probe_size prompt_injections "deepset%2Fprompt-injections"
+    fi
 
     # 1. typed_decisions — test: ALL rows; train: first 800 if the probe
     #    shows a train split for config all.
-    log "[suite] typed_decisions LocalLLaMA/typed-decisions config=all split=test cap=all"
-    fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all test all
-    if splits_have typed_decisions all train; then
-        log "[suite] typed_decisions config=all split=train cap=800 (train present per probe)"
-        fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all train 800
-    else
-        log "[suite] typed_decisions config=all split=train SKIPPED (no train split for config all, or probe missing)"
+    if want_suite typed_decisions; then
+        log "[suite] typed_decisions LocalLLaMA/typed-decisions config=all split=test cap=all"
+        fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all test all
+        if splits_have typed_decisions all train; then
+            log "[suite] typed_decisions config=all split=train cap=800 (train present per probe)"
+            fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all train 800
+        else
+            log "[suite] typed_decisions config=all split=train SKIPPED (no train split for config all, or probe missing)"
+        fi
     fi
 
     # 2. ag_news
-    log "[suite] ag_news fancyzhx/ag_news config=default split=test cap=400"
-    fetch_suite ag_news "fancyzhx%2Fag_news" default test 400
-    log "[suite] ag_news config=default split=train cap=4000"
-    fetch_suite ag_news "fancyzhx%2Fag_news" default train "$TRAIN_CAP"
+    if want_suite ag_news; then
+        log "[suite] ag_news fancyzhx/ag_news config=default split=test cap=400"
+        fetch_suite ag_news "fancyzhx%2Fag_news" default test 400
+        log "[suite] ag_news config=default split=train cap=$TRAIN_CAP"
+        fetch_suite ag_news "fancyzhx%2Fag_news" default train "$TRAIN_CAP"
+    fi
 
     # 3. emotion
-    log "[suite] emotion dair-ai/emotion config=split split=test cap=400"
-    fetch_suite emotion "dair-ai%2Femotion" split test 400
-    log "[suite] emotion config=split split=train cap=4000"
-    fetch_suite emotion "dair-ai%2Femotion" split train "$TRAIN_CAP"
+    if want_suite emotion; then
+        log "[suite] emotion dair-ai/emotion config=split split=test cap=400"
+        fetch_suite emotion "dair-ai%2Femotion" split test 400
+        log "[suite] emotion config=split split=train cap=4000"
+        fetch_suite emotion "dair-ai%2Femotion" split train "$TRAIN_CAP"
+    fi
 
     # 4. sst5
-    log "[suite] sst5 SetFit/sst5 config=default split=test cap=600"
-    fetch_suite sst5 "SetFit%2Fsst5" default test 600
-    log "[suite] sst5 config=default split=train cap=4000"
-    fetch_suite sst5 "SetFit%2Fsst5" default train "$TRAIN_CAP"
+    if want_suite sst5; then
+        log "[suite] sst5 SetFit/sst5 config=default split=test cap=600"
+        fetch_suite sst5 "SetFit%2Fsst5" default test 600
+        log "[suite] sst5 config=default split=train cap=4000"
+        fetch_suite sst5 "SetFit%2Fsst5" default train "$TRAIN_CAP"
+    fi
 
     # 5. banking77 — currently 404s on /rows (script-based dataset; see
     #    header). Attempted so every run records the gap honestly.
@@ -354,30 +385,38 @@ main() {
 # datasets-server cannot serve (/rows 404). The reference itself has a second
 # variant on the parquet-backed mirror mteb/banking77 (bench_apps protocol:
 # labels = sorted unique label_text, gold = key position) — fetch THAT.
-    log "[suite] banking77 mteb/banking77 config=default split=test cap=all (universe rows; eval cap lives in the harness)"
-    fetch_suite banking77 "mteb%2Fbanking77" default test all
-    log "[suite] banking77 mteb/banking77 config=default split=train cap=4000"
-    fetch_suite banking77 "mteb%2Fbanking77" default train "$TRAIN_CAP"
+    if want_suite banking77; then
+        log "[suite] banking77 mteb/banking77 config=default split=test cap=all (universe rows; eval cap lives in the harness)"
+        fetch_suite banking77 "mteb%2Fbanking77" default test all
+        log "[suite] banking77 mteb/banking77 config=default split=train cap=4000"
+        fetch_suite banking77 "mteb%2Fbanking77" default train "$TRAIN_CAP"
+    fi
 
     # 6. prompt_injections — test: ALL (~116); train: first 1000 (actual
     #    size 546 per /size probe, so the cap exhausts the split).
-    log "[suite] prompt_injections deepset/prompt-injections config=default split=test cap=all"
-    fetch_suite prompt_injections "deepset%2Fprompt-injections" default test all
-    log "[suite] prompt_injections config=default split=train cap=1000 (actual 546 per probe)"
-    fetch_suite prompt_injections "deepset%2Fprompt-injections" default train 1000
+    if want_suite prompt_injections; then
+        log "[suite] prompt_injections deepset/prompt-injections config=default split=test cap=all"
+        fetch_suite prompt_injections "deepset%2Fprompt-injections" default test all
+        log "[suite] prompt_injections config=default split=train cap=1000 (actual 546 per probe)"
+        fetch_suite prompt_injections "deepset%2Fprompt-injections" default train 1000
+    fi
 
     # 7. massive_intent_en — config verified via /splits: the configs are
     #    bare locale codes; the English one is "en" (not "en-US").
-    log "[suite] massive_intent_en mteb/amazon_massive_intent config=en split=test cap=all (universe rows; eval cap lives in the harness)"
-    fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en test all
-    log "[suite] massive_intent_en config=en split=train cap=4000"
-    fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en train "$TRAIN_CAP"
+    if want_suite massive_intent_en; then
+        log "[suite] massive_intent_en mteb/amazon_massive_intent config=en split=test cap=all (universe rows; eval cap lives in the harness)"
+        fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en test all
+        log "[suite] massive_intent_en config=en split=train cap=4000"
+        fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en train "$TRAIN_CAP"
+    fi
 
     # 8. xnli_en
-    log "[suite] xnli_en facebook/xnli config=en split=test cap=300"
-    fetch_suite xnli_en "facebook%2Fxnli" en test 300
-    log "[suite] xnli_en config=en split=train cap=4000"
-    fetch_suite xnli_en "facebook%2Fxnli" en train "$TRAIN_CAP"
+    if want_suite xnli_en; then
+        log "[suite] xnli_en facebook/xnli config=en split=test cap=300"
+        fetch_suite xnli_en "facebook%2Fxnli" en test 300
+        log "[suite] xnli_en config=en split=train cap=4000"
+        fetch_suite xnli_en "facebook%2Fxnli" en train "$TRAIN_CAP"
+    fi
 
     log ""
     log "summary: files=$FILES rows=$ROWS failed_requests=$FAILED"
