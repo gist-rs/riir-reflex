@@ -4,7 +4,13 @@ Path deps assume this on-disk layout:
 
 ```
 /git/riir-reflex      ← this repo
-/git/katgpt-rs        ← katgpt-core (the ONE code-level dep, non-optional)
+/git/katgpt-rs        ← katgpt-core (the engine substrate, non-optional)
+/git/riir-infer       ← the laya lane substrate (`crates/riir-infer-laya`, non-optional
+                        path dep — the lane MOVED here 2026-09-24, Issue 008 T4; the
+                        ungated pyjson writer keeps the manifest always-resolved)
+/git/riir-reflexer    ← the vessel format repo (`crates/reflexer-vessel`, optional path
+                        dep activated by `vessel_public_read`, default-on — the head
+                        lane's PUBLIC-RELEASE reader + the mint path's public writer)
 /git/riir-ai          ← NOT a dep (game runtime; the boundary counter-case is
                          Proposal 017: engine substrate must be consumable
                          WITHOUT the game stack, so no edge exists in either
@@ -13,11 +19,18 @@ Path deps assume this on-disk layout:
 
 ## The dependency law
 
-- **Default build = ONE code-level dep: `katgpt-core`**
+- **The ENGINE substrate is `katgpt-core`**
   (`default-features = false`, six named features forwarded through this
   crate's `modelless` feature — see the root `Cargo.toml`). Everything the
-  engine does rides LANDED katgpt-core primitives; nothing is re-implemented
-  here (substrate-first).
+  decision engine does rides LANDED katgpt-core primitives; nothing is
+  re-implemented here (substrate-first).
+- **`reflexer-vessel` joins ONLY behind `vessel_public_read`**
+  (default-on, instinct Proposal 001 T3+T4): the heads lane's signed
+  PUBLIC-RELEASE reader + the mint path's public writer. The feature set
+  is the capability law (A1): `vessel_public_read` is the ONLY reader
+  capability this repo selects — the HOSTED-ONLY reader has no selectable
+  path in ANY feature combination (the moat), and no GAME-IP content may
+  ever ride a PUBLIC-RELEASE vessel through this repo (A10).
 - **`serde_json`** is the second manifest dep and it is EDGE-ONLY: the
   localhost HTTP/JSON boundary (cold path). Engine code never touches it.
   Re-deriving a JSON parser would be absurd duplication — the Plan-005
@@ -37,6 +50,13 @@ Path deps assume this on-disk layout:
   parity `[[test]]` row (`required-features = ["laya-riir"]`).
 - **No game crate is reachable from ANY feature combination** — the
   new-repo decision (root `BOUNDARY.md` §Owns) rests on that property.
+- **Heads lane = load + verify only at serve time (A8):** the serve
+  binary carries no fixture bytes and fits nothing; `reflex mint-heads`
+  is the OFFLINE mint front (fixture-digest-gated, deterministic) and the
+  serve path only loads signed vessels (strict ed25519 + BLAKE3, monotonic
+  apply). Trust anchoring: compiled pins first, then the
+  `RIIR_REFLEX_HEADS_PUBKEY` operator wildcard; vessels-without-anchor is
+  a loud exit-2 config gap, never a per-vessel unknown-key failure.
 - **No Python anywhere** (owner directive): no sidecar, no `uv`, no HF
   transformers. The laya lane is the native-Rust port over their
   safetensors, weights runtime-downloaded with BLAKE3-pinned digests —

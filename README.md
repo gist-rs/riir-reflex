@@ -124,6 +124,32 @@ call the engine from a browser. `cargo-heal`-style staleness guard: a
 binary built without the full release set says so on `--version`
 (`release set: STALE — missing …` + the rebuild command).
 
+### The game lanes (signed head vessels)
+
+The arena game boards (Tetris / lanes / flappy) are served from SIGNED
+PUBLIC-RELEASE head vessels — never compiled-in bytes, never re-fitted at
+boot (instinct Proposal 001 T4). The serve binary carries no fixture data:
+heads load whole from `RIIR_REFLEX_HEADS_DIR` (`tetris.vessel` /
+`lanes.vessel` / `flappy.vessel`), verified strict ed25519 + BLAKE3 before
+anything installs. Without the dir the boards abstain — a loud boot line
+names the env, never a silent empty.
+
+```sh
+# mint the three head vessels (deterministic; fixture-digest-gated —
+# the mints refuse if the fixtures drifted from the published fits)
+reflex mint-heads --out /tmp/heads
+# → prints the commitment + digest per head and the serve posture line:
+#   serve posture: RIIR_REFLEX_HEADS_DIR=/tmp/heads RIIR_REFLEX_HEADS_PUBKEY=<hex>
+
+# serve with the heads loaded (the verifying key IS the trust anchor —
+# pin it beside the release)
+RIIR_REFLEX_HEADS_DIR=/tmp/heads RIIR_REFLEX_HEADS_PUBKEY=<hex> reflex
+```
+
+A heads dir with vessels but NO trust anchor is a config gap: boot exits 2
+naming `RIIR_REFLEX_HEADS_PUBKEY` (compiled pins come first; the env is the
+operator wildcard). `/healthz` advertises the loaded head map.
+
 ### The laya lane over HTTP (opt-in)
 
 The comparison lane is compiled into the release binary but OFF at runtime.

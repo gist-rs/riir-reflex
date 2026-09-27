@@ -67,6 +67,34 @@ Was **Private forever** per katgpt-rs Research 003 — opened public
 2026-09-23 as one of the first sanctioned exceptions (Research 003's
 dated amendment, owner directive 2026-09-22).
 
+## Head vessels (instinct Proposal 001 T4/T7 — the laws that bind THIS repo)
+
+The arena game heads (tetris / lanes / flappy) are SIGNED artifacts, not
+compiled bytes — the arsenal laws (canonical text: `../riir-instinct/.proposals/001_arsenal_cognition_vessel_protocol.md`)
+narrow to three here, and every one is structural, not convention:
+
+1. **A1 — bytes are runtime, capability is compile-time.** This repo
+   selects `vessel_public_read` ONLY (default-on); the HOSTED-ONLY reader
+   has no selectable path here — the moat. Head weights ride signed
+   `.vessel` files loaded whole at boot; nothing is compiled in, nothing
+   re-fitted at serve time (the serve binary carries no fixture bytes —
+   the fit runs at MINT time).
+2. **A8 — no runtime minting.** `reflex mint-heads` is the OFFLINE mint
+   front (fixture-digest-gated, deterministic — same fixtures + key →
+   byte-identical vessels); the serve path only loads + verifies (strict
+   ed25519 + BLAKE3, monotonic apply). A tampered/drifting vessel refuses
+   loud; it is never repaired in place.
+3. **A10 — moat.** The demo heads are public BY DESIGN (the arena is the
+   public product); no GAME-IP content may ever ride a PUBLIC-RELEASE
+   vessel through this repo. Hosted-only minting stays in riir-train, and
+   its vessels cannot even be READ by a build of this repo.
+
+Trust anchoring: compiled pin table first (`reflexer_vessel::default_pins`,
+EMPTY until the first release artifact ships), then the operator wildcard
+`RIIR_REFLEX_HEADS_PUBKEY` (the minting key's verifying key hex). A heads
+dir carrying vessels with NO anchor is a config gap: exit 2 naming the env,
+never a generic unknown-key failure per vessel.
+
 ## Sibling-Repo Layout
 
 ```
@@ -75,6 +103,10 @@ dated amendment, owner directive 2026-09-22).
 /git/riir-infer       ← the laya lane substrate (`crates/riir-infer-laya`, path dep —
                         always resolved: the ungated pyjson writer moved there; the
                         lane itself lights up behind laya-riir / laya-riir-metal)
+/git/riir-reflexer    ← the vessel FORMAT repo (`crates/reflexer-vessel`, optional path dep
+                        activated by `vessel_public_read`, default-on — the public-class
+                        reader/writer the head lane verifies through; the manifest is
+                        load-bearing for every cargo command either way)
 /git/riir-ai          ← NOT a dep (boundary counter-case: katgpt-rs Proposal 017)
 ```
 
