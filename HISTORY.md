@@ -7,6 +7,44 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 038 CLOSED — every lever in the ranked plan has a verdict; the
+  remaining gap belongs to the model-based lane (T4 → riir-instinct).
+  Final probe verdicts (T7c/d, `e36b7e09`):
+  `scripts/issue038_t7cd_probe.py`, cal-selected / test-once, the base
+  probe's `src/embed.rs` tokenization.** (c) **BM25-kNN vote REFUTED** —
+  Okapi k1/b × k × vote-γ ladders, cal-selected; test reads BELOW the
+  shipped lane on every suite: banking77 0.7809 vs 0.8620, emotion 0.5375
+  vs 0.8550, sst5 0.3217 vs 0.4017, massive 0.7226 vs 0.8267, ag_news
+  0.8525 vs 0.8975. (It beats the bare-MNB probe reference on
+  banking77/massive — the neighbourhood signal exists — but the shipped
+  lane's genome + ridge arms sit far above it, so the lever premise fails
+  at the shipped bar.) (d) **Hebbian premise×hypothesis co-occurrence
+  REFUTED as a lever** — per-class unigram co-occurrence tables,
+  contrastive log-odds weights, fused MNB + λ·bilinear, top-k df vocab,
+  cal-selected: the term is REAL signal on the bare namespaced bag (test
+  0.3867 → 0.4767, +9 pt) but on the SHIPPED pair-view shape the cal walk
+  selects **λ = 0** (every λ > 0 posture below the reference: 0.5167 <
+  0.5367, consistent 8/8). Probe-mirror validated: the shipped-shape MNB
+  reads cal 0.5367 / test 0.5100 against the Rust hold-out .505 and
+  published 0.520. The mechanism: the shipped novel-word mark IS a coarse
+  premise×hypothesis interaction ("hypothesis word absent from premise")
+  and the coverage/negation buckets harvest the refinement — the
+  co-occurrence table adds nothing measurable. With the T5 genome having
+  held xnli at every coordinate, the xnli residual is confirmed
+  representational AND already-harvested: lexical NLI tops out near 0.52
+  on this feature class (the issue's own honest ceiling); the rest of the
+  gap to laya is the model-based lane's. Landed over the issue's life:
+  T1/T1b/T2/T3/T6 (Bench 051, nb_scope default-on), T7(a)+(b) (Plan 004 /
+  Bench 057: option_cond + nb_ridge default-on), T5 (Plan 005 / Bench 064
+  `bc0a3fb`: the joint blend-genome lane; banking77 0.8260 → 0.8620, sst5
+  0.3967 → 0.4017 ADOPTED; massive +5.33 REJECTED on G1; emotion
+  REJECTED; RRF DECLINED), T4′ cascade lane (Bench 061 `337974d`, gate
+  NEGATIVE → issue 042), ag_news volume lever (Bench 065, NEGATIVE).
+  Scoreboard at close: modelless ≥ laya best on 5/9 dataset suites,
+  banking77 margin +36.2; xnli 0.520 / typed 0.4655 recorded as the
+  hashed-bag class's representational ceilings. Site republish still
+  deferred to a gate-clean whole-run (`publish_bench` has no G1 filter).
+
 - **Issue 041 RESOLVED — the ag_news full-pull volume lever measured
   NEGATIVE (Bench 065).** The full 120k train pull
   (`.raw/datasets_agnews_full/`, a measurement sidecar — the canonical
