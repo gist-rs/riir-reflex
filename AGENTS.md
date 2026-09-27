@@ -455,7 +455,19 @@ T1.1–T1.8 all landed. The last two:
   exactly 0.0 and abstains everything — correct autonomous behavior, and
   the reason some rows read readout-ECE 0.000 (the protocol's ECE bins are
   left-open `(0,1]`, so zero-confidence rows fall in NO bin — read those
-  as n/a, never as perfect).
+  as n/a, never as perfect). **The family's lane posture CHANGED 09-28
+  (Issue 045 T1+T2, Bench 072 — the paragraph's "LLM-lane only" wording
+  above is the LANDING-TIME state, superseded):** `harness_cache_reuse`
+  now answers MODELLESS at default features — an authored 12-doc reuse
+  corpus + a 20-case cal front, the cal-selected issue-038 noul
+  count-table polarity as the lever — reading 0.9167 (11/12) vs the LLM
+  lane's 0.5000, G2 p50 0.009 ms, bit-identical ×3 (n=12 → Wilson
+  [0.646, 0.985], no accuracy claim); the loud-skip became a modelless
+  answer, the eval fixtures are byte-unchanged (gate-pinned), and the
+  families' `cache_reuse` gate is now the production-seat grounding gate
+  `cache_reuse_grounded_posture_discriminates`. Record:
+  `.benchmarks/072_cache_reuse_modelless/`; the publish half (site bench
+  row) rides the reflex-site session.
 - **T1.8 docs closure LANDED 2026-09-22** — this file, README (results +
   honest reading), the katgpt-rs `decision_wire` catalog note (the
   substrate's consumer), and the `.docs/02_protocols/dataset_manifest.md` banking77
