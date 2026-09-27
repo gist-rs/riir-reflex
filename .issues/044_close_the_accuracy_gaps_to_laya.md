@@ -27,9 +27,9 @@ Reflex is at or above laya on the other 9 of 14.
 - [ ] T1 — ag_news first: the smallest gap (+6.8 pt) and the largest
   question count. Check whether the Plan 004/005 levers (Issue 038 T5/T7:
   cal-selected heads, blend genome) already move it, before adding anything.
-- [ ] T2 — the harness_* suites carry 8–24 questions each. Confirm the gap
-  exceeds the Wilson interval before spending effort (one question is
-  4–12 pt there).
+- [ ] T2 — harness_routing has 16 questions and harness_sensitivity 15, so
+  one question moves either by ~6.3–6.7 pt (code_fixtures: 24, ~4.2 pt).
+  Confirm each gap exceeds the Wilson interval before spending effort.
 - [ ] T3 — xnli_en: NLI needs pair reasoning, which a corpus-bound lane is
   structurally weak at. Measure a modelless pair-feature head before
   declaring it out of reach; record the verdict either way.
