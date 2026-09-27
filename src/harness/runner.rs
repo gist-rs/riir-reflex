@@ -4795,7 +4795,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         "ag_news" => (0..4).map(|i| i.to_string()).collect(),
         "emotion" => (0..6).map(|i| i.to_string()).collect(),
         "sst5" => (0..5).map(|i| i.to_string()).collect(),
-        "xnli_en" => (0..3).map(|i| i.to_string()).collect(),
+        "xnli_en" | "xnli_en_val" => (0..3).map(|i| i.to_string()).collect(),
         "prompt_injections" => (0..2).map(|i| i.to_string()).collect(),
         "typed_decisions" => {
             // The workflow names from the TEST case ids (id =
