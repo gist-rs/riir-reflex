@@ -86,7 +86,4 @@ side stays behind Plan 003 T4.2 (segment → space-join → the EXISTING
 embedder), deferred with its trigger. Determinism: two runs byte-identical
 ex-meta (only the volatile wall-clock latency fields differ).
 
-Board status: T2.6 (EN cross-check) and T3.3 (the full Thai board:
-openthai vs laya-multilingual vs modelless) wait on THEIR service live
-(`uvicorn openthai_systemone.server:app` + the HF weights env) — the code
-lane is landed and stub-verified (T2.1–T2.5).
+Board status: **T2.6 + T3.3 MEASURED 2026-09-28 — `.benchmarks/074_openthai_thai_board.md`**: openthai wisesight 0.4750 (card 51.6, ECE 0.36 vs their 0.353) / sib200 0.8382; laya-multilingual 0.4075 / 0.7843 (the one checkpoint that answers Thai — now seated for `thai_*` suites); modelless at/below chance per the empty-bag law above. The board also corrected the lane's noul response wire (their `noul` field, no probabilities dict — types.py @ 5d04bcca). En cross-check (T2.6): xnli 0.8967 vs card 89.0; massive 0.9200 vs 88.3 (slice-protocol provenance recorded). T3.4 (site republish) = the reflex-site session's half.

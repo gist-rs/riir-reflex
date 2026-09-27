@@ -420,10 +420,16 @@ fn families_synth_cache_reuse() -> SynthData {
 /// the typed-decisions headline alongside the two base checkpoints; every
 /// other suite is the general `english` checkpoint (the reference's own
 /// layout — T4 ran base checkpoints on the English suites and `typed` on
-/// typed-decisions).
+/// typed-decisions) — EXCEPT the Thai probe suites (Plan 003 T3.3): the
+/// board names laya-MULTILINGUAL, the one checkpoint that answers Thai
+/// script (the frozen `ml-thai` G5 row; english collapses per
+/// `ml-thai-collapse`, so an english column there measures the collapse,
+/// not the capability).
 fn laya_checkpoints_for(suite: &str) -> &'static [&'static str] {
     if suite == "typed_decisions" {
         &["typed", "english", "multilingual"]
+    } else if suite.starts_with("thai_") {
+        &["multilingual"]
     } else {
         &["english"]
     }

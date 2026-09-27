@@ -309,8 +309,13 @@ fn build_question(q: &SuiteQuestion) -> Result<Value, String> {
 /// order and OUR option order:
 ///
 /// * noul: their p(yes) → `[1-p, p]`; `conf` = the top side's probability.
-///   Their probabilities for noul is the p(yes) number (a bare number or a
-///   one-element array — both accepted; anything else is a loud error).
+///   The MEASURED wire (types.py @ 5d04bcca, verified live 2026-09-28):
+///   NoulAnswer carries the p(yes) number in a **`noul` field** —
+///   `{type: "noul", noul: 0.026}` — NO `probabilities` dict; the
+///   research note's `{…, probabilities, …}` shape is the REQUEST-side
+///   view, not the response. A bare-number/one-element-array
+///   `probabilities` fallback is accepted for tolerance (the original
+///   reading) but the `noul` field is the primary read.
 /// * choice: the `probabilities` dict read in OUR criteria-key order;
 ///   `pick` = their `choice` key's position (argmax fallback); `conf` =
 ///   their `confidence`.
@@ -333,35 +338,48 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
         let a = answers
             .get(&q.qid)
             .ok_or_else(|| format!("qid {}: no answer in response", q.qid))?;
-        let probs_v = a
-            .get("probabilities")
-            .ok_or_else(|| format!("qid {}: answer has no probabilities", q.qid))?;
         let conf = a
             .get("confidence")
-            .and_then(Value::as_f64)
-            .ok_or_else(|| format!("qid {}: answer has no confidence", q.qid))?;
+            .and_then(Value::as_f64);
         let triple = match q.kind {
             QKind::Noul => {
-                let p_yes = match probs_v {
-                    Value::Number(_) => probs_v.as_f64(),
-                    Value::Array(arr) if arr.len() == 1 => arr[0].as_f64(),
-                    _ => None,
-                }
-                .ok_or_else(|| {
-                    format!(
-                        "qid {}: noul probabilities must be the p(yes) number \
-                         (or a one-element array)",
-                        q.qid
-                    )
-                })?;
+                // Primary: the measured `noul` field (types.py
+                // NoulAnswer). Fallback: a bare-number probabilities
+                // value (the original lane reading, kept for wire
+                // tolerance).
+                let p_yes = a
+                    .get("noul")
+                    .and_then(Value::as_f64)
+                    .or_else(|| {
+                        let probs_v = a.get("probabilities")?;
+                        match probs_v {
+                            Value::Number(_) => probs_v.as_f64(),
+                            Value::Array(arr) if arr.len() == 1 => arr[0].as_f64(),
+                            _ => None,
+                        }
+                    })
+                    .ok_or_else(|| {
+                        format!(
+                            "qid {}: noul answer carries neither a `noul` number \
+                             nor a bare-number `probabilities`",
+                            q.qid
+                        )
+                    })?;
                 let p_no = 1.0 - p_yes;
                 (
                     vec![p_no, p_yes],
                     usize::from(p_yes >= 0.5),
-                    p_yes.max(p_no),
+                    conf.unwrap_or_else(|| p_yes.max(p_no)),
                 )
             }
             QKind::Choice => {
+                // Their ChoiceAnswer carries the probabilities dict +
+                // confidence (types.py @ 5d04bcca).
+                let probs_v = a.get("probabilities").ok_or_else(|| {
+                    format!("qid {}: choice answer has no probabilities", q.qid)
+                })?;
+                let conf = conf
+                    .ok_or_else(|| format!("qid {}: choice answer has no confidence", q.qid))?;
                 let dist = probs_v.as_object().ok_or_else(|| {
                     format!("qid {}: choice probabilities must be an object", q.qid)
                 })?;
@@ -391,6 +409,11 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 (probs, pick, conf)
             }
             QKind::Score => {
+                let probs_v = a.get("probabilities").ok_or_else(|| {
+                    format!("qid {}: score answer has no probabilities", q.qid)
+                })?;
+                let conf = conf
+                    .ok_or_else(|| format!("qid {}: score answer has no confidence", q.qid))?;
                 let dist = probs_v.as_object().ok_or_else(|| {
                     format!("qid {}: score probabilities must be an object", q.qid)
                 })?;
@@ -529,7 +552,7 @@ mod tests {
         let resp = json!({
             "model": "openthai-systemone-test",
             "answers": {
-                "q0": {"probabilities": 0.8, "confidence": 0.8},
+                "q0": {"type": "noul", "noul": 0.8},
                 "q1": {
                     "probabilities": {"a": 0.3, "b": 0.7},
                     "confidence": 0.7,
@@ -544,7 +567,10 @@ mod tests {
             "usage": {"input_tokens": 5432}
         });
         let out = map_answers(&c, &resp).unwrap();
-        // noul: p(yes) 0.8 → [1-p, p], pick 1, conf = the top side.
+        // noul: the MEASURED wire — p(yes) rides the `noul` field
+        // (types.py NoulAnswer @ 5d04bcca, live-verified 2026-09-28), no
+        // probabilities dict, no confidence → conf = the top side.
+        // p(yes) 0.8 → [1-p, p], pick 1, conf 0.8.
         assert!((out[0].0[0] - 0.2).abs() < 1e-12);
         assert!((out[0].0[1] - 0.8).abs() < 1e-12);
         assert_eq!(out[0].1, 1);
@@ -593,13 +619,27 @@ mod tests {
     }
 
     #[test]
-    fn noul_probabilities_must_be_the_p_yes_number() {
+    fn noul_answer_maps_the_measured_noul_field_and_the_fallback() {
         let c = case(json!("s"), vec![("q0", QKind::Noul, "d?", Value::Null)]);
-        let bad = json!({"answers": {"q0": {"probabilities": {"yes": 0.8}, "confidence": 0.8}}});
-        assert!(map_answers(&c, &bad).is_err(), "a dict is not p(yes) — loud error");
+        // Primary: the MEASURED wire — the `noul` field (types.py
+        // NoulAnswer @ 5d04bcca, live-verified 2026-09-28): no probabilities
+        // dict, no confidence → conf falls back to the top side.
+        let primary = json!({"answers": {"q0": {"type": "noul", "noul": 0.8}}});
+        let out = map_answers(&c, &primary).unwrap();
+        assert!((out[0].0[1] - 0.8).abs() < 1e-12);
+        assert_eq!(out[0].1, 1);
+        assert!((out[0].2 - 0.8).abs() < 1e-12);
+        // Fallback (the original lane reading, kept for wire tolerance):
+        // a bare-number `probabilities` value, and a one-element array.
+        let bare = json!({"answers": {"q0": {"probabilities": 0.8, "confidence": 0.8}}});
+        let out = map_answers(&c, &bare).unwrap();
+        assert!((out[0].0[1] - 0.8).abs() < 1e-12);
         let one = json!({"answers": {"q0": {"probabilities": [0.8], "confidence": 0.8}}});
         let out = map_answers(&c, &one).unwrap();
         assert!((out[0].0[1] - 0.8).abs() < 1e-12);
+        // A dict probabilities with NO noul field stays a loud error.
+        let bad = json!({"answers": {"q0": {"probabilities": {"yes": 0.8}, "confidence": 0.8}}});
+        assert!(map_answers(&c, &bad).is_err(), "a dict is not p(yes) — loud error");
     }
 
     #[test]
