@@ -7,6 +7,36 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 044 EXECUTED — the accuracy-gap audit + the frozen code_fixtures
+  population + the NLI pair-feature head (Bench 068, `fe7c123`).** Five
+  tasks, five measured verdicts. (1) The Wilson screen (T2): harness_routing
+  and harness_sensitivity's published gaps are NOT real — 3 questions each,
+  laya inside reflex's 95% CI — the families owe authored questions, not
+  mechanisms. (2) code_fixtures (T4) was commit-relative and ROTTEN: the
+  laya/agent.rs + laya/router.rs moves left 4 of 8 option labels without
+  corpus docs, and the published number moved with the tree (0.2500
+  published vs 0.2917 same-week). The population is now a BLAKE3-pinned
+  committed fixture (`code_fixtures_frozen.json`, digest `034774df…b44362`,
+  8 healthy modules with full slices; `examples/gen_code_frozen`
+  regenerates; hand edits fail the parse-time digest check) — and the
+  published +41.7 pt gap COLLAPSES on the frozen population: reflex 0.3750
+  vs laya 0.4062 @ n=32, laya inside reflex's CI — republished lane-scoped
+  both lanes. (3) xnli (T3): the report-only `--nli-feature-ab` arm (new
+  `src/harness/runner/nli_lane.rs`: closed-form diagonal-LDA over 10 lexical
+  pair features, cal-fit, one test read, three postures + the blend's G1
+  triple) found REAL decorrelated signal — head alone 0.5333 > engine
+  0.5233, additive blend at cal-selected λ=0.5 **0.5800 (+5.67 pt)**, oracle
+  56/53 — and REFUSED its own promotion: the blended readout's ECE 0.1596
+  breaches the conformal floor 0.1351 (the Bench-064 massive law, second
+  instance). Reopen = pre-registered cal-side G1-constrained λ. The module
+  test caught the fit's class counter never incrementing en route — the
+  head would have been dead-on-arrival. (4) ag_news (T1): no shipped lever
+  moves it — volume (065, negative), genome (064/065, held twice), the
+  selection posture itself (reconfirmed byte-exactly at 0.8825); the
+  residual −6.8 pt is encoder-owned word-order and awaits a new modelless
+  mechanism that can clear G1. Postures elsewhere byte-identical
+  (ag 0.8825 / xnli 0.5233 / routing 0.4375 / sensitivity 0.4000).
+
 - **Issue 042 CLOSED — the gate rate axis measured (Bench 066,
   `842f89d`): the COMBINED posture (`--gate-fit-selection
   --gate-distance-only`, worthiness margin 0.16 unchanged) is the first
