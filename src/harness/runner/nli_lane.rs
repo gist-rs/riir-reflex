@@ -58,7 +58,9 @@ use serde::Serialize;
 use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 use super::{Eval, QKind, Suite, SuiteCase};
-use crate::harness::metrics::{CalibrationPair, conformal_naive_floor, ece_of};
+use crate::harness::metrics::{
+    CalibrationPair, brier_of, conformal_naive_floor, ece_of, nll_of,
+};
 
 /// The G1-constrained λ ladder — the unconstrained ladder extended DOWN so
 /// the calibration constraint has somewhere to stand (ties → the smaller
@@ -678,6 +680,23 @@ pub fn nli_feature_ab_pass(
     let had_g1_inputs = g1_inputs.is_some();
     let g1_plan = g1_inputs.and_then(|inp| build_g1_plan(inp, &lda, cal_cases, cal_eval));
 
+    // Issue 047 D1: the diagnostic dumps the recal windows cal-side (above)
+    // and then STOPS — the lane's ONE test read is exactly what Issue 047
+    // R1 forbids spending on this question ("no slice read"). The
+    // harness's own forced engine eval upstream of this point is previously
+    // published posture work, unspent for the nli question; no nli-lane
+    // test-side number is computed, recorded, or read.
+    if g1_diag_enabled() {
+        eprintln!(
+            "  [nli-feature-ab] {}: G1-DIAG cal-side dump complete (g1_plan built = {}) — \
+             SKIPPING the test read (Issue 047 R1: the 300-item xnli_en test split \
+             is never read for this question)",
+            suite.name,
+            g1_plan.is_some(),
+        );
+        return Ok(None);
+    }
+
     // ── The ONE test read ──
     let n = suite.cases.len();
     let mut baseline_correct = 0usize;
@@ -897,6 +916,12 @@ fn select_g1_rung(ladder: &[G1LadderPoint]) -> (usize, bool) {
     }
 }
 
+/// The Issue 047 D1 diagnostic gate — the EXACT literal "1" (an unset or
+/// wrongly-spelled variable must never half-enable a diagnostic).
+fn g1_diag_enabled() -> bool {
+    std::env::var("RIIR_REFLEX_G1_DIAG").as_deref() == Ok("1")
+}
+
 /// The G1-constrained posture's CAL-side selection (Bench 069 protocol —
 /// see the module doc). Returns `None` = loud skip (cal slice below the
 /// floor or misaligned with its eval); every other state returns a plan.
@@ -966,6 +991,14 @@ fn build_g1_plan(
     );
 
     let engine_acc = rung_correct[0] as f64 / n_cal as f64;
+    // Issue 047 D1: when `RIIR_REFLEX_G1_DIAG=1`, every rung's recal window
+    // dumps (w, c) + held-out NLL/Brier beside the ECEs — the diagnostic
+    // that separates "Platt minimizes NLL, not binned ECE" (NLL improves,
+    // ECE worsens → the Bench-069 story holds) from a solver defect (NLL
+    // ALSO worsens → the shared `SigmoidGateCalibrator::refit` is the
+    // suspect, filed upstream, never a reflex finding). Cal-side only by
+    // construction — the ladder never touches the test split.
+    let g1_diag = g1_diag_enabled();
     let ladder: Vec<G1LadderPoint> = G1_LAMBDAS
         .iter()
         .enumerate()
@@ -991,13 +1024,41 @@ fn build_g1_plan(
                 cal.observe(c as f32, ok);
             }
             cal.refit();
-            let recal_b = ece_of(
-                &b_pairs
+            let recal_pairs: Vec<(f64, bool)> = b_pairs
+                .iter()
+                .map(|(c, ok)| (cal.apply(*c as f32) as f64, *ok))
+                .collect();
+            let recal_b = ece_of(&recal_pairs);
+            let cal_acc = rung_correct[li] as f64 / n_cal as f64;
+            if g1_diag {
+                let (w, c) = cal.params_raw();
+                let raw_nll = nll_of(&b_pairs);
+                let recal_nll = nll_of(&recal_pairs);
+                // The solver's OWN objective on its own fit half — the
+                // decisive cell: held-out NLL worsening with fit-half NLL
+                // improving is generalization, never a broken descent.
+                let fit_b_pairs: Vec<(f64, bool)> = fit_idx
+                    .iter()
+                    .map(|&i| {
+                        let (c, ok) = rung_pairs[li][i];
+                        ((c as f32) as f64, ok)
+                    })
+                    .collect();
+                let fit_recal_pairs: Vec<(f64, bool)> = fit_b_pairs
                     .iter()
                     .map(|(c, ok)| (cal.apply(*c as f32) as f64, *ok))
-                    .collect::<Vec<(f64, bool)>>(),
-            );
-            let cal_acc = rung_correct[li] as f64 / n_cal as f64;
+                    .collect();
+                eprintln!(
+                    "  [nli-feature-ab] G1-DIAG λ={lam}: w={w:.6} c={c:.6} n_eval_half={n_eval} | \
+                     ece raw={raw_b:.4} recal={recal_b:.4} | nll raw={raw_nll:.4} recal={recal_nll:.4} | \
+                     brier raw={raw_brier:.4} recal={recal_brier:.4} | nll_fit raw={fit_raw:.4} recal={fit_recal:.4}",
+                    n_eval = eval_idx.len(),
+                    raw_brier = brier_of(&b_pairs),
+                    recal_brier = brier_of(&recal_pairs),
+                    fit_raw = nll_of(&fit_b_pairs),
+                    fit_recal = nll_of(&fit_recal_pairs),
+                );
+            }
             // Pre-registered feasibility: the recalibrated blend readout
             // must beat BOTH bars of the lane's own G1 law on the held-out
             // half (its own uncalibrated surface AND the engine-derived

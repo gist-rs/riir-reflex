@@ -305,6 +305,45 @@ pub fn ece_of(pairs: &[(f64, bool)]) -> f64 {
     ece
 }
 
+/// Binary log loss over a plain (conf, correct) list — the per-item
+/// `-[y·ln(p) + (1−y)·ln(1−p)]` mean. This is the quantity Platt scaling
+/// actually minimizes; binned ECE is not. Empty input → NaN (the
+/// `ece_of` convention); confidences are clamped to `[1e-12, 1−1e-12]`
+/// before the log.
+#[must_use]
+pub fn nll_of(pairs: &[(f64, bool)]) -> f64 {
+    if pairs.is_empty() {
+        return f64::NAN;
+    }
+    const EPS: f64 = 1e-12;
+    let n = pairs.len() as f64;
+    pairs
+        .iter()
+        .map(|&(p, y)| {
+            let p = p.clamp(EPS, 1.0 - EPS);
+            -(if y { p.ln() } else { (1.0 - p).ln() })
+        })
+        .sum::<f64>()
+        / n
+}
+
+/// Binary Brier score over a plain (conf, correct) list — the per-item
+/// `(p − y)²` mean. Empty input → NaN (the `ece_of` convention).
+#[must_use]
+pub fn brier_of(pairs: &[(f64, bool)]) -> f64 {
+    if pairs.is_empty() {
+        return f64::NAN;
+    }
+    pairs
+        .iter()
+        .map(|&(p, y)| {
+            let d = p - f64::from(y);
+            d * d
+        })
+        .sum::<f64>()
+        / pairs.len() as f64
+}
+
 /// The reference ECE bin edges: `np.linspace(0, 1, 16)` — 15 equal bins.
 /// Interior edges are `i / 15`; a confidence sitting exactly on an interior
 /// edge in exact arithmetic may differ from numpy's `i * (1/15)` by 1 ulp
@@ -527,5 +566,35 @@ mod subset_accuracy_tests {
     #[should_panic(expected = "disagree")]
     fn flag_and_case_count_mismatch_refuses() {
         let _ = subset_accuracy(&rows(), &[false, false, false], &[1, 2]);
+    }
+}
+
+#[cfg(test)]
+mod binary_pairs_metrics_tests {
+    use super::{brier_of, nll_of};
+
+    #[test]
+    fn nll_known_answer_and_clamping() {
+        // Perfect confidence on both outcomes → loss at the clamp floor
+        // (1.0 clamps to 1−1e-12; the residual is ~1e-12 per item).
+        assert!(nll_of(&[(1.0, true), (0.0, false)]) < 1e-9);
+        // p=0.5 both ways → ln(2) per item.
+        let got = nll_of(&[(0.5, true), (0.5, false)]);
+        assert!((got - 2.0_f64.ln()).abs() < 1e-12);
+        // Confidence 0.0 on a correct item clamps to 1e-12 → −ln(1e-12).
+        let got = nll_of(&[(0.0, true)]);
+        assert!((got - -(1e-12_f64).ln()).abs() < 1e-6);
+        // Empty → NaN (the ece_of convention).
+        assert!(nll_of(&[]).is_nan());
+    }
+
+    #[test]
+    fn brier_known_answer() {
+        // Perfect → 0; worst → 1; half-and-half → 0.5 mean of squares.
+        assert_eq!(brier_of(&[(1.0, true), (0.0, false)]), 0.0);
+        assert_eq!(brier_of(&[(0.0, true), (1.0, false)]), 1.0);
+        let got = brier_of(&[(0.5, true), (0.5, false)]);
+        assert!((got - 0.25).abs() < 1e-12);
+        assert!(brier_of(&[]).is_nan());
     }
 }

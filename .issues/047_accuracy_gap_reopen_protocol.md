@@ -55,14 +55,39 @@ be designed against the recorded failure modes, not repeat them.
 
 ## Owed diagnostic (cheap, cal-side only — no slice read)
 
-- [ ] D1 — Dump `(w, c)` per rung + held-out NLL/Brier for the Bench-069
-  recal windows (env-gated stderr in `build_g1_plan`). If held-out NLL
-  improves while ECE worsens, the "Platt minimizes NLL, not binned ECE"
-  story holds. If NLL ALSO worsens, the suspect is the shared
-  katgpt-core `SigmoidGateCalibrator::refit` solver (undamped f32
-  Newton, no line search, unnormalized Hessian, absolute
-  `det < f32::EPSILON` guard) — file a katgpt-rs issue with the
-  reproduction, not a reflex finding.
+- [x] D1 — **MEASURED 2026-09-28 — the story HOLDS; the katgpt-rs solver
+  suspect is CLEARED.** Instrument: `RIIR_REFLEX_G1_DIAG=1` on the
+  `--nli-feature-ab` lane (`src/harness/runner/nli_lane.rs`) — per-rung
+  `(w, c)` (`params_raw()`) + held-out and **fit-half** NLL/Brier beside
+  the ECEs, dumped inside `build_g1_plan` (cal-side only by
+  construction), then the lane loud-skips BEFORE the ONE test read (R1:
+  the 300-item test split is never read for this question; the
+  harness's standard modelless row upstream is previously published
+  posture work, unspent for the nli question). New metric helpers:
+  `metrics::{nll_of, brier_of}`. xnli_en, n_eval_half = 100 (fit half
+  = 100), default `.raw/datasets` (the Bench 068/069 population):
+
+  | λ | raw ECE | recal ECE | raw NLL | recal NLL | fit NLL raw→recal |
+  |---|---|---|---|---|---|
+  | 0 | 0.0443 | 0.0788 | 0.6149 | 0.6189 | 0.6400 → 0.6362 |
+  | 0.125 | 0.2058 | 0.1045 | 0.7709 | 0.6982 | 0.8044 → 0.6331 |
+  | 0.5 | 0.1616 | 0.1179 | 0.7259 | 0.6526 | 0.7531 → 0.6074 |
+  | 8 | 0.1158 | 0.1326 | 0.6583 | 0.6465 | 0.6692 → 0.6169 |
+
+  (0.25/1/2/4 in the same shape; full table in the landing commit.)
+  Verdict per this issue's fork: (a) **λ=8 is the literal
+  "NLL improves while ECE worsens" cell** — the "Platt minimizes NLL,
+  not binned ECE" story holds; (b) **fit-half NLL improves at ALL 8
+  rungs incl. λ=0** — the undamped `refit` solver descends its own
+  objective everywhere; λ=0's joint held-out worsening (raw ECE already
+  0.0443, the w=7.9 sharpening overfits n=100) is generalization, not a
+  broken descent → **no katgpt-rs issue**. Bonus diagnosis the dump
+  bought: at every blend rung (0.125–4) recal improves BOTH held-out
+  NLL and ECE — Bench 069's UNSATISFIABLE is the recalibrated blend ECE
+  (~0.10–0.14) still sitting ABOVE the engine-derived conformal floor
+  (the engine is near-calibrated, so its floor is low), i.e. the
+  constraint fails on the FLOOR leg, never on the recal leg. Any M1–M4
+  attempt inherits that bar, not a recalibration problem.
 
 ## Candidate mechanisms (xnli — pick ONE primary before any read)
 
