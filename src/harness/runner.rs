@@ -1028,11 +1028,50 @@ fn select_cap(cands: &[CapCandidate], registry_default: usize) -> usize {
     best.cap
 }
 
+/// The lane-pairing population identity (riir-reflex Issue 040): a stable
+/// tag over the SERVED test cases of one suite — the pair key that makes
+/// "is lane A comparable to lane B?" decidable at the publish layer, where
+/// lanes arrive from different runs (the live-as-primary merge refreshes
+/// lane classes one at a time by design).
+///
+/// FNV-1a 64 on purpose: `pub mod harness` is ungated, so this module must
+/// compile at `--no-default-features`, where blake3 is not in the tree.
+/// This is an identity tag for pairing, not a security hash — the property
+/// that matters is SPEC-PINNED determinism: byte-identical served cases
+/// (same questions, same order, same gold) hash identically on every host,
+/// every feature set, every toolchain version.
+///
+/// Canonical payload: suite name, a separator, then `serde_json` of the
+/// case vector. serde_json Map is BTreeMap-backed (sorted keys) and the
+/// case/question fields are plain structs — the encoding is deterministic.
+fn cases_digest(name: &str, cases: &[crate::harness::suites::SuiteCase]) -> String {
+    fn fold(h: &mut u64, bytes: &[u8]) {
+        for &b in bytes {
+            *h ^= u64::from(b);
+            *h = h.wrapping_mul(0x100_0000_1b3);
+        }
+    }
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    fold(&mut h, name.as_bytes());
+    fold(&mut h, &[0]);
+    match serde_json::to_vec(cases) {
+        Ok(bytes) => fold(&mut h, &bytes),
+        // A case vector that cannot serialize (NaN/Inf gold scores) still
+        // needs a STABLE identity — hash the reason, never a fresh random.
+        Err(e) => fold(&mut h, format!("serde-error:{e}").as_bytes()),
+    }
+    format!("fnv1a64-{h:016x}")
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SuiteResult {
     pub name: String,
     pub n_cases: usize,
     pub n_questions: usize,
+    /// Population identity of the served test cases (Issue 040 T1): the
+    /// pair key the publish layer uses to refuse comparing lanes that
+    /// answered different question sets. See [`cases_digest`].
+    pub cases_digest: String,
     /// None = the family has NO modelless lane (Issue 004 T3: LLM-only —
     /// an honest absence, never a fabricated row).
     pub modelless: Option<LaneResult>,
@@ -5010,6 +5049,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
             n_questions,
+            cases_digest: cases_digest(spec.name, &prepared.suite.cases),
             modelless,
             laya: laya_results,
             clm: clm_result,
