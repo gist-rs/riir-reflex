@@ -8,7 +8,7 @@
 //!                                      [--head-scale F] [--head-select]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
-//!                                      [--paw-local]
+//!                                      [--paw-local] [--cascade]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -69,6 +69,11 @@
 //! default always joins), the argmax is picked on the CAL SLICE ONLY, and
 //! the test split is read once at the selected cap. The two are mutually
 //! exclusive (run() refuses the combination).
+//! `--cascade` (needs `laya-riir`, mutually exclusive with `--skip-laya`)
+//! adds the cascade lane (issue 038 T4′): the modelless answers stand;
+//! the calibrated fused gate's abstains escalate to each served riir-laya
+//! checkpoint. Accuracy AND the escalation rate per suite (the rate is
+//! the latency claim); LLM-only families get an honest absence.
 //! `--e0` (needs `nb_scope`) runs the riir-instinct Issue-005 E0
 //! evidence-density measurement INSTEAD of the lanes: per dataset suite, on
 //! the stratified selection slice, the distribution of seen-token counts
@@ -111,6 +116,7 @@ fn harness_main() {
         suites: Vec::new(),
         laya_max_questions: 0,
         skip_laya: false,
+        cascade: false,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -158,6 +164,7 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--laya-max-questions needs a number"));
             }
             "--skip-laya" => opts.skip_laya = true,
+            "--cascade" => opts.cascade = true,
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--head-scale" => {
                 i += 1;

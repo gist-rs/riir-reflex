@@ -1078,6 +1078,13 @@ pub struct SuiteResult {
     /// checkpoint name → result (empty when compiled without `laya` or the
     /// lane was disabled — the table prints the honest absence).
     pub laya: BTreeMap<String, LaneResult>,
+    /// Issue 038 T4′ — the cascade lane per escalator checkpoint
+    /// (`--cascade`): the modelless answers stand; the calibrated fused
+    /// gate's abstains escalate to the checkpoint. Empty (never a
+    /// fabricated row) when the flag is off / no modelless lane / no laya
+    /// row served the suite.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub cascade: BTreeMap<String, super::cascade::CascadeReport>,
     /// Issue 019 T3 (`.issues/027`): the CLM comparison lane's row — the
     /// external Contrastive-LM reference over `/v1/systemone`, measured
     /// client-side on this box. Absent (never a fabricated row) when the
@@ -2375,7 +2382,9 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
 }
 
 #[allow(clippy::too_many_lines)]
-fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult, String> {
+fn run_modelless<const N: usize>(
+    inp: &ModellessInput<'_>,
+) -> Result<(LaneResult, super::cascade::ModellessQuestions), String> {
     let spec = inp.spec;
     let suite = inp.suite;
     let train = inp.train;
@@ -2527,6 +2536,16 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         moved |= fitted.observe(p.conf as f32, p.correct);
     }
     let (cal_eval_test, _) = eval_engine(&mut fitted, &suite.cases, state_strs, false)?;
+
+    // Issue 038 T4′: the cascade lane composes THIS lane's answers with the
+    // escalator's — the forced picks that define `hard` above plus the
+    // calibrated gate's abstain flags (the shipped posture). Cheap clones
+    // (label indices + bools), produced unconditionally so the lane's own
+    // surface never depends on the consumer's flag.
+    let modelless_questions = super::cascade::ModellessQuestions {
+        picks: raw_eval.picks.clone(),
+        abstained: cal_eval_test.abstained.clone(),
+    };
 
     // ── metrics assembly (label space; noul [no, yes]) ──
     let forced = raw_eval.forced_rows(&suite.cases);
@@ -2694,7 +2713,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         inp.cap_source_base
     };
 
-    Ok(LaneResult {
+    Ok((
+        LaneResult {
         lane: "modelless",
         model: "modelless".to_string(),
         hard,
@@ -2754,7 +2774,9 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         } else {
             None
         },
-    })
+    },
+        modelless_questions,
+    ))
 }
 
 // ── the laya lane (the riir-owned backend since .issues/006 — the candle
@@ -2831,7 +2853,7 @@ fn run_laya_checkpoint(
     // Issue 024 T3: one leak flag per suite.cases entry (the caller's full
     // eval scan). None = feature off / suite out of scope.
     leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, Vec<String>), String> {
+) -> Result<(LaneResult, Vec<String>, super::cascade::LayaQuestions), String> {
     use crate::laya::config::Checkpoint;
 
     let t_start = Instant::now();
@@ -3029,6 +3051,12 @@ fn run_laya_checkpoint(
     // exactly that).
     let served_flags: Option<Vec<bool>> = leak_flags
         .map(|f| served_orig.iter().map(|&i| f[i]).collect());
+    // Issue 038 T4′: the escalator's per-question record (served case
+    // indices + picks) — the cascade lane's escalation half.
+    let laya_questions = super::cascade::LayaQuestions {
+        served_orig: served_orig.clone(),
+        picks: picks.clone(),
+    };
     let result = assemble_laya_lane_result(
         "laya-riir",
         ckpt,
@@ -3057,7 +3085,7 @@ fn run_laya_checkpoint(
             bucket_skipped_cases
         )]
     };
-    Ok((result, notes))
+    Ok((result, notes, laya_questions))
 }
 
 /// Shared tail of BOTH laya backends (the in-process riir backend and the
@@ -3443,7 +3471,7 @@ fn run_laya_checkpoint(
     _ckpt: &str,
     _laya_max_questions: usize,
     _leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, Vec<String>), String> {
+) -> Result<(LaneResult, Vec<String>, super::cascade::LayaQuestions), String> {
     Err("laya-riir feature off".to_string())
 }
 
@@ -4523,6 +4551,14 @@ pub struct RunOptions {
     pub laya_max_questions: usize,
     /// Skip the laya lane entirely (modelless-only run).
     pub skip_laya: bool,
+    /// Issue 038 T4′: also compose the cascade lane — the modelless
+    /// answers stand, the calibrated fused gate's abstains escalate to
+    /// each served riir-laya checkpoint. Publishes accuracy AND the
+    /// escalation rate per suite (the rate is the latency claim). Needs
+    /// the laya lane (mutually exclusive with `skip_laya`) and the
+    /// `laya-riir` feature; needs a modelless lane (LLM-only families
+    /// get an honest absence).
+    pub cascade: bool,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -4655,6 +4691,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .to_string(),
         );
     }
+    if opts.cascade && opts.skip_laya {
+        return Err(
+            "--cascade and --skip-laya are mutually exclusive: the cascade escalates \
+             to the laya lane — there is nothing to escalate to without it (issue 038 T4′)"
+                .to_string(),
+        );
+    }
+    if opts.cascade && !cfg!(feature = "laya-riir") {
+        return Err(
+            "--cascade needs the laya-riir feature (issue 038 T4′): rebuild with \
+             --features laya-riir"
+                .to_string(),
+        );
+    }
     let mut results: Vec<SuiteResult> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let laya_feature = cfg!(feature = "laya-riir");
@@ -4758,6 +4808,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         // Modelless lane (const-generic dispatch over the domain count).
         // Skipped entirely for LLM-only families (Issue 004 T3) — an honest
         // None, never a fabricated row.
+        let mut modelless_questions: Option<super::cascade::ModellessQuestions> = None;
         let modelless = if spec.modelless_lane {
             let inp = ModellessInput {
                 spec,
@@ -4812,7 +4863,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 }
             };
             match modelless {
-                Ok(r) => {
+                Ok((r, questions)) => {
                     eprintln!(
                         "    modelless: acc {:.4} · ece(maxp) {:.4} · p50 {:.3} ms · {} s",
                         r.hard.accuracy,
@@ -4820,6 +4871,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         r.latency_p50_ms,
                         (r.seconds * 10.0).round() / 10.0
                     );
+                    modelless_questions = Some(questions);
                     Some(r)
                 }
                 Err(e) => {
@@ -4837,11 +4889,15 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
 
         // Laya lane.
         let mut laya_results = BTreeMap::new();
+        // Issue 038 T4′: per-checkpoint escalator records — the cascade
+        // lane's escalation half (the riir PRODUCT lane only; the python
+        // reference lane never escalates — it is a latency oracle).
+        let mut laya_questions = BTreeMap::new();
         if !opts.skip_laya {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya[{ck}]: running…");
                 match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions, leak_flags_ref) {
-                    Ok((r, notes)) => {
+                    Ok((r, notes, lq)) => {
                         eprintln!(
                             "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
                             r.hard.accuracy,
@@ -4853,6 +4909,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         // never a silently smaller served set.
                         errors.extend(notes);
                         laya_results.insert((*ck).to_string(), r);
+                        laya_questions.insert((*ck).to_string(), lq);
                     }
                     Err(e) => {
                         // Honest absence: weights missing / feature off —
@@ -5049,6 +5106,36 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // Issue 038 T4′ — the cascade lane: the modelless answers stand
+        // everywhere except the calibrated fused gate's abstains, which
+        // escalate to each served riir-laya checkpoint. Composed per
+        // checkpoint; a compose refusal is a named absence (the errors
+        // list), never a fabricated row.
+        let cascade = if opts.cascade {
+            let mut composed = BTreeMap::new();
+            if let Some(mq) = &modelless_questions {
+                for (ck, lq) in &laya_questions {
+                    match super::cascade::compose(&prepared.suite.cases, mq, lq) {
+                        Ok(rep) => {
+                            eprintln!(
+                                "    cascade[{ck}]: acc {:.4} · esc {:.1}% · {} escalated / \
+                                 {} un-escalated",
+                                rep.accuracy,
+                                rep.escalation_rate * 100.0,
+                                rep.n_escalated,
+                                rep.n_un_escalated
+                            );
+                            composed.insert(ck.clone(), rep);
+                        }
+                        Err(e) => errors.push(format!("{} (cascade/{ck}): {e}", spec.name)),
+                    }
+                }
+            }
+            composed
+        } else {
+            BTreeMap::new()
+        };
+
         results.push(SuiteResult {
             name: spec.name.to_string(),
             n_cases: prepared.suite.cases.len(),
@@ -5056,6 +5143,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             cases_digest: cases_digest(spec.name, &prepared.suite.cases),
             modelless,
             laya: laya_results,
+            cascade,
             clm: clm_result,
             gliner: gliner_result,
             agentjev: agentjev_result,
@@ -5647,6 +5735,49 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 ),
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
+        }
+        if !suite.cascade.is_empty() {
+            s.push_str("\n**Reflex · cascade** (issue 038 T4′): the modelless lane answers every question; the calibrated fused gate's abstains escalate to the named checkpoint. The escalation rate IS the latency claim — a deployed cascade pays the escalator only on that fraction.\n\n");
+            s.push_str("| escalator | n | esc rate | cascade acc | modelless forced | Δ | laya on escalated | modelless on same set | un-escalated |\n");
+            s.push_str("|---|---|---|---|---|---|---|---|---|\n");
+            for (ck, rep) in &suite.cascade {
+                let esc_den = rep.n_escalated;
+                s.push_str(&format!(
+                    "| cascade · {} | {} | {:.1}% | {} | {} | {:+} | {} | {} | {} |\n",
+                    ck,
+                    rep.n_questions,
+                    rep.escalation_rate * 100.0,
+                    fmt4(rep.accuracy),
+                    fmt4(m.hard.accuracy),
+                    format!("{:+.4}", rep.accuracy - m.hard.accuracy),
+                    if esc_den > 0 {
+                        format!(
+                            "{} / {} ({})",
+                            rep.escalated_laya_correct,
+                            esc_den,
+                            fmt4(rep.escalated_laya_correct as f64 / esc_den as f64)
+                        )
+                    } else {
+                        "—".to_string()
+                    },
+                    if esc_den > 0 {
+                        format!(
+                            "{} / {} ({})",
+                            rep.escalated_modelless_correct,
+                            esc_den,
+                            fmt4(rep.escalated_modelless_correct as f64 / esc_den as f64)
+                        )
+                    } else {
+                        "—".to_string()
+                    },
+                    if rep.n_un_escalated > 0 {
+                        format!("{} (coverage limit)", rep.n_un_escalated)
+                    } else {
+                        "0".to_string()
+                    },
+                ));
+            }
+            s.push('\n');
         }
         if let Some(r) = &suite.clm {
             // Same shape as a laya row — the CLM reference is a comparison

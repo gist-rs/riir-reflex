@@ -4,6 +4,8 @@
 //! engine, so it rides the same feature.
 // Box-state provenance stamped into every run's meta (Issue 021 T7).
 pub mod box_state;
+// Issue 038 T4′ — the cascade lane's pure composer (ungated: no engine dep).
+pub mod cascade;
 pub mod families;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
