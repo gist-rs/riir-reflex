@@ -129,10 +129,18 @@ cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairh
 # The NLI pair-feature head A/B (Issue 044 T3, `--nli-feature-ab`, xnli-shaped
 # suites only — loud skip elsewhere): closed-form diagonal-LDA over lexical
 # premise/hypothesis pair features, fitted on the CAL slice, one test read
-# under head-alone + two blend postures + the blend's own G1 ECE triple.
-# Report-only (Bench 068): the blend's +5.67 pt on xnli_en FAILED the G1
+# under head-alone + two blend postures + the blend's own G1 ECE triple + the
+# G1-constrained blend posture (λ selected cal-side under the calibration
+# constraint, Bench 069 protocol).
+# Report-only (Bench 068 + 069): the blend's +5.67 pt on xnli_en FAILED the G1
 # floor (0.1596 vs 0.1351) — the same UQ law that refused Bench 064's
-# massive row; reopen path = a pre-registered cal-side G1-constrained λ.
+# massive row; the recorded reopen path (a pre-registered cal-side
+# G1-constrained λ + recalibrated blend readout) was EXECUTED as Bench 069
+# and measured NEGATIVE — UNSATISFIABLE (no rung feasible; the mini-G1
+# screen is not a transferable predictor at n_cal=200, and the only
+# passing surface carries zero accuracy delta at 14× the lane's own
+# calibrated ECE). The xnli gap stays open with no promotable posture;
+# a future mechanism must bring its own calibrated surface.
 cargo run --release --bin harness -- --skip-laya --nli-feature-ab --out /tmp/nli_feature_ab
 
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb

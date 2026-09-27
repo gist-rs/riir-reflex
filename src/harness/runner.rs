@@ -2696,6 +2696,10 @@ fn run_modelless<const N: usize>(
     let (raw_eval, lat) = eval_engine(&mut raw_engine, &suite.cases, state_strs, true)?;
 
     // CALIBRATED engine: fit on the cal pairs, then re-eval the test cases.
+    // (The calibrator window config is read here — `cfg` moves into
+    // `build_at_posture` — so the nli G1 posture can reuse the SAME
+    // calibrator family below.)
+    let (nli_cal_capacity, nli_cal_min_obs) = (cfg.cal_capacity, cfg.cal_min_obs);
     let fitted_cfg_for_transductive = cfg.clone();
     let (mut fitted, _) = build_at_posture(cfg)?;
     let mut moved = false;
@@ -2964,7 +2968,12 @@ fn run_modelless<const N: usize>(
                 suite,
                 &cal_eval,
                 &cal_cases,
-                Some((readout_ece_cal, floor_ece)),
+                Some(nli_lane::G1Inputs {
+                    engine_calibrated_test_ece: readout_ece_cal,
+                    conformal_floor_test: floor_ece,
+                    cal_capacity: nli_cal_capacity,
+                    cal_min_obs: nli_cal_min_obs,
+                }),
             )?
         } else {
             None
@@ -4933,7 +4942,10 @@ pub struct RunOptions {
     /// Issue 044 T3: run the modelless NLI pair-feature head A/B
     /// (`--nli-feature-ab`): closed-form diagonal-LDA over lexical
     /// premise/hypothesis pair features, fitted on the CAL slice, one test
-    /// read under head-alone + two blend postures. Report-only
+    /// read under head-alone + two blend postures + the G1-constrained
+    /// blend posture (Bench 069 protocol: λ selected cal-side under the
+    /// pre-registered calibration constraint, both G1 triples at the
+    /// read). Report-only
     /// (a result-row record, never a gate); premise/hypothesis-shaped
     /// suites only — a loud skip elsewhere. Default off.
     pub nli_feature_ab: bool,

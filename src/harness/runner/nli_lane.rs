@@ -24,6 +24,26 @@
 //! disclosed per posture. The engine probabilities are the lane's own
 //! forced `raw_eval.probs` (the same vector `hard` argmaxes).
 //!
+//! **The G1-constrained posture** (Bench 069 protocol — the pre-registered
+//! reopen path Bench 068 recorded for the failed λ=0.5 promotion):
+//! selection is CAL-SIDE ONLY. The cal slice is split into interleaved
+//! halves (even indices fit, odd indices held out — interleaving keeps a
+//! label-grouped cal slice balanced on both sides); ONE engine-derived
+//! conformal floor is read on the held-out half (the test-side G1
+//! construction, miniaturized); and for each λ on a ladder extended down
+//! to 0 the blend's RECALIBRATED readout (the lane's own
+//! `SigmoidGateCalibrator` family, fit on the fit half) must beat BOTH of
+//! the lane's G1 bars on the held-out half — its own uncalibrated surface
+//! AND the floor — while not losing accuracy against the unarmed λ=0 rung.
+//! λ* = max cal accuracy among feasible rungs (ties → the smaller λ); no
+//! feasible rung → λ*=0 + `constraint_unsatisfiable` (the refusal is a
+//! finding, never a silent fallback to a worse posture). The ONE test read
+//! then reports both G1 triples at λ* (raw blend + recalibrated blend)
+//! against the lane's TEST-side floor. What is NOT claimed: the
+//! interleaved-half bar is an estimate; the verdict is the test-side
+//! triple, and promotion remains gated on it.
+//!
+//!
 //! The head posterior is a SIGMOID readout, never softmax (the house
 //! sigmoid law): `p_k = σ(δ_k − mean_j δ_j)`, normalized to sum 1.
 //!
@@ -35,7 +55,19 @@
 
 use serde::Serialize;
 
+use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
+
 use super::{Eval, QKind, Suite, SuiteCase};
+use crate::harness::metrics::{CalibrationPair, conformal_naive_floor, ece_of};
+
+/// The G1-constrained λ ladder — the unconstrained ladder extended DOWN so
+/// the calibration constraint has somewhere to stand (ties → the smaller
+/// λ); rung 0 is the unarmed engine, the guaranteed no-op fallback.
+const G1_LAMBDAS: [f64; 8] = [0.0, 0.125, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
+
+/// Below this cal size the interleaved halves are degenerate — the
+/// constrained posture loud-skips.
+const MIN_G1_CAL: usize = 16;
 
 /// Feature dimensionality (see [`FEAT_NAMES`]).
 pub const FEAT_DIM: usize = 10;
@@ -128,8 +160,14 @@ pub fn pair_features(premise: &str, hypothesis: &str) -> [f64; FEAT_DIM] {
     let union = pset.union(&hset).count();
 
     let cap3 = |n: usize| n.min(3) as f64;
-    let hyp_neg = ht.iter().filter(|t| NEGATIONS.contains(&t.as_str())).count();
-    let prem_neg = pt.iter().filter(|t| NEGATIONS.contains(&t.as_str())).count();
+    let hyp_neg = ht
+        .iter()
+        .filter(|t| NEGATIONS.contains(&t.as_str()))
+        .count();
+    let prem_neg = pt
+        .iter()
+        .filter(|t| NEGATIONS.contains(&t.as_str()))
+        .count();
 
     let nums_p: std::collections::HashSet<String> =
         pt.iter().filter(|t| is_num_token(t)).cloned().collect();
@@ -163,8 +201,8 @@ pub fn pair_features(premise: &str, hypothesis: &str) -> [f64; FEAT_DIM] {
 
     let mut antonym = 0usize;
     'outer2: for (w1, w2) in ANTONYMS {
-        let hit = (pset.contains(w1) && hset.contains(w2))
-            || (pset.contains(w2) && hset.contains(w1));
+        let hit =
+            (pset.contains(w1) && hset.contains(w2)) || (pset.contains(w2) && hset.contains(w1));
         if hit {
             antonym += 1;
             if antonym >= 3 {
@@ -205,10 +243,7 @@ fn well_shaped(case: &SuiteCase) -> bool {
     if q.kind != QKind::Choice || case.gold[0].idx >= 3 {
         return false;
     }
-    q.criteria
-        .as_object()
-        .is_some_and(|m| m.len() == 3)
-        && pair_state(case).is_some()
+    q.criteria.as_object().is_some_and(|m| m.len() == 3) && pair_state(case).is_some()
 }
 
 /// K-class diagonal LDA over the pair features (K = 3 NLI classes).
@@ -410,6 +445,11 @@ pub struct NliFeatureAb {
     /// three numbers a promotion decision reads. `None` when the floor is
     /// unavailable (no floor on this row → no G1 claim either way).
     pub blend_readout_g1: Option<BlendG1>,
+    /// The G1-constrained blend posture (Bench 069 protocol): λ selected
+    /// CAL-SIDE under the pre-registered calibration constraint, one test
+    /// read carrying both G1 triples. `None` when the lane's G1 inputs are
+    /// absent or the cal slice is below [`MIN_G1_CAL`].
+    pub blend_g1_constrained: Option<G1ConstrainedRow>,
 }
 
 /// The blend's G1 triple.
@@ -422,6 +462,72 @@ pub struct BlendG1 {
     pub pass: bool,
 }
 
+/// G1-side inputs for the constrained blend posture (Bench 069 protocol):
+/// the lane's TEST-side G1 numbers (the record's verdict triples read
+/// against them) + the lane's calibrator window config (the recalibration
+/// leg reuses the SAME calibrator family, never a private twin).
+#[derive(Debug, Clone, Copy)]
+pub struct G1Inputs {
+    /// The engine's calibrated readout ECE on the TEST split (the lane's
+    /// own `readout_ece_cal`).
+    pub engine_calibrated_test_ece: f64,
+    /// The suite's conformal-naive floor on the TEST split.
+    pub conformal_floor_test: f64,
+    /// Calibrator evidence-window capacity (the lane's `EngineConfig`).
+    pub cal_capacity: usize,
+    /// Calibrator occupancy floor (the lane's `EngineConfig`).
+    pub cal_min_obs: usize,
+}
+
+/// One G1-constrained ladder rung. `cal_acc` is over the FULL cal slice
+/// (the existing ladder's convention); both ECEs are on the HELD-OUT cal
+/// half (the interleaved split — the fit half never scores itself).
+#[derive(Debug, Clone, Serialize)]
+pub struct G1LadderPoint {
+    pub param: f64,
+    pub cal_acc: f64,
+    /// The blend's own (uncalibrated) readout ECE on the held-out half.
+    pub raw_b_ece: f64,
+    /// The recalibrated blend readout ECE on the held-out half.
+    pub recal_b_ece: f64,
+    /// The pre-registered feasibility predicate (module doc).
+    pub feasible: bool,
+}
+
+/// The selection bar's own disclosure (the two engine-side quantities the
+/// constraint was hung on, at the held-out half).
+#[derive(Debug, Clone, Serialize)]
+pub struct G1ConstraintBar {
+    /// The engine-derived conformal floor read on the held-out half
+    /// (fit on the fit half) — the binding selection bar.
+    pub conformal_floor_b: f64,
+    /// The engine's own RAW readout ECE on the held-out half —
+    /// disclosure (the law's engine-side "own outputs" leg).
+    pub engine_raw_b_ece: f64,
+    pub n_fit_half: usize,
+    pub n_eval_half: usize,
+}
+
+/// The G1-constrained blend posture's full record (Bench 069 protocol).
+#[derive(Debug, Clone, Serialize)]
+pub struct G1ConstrainedRow {
+    pub selected: f64,
+    /// True when NO rung was feasible — λ fell back to 0 (the engine
+    /// alone) and the posture records the refusal instead of a blend.
+    pub constraint_unsatisfiable: bool,
+    pub bar: G1ConstraintBar,
+    pub ladder: Vec<G1LadderPoint>,
+    pub acc: f64,
+    pub n_overrides: usize,
+    pub engine_agree: f64,
+    /// The raw blend readout's G1 triple at λ* on the TEST split.
+    pub g1_raw: BlendG1,
+    /// The recalibrated blend readout's G1 triple at λ* (the same
+    /// calibrator family fit on the FULL cal slice's blend pairs) on the
+    /// TEST split.
+    pub g1_recalibrated: BlendG1,
+}
+
 /// The A/B pass. `Ok(None)` = loud skip (the suite is not premise/
 /// hypothesis-shaped); the caller prints nothing further — the pass has
 /// already announced itself on stderr.
@@ -430,10 +536,9 @@ pub fn nli_feature_ab_pass(
     suite: &Suite,
     cal_eval: &Eval,
     cal_cases: &[SuiteCase],
-    // (the engine's calibrated readout ECE, the suite's conformal-naive
-    // floor) — both already computed by the lane; `None` = no floor (no
-    // G1 claim either way).
-    g1_inputs: Option<(f64, f64)>,
+    // The lane's TEST-side G1 numbers + calibrator config — `None` = no
+    // floor (no G1 claim, and no constrained posture, either way).
+    g1_inputs: Option<G1Inputs>,
 ) -> Result<Option<NliFeatureAb>, String> {
     let shaped_msg = |shaped: usize, total: usize, slice: &str| {
         format!(
@@ -478,7 +583,10 @@ pub fn nli_feature_ab_pass(
         cal_y.push(case.gold[0].idx);
     }
     let Some(lda) = NliLda::fit(&cal_x, &cal_y) else {
-        eprintln!("  [nli-feature-ab] suite {}: cal slice lacks a class — SKIPPED", suite.name);
+        eprintln!(
+            "  [nli-feature-ab] suite {}: cal slice lacks a class — SKIPPED",
+            suite.name
+        );
         return Ok(None);
     };
     let cal_head_acc = cal_x
@@ -513,7 +621,11 @@ pub fn nli_feature_ab_pass(
         }
         let margin = lda.margin(&d);
         for (ti, &tau) in TAUS.iter().enumerate() {
-            let pick = if margin > tau { lda.pick(&d) } else { argmax(pe) };
+            let pick = if margin > tau {
+                lda.pick(&d)
+            } else {
+                argmax(pe)
+            };
             cal_correct_ovr[ti] += usize::from(pick == gold);
         }
     }
@@ -555,6 +667,17 @@ pub fn nli_feature_ab_pass(
         ovr_ladder[best].param
     };
 
+    // ── The G1-constrained blend posture (Bench 069 protocol): λ selected
+    // CAL-SIDE under the pre-registered calibration constraint. Every
+    // quantity the selection reads lives on the cal slice; the test split
+    // is untouched until the single read below.
+    let (eng_test_ece, floor_test) = match g1_inputs {
+        Some(i) => (i.engine_calibrated_test_ece, i.conformal_floor_test),
+        None => (f64::NAN, f64::NAN),
+    };
+    let had_g1_inputs = g1_inputs.is_some();
+    let g1_plan = g1_inputs.and_then(|inp| build_g1_plan(inp, &lda, cal_cases, cal_eval));
+
     // ── The ONE test read ──
     let n = suite.cases.len();
     let mut baseline_correct = 0usize;
@@ -564,6 +687,9 @@ pub fn nli_feature_ab_pass(
     let (mut ovr_correct, mut ovr_overrides, mut ovr_agree) = (0usize, 0usize, 0usize);
     let (mut both_right, mut both_wrong, mut hwins, mut hloss) = (0usize, 0usize, 0usize, 0usize);
     let mut blend_pairs: Vec<(f64, bool)> = Vec::with_capacity(n);
+    let (mut g1_correct, mut g1_overrides, mut g1_agree) = (0usize, 0usize, 0usize);
+    let mut g1_raw_pairs: Vec<(f64, bool)> = Vec::with_capacity(n);
+    let mut g1_recal_pairs: Vec<(f64, bool)> = Vec::with_capacity(n);
     for (ci, case) in suite.cases.iter().enumerate() {
         let (p, h) = pair_state(case).expect("well_shaped checked");
         let d = lda.delta(&pair_features(&p, &h));
@@ -586,15 +712,7 @@ pub fn nli_feature_ab_pass(
         }
 
         // additive at sel_add
-        let mut best = 0usize;
-        let mut best_s = f64::NEG_INFINITY;
-        for (k, &pk) in ph.iter().enumerate() {
-            let s = pe[k] + sel_add * pk;
-            if s > best_s {
-                best_s = s;
-                best = k;
-            }
-        }
+        let (best, blend_conf) = blend_pick_conf(pe, &ph, sel_add);
         add_correct += usize::from(best == gold);
         add_overrides += usize::from(best != eng_pick);
         add_agree += usize::from(best == eng_pick);
@@ -602,24 +720,80 @@ pub fn nli_feature_ab_pass(
         // The blended readout q ∝ pe + λ·ph — the promoted posture's own
         // confidence surface, for the G1 triple.
         if g1_inputs.is_some() {
-            let mut q = [0.0f64; 3];
-            let mut s = 0.0;
-            for k in 0..3 {
-                q[k] = pe[k] + sel_add * ph[k];
-                s += q[k];
-            }
-            let s = s.max(1e-12);
-            let conf = q.iter().fold(0.0f64, |m, &v| m.max(v / s));
-            blend_pairs.push((conf, best == gold));
+            blend_pairs.push((blend_conf, best == gold));
+        }
+
+        // G1-constrained posture at λ* — same surface, the constrained
+        // blend weight, both confidence legs (raw + the test-side
+        // recalibrator fit on the FULL cal slice's blend pairs).
+        if let Some(plan) = &g1_plan {
+            let (pick, conf) = blend_pick_conf(pe, &ph, plan.lambda);
+            let ok = pick == gold;
+            g1_correct += usize::from(ok);
+            g1_overrides += usize::from(pick != eng_pick);
+            g1_agree += usize::from(pick == eng_pick);
+            g1_raw_pairs.push((conf, ok));
+            g1_recal_pairs.push((plan.recal.apply(conf as f32) as f64, ok));
         }
 
         // override gate at sel_tau
-        let pick = if lda.margin(&d) > sel_tau { head_pick } else { eng_pick };
+        let pick = if lda.margin(&d) > sel_tau {
+            head_pick
+        } else {
+            eng_pick
+        };
         ovr_correct += usize::from(pick == gold);
         ovr_overrides += usize::from(pick != eng_pick);
         ovr_agree += usize::from(pick == eng_pick);
     }
     let f = |c: usize| c as f64 / n.max(1) as f64;
+
+    let blend_ece = ece_of(&blend_pairs);
+    let blend_g1_constrained = g1_plan.map(|plan| {
+        let recal_ece = ece_of(&g1_recal_pairs);
+        G1ConstrainedRow {
+            selected: plan.lambda,
+            constraint_unsatisfiable: plan.unsatisfiable,
+            bar: plan.bar,
+            ladder: plan.ladder,
+            acc: f(g1_correct),
+            n_overrides: g1_overrides,
+            engine_agree: f(g1_agree),
+            g1_raw: BlendG1 {
+                blend_ece,
+                engine_calibrated_ece: eng_test_ece,
+                conformal_floor: floor_test,
+                pass: blend_ece <= floor_test,
+            },
+            g1_recalibrated: BlendG1 {
+                blend_ece: recal_ece,
+                engine_calibrated_ece: eng_test_ece,
+                conformal_floor: floor_test,
+                pass: recal_ece <= floor_test,
+            },
+        }
+    });
+    if let Some(row) = &blend_g1_constrained {
+        eprintln!(
+            "  [nli-feature-ab] {suite_name}: G1-constrained blend λ={lam}{unsat} \
+             acc={acc:.4} (engine {base:.4}) raw_ece={re:.4} floor={fl:.4} pass={rp} — \
+             recal_ece={ce:.4} pass={cp}",
+            suite_name = suite.name,
+            lam = row.selected,
+            unsat = if row.constraint_unsatisfiable {
+                " (UNSATISFIABLE)"
+            } else {
+                ""
+            },
+            acc = row.acc,
+            base = f(baseline_correct),
+            re = row.g1_raw.blend_ece,
+            fl = row.g1_raw.conformal_floor,
+            rp = row.g1_raw.pass,
+            ce = row.g1_recalibrated.blend_ece,
+            cp = row.g1_recalibrated.pass,
+        );
+    }
 
     Ok(Some(NliFeatureAb {
         n,
@@ -654,15 +828,13 @@ pub fn nli_feature_ab_pass(
             head_unique_wins: hwins,
             head_unique_losses: hloss,
         },
-        blend_readout_g1: g1_inputs.map(|(cal_ece, floor)| {
-            let blend_ece = crate::harness::metrics::ece_of(&blend_pairs);
-            BlendG1 {
-                blend_ece,
-                engine_calibrated_ece: cal_ece,
-                conformal_floor: floor,
-                pass: blend_ece <= floor,
-            }
+        blend_readout_g1: had_g1_inputs.then_some(BlendG1 {
+            blend_ece,
+            engine_calibrated_ece: eng_test_ece,
+            conformal_floor: floor_test,
+            pass: blend_ece <= floor_test,
         }),
+        blend_g1_constrained,
     }))
 }
 
@@ -674,6 +846,218 @@ fn argmax(probs: &[f64]) -> usize {
         }
     }
     best
+}
+
+/// The additive blend's first-max pick + max-normalized confidence
+/// (`q ∝ pe + λ·ph`; the same surface the blend G1 triples read). The one
+/// blend arithmetic — the cal ladder, the test read and the constrained
+/// posture all consume it, so a convention change lands once.
+fn blend_pick_conf(pe: &[f64], ph: &[f64; 3], lambda: f64) -> (usize, f64) {
+    let mut best = 0usize;
+    let mut best_s = f64::NEG_INFINITY;
+    for (k, &pk) in ph.iter().enumerate() {
+        let s = pe[k] + lambda * pk;
+        if s > best_s {
+            best_s = s;
+            best = k;
+        }
+    }
+    let mut q = [0.0f64; 3];
+    let mut s = 0.0;
+    for k in 0..3 {
+        q[k] = pe[k] + lambda * ph[k];
+        s += q[k];
+    }
+    let s = s.max(1e-12);
+    let conf = q.iter().fold(0.0f64, |m, &v| m.max(v / s));
+    (best, conf)
+}
+
+/// The pre-registered selection: max cal accuracy among FEASIBLE rungs,
+/// ties → the smaller λ (the ascending ladder keeps the FIRST max); no
+/// feasible rung → rung 0 + unsatisfiable (the engine alone, loudly).
+fn select_g1_rung(ladder: &[G1LadderPoint]) -> (usize, bool) {
+    let mut best: Option<usize> = None;
+    for (i, p) in ladder.iter().enumerate() {
+        if !p.feasible {
+            continue;
+        }
+        match best {
+            None => best = Some(i),
+            Some(b) => {
+                if p.cal_acc > ladder[b].cal_acc {
+                    best = Some(i);
+                }
+            }
+        }
+    }
+    match best {
+        Some(i) => (i, false),
+        None => (0, true),
+    }
+}
+
+/// The G1-constrained posture's CAL-side selection (Bench 069 protocol —
+/// see the module doc). Returns `None` = loud skip (cal slice below the
+/// floor or misaligned with its eval); every other state returns a plan.
+fn build_g1_plan(
+    inp: G1Inputs,
+    lda: &NliLda,
+    cal_cases: &[SuiteCase],
+    cal_eval: &Eval,
+) -> Option<G1Plan> {
+    let n_cal = cal_cases.len();
+    if n_cal < MIN_G1_CAL || cal_eval.confs.len() != n_cal || cal_eval.probs.len() != n_cal {
+        eprintln!(
+            "  [nli-feature-ab] cal slice n={n_cal} below the G1 posture floor \
+             ({MIN_G1_CAL}) or misaligned with its eval — constrained posture SKIPPED"
+        );
+        return None;
+    }
+
+    // Per-λ blend pairs over the FULL cal slice (one question per
+    // well-shaped case — the pass's shape guard).
+    let mut rung_pairs: Vec<Vec<(f64, bool)>> = vec![Vec::with_capacity(n_cal); G1_LAMBDAS.len()];
+    let mut rung_correct = vec![0usize; G1_LAMBDAS.len()];
+    for (ci, case) in cal_cases.iter().enumerate() {
+        let (p, h) = pair_state(case).expect("well_shaped checked");
+        let d = lda.delta(&pair_features(&p, &h));
+        let ph = lda.posterior(&d);
+        let pe = &cal_eval.probs[ci][0];
+        let gold = case.gold[0].idx;
+        for (li, &lam) in G1_LAMBDAS.iter().enumerate() {
+            let (pick, conf) = blend_pick_conf(pe, &ph, lam);
+            let ok = pick == gold;
+            rung_correct[li] += usize::from(ok);
+            rung_pairs[li].push((conf, ok));
+        }
+    }
+
+    // Interleaved halves: the fit half (even indices) fits, the held-out
+    // half (odd) reads — interleaving keeps a label-grouped cal slice
+    // balanced on both sides. The floor is ENGINE-derived (ONE floor per
+    // suite — the test-side G1's own construction, miniaturized).
+    let fit_idx: Vec<usize> = (0..n_cal).filter(|i| i % 2 == 0).collect();
+    let eval_idx: Vec<usize> = (0..n_cal).filter(|i| i % 2 == 1).collect();
+    let eng_conf_at = |i: usize| cal_eval.confs[i][0];
+    let eng_ok_at = |i: usize| cal_eval.picks[i][0] == cal_cases[i].gold[0].idx;
+    let fit_pairs: Vec<CalibrationPair> = fit_idx
+        .iter()
+        .map(|&i| CalibrationPair {
+            conf: eng_conf_at(i),
+            correct: eng_ok_at(i),
+        })
+        .collect();
+    let eval_confs: Vec<f64> = eval_idx.iter().map(|&i| eng_conf_at(i)).collect();
+    let eval_oks: Vec<bool> = eval_idx.iter().map(|&i| eng_ok_at(i)).collect();
+    let floored = conformal_naive_floor(&fit_pairs, &eval_confs);
+    let floor_b_ece = ece_of(
+        &floored
+            .into_iter()
+            .zip(eval_oks.iter().copied())
+            .collect::<Vec<(f64, bool)>>(),
+    );
+    let engine_raw_b_ece = ece_of(
+        &eval_confs
+            .iter()
+            .copied()
+            .zip(eval_oks.iter().copied())
+            .collect::<Vec<(f64, bool)>>(),
+    );
+
+    let engine_acc = rung_correct[0] as f64 / n_cal as f64;
+    let ladder: Vec<G1LadderPoint> = G1_LAMBDAS
+        .iter()
+        .enumerate()
+        .map(|(li, &lam)| {
+            // The held-out half through the SAME f32 lens both legs read —
+            // an identity fit must compare bit-equal to the raw surface,
+            // never to a widening rounding artifact.
+            let b_pairs: Vec<(f64, bool)> = eval_idx
+                .iter()
+                .map(|&i| {
+                    let (c, ok) = rung_pairs[li][i];
+                    ((c as f32) as f64, ok)
+                })
+                .collect();
+            let raw_b = ece_of(&b_pairs);
+            // The recalibration leg: the SAME calibrator family fit on the
+            // fit half's blend pairs, read on the held-out half — a fit
+            // half never scores its own fit. `observe` only RECORDS; the
+            // Platt solve is `refit()` (the lane's own convention).
+            let mut cal = SigmoidGateCalibrator::new(inp.cal_capacity, inp.cal_min_obs);
+            for &i in &fit_idx {
+                let (c, ok) = rung_pairs[li][i];
+                cal.observe(c as f32, ok);
+            }
+            cal.refit();
+            let recal_b = ece_of(
+                &b_pairs
+                    .iter()
+                    .map(|(c, ok)| (cal.apply(*c as f32) as f64, *ok))
+                    .collect::<Vec<(f64, bool)>>(),
+            );
+            let cal_acc = rung_correct[li] as f64 / n_cal as f64;
+            // Pre-registered feasibility: the recalibrated blend readout
+            // must beat BOTH bars of the lane's own G1 law on the held-out
+            // half (its own uncalibrated surface AND the engine-derived
+            // floor), and must not lose accuracy against the unarmed rung
+            // (the no-regression leg at selection time). A BEHAVIORALLY
+            // identity recalibration (thin window below `min_obs`, or a
+            // constant-confidence window whose Platt solve is collinear
+            // and keeps the identity parameters) cannot beat its own
+            // surface: the raw leg degrades to equality there, the floor
+            // leg stays strict. Behavioral, not the `moved` flag — a
+            // degenerate fit reports moved while returning identity.
+            let behaviorally_identity = b_pairs
+                .iter()
+                .all(|(c, _)| cal.apply(*c as f32) == *c as f32);
+            let beats_raw = if behaviorally_identity {
+                recal_b <= raw_b
+            } else {
+                recal_b < raw_b
+            };
+            let feasible = beats_raw && recal_b < floor_b_ece && cal_acc >= engine_acc;
+            G1LadderPoint {
+                param: lam,
+                cal_acc,
+                raw_b_ece: raw_b,
+                recal_b_ece: recal_b,
+                feasible,
+            }
+        })
+        .collect();
+    let (sel, unsat) = select_g1_rung(&ladder);
+
+    // The test-side recalibrator: fit on the SELECTED rung's FULL cal
+    // pairs (the lane's own convention — fit on the full cal slice, read
+    // on the test split).
+    let mut recal = SigmoidGateCalibrator::new(inp.cal_capacity, inp.cal_min_obs);
+    for (c, ok) in &rung_pairs[sel] {
+        recal.observe(*c as f32, *ok);
+    }
+    recal.refit();
+    Some(G1Plan {
+        lambda: G1_LAMBDAS[sel],
+        unsatisfiable: unsat,
+        bar: G1ConstraintBar {
+            conformal_floor_b: floor_b_ece,
+            engine_raw_b_ece,
+            n_fit_half: fit_idx.len(),
+            n_eval_half: eval_idx.len(),
+        },
+        ladder,
+        recal,
+    })
+}
+
+/// The selected plan (internal — the record carries the serialized half).
+struct G1Plan {
+    lambda: f64,
+    unsatisfiable: bool,
+    bar: G1ConstraintBar,
+    ladder: Vec<G1LadderPoint>,
+    recal: SigmoidGateCalibrator,
 }
 
 #[cfg(test)]
@@ -711,9 +1095,18 @@ mod tests {
             ys.push(2);
         }
         let lda = NliLda::fit(&xs, &ys).expect("all classes present");
-        assert_eq!(lda.pick(&lda.delta(&[0.95, 0.95, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])), 0);
-        assert_eq!(lda.pick(&lda.delta(&[0.05, 0.05, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])), 1);
-        assert_eq!(lda.pick(&lda.delta(&[0.5, 0.5, 1.0, 2.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0])), 2);
+        assert_eq!(
+            lda.pick(&lda.delta(&[0.95, 0.95, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+            0
+        );
+        assert_eq!(
+            lda.pick(&lda.delta(&[0.05, 0.05, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])),
+            1
+        );
+        assert_eq!(
+            lda.pick(&lda.delta(&[0.5, 0.5, 1.0, 2.0, 0.0, 2.0, 0.0, 0.0, 3.0, 0.0])),
+            2
+        );
     }
 
     #[test]
@@ -734,7 +1127,11 @@ mod tests {
                 instructions: "rel?".into(),
                 criteria: serde_json::json!({"entailment": "e", "neutral": "n", "contradiction": "c"}),
             }],
-            gold: vec![GoldAnswer { idx: 0, soft: vec![0.0; 3], gold_score: None }],
+            gold: vec![GoldAnswer {
+                idx: 0,
+                soft: vec![0.0; 3],
+                gold_score: None,
+            }],
         };
         let good = mk(serde_json::json!({"premise": "a", "hypothesis": "b"}));
         assert!(well_shaped(&good));
@@ -745,5 +1142,133 @@ mod tests {
         two.questions.push(two.questions[0].clone());
         two.gold.push(two.gold[0].clone());
         assert!(!well_shaped(&two));
+    }
+
+    fn nli_case(id: &str, premise: &str, hypothesis: &str, gold: usize) -> SuiteCase {
+        SuiteCase {
+            id: id.into(),
+            state: serde_json::json!({"premise": premise, "hypothesis": hypothesis}),
+            questions: vec![SuiteQuestion {
+                qid: "relation".into(),
+                kind: QKind::Choice,
+                instructions: "rel?".into(),
+                criteria: serde_json::json!(
+                    {"entailment": "e", "neutral": "n", "contradiction": "c"}
+                ),
+            }],
+            gold: vec![GoldAnswer {
+                idx: gold,
+                soft: vec![0.0; 3],
+                gold_score: None,
+            }],
+        }
+    }
+
+    #[test]
+    fn select_g1_rung_prefers_feasible_then_max_acc_then_smallest_lambda() {
+        let pt = |param: f64, cal_acc: f64, feasible: bool| G1LadderPoint {
+            param,
+            cal_acc,
+            raw_b_ece: 0.0,
+            recal_b_ece: 0.0,
+            feasible,
+        };
+        // All feasible: max accuracy wins; a TIE keeps the SMALLER λ (first).
+        let all = vec![
+            pt(0.0, 0.50, true),
+            pt(0.5, 0.61, true),
+            pt(1.0, 0.61, true),
+            pt(2.0, 0.55, true),
+        ];
+        assert_eq!(select_g1_rung(&all), (1, false));
+        // The best-accuracy rung infeasible → the best FEASIBLE one.
+        let blocked = vec![
+            pt(0.0, 0.50, true),
+            pt(0.5, 0.70, false),
+            pt(1.0, 0.60, true),
+        ];
+        assert_eq!(select_g1_rung(&blocked), (2, false));
+        // Nothing feasible → rung 0 + the loud unsatisfiable verdict.
+        let none = vec![pt(0.0, 0.50, false), pt(0.5, 0.60, false)];
+        assert_eq!(select_g1_rung(&none), (0, true));
+    }
+
+    #[test]
+    fn g1_constrained_posture_runs_end_to_end_on_synthetic_slices() {
+        // Class-separated pairs: 0 = hypothesis contained in the premise
+        // (high overlap), 1 = disjoint vocabulary, 2 = antonym cross.
+        let pair = |k: usize| match k {
+            0 => (
+                "the quick brown fox jumps over the lazy dog",
+                "a fox jumps",
+                0usize,
+            ),
+            1 => (
+                "the committee approved the budget yesterday",
+                "gravity bends light",
+                1,
+            ),
+            _ => (
+                "the team will win the final match",
+                "the team will lose the final match",
+                2,
+            ),
+        };
+        let mut cal_cases = Vec::new();
+        let mut cases = Vec::new();
+        for i in 0..24usize {
+            for k in 0..3usize {
+                let (p, h, g) = pair(k);
+                cal_cases.push(nli_case(&format!("c{i}{k}"), p, h, g));
+                cases.push(nli_case(&format!("t{i}{k}"), p, h, g));
+            }
+        }
+        // The engine: an over-confident class-0 bias — always picks 0 at
+        // conf 0.9, so its raw readout is badly miscalibrated (acc 1/3).
+        let eval = |n: usize| Eval {
+            probs: (0..n).map(|_| vec![vec![0.9, 0.05, 0.05]]).collect(),
+            picks: (0..n).map(|_| vec![0usize]).collect(),
+            confs: (0..n).map(|_| vec![0.9]).collect(),
+            abstained: (0..n).map(|_| vec![false]).collect(),
+        };
+        let suite = Suite {
+            name: "synthetic",
+            cases,
+            option_counts_note: "test",
+        };
+        let res = nli_feature_ab_pass(
+            &eval(suite.cases.len()),
+            &suite,
+            &eval(cal_cases.len()),
+            &cal_cases,
+            Some(G1Inputs {
+                engine_calibrated_test_ece: 0.05,
+                conformal_floor_test: 0.30,
+                cal_capacity: 512,
+                cal_min_obs: 8,
+            }),
+        )
+        .unwrap()
+        .expect("well-shaped synthetic suite must run");
+        let g1 = res.blend_g1_constrained.expect("g1 posture present");
+        assert_eq!(g1.ladder.len(), 8);
+        assert_eq!(g1.ladder[0].param, 0.0);
+        assert!(g1.selected >= 0.0 && g1.selected <= 8.0);
+        assert!(g1.bar.conformal_floor_b.is_finite());
+        assert!(g1.bar.engine_raw_b_ece.is_finite());
+        for p in &g1.ladder {
+            assert!(p.raw_b_ece.is_finite() && p.recal_b_ece.is_finite());
+        }
+        // The head separates the synthetic classes: some armed rung must
+        // read above the engine's 1/3 accuracy on cal.
+        assert!(g1.ladder[7].cal_acc > g1.ladder[0].cal_acc);
+        // The no-regression leg: the selected posture never reads below
+        // the engine on the test read (equality = the unarmed fallback).
+        assert!(g1.acc >= res.baseline_acc);
+        // The miniature G1 machinery: recalibrating the engine's own
+        // miscalibrated surface must improve it on the held-out half.
+        assert!(g1.ladder[0].feasible);
+        assert!(g1.g1_raw.blend_ece.is_finite());
+        assert!(g1.g1_recalibrated.blend_ece.is_finite());
     }
 }

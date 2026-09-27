@@ -7,6 +7,43 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 044 CLOSED — the xnli promotion path measured NEGATIVE (Bench
+  069, the G1-constrained NLI blend λ).** The pre-registered reopen path
+  068 recorded was executed faithfully: the `--nli-feature-ab` arm grew
+  the `blend_g1_constrained` posture — λ selected CAL-SIDE ONLY under the
+  calibration constraint (interleaved cal halves, fit never scores its
+  own fit; ONE engine-derived conformal floor on the held-out half; the
+  blend's RECALIBRATED readout — the lane's own `SigmoidGateCalibrator`
+  family — must beat BOTH its own uncalibrated surface AND the floor,
+  and never lose cal accuracy vs the unarmed λ=0 rung; ladder extended
+  down to 0; no feasible rung → λ*=0 + `constraint_unsatisfiable`).
+  Verdict: **UNSATISFIABLE — λ*=0, zero gain, the promotion criterion
+  fails on its accuracy leg.** The published xnli row is UNCHANGED
+  (0.5233); the blend stays report-only. Two findings a negative result
+  still pays: (1) the mini-G1 screen is NOT a transferable predictor at
+  n_cal=200 — the cal half said recalibration hurts every rung, the test
+  side said the full-cal refit at λ=0 passes the floor (0.0964 ≤ 0.1351);
+  a 100-pair Platt refit is split-unstable in binned-ECE terms (Platt
+  minimizes NLL, not ECE). Do not reuse this screen as a verdict
+  instrument at this cal size. (2) There is nothing to promote even where
+  recal passes — the only passing surface (λ=0 recal, 0.0964) is the
+  engine's own picks at zero accuracy delta and 14× worse than the lane's
+  shipped calibrated readout (0.0067). Closing shape: the pair-feature
+  signal is REAL (decorrelated, 56/53; +5.67 pt at the pick level) but no
+  promotable confidence surface for it exists in the shipped machinery —
+  a future mechanism must bring its own calibrated surface, never the
+  max-prob blend one. Run 1 of the bench is VOID and recorded (the
+  miniature calibrator never fitted — `observe` records, `refit()` fits;
+  the strict feasibility leg decided rungs by f32 rounding noise —
+  fixed, tested, re-run). Instrument defects caught by the bench's own
+  module tests en route: the constant-confidence Platt window is
+  collinear and keeps identity parameters while `refit()` reports moved —
+  the behavioral-identity leg handles it. Issue 044 removed; carry-forwards:
+  ag_news −6.8 pt (no shipped lever — measured three times; needs a NEW
+  modelless mechanism that clears G1 first) and routing/sensitivity (3
+  questions each — the lever is authored questions, not mechanisms).
+  Record: `.benchmarks/069_nli_g1_constrained.md` + `results.json`.
+
 - **Issue 044 EXECUTED — the accuracy-gap audit + the frozen code_fixtures
   population + the NLI pair-feature head (Bench 068, `fe7c123`).** Five
   tasks, five measured verdicts. (1) The Wilson screen (T2): harness_routing
