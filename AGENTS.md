@@ -171,9 +171,23 @@ cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairh
 # and measured NEGATIVE — UNSATISFIABLE (no rung feasible; the mini-G1
 # screen is not a transferable predictor at n_cal=200, and the only
 # passing surface carries zero accuracy delta at 14× the lane's own
-# calibrated ECE). The xnli gap stays open with no promotable posture;
-# a future mechanism must bring its own calibrated surface.
+# calibrated ECE). The xnli question is now CLOSED measured-negative
+# (issue 047 / Bench 073): the pre-registered M1 reopen on the FRESH
+# validation slice (n=2490) read the head itself net-negative vs the
+# engine (head 0.5205 vs A0 0.5410; oracle 397/448) — no promotable xnli
+# posture exists; the gap stands ACCEPTED. The shipped calibrated readout
+# is near-binary on xnli (95.5% at exactly 0.0 conf — its ECE 0.0028
+# "pass" is the binned-ECE self-removal artifact); honest confidence
+# work there starts from the RAW max-prob surface (AUROC 0.6542).
 cargo run --release --bin harness -- --skip-laya --nli-feature-ab --out /tmp/nli_feature_ab
+
+# The Issue 047 M1 validation-reopen lane (measured CLOSED, Bench 073 —
+# kept report-only as the instrument that ran the pre-registered
+# R1-R6 protocol; reads `xnli_en_val` ONLY, i.e. the validation split,
+# never the spent test split — R1's structural guard).
+cargo run --release --bin harness -- --skip-laya --head-select --nb-select --ridge-select \
+  --nli-m1 --suites xnli_en_val --datasets-dir .raw/datasets_t20k \
+  --out .benchmarks/073_nli_m1_validation
 
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb
 # binary resolves from NDB_BIN, else PATH — build it first:
