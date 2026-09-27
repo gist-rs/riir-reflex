@@ -74,6 +74,13 @@
 //! the calibrated fused gate's abstains escalate to each served riir-laya
 //! checkpoint. Accuracy AND the escalation rate per suite (the rate is
 //! the latency claim); LLM-only families get an honest absence.
+//! `--cascade-worthiness` (needs `--cascade`, issue 042 lever 3) gates
+//! the escalation per suite by a cal-slice probe: the checkpoint answers
+//! the cal questions the calibrated gate abstained on, and the suite's
+//! escalation stays armed only where it reads ≥ the forced modelless
+//! picks (`--cascade-worthiness-margin <F64>`, default 0.0). A negative
+//! probe disarms the suite's escalation (disclosed in the row); missing
+//! cal records / thin support stay armed with the named reason.
 //! `--e0` (needs `nb_scope`) runs the riir-instinct Issue-005 E0
 //! evidence-density measurement INSTEAD of the lanes: per dataset suite, on
 //! the stratified selection slice, the distribution of seen-token counts
@@ -117,6 +124,8 @@ fn harness_main() {
         laya_max_questions: 0,
         skip_laya: false,
         cascade: false,
+        cascade_worthiness: false,
+        cascade_worthiness_margin: 0.0,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -165,6 +174,14 @@ fn harness_main() {
             }
             "--skip-laya" => opts.skip_laya = true,
             "--cascade" => opts.cascade = true,
+            "--cascade-worthiness" => opts.cascade_worthiness = true,
+            "--cascade-worthiness-margin" => {
+                i += 1;
+                opts.cascade_worthiness_margin = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--cascade-worthiness-margin needs a number"));
+            }
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--head-scale" => {
                 i += 1;

@@ -7,6 +7,37 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 042 lever 3 LANDED — the per-suite cascade escalation-worthiness
+  gate (`--cascade-worthiness`, Bench 063).** The `--cascade` lane's
+  escalation was direction-blind (Bench 061: banking77 −14.0 pt while xnli
+  +11.7 — the gate escalates every calibrated abstain regardless of whether
+  the escalator reads better there). The lever: the checkpoint answers the
+  suite's CAL-slice questions the calibrated gate abstained on (protocol-
+  legal selection-slice work — cal never enters any fit here, test never
+  enters the probe), and the suite's escalation stays armed only where the
+  probe reads ≥ the forced modelless picks on that set
+  (`--cascade-worthiness-margin <F64>`, default 0.0; negative probe →
+  disarm, disclosed in the row + a TABLES.md sub-table; missing cal
+  records / thin support < 16 stay armed with a named `unprobed_reason` —
+  the probe never invents a disarm it cannot measure). Shape: pure
+  composer (`src/harness/cascade.rs` WorthinessInput/Verdict), modelless
+  half = the deployed calibrated gate re-evaled over cal in
+  `run_modelless`, escalator half = untimed cal serving in
+  `run_laya_checkpoint` (one rendering law shared via the extracted
+  `laya_prob_pick`), 8 new module tests (lib 140/140), clippy clean at
+  default/laya-riir/no-default/all-features, G3 flag-off rows carry no
+  worthiness key (byte-shape = 061). Measured (Bench 063, 8 dataset
+  suites at the 061 posture): all four 061 losers disarm to exactly the
+  modelless row (emotion −28.3, banking77 −14.0, typed-en/multi −8.4/−9.2,
+  prompt −2.6 → all 0.000); the two small-magnitude armed flips remain
+  (sst5 −2.2, massive −3.0, the SAME amounts 061 had); arm-side sign
+  reliability is magnitude-gated (≥ 0.288 → 2/2, 0.072–0.150 → 1/3),
+  disarm-side is 5/5 — the measured arm-bar gap (0.150, 0.288] holds the
+  margin call (issue 042 T3). Latencies provisional: preflight REFUSED
+  (canary 195 µs vs 141, load 5.49, swap 1.9 GB — no GPU compute consumer
+  found; accuracy gates are pick-counts, load-immune by G5
+  determinism).
+
 - **Issue 040 RESOLVED — the lane-pairing population guard (T1–T5) complete;
   the site's `identical on 11/14` was a sample mismatch, not a port
   regression (guards `448f652` + `b30f5b1`; data repair Bench 062).** Root

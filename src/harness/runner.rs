@@ -1698,6 +1698,9 @@ struct ModellessInput<'a> {
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
     leak_flags: Option<&'a [bool]>,
+    /// Issue 042 lever 3: also produce the worthiness probe's modelless
+    /// half — the deployed calibrated gate over the suite's CAL slice.
+    pub cascade_worthiness: bool,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -2537,6 +2540,21 @@ fn run_modelless<const N: usize>(
     }
     let (cal_eval_test, _) = eval_engine(&mut fitted, &suite.cases, state_strs, false)?;
 
+    // Issue 042 lever 3: the worthiness probe's modelless half — the SAME
+    // calibrated gate over the suite's CAL slice (the deployed abstain rule
+    // measured in-distribution on the selection slice; never a test read).
+    // None when the lever is off or the suite has no cal slice — the probe
+    // then reports unprobed and the pre-lever behavior (armed) holds.
+    let cal_gate = if inp.cascade_worthiness && !cal_cases.is_empty() {
+        let (cal_fitted_eval, _) = eval_engine(&mut fitted, &cal_cases, cal_state_strs, false)?;
+        Some(super::cascade::CalGateRecords {
+            picks: cal_fitted_eval.picks,
+            abstained: cal_fitted_eval.abstained,
+        })
+    } else {
+        None
+    };
+
     // Issue 038 T4′: the cascade lane composes THIS lane's answers with the
     // escalator's — the forced picks that define `hard` above plus the
     // calibrated gate's abstain flags (the shipped posture). Cheap clones
@@ -2545,6 +2563,7 @@ fn run_modelless<const N: usize>(
     let modelless_questions = super::cascade::ModellessQuestions {
         picks: raw_eval.picks.clone(),
         abstained: cal_eval_test.abstained.clone(),
+        cal_gate,
     };
 
     // ── metrics assembly (label space; noul [no, yes]) ──
@@ -2853,7 +2872,18 @@ fn run_laya_checkpoint(
     // Issue 024 T3: one leak flag per suite.cases entry (the caller's full
     // eval scan). None = feature off / suite out of scope.
     leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, Vec<String>, super::cascade::LayaQuestions), String> {
+    // Issue 042 lever 3: when armed, ALSO serve the suite's CAL slice with
+    // this checkpoint — the worthiness probe's escalator half (the cal
+    // slice is pool-region selection data; the probe never reads test).
+    // Untimed, excluded from the lane's latency/metrics; bucket skips are
+    // named and simply shrink the probe set.
+    cal_cases: Option<&[SuiteCase]>,
+) -> Result<(
+    LaneResult,
+    Vec<String>,
+    super::cascade::LayaQuestions,
+    Option<super::cascade::LayaQuestions>,
+), String> {
     use crate::laya::config::Checkpoint;
 
     let t_start = Instant::now();
@@ -2977,41 +3007,7 @@ fn run_laya_checkpoint(
         let mut cpicks = Vec::with_capacity(questions.len());
         let mut cconfs = Vec::with_capacity(questions.len());
         for (q, ans) in case.questions.iter().zip(answers.iter()) {
-            let (p, pick) = match q.kind {
-                QKind::Choice => {
-                    let keys: Vec<String> = q
-                        .criteria
-                        .as_object()
-                        .map(|m| m.keys().cloned().collect())
-                        .unwrap_or_default();
-                    let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
-                    let idx = ans
-                        .choice
-                        .as_ref()
-                        .and_then(|c| keys.iter().position(|k| k == c))
-                        .unwrap_or_else(|| {
-                            probs
-                                .iter()
-                                .enumerate()
-                                .max_by(|a, b| a.1.total_cmp(b.1))
-                                .map_or(0, |(i, _)| i)
-                        });
-                    (probs, idx)
-                }
-                QKind::Score => {
-                    let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
-                    let pick = probs
-                        .iter()
-                        .enumerate()
-                        .max_by(|a, b| a.1.total_cmp(b.1))
-                        .map_or(0, |(i, _)| i);
-                    (probs, pick)
-                }
-                QKind::Noul => {
-                    let p_true = ans.noul.unwrap_or(0.5);
-                    (vec![1.0 - p_true, p_true], usize::from(p_true >= 0.5))
-                }
-            };
+            let (p, pick) = laya_prob_pick(q, ans);
             cprobs.push(p);
             cpicks.push(pick);
             cconfs.push(ans.confidence);
@@ -3025,6 +3021,57 @@ fn run_laya_checkpoint(
         // suite.cases index the leak flags are keyed on.
         served_orig.push(ci);
     }
+
+    // Issue 042 lever 3: the worthiness probe's escalator half — the SAME
+    // checkpoint over the suite's CAL slice. Rendering law shared with the
+    // timed loop ([`laya_prob_pick`]); NO timing, NO determinism rerun, NO
+    // lane metrics — the probe set is selection-slice instrumentation. A
+    // bucket skip shrinks the probe set (named); a REAL forward failure is
+    // disclosed and the probe reports unprobed — a cal-serving failure must
+    // not destroy the checkpoint's already-served test row.
+    let cal_questions = match cal_cases {
+        None => None,
+        Some(cal) => {
+            let mut cal_served_orig: Vec<usize> = Vec::new();
+            let mut cal_picks: Vec<Vec<usize>> = Vec::new();
+            let mut cal_failed: Option<String> = None;
+            for (ci, case) in cal.iter().enumerate() {
+                let questions = case_questions(case);
+                match agent.system_one(&case.state, &questions) {
+                    Ok(answers) => {
+                        let mut cpicks = Vec::with_capacity(questions.len());
+                        for (q, ans) in case.questions.iter().zip(answers.iter()) {
+                            let (_, pick) = laya_prob_pick(q, ans);
+                            cpicks.push(pick);
+                        }
+                        cal_served_orig.push(ci);
+                        cal_picks.push(cpicks);
+                    }
+                    Err(crate::laya::LayaError::Bucket { seq, max, .. }) => {
+                        eprintln!(
+                            "  [laya {ckpt}] cal probe case {} skipped: seq {seq} > max ANE \
+                             bucket {max} (probe set shrinks, named)",
+                            case.id
+                        );
+                    }
+                    Err(e) => {
+                        cal_failed = Some(format!("case {} ({ci}): {e}", case.id));
+                        break;
+                    }
+                }
+            }
+            if let Some(fail) = cal_failed {
+                eprintln!(
+                    "  [laya {ckpt}] cal probe FAILED ({fail}) — the worthiness probe \
+                     reports unprobed for this checkpoint; the test-side row stands"
+                );
+            }
+            Some(super::cascade::LayaQuestions {
+                served_orig: cal_served_orig,
+                picks: cal_picks,
+            })
+        }
+    };
 
     // Every case over the bucket limit = the suite has NO servable cases:
     // an honest ABSENCE (the caller's errors list), never an empty metrics
@@ -3085,7 +3132,53 @@ fn run_laya_checkpoint(
             bucket_skipped_cases
         )]
     };
-    Ok((result, notes, laya_questions))
+    Ok((result, notes, laya_questions, cal_questions))
+}
+
+/// One laya answer → (probability vector in the question's option order,
+/// label-space pick). THE one rendering law for the riir laya backend —
+/// shared by the timed eval loop and the Issue-042 worthiness probe, so
+/// the two can never diverge on what a pick means.
+#[cfg(feature = "laya-riir")]
+fn laya_prob_pick(
+    q: &super::suites::SuiteQuestion,
+    ans: &crate::laya::types::Answer,
+) -> (Vec<f64>, usize) {
+    match q.kind {
+        QKind::Choice => {
+            let keys: Vec<String> = q
+                .criteria
+                .as_object()
+                .map(|m| m.keys().cloned().collect())
+                .unwrap_or_default();
+            let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
+            let idx = ans
+                .choice
+                .as_ref()
+                .and_then(|c| keys.iter().position(|k| k == c))
+                .unwrap_or_else(|| {
+                    probs
+                        .iter()
+                        .enumerate()
+                        .max_by(|a, b| a.1.total_cmp(b.1))
+                        .map_or(0, |(i, _)| i)
+                });
+            (probs, idx)
+        }
+        QKind::Score => {
+            let probs: Vec<f64> = ans.probabilities.iter().map(|(_, v)| *v).collect();
+            let pick = probs
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map_or(0, |(i, _)| i);
+            (probs, pick)
+        }
+        QKind::Noul => {
+            let p_true = ans.noul.unwrap_or(0.5);
+            (vec![1.0 - p_true, p_true], usize::from(p_true >= 0.5))
+        }
+    }
 }
 
 /// Shared tail of BOTH laya backends (the in-process riir backend and the
@@ -3471,7 +3564,13 @@ fn run_laya_checkpoint(
     _ckpt: &str,
     _laya_max_questions: usize,
     _leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, Vec<String>, super::cascade::LayaQuestions), String> {
+    _cal_cases: Option<&[SuiteCase]>,
+) -> Result<(
+    LaneResult,
+    Vec<String>,
+    super::cascade::LayaQuestions,
+    Option<super::cascade::LayaQuestions>,
+), String> {
     Err("laya-riir feature off".to_string())
 }
 
@@ -4379,6 +4478,7 @@ pub mod seat {
             .ok_or_else(|| format!("seat: unknown suite {name}"))?;
         let inp = ModellessInput {
             spec,
+            cascade_worthiness: false,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -4559,6 +4659,19 @@ pub struct RunOptions {
     /// `laya-riir` feature; needs a modelless lane (LLM-only families
     /// get an honest absence).
     pub cascade: bool,
+    /// Issue 042 lever 3: gate the cascade's escalation per suite by a
+    /// cal-slice worthiness probe — the escalator answers the cal questions
+    /// the calibrated gate abstained on, and the suite's escalation stays
+    /// armed only where it reads ≥ the forced modelless picks on that probe
+    /// set (delta ≥ the margin). A negative probe disarms the suite (every
+    /// abstain stands as the modelless forced pick, disclosed in the row);
+    /// missing cal records / thin support stay armed with a named reason.
+    /// Needs `cascade`. Default off = the landed T4′ lane, byte-identical.
+    pub cascade_worthiness: bool,
+    /// The worthiness arm bar: the probe disarms when
+    /// `(escalator − modelless accuracy on the cal probe set) <` this
+    /// value. Default 0.0 — arm only at parity or better.
+    pub cascade_worthiness_margin: f64,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -4705,6 +4818,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .to_string(),
         );
     }
+    if opts.cascade_worthiness && !opts.cascade {
+        return Err(
+            "--cascade-worthiness needs --cascade: it gates the cascade lane's \
+             escalation per suite (issue 042 lever 3)"
+                .to_string(),
+        );
+    }
     let mut results: Vec<SuiteResult> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let laya_feature = cfg!(feature = "laya-riir");
@@ -4838,6 +4958,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 oc_select: opts.oc_select,
                 ridge_select: opts.ridge_select,
                 leak_flags: leak_flags_ref,
+                cascade_worthiness: opts.cascade_worthiness,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -4893,11 +5014,26 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         // lane's escalation half (the riir PRODUCT lane only; the python
         // reference lane never escalates — it is a latency oracle).
         let mut laya_questions = BTreeMap::new();
+        // Issue 042 lever 3: per-checkpoint CAL-slice escalator records —
+        // the worthiness probe's escalator half (only served when the
+        // lever is armed; the cal slice is pool-region selection data).
+        let mut laya_cal_questions = BTreeMap::new();
         if !opts.skip_laya {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya[{ck}]: running…");
-                match run_laya_checkpoint(&prepared.suite, ck, opts.laya_max_questions, leak_flags_ref) {
-                    Ok((r, notes, lq)) => {
+                let cal_for_probe = if opts.cascade_worthiness {
+                    Some(prepared.cal_cases.as_slice())
+                } else {
+                    None
+                };
+                match run_laya_checkpoint(
+                    &prepared.suite,
+                    ck,
+                    opts.laya_max_questions,
+                    leak_flags_ref,
+                    cal_for_probe,
+                ) {
+                    Ok((r, notes, lq, cal_lq)) => {
                         eprintln!(
                             "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
                             r.hard.accuracy,
@@ -4910,6 +5046,9 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         errors.extend(notes);
                         laya_results.insert((*ck).to_string(), r);
                         laya_questions.insert((*ck).to_string(), lq);
+                        if let Some(cal_lq) = cal_lq {
+                            laya_cal_questions.insert((*ck).to_string(), cal_lq);
+                        }
                     }
                     Err(e) => {
                         // Honest absence: weights missing / feature off —
@@ -5115,15 +5254,37 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             let mut composed = BTreeMap::new();
             if let Some(mq) = &modelless_questions {
                 for (ck, lq) in &laya_questions {
-                    match super::cascade::compose(&prepared.suite.cases, mq, lq) {
+                    // Issue 042 lever 3: when armed, the worthiness probe
+                    // gates THIS checkpoint's escalation on the cal-slice
+                    // delta. Any missing half reads unprobed (armed + named
+                    // reason) — never a silent fallthrough.
+                    let worthiness = opts.cascade_worthiness.then(|| super::cascade::WorthinessInput {
+                        gate: mq.cal_gate.as_ref(),
+                        escalator: laya_cal_questions.get(ck),
+                        cal_cases: prepared.cal_cases.as_slice(),
+                        min_delta: opts.cascade_worthiness_margin,
+                    });
+                    match super::cascade::compose(&prepared.suite.cases, mq, lq, worthiness.as_ref()) {
                         Ok(rep) => {
+                            let disarm_note = rep
+                                .worthiness
+                                .as_ref()
+                                .filter(|w| w.disarmed)
+                                .map(|w| {
+                                    format!(
+                                        " · DISARMED (cal Δ {:+.3} < min {:+.3}, n {})",
+                                        w.delta, w.min_delta, w.probe_n
+                                    )
+                                })
+                                .unwrap_or_default();
                             eprintln!(
                                 "    cascade[{ck}]: acc {:.4} · esc {:.1}% · {} escalated / \
-                                 {} un-escalated",
+                                 {} un-escalated{}",
                                 rep.accuracy,
                                 rep.escalation_rate * 100.0,
                                 rep.n_escalated,
-                                rep.n_un_escalated
+                                rep.n_un_escalated,
+                                disarm_note
                             );
                             composed.insert(ck.clone(), rep);
                         }
@@ -5771,13 +5932,43 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                         "—".to_string()
                     },
                     if rep.n_un_escalated > 0 {
-                        format!("{} (coverage limit)", rep.n_un_escalated)
+                        let why = if rep.worthiness.as_ref().is_some_and(|w| w.disarmed) {
+                            "disarmed by worthiness"
+                        } else {
+                            "coverage limit"
+                        };
+                        format!("{} ({})", rep.n_un_escalated, why)
                     } else {
                         "0".to_string()
                     },
                 ));
             }
             s.push('\n');
+            // Issue 042 lever 3: the worthiness verdicts, when the lever
+            // ran — one row per checkpoint, the cal-slice probe read that
+            // armed or disarmed the escalation above.
+            if suite.cascade.values().any(|r| r.worthiness.is_some()) {
+                s.push_str("\n**Cascade worthiness** (issue 042 lever 3, cal-slice probe): the escalation stays armed only where the escalator reads ≥ the forced modelless picks on the cal questions the calibrated gate abstained on. No cal records / thin support stays armed with the named reason — the probe never invents a disarm it cannot measure.\n\n");
+                s.push_str("| escalator | verdict | probe n | laya on probe | modelless on probe | Δ | min Δ | note |\n");
+                s.push_str("|---|---|---|---|---|---|---|---|\n");
+                for (ck, rep) in &suite.cascade {
+                    let Some(w) = &rep.worthiness else {
+                        continue;
+                    };
+                    s.push_str(&format!(
+                        "| cascade · {} | {} | {} | {} | {} | {:+.4} | {:+.4} | {} |\n",
+                        ck,
+                        if w.disarmed { "DISARMED" } else { "armed" },
+                        w.probe_n,
+                        fmt4(w.probe_laya_acc),
+                        fmt4(w.probe_modelless_acc),
+                        w.delta,
+                        w.min_delta,
+                        w.unprobed_reason.as_deref().unwrap_or("—"),
+                    ));
+                }
+                s.push('\n');
+            }
         }
         if let Some(r) = &suite.clm {
             // Same shape as a laya row — the CLM reference is a comparison

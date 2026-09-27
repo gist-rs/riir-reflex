@@ -209,6 +209,7 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
     }
     let inp = ModellessInput {
         spec,
+        cascade_worthiness: false,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,

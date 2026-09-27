@@ -1,8 +1,12 @@
 # Issue 042 — the cascade's escalation gate: cal→test abstain transfer breaks at the armed postures
 
-**Status:** OPEN — filed from Bench 061 (T4′). The cascade lane itself is LANDED
-(opt-in `--cascade`, `337974d`); this issue owns the lever its negative verdict
-points at.
+**Status:** OPEN — lever 3 LANDED + measured (Bench 063: the gross direction
+blindness is FIXED — all four suites 061 lost now disarm and read exactly
+the modelless row; the two residual FAILs are the cal→test sign flip at
+|probe Δ| ≤ 0.15, same amounts 061 had; a margin ≥ 0.16 would pass the gate
+10/10 on that run at the price of ag_news's +6.75). Live: the margin call
+(fixed constant vs per-suite cal-fit, T3 below) + levers 1–2 (the rate axis,
+blocked on the sibling's T5 genome work).
 
 ## The finding (Bench 061, measured)
 
@@ -53,6 +57,17 @@ the gate moves).
    escalator is expected to beat the forced modelless picks (a laya-vs-modelless
    delta on the cal slice is protocol-legal selection), and disarm the cascade
    where it reads negative (banking77/massive would disarm; xnli/typed arm).
+   **LANDED 2026-09-27 (Bench 063, `--cascade-worthiness`):** the prediction
+   held on the gross errors — banking77/emotion/typed-en+multi/prompt
+   disarmed, xnli/typed-typed armed — but the 061 spec's own example was
+   half-wrong: massive reads POSITIVE on cal (+0.150) yet loses −3.0 on
+   test; sst5 the same (+0.072 → −2.2). The arm-side reliability is
+   magnitude-gated: probe-positive deltas ≥ 0.288 predicted the test-side
+   sign 2/2, probe-positive 0.072–0.150 went 1/3 (ag_news right, sst5 and
+   massive flipped), while the DISARM side was 5/5 across −0.049…−0.350 —
+   only the ARM bar needs raising, not the disarm bar. A margin anywhere
+   in (0.150, 0.288] separates the measured rows perfectly (0.16 sits in
+   that gap) — the margin call is T3 below.
 4. ~~**Posture-conditional refit**~~ — **VOID (checked 2026-09-27, the day of
    filing)**: the fit order in `run_modelless` is already posture-correct —
    `default_cfg` absorbs the selected head/nb (2188) → oc (2228) → ridge
@@ -61,6 +76,30 @@ the gate moves).
    FULLY ARMED posture. The ρ=30% target is realized on cal by construction;
    the 90–99% test-side abstain is a genuine cal→test confidence-geometry
    shift at the armed postures, not a stale fit. The live levers are 1–3.
+
+## T3 — the margin call (lever 3's open half, measured Bench 063)
+
+The probe's DISARM side is magnitude-robust: every negative probe
+(−0.049…−0.350, five checkpoints) predicted a test-side loss and disarmed
+— 5/5, including the smallest (prompt −0.049 → would-be −2.6). The ARM
+side is where magnitude gates reliability: armed positives ≥ 0.288 went
+2/2 (typed-typed +0.288 → test +0.277; xnli +0.400 → +0.117), while
+probe-positive 0.072–0.150 went 1/3 (ag_news +0.132 → test +0.0675 right;
+sst5 +0.072 → test −0.0217 and massive +0.150 → test −0.030 flipped).
+Two candidate fixes, both protocol-legal:
+
+- **(a) fixed margin** — ship `--cascade-worthiness-margin 0.16` as the
+  recommended posture (one CLI flag, already landed; zero code). Cost:
+  ag_news's +6.75 pt armed gain is surrendered (its probe reads +0.132).
+- **(b) per-suite cal-fit margin** — fit the bar per suite on a cal SPLIT
+  (hold out half the cal slice for the fit, probe on the other half), so
+  ag_news's margin is fit from its own cal distribution. More code, keeps
+  the gains; the fit-split law must be pinned (never test, and the probe
+  half never overlaps the fit half).
+
+Acceptance for either: Bench 063's command re-run → cascade ≥ modelless on
+every dataset suite AND no armed suite loses its measured gain vs the
+0.0-margin run (ag_news must keep ≥ +0.0675 under (b)).
 
 ## Acceptance
 

@@ -223,9 +223,18 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # is the latency claim). Verdict at the shipped gate: NEGATIVE (issue 042 —
 # the gate's cal→test abstain transfer breaks at the armed postures); the
 # lane stays opt-in as the instrument that gate fix re-measures with.
+# Issue 042 lever 3 (Bench 063, `--cascade-worthiness`, needs --cascade):
+# the escalator answers the cal questions the calibrated gate abstained on
+# and the suite's escalation stays armed only where it reads ≥ the forced
+# modelless picks (`--cascade-worthiness-margin <F64>`, default 0.0). At
+# the default margin the four gross direction errors of 061 disarm to zero
+# (emotion/banking77/typed-en+multi/prompt) and the two small-magnitude
+# flips remain (sst5 −2.2, massive −3.0); the measured arm-bar gap is
+# (0.150, 0.288] — issue 042 T3 owns the margin call. G3: flag-off cascade
+# rows carry no worthiness key (byte-shape identical to 061).
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -- \
-  --datasets-dir .raw/datasets_t20k --cascade --nb-select --oc-select --ridge-select \
-  --out .benchmarks/061_cascade_lane
+  --datasets-dir .raw/datasets_t20k --cascade --cascade-worthiness --nb-select --oc-select --ridge-select \
+  --out .benchmarks/063_cascade_worthiness
 
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
