@@ -131,17 +131,40 @@ be designed against the recorded failure modes, not repeat them.
   lever must recover well over half of the pair's errors to move the
   suite — volume (Bench 065) and joint blends (064/065) already
   measured NEGATIVE on the shipped view.
-- [ ] A2 — **Hashed n-gram view on the nb lane's existing view axis**
-  (bag/pair already selected per suite): hash `(w_i, w_{i+1})` into the
-  same count table — the cheapest order signal; bigrams are the usual
-  NB win on topic classification.
-- [ ] A3 — **Title-weighted + case-preserving hashing**: weight early
-  tokens more (headlines are ag_news's discriminative surface); keep
-  case so capitalized tokens behave like entities.
-- [ ] A4 — **G1 path**: stay on the lane's readout surface and Platt-
-  recalibrate it — correlated n-gram features double-count and produce
-  MONOTONE overconfidence, which is exactly the case the shipped
-  calibrator fixes well.
+- [x] A2 — **STALE — already shipped substrate.** The bag view's
+  count-table events ARE unigram + bigram:
+  `hashed_tokens_into` (`src/embed.rs`) pushes `(w_i, w_{i+1})`
+  FNV-hashed (BIGRAM_SALT) into the SAME table — exactly this task's
+  prescription — and the published ag_news posture SELECTED that view
+  (bag, scale 4, observed-laplace; `044_close_gaps` nb_selection).
+  ag_news further presents a SINGLE text field (0 pair candidates — the
+  title+description are merged upstream), so the pair view never armed.
+  The 38.3% pair error mass therefore stands DESPITE shipped bigrams:
+  the order signal is already in the counts and is not the binding
+  constraint.
+- [x] A3 — **REFUSED BY DESIGN, both legs.** (a) Case-preserving
+  hashing conflicts with the ONE-LEXICON law — `fnv1a_word` lowercases
+  in-hash and `embed.rs` pins "the SAME tokenizer and FNV-1a
+  word/bigram hashes as Embedder (one lexicon, two projections)"; a
+  case-preserving variant doubles vocabulary pressure and forks the
+  lexicon. (b) Positional/title weighting conflicts with "no weights: a
+  count table wants integer events, and bigram evidence is one event
+  like a word" — weighted events are a different substrate. Either leg
+  is a deliberate design change (owner-scale), not a bench lever. Note
+  the pair half of the title surface is ALSO structurally absent (see
+  A2: single text field).
+- [x] A4 — **STALE — already the shipped posture.** The lane's readout
+  is ALREADY Platt-recalibrated per suite in the published row (the
+  fused gate + `SigmoidGateCalibrator` family; `readout_ece_calibrated`
+  + floor in every published record). Any future count-side change
+  inherits this path automatically — nothing to build.
+  **A-series conclusion: the cheap ag_news mechanism surface is
+  EXHAUSTED** — shipped-bigrams (A2) + shipped-calibration (A4) are in
+  the measured 0.8825 row, and the remaining idea (A3) breaks two
+  pinned design laws. The residual −6.8 pt needs a NEW modelless
+  mechanism (044 T1's own conclusion, now diagnosed: it must move the
+  business↔sci_tech pair, 38.3% of errors, where volume and joint
+  blends measurably do not) — or acceptance.
 
 ## Numbering
 
