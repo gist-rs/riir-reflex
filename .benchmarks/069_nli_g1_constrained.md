@@ -276,4 +276,6 @@ gold)` so McNemar, the win/loss split and bootstrap intervals are
 computable after the run instead of planned before it.
 
 These rules + the mechanism candidates are filed in
-`.issues/045_accuracy_gap_reopen_protocol.md`.
+`.issues/047_accuracy_gap_reopen_protocol.md` (renumbered from 045 — a
+dual allocation with a sibling session's `045_answer_harness_cache_reuse
+_modelless.md`, landed between this session's commits).

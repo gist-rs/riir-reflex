@@ -1,10 +1,18 @@
-# Issue 045 — accuracy-gap reopen protocol: xnli mechanism + ag_news n-gram view
+# Issue 047 — accuracy-gap reopen protocol: xnli mechanism + ag_news n-gram view
 
 **Status:** OPEN — filed from Bench 069's Claude verdict review (rounds
 1–2); the negative verdict is confirmed and overdetermined, this issue
 owns the BINDING rules and candidate mechanisms for any future attempt.
 No read of any xnli slice may happen until the primary-posture rule
 below is exercised.
+
+> **Renumbered 045 → 047 (dual allocation).** 045 was allocated twice:
+> this file (allocator read a stale session-start highwater) and
+> `045_answer_harness_cache_reuse_modelless.md` (sibling commit
+> `7b5f0ba`, landed between this session's two commits). First
+> allocation keeps the number; the latecomer moves. The write-time
+> re-check (`ls` + re-read `.highwater`) was skipped — the exact
+> stale-read class the numbering discipline exists for.
 
 ## Why
 
@@ -96,5 +104,8 @@ be designed against the recorded failure modes, not repeat them.
 
 ## Numbering
 
-`.issues/.highwater` 044 → 045 (044 removed at its closure, Bench 069 /
-commit `7d46414`; record in HISTORY.md 2026-09-27).
+044 (closed, removed) → **045 taken by
+`045_answer_harness_cache_reuse_modelless.md`** (sibling `7b5f0ba`,
+landed between this session's commits — dual allocation, this file
+renumbered) → 046 in flight by the same sibling session → **this file
+allocated 047** (`.highwater` written back in the same commit).

@@ -53,8 +53,9 @@ lives in `.issues/` and `.plans/`, never here.
   floor; the 0.0067 sharpness caveat — a G1 binned-ECE loophole; the
   harvest relabeled 3–6 pt grid-dependent with McNemar uncomputable from
   aggregates; the spent 300-item test set as the binding constraint).
-  Reopen rules + mechanism candidates filed as `.issues/045_accuracy_gap
-  _reopen_protocol.md`.
+  Reopen rules + mechanism candidates filed as `.issues/047_accuracy_gap
+  _reopen_protocol.md` (renumbered from 045 — dual allocation with a
+  sibling session's `045_answer_harness_cache_reuse_modelless.md`).
 
 - **Issue 044 EXECUTED — the accuracy-gap audit + the frozen code_fixtures
   population + the NLI pair-feature head (Bench 068, `fe7c123`).** Five
