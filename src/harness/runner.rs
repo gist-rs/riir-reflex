@@ -6283,9 +6283,10 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              serving path"
                 .to_string(),
             "harness families (Issue 004, Research 579): in-process synthetic \
-             fixtures with programmatic gold; harness_cache_reuse is LLM-lane \
-             only (the modelless lane has no KV cache) and reports a loud \
-             SKIPPED absence without the laya-riir feature"
+             fixtures with programmatic gold; all six modelless at default \
+             features since Issue 045 (cache_reuse's LLM-only carve-out \
+             REVERSED — Bench 072: modelless 0.9167 vs the frozen LLM-lane \
+             0.5000)"
                 .to_string(),
         ],
     };
