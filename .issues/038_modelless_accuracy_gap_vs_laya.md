@@ -148,7 +148,7 @@ tried.
       the headline, never in it. Measured +0.3 to −4.0 pt (Bench 051): train
       already supplies the vocabulary; self-labelling feeds back errors.
 - [x] **T7 — next levers (from the 2026-09-26 GOAT hunt):** (a)+(b) LANDED
-      2026-09-27 (Plan 004, `.benchmarks/057_issue038_t7_levers/`): (b) the
+      2026-09-27 (Plan 004, `.benchmarks/057_issue038_t7_levers.md`): (b) the
       option-conditioned per-(qid, option) count tables (`option_cond`, promoted
       default-on) — typed_decisions 0.33 → **0.4655** (+13.5 pt, cal-selected
       oc@2; per-kind choice .415/noul .592/score .364 at the probe); (a) the

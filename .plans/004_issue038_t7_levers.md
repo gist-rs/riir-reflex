@@ -67,7 +67,7 @@ slice-size re-measure (selection-side only, protocol-legal).
       `option_cond` + `nb_ridge` both PROMOTED default-on (cfg knobs stay 0 =
       byte-identical serving posture).
 - [x] **T6 — bench + record:** decision_set_goat carries option_cond + nb_ridge
-      armed postures; `.benchmarks/057_issue038_t7_levers/` record + issue 038
+      armed postures; `.benchmarks/057_issue038_t7_levers.md` record + issue 038
       checkboxes + site republish.
 - [-] T4′ cascade lane + T5 blend genome — DEFERRED (issue 038's remaining open
       items; the genome should tune the blend INCLUDING the two new terms).
