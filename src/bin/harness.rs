@@ -13,6 +13,7 @@
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
 //!                                      [--paw-local] [--cascade]
+//!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
@@ -88,6 +89,15 @@
 //! restores arm-at-parity). A negative
 //! probe disarms the suite's escalation (disclosed in the row); missing
 //! cal records / thin support stay armed with the named reason.
+//!
+//! `--cascade-worthiness-lcb <F64>` (needs `--cascade-worthiness`,
+//! issue 046 lever 4) adds a support-aware arm leg: the suite also arms
+//! where the probe delta's one-sided-95% lower bound ≥ F — the
+//! Bench-070 verified answer to the fused family's ag_news/massive
+//! magnitude tie (support separates what the margin provably cannot;
+//! conservative on paired data; the Bench-063 preregistered floor is
+//! 0.05).
+//!
 //! `--gate-fit-selection` (issue 042 lever 1) fits the fused-gate
 //! thresholds on the STRATIFIED selection slice instead of the train-tail
 //! cal slice — the shared held-out instrument, with the probe corpus
@@ -148,6 +158,9 @@ fn harness_main() {
         // probe family measured (Bench 063 fused, Bench 066 distance +
         // combined). An explicit --cascade-worthiness-margin overrides.
         cascade_worthiness_margin: 0.16,
+        // Issue 046 lever 4: the support-aware arm leg — off by default
+        // (byte-identical with the lever-3 lane).
+        cascade_worthiness_lcb: None,
         gate_fit_selection: false,
         gate_distance_only: false,
         laya_python: false,
@@ -210,6 +223,14 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--cascade-worthiness-margin needs a number"));
+            }
+            "--cascade-worthiness-lcb" => {
+                i += 1;
+                opts.cascade_worthiness_lcb = Some(
+                    args.get(i)
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or_else(|| die("--cascade-worthiness-lcb needs a number")),
+                );
             }
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--nli-feature-ab" => opts.nli_feature_ab = true,

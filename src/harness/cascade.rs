@@ -39,6 +39,24 @@
 //! named `unprobed_reason` — the probe never invents a disarm it cannot
 //! measure (the pre-lever T4′ behavior holds where it cannot read).
 //!
+//! Issue 046 lever 4 — the probe-LCB arm leg (opt-in,
+//! `--cascade-worthiness-lcb <F>`): the margin leg is a POINT estimate and
+//! magnitude provably cannot separate every pair — in the Bench-063 fused
+//! family massive_intent_en's probe (+0.1500, n 60) outranks ag_news's
+//! (+0.1316, n 190) while massive flips −3.0 on test, so no margin arms
+//! ag_news without arming the flip. The LCB leg adds a SUPPORT-aware
+//! second arm: `armed = delta ≥ min_delta || probe_lcb ≥ floor`, where
+//! `probe_lcb` is the probe delta's one-sided-95% lower confidence bound
+//! (two-proportion, CONSERVATIVE on paired data — its SE is ≥ the paired
+//! McNemar SE whenever the two reads correlate, so a probe clearing it
+//! clears the exact test harder). Preregistered in `.issues/046` from the
+//! recorded 063 table and verified by Bench 070: the flip-prone probes
+//! carry LCB ≈ 0, the reliable arms clear it. It prices support risk the
+//! point estimate ignores; it is NOT a cal→test-shift guarantee (no
+//! cal-side gate can be — the T3 wording holds). Flag off = the leg does
+//! not exist (byte-identical with the lever-3 lane); unprobed rows never
+//! arm via the LCB.
+//!
 //! Noul/score questions need no special case: both lanes' picks are already
 //! label-space (`[no, yes]` for noul, level index for score — the harness's
 //! own conversion law), and in this harness every question has gold, so an
@@ -139,6 +157,12 @@ pub struct WorthinessVerdict {
     pub delta: f64,
     /// The configured arm bar (arm iff `delta ≥ min_delta`).
     pub min_delta: f64,
+    /// Issue 046 lever 4: the probe delta's one-sided-95% lower
+    /// confidence bound (two-proportion, conservative on paired data).
+    /// Present only when the LCB arm leg is on — flag-off rows keep the
+    /// lever-3 byte shape.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe_lcb: Option<f64>,
     /// Why the probe could not read (no cal records / no served cal
     /// cases / thin support). Present = the pre-lever behavior (armed)
     /// held, named — never a silent fallthrough.
@@ -158,6 +182,27 @@ pub struct WorthinessInput<'a> {
     pub cal_cases: &'a [SuiteCase],
     /// Arm bar: the probe disarms when `delta < min_delta`.
     pub min_delta: f64,
+    /// Issue 046 lever 4: the LCB arm floor — when set, the suite also
+    /// arms where the probe delta's one-sided-95% LCB ≥ this floor
+    /// (support-aware arming for big-probe suites a point-estimate
+    /// margin cannot separate). `None` = the leg is off (byte-identical
+    /// with the lever-3 lane).
+    pub min_probe_lcb: Option<f64>,
+}
+
+/// z for a one-sided 95% interval.
+const PROBE_LCB_Z95: f64 = 1.644_934;
+
+/// One-sided-95% lower confidence bound on `laya_acc − ml_acc` over the
+/// same probe set (two-proportion normal approx). CONSERVATIVE on paired
+/// data: the two-proportion SE is ≥ the paired McNemar SE whenever the
+/// two per-question reads are positively correlated (same questions), so
+/// a probe clearing this bound clears the exact test harder. Never a
+/// p-value — the gate compares the BOUND to a floor.
+fn probe_delta_lcb95(laya_acc: f64, ml_acc: f64, probe_n: usize) -> f64 {
+    let n = probe_n as f64;
+    let se = ((laya_acc * (1.0 - laya_acc) + ml_acc * (1.0 - ml_acc)) / n).sqrt();
+    (laya_acc - ml_acc) - PROBE_LCB_Z95 * se
 }
 
 impl WorthinessInput<'_> {
@@ -172,6 +217,7 @@ impl WorthinessInput<'_> {
             probe_modelless_acc: ma,
             delta: if n > 0 { la - ma } else { 0.0 },
             min_delta: self.min_delta,
+            probe_lcb: None,
             unprobed_reason: Some(reason),
         };
         let Some(gate) = self.gate else {
@@ -277,13 +323,24 @@ impl WorthinessInput<'_> {
                 ml_acc,
             ));
         }
+        // Issue 046 lever 4: the LCB leg is additive — armed iff the
+        // margin leg OR (when the leg is on) the probe delta's one-sided
+        // 95% lower bound clears the floor. The bound is computed from
+        // the accs + n the verdict already carries.
+        let probe_lcb =
+            self.min_probe_lcb.map(|floor| (floor, probe_delta_lcb95(laya_acc, ml_acc, probe_n)));
+        let disarmed = match probe_lcb {
+            Some((floor, lcb)) => !(delta >= self.min_delta || lcb >= floor),
+            None => delta < self.min_delta,
+        };
         Ok(WorthinessVerdict {
-            disarmed: delta < self.min_delta,
+            disarmed,
             probe_n,
             probe_laya_acc: laya_acc,
             probe_modelless_acc: ml_acc,
             delta,
             min_delta: self.min_delta,
+            probe_lcb: probe_lcb.map(|(_, lcb)| lcb),
             unprobed_reason: None,
         })
     }
@@ -489,6 +546,7 @@ mod tests {
             escalator,
             cal_cases,
             min_delta,
+            min_probe_lcb: None,
         }
     }
 
@@ -788,6 +846,127 @@ mod tests {
         let bad_cal_laya = lq(vec![10], vec![vec![0, 1]]);
         let w2 = worthiness_input(m.cal_gate.as_ref(), Some(&bad_cal_laya), &cal_cases, 0.0);
         assert!(compose(&test_cases, &m, &test_laya, Some(&w2)).is_err());
+    }
+
+    // ── Issue 046 lever 4: the probe-LCB arm leg ──
+
+    /// The three preregistered vectors from the recorded Bench-063 probe
+    /// table (issue 046) — the separation the margin cannot express,
+    /// pinned as arithmetic: ag_news clears the 0.05 floor, the two
+    /// flip-prone probes do not.
+    #[test]
+    fn lcb_vectors_match_the_preregistered_063_table() {
+        // ag_news: Δ +0.1316 at n 190 → LCB +0.0854 (≥ 0.05 → arms).
+        let ag = probe_delta_lcb95(0.978_947_368_421_052_7, 0.847_368_421_052_631_5, 190);
+        assert!((ag - 0.085_368_828).abs() < 1e-9, "ag_news LCB {ag}");
+        // massive_intent_en: Δ +0.1500 at n 60 → LCB +0.0064 (< 0.05).
+        let massive = probe_delta_lcb95(0.7, 0.55, 60);
+        assert!((massive - 0.006_362_314).abs() < 1e-9, "massive LCB {massive}");
+        // sst5: Δ +0.0718 at n 195 → LCB −0.0059 (< 0.05).
+        let sst5 = probe_delta_lcb95(0.358_974_358_974_359, 0.287_179_487_179_487_16, 195);
+        assert!((sst5 - (-0.005_880_891)).abs() < 1e-9, "sst5 LCB {sst5}");
+        // Both reads perfect → SE 0 → LCB == delta. Parity is negative at
+        // any n — the LCB never arms at parity.
+        assert!((probe_delta_lcb95(1.0, 1.0, 40)).abs() < 1e-12);
+        assert!(probe_delta_lcb95(0.5, 0.5, 10_000) < 0.0);
+    }
+
+    #[test]
+    fn lcb_leg_arms_where_the_margin_cannot() {
+        let (cal_cases, test_cases, m) = worthiness_fixture();
+        // The ag_news shape on the fixture: delta +0.25 (laya 1.0 vs
+        // modelless 0.75 over the 20-question probe) against margin 0.3 —
+        // the margin leg fails; the LCB leg arms (+0.0907 ≥ 0.05).
+        let cal_laya = lq(
+            (0..10).collect(),
+            (0..10).map(|_| vec![0, 1]).collect(),
+        );
+        let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
+        let w = WorthinessInput {
+            min_probe_lcb: Some(0.05),
+            ..worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.3)
+        };
+        let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
+        let v = rep.worthiness.as_ref().expect("verdict present");
+        assert!(!v.disarmed, "LCB +0.0907 ≥ 0.05 must arm past margin 0.3");
+        let lcb = v.probe_lcb.expect("lcb present");
+        assert!((lcb - 0.090_729_950).abs() < 1e-9, "fixture LCB {lcb}");
+        assert_eq!(rep.n_escalated, 2); // the escalation actually ran
+    }
+
+    #[test]
+    fn lcb_leg_keeps_a_wobbly_probe_disarmed() {
+        // The massive shape at fixture scale: positive delta (+0.15, n 20
+        // — past the thin-support floor) that a margin of 0.16 rejects and
+        // the LCB leg must NOT rescue: LCB = 0.15 − 1.645·0.1392 < 0.
+        // Modelless 13/20 = 0.65 (7 cases [0,0] = 1 correct, 3 [0,1] = 2);
+        // laya 16/20 = 0.8 (6 cases [0,1] = 2 correct, 4 [0,0] = 1 — a
+        // [1,1] pick scores 1 against gold [0,1], not 0: q1 hits).
+        let test_cases = vec![case("c0", 2), case("c1", 2)];
+        let cal_cases20: Vec<SuiteCase> = (0..10).map(|k| case(&format!("cal{k}"), 2)).collect();
+        let cal_gate_picks: Vec<Vec<usize>> = (0..10)
+            .map(|k| if k < 7 { vec![0, 0] } else { vec![0, 1] })
+            .collect();
+        let m20 = mq_with_cal(
+            vec![vec![0, 0], vec![0, 1]],
+            vec![vec![true, false], vec![true, false]],
+            Some(CalGateRecords {
+                picks: cal_gate_picks,
+                abstained: vec![vec![true, true]; 10],
+            }),
+        );
+        let laya_picks: Vec<Vec<usize>> = (0..10)
+            .map(|k| if k < 6 { vec![0, 1] } else { vec![0, 0] })
+            .collect();
+        let cal_laya = lq((0..10).collect(), laya_picks);
+        let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
+        let w = WorthinessInput {
+            min_probe_lcb: Some(0.05),
+            ..worthiness_input(m20.cal_gate.as_ref(), Some(&cal_laya), &cal_cases20, 0.16)
+        };
+        let rep = compose(&test_cases, &m20, &test_laya, Some(&w)).expect("compose");
+        let v = rep.worthiness.as_ref().expect("verdict");
+        assert!(v.disarmed, "LCB {:#} < 0 must not rescue a sub-margin delta", v.probe_lcb.unwrap());
+        assert!(v.probe_lcb.expect("lcb present") < 0.0);
+        assert_eq!(rep.n_escalated, 0); // disarmed: every abstain stands
+    }
+
+    #[test]
+    fn lcb_flag_off_rows_keep_the_lever3_byte_shape() {
+        let (cal_cases, test_cases, m) = worthiness_fixture();
+        let cal_laya = lq(
+            (0..10).collect(),
+            (0..10).map(|_| vec![0, 1]).collect(),
+        );
+        let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
+        // Leg off: no probe_lcb key, margin-leg semantics untouched.
+        let w = worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.16);
+        let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
+        let v = rep.worthiness.as_ref().expect("verdict");
+        assert!(v.probe_lcb.is_none());
+        assert!(!v.disarmed, "delta +0.25 ≥ margin 0.16 arms via the margin leg");
+        let json_off = serde_json::to_value(v).expect("serialize");
+        assert!(json_off.get("probe_lcb").is_none(), "flag-off rows carry no LCB key");
+        // Leg on but floor unreachable: the key appears, verdict unchanged.
+        let w2 = WorthinessInput {
+            min_probe_lcb: Some(0.99),
+            ..worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.16)
+        };
+        let rep2 = compose(&test_cases, &m, &test_laya, Some(&w2)).expect("compose");
+        let v2 = rep2.worthiness.as_ref().expect("verdict");
+        assert_eq!(v2.disarmed, v.disarmed, "an unreachable floor changes nothing here");
+        let json_on = serde_json::to_value(v2).expect("serialize");
+        assert!(json_on.get("probe_lcb").is_some(), "leg-on rows carry the LCB key");
+        // Unprobed rows never arm via the LCB — the leg cannot read them.
+        let w3 = WorthinessInput {
+            min_probe_lcb: Some(0.05),
+            ..worthiness_input(None, Some(&test_laya), &cal_cases, 0.16)
+        };
+        let rep3 = compose(&test_cases, &m, &test_laya, Some(&w3)).expect("compose");
+        let v3 = rep3.worthiness.as_ref().expect("verdict");
+        assert!(!v3.disarmed);
+        assert!(v3.probe_lcb.is_none());
+        assert!(v3.unprobed_reason.is_some());
     }
 
     #[test]

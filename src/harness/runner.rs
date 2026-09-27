@@ -4878,6 +4878,15 @@ pub struct RunOptions {
     /// gap that separated every probe family, Benches 063 + 066). 0.0
     /// restores arm-at-parity.
     pub cascade_worthiness_margin: f64,
+    /// Issue 046 lever 4 (`--cascade-worthiness-lcb <F>`): the
+    /// support-aware arm leg — when set, a suite also arms where the
+    /// cal-slice probe delta's one-sided-95% lower confidence bound ≥
+    /// the floor (the Bench-063 fused family: ag_news LCB +0.0854 at
+    /// n 190 arms; massive +0.0064 at n 60 and sst5 −0.0059 do not —
+    /// support separates what the point-estimate margin provably
+    /// cannot). Additive to `cascade_worthiness_margin`; `None` = off,
+    /// byte-identical with the lever-3 lane.
+    pub cascade_worthiness_lcb: Option<f64>,
     /// Issue 042 lever 1 (`--gate-fit-selection`): fit the fused-gate
     /// thresholds on the STRATIFIED selection slice (the shared held-out
     /// instrument; the probe corpus excludes the fit docs) instead of the
@@ -5520,6 +5529,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         escalator: laya_cal_questions.get(ck),
                         cal_cases: prepared.cal_cases.as_slice(),
                         min_delta: opts.cascade_worthiness_margin,
+                        min_probe_lcb: opts.cascade_worthiness_lcb,
                     });
                     match super::cascade::compose(&prepared.suite.cases, mq, lq, worthiness.as_ref()) {
                         Ok(rep) => {
@@ -6270,21 +6280,26 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             // ran — one row per checkpoint, the cal-slice probe read that
             // armed or disarmed the escalation above.
             if suite.cascade.values().any(|r| r.worthiness.is_some()) {
-                s.push_str("\n**Cascade worthiness** (issue 042 lever 3, cal-slice probe): the escalation stays armed only where the escalator reads ≥ the forced modelless picks on the cal questions the calibrated gate abstained on. No cal records / thin support stays armed with the named reason — the probe never invents a disarm it cannot measure.\n\n");
-                s.push_str("| escalator | verdict | probe n | laya on probe | modelless on probe | Δ | min Δ | note |\n");
-                s.push_str("|---|---|---|---|---|---|---|---|\n");
+                s.push_str("\n**Cascade worthiness** (issue 042 lever 3, cal-slice probe): the escalation stays armed only where the escalator reads ≥ the forced modelless picks on the cal questions the calibrated gate abstained on — or, when the issue-046 LCB leg is on, where the probe delta's one-sided-95% lower bound clears the floor (support-aware arming; conservative on paired data). No cal records / thin support stays armed with the named reason — the probe never invents a disarm it cannot measure.\n\n");
+                s.push_str("| escalator | verdict | probe n | laya on probe | modelless on probe | Δ | probe LCB | min Δ | note |\n");
+                s.push_str("|---|---|---|---|---|---|---|---|---|\n");
                 for (ck, rep) in &suite.cascade {
                     let Some(w) = &rep.worthiness else {
                         continue;
                     };
+                    let lcb_cell = w
+                        .probe_lcb
+                        .map(|v| format!("{v:+.4}"))
+                        .unwrap_or_else(|| "—".to_string());
                     s.push_str(&format!(
-                        "| cascade · {} | {} | {} | {} | {} | {:+.4} | {:+.4} | {} |\n",
+                        "| cascade · {} | {} | {} | {} | {} | {:+.4} | {} | {:+.4} | {} |\n",
                         ck,
                         if w.disarmed { "DISARMED" } else { "armed" },
                         w.probe_n,
                         fmt4(w.probe_laya_acc),
                         fmt4(w.probe_modelless_acc),
                         w.delta,
+                        lcb_cell,
                         w.min_delta,
                         w.unprobed_reason.as_deref().unwrap_or("—"),
                     ));
