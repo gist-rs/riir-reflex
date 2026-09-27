@@ -78,8 +78,16 @@ Held suites (typed/ag_news/prompt/xnli) byte-identical to published ✓.
   G1-failed massive row. The next whole-run opportunity (post-041 ag_news
   full-pull re-run, which re-selects ag_news anyway) adopts the genome
   lane with the winners and republishes then.
-- 4090 cross-host verification: pending at record time (this session landed
-  the lane first; the post-041 re-run cross-host-verifies the full state).
+- 4090 cross-host verification: **PASS** (LAN `192.168.1.36`, bundle-synced
+  to `b1c85fe` — the 4090's outbound GitHub fetch hangs; the M3 bundle
+  `5dc2593..develop` transfers the commits directly; `b1c85fe` carries zero
+  `src/` deltas over this lane's `bc0a3fb`, so the run is the same code).
+  All 14 suites: identical accuracies, identical G1 verdicts, identical
+  genome walk decisions (held/moves) — including all four genome postures
+  (emotion 0.3500, sst5 0.4017, massive 0.8333, banking77 0.8620). The
+  only diffs are ulp-scale float noise in the soft metrics (ece/nll/brier,
+  the documented aarch64-vs-x86_64 reduction-order class — the same fields
+  the cascade lane's G3 excludes). Decision-bearing state byte-equal.
 
 ## Gates
 
