@@ -6,6 +6,10 @@
 pub mod box_state;
 // Issue 038 T4′ — the cascade lane's pure composer (ungated: no engine dep).
 pub mod cascade;
+// Issue 044 T4 — the FROZEN code_fixtures population (digest-pinned
+// committed fixture + the original extractor; consumed by the runner).
+#[cfg(feature = "modelless")]
+pub mod code_frozen;
 pub mod families;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;

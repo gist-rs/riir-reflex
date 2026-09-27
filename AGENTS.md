@@ -126,6 +126,15 @@ cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --ca
 # errors too spread to arm a pair.
 cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairhead_ab
 
+# The NLI pair-feature head A/B (Issue 044 T3, `--nli-feature-ab`, xnli-shaped
+# suites only — loud skip elsewhere): closed-form diagonal-LDA over lexical
+# premise/hypothesis pair features, fitted on the CAL slice, one test read
+# under head-alone + two blend postures + the blend's own G1 ECE triple.
+# Report-only (Bench 068): the blend's +5.67 pt on xnli_en FAILED the G1
+# floor (0.1596 vs 0.1351) — the same UQ law that refused Bench 064's
+# massive row; reopen path = a pre-registered cal-side G1-constrained λ.
+cargo run --release --bin harness -- --skip-laya --nli-feature-ab --out /tmp/nli_feature_ab
+
 # The harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`): the ndb
 # binary resolves from NDB_BIN, else PATH — build it first:
 #   (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)

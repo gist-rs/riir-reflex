@@ -347,6 +347,15 @@ required-features = ["laya-riir"]
 name = "typed_case_split"
 required-features = ["laya-riir-metal"]
 
+# The frozen code_fixtures population GENERATOR (issue 044 T4): harvests
+# the live tree with the frozen module's extractor and writes the
+# BLAKE3-pinned `src/harness/code_fixtures_frozen.json`. A regeneration is
+# a deliberate fixture change (new digest in the same commit) — never a
+# build step, never hand edits (the parse-time digest check refuses them).
+[[example]]
+name = "gen_code_frozen"
+required-features = ["modelless"]
+
 # The laya parity test is GEMM-bound inside the substrate lane's `gemm`
 # calls; the local code is only orchestration. Optimizing DEPENDENCIES in
 # the dev profile keeps a plain `cargo test --features laya-riir` within

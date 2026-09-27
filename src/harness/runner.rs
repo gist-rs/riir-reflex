@@ -75,7 +75,12 @@ mod genome_lane;
 mod oc_lane;
 #[cfg(feature = "nb_ridge")]
 mod ridge_lane;
+// Issue 044 T3: the modelless NLI pair-feature head A/B (report-only;
+// the mod is compiled in every posture — the record type is named
+// unconditionally by the report field + the flag-off None binding).
+mod nli_lane;
 pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
+pub use nli_lane::NliFeatureAb;
 #[cfg(feature = "option_cond")]
 pub use oc_lane::{OcCandidate, OcSelection};
 #[cfg(feature = "nb_ridge")]
@@ -313,84 +318,28 @@ fn laya_checkpoints_for(suite: &str) -> &'static [&'static str] {
 }
 
 // ── code fixtures (our own suite — no network, programmatic gold) ───────
+//
+// Issue 044 T4: the population is FROZEN — a BLAKE3-pinned committed
+// fixture (`crate::harness::code_frozen`) harvested ONCE from this repo's
+// own sources. The old live harvest made the suite commit-relative: files
+// moved, labels lost their corpus docs, and the published accuracy moved
+// with the tree (measured 0.2500 → 0.2917 with four of eight labels
+// unanswerable). The builders below read the frozen bytes; regenerating is
+// `cargo run --features modelless --example gen_code_frozen` (a deliberate
+// fixture change, never a build side effect).
 
-/// The modules the code fixtures draw from (fixed order IS the option
-/// order). Real code spans from THIS repo's own sources; gold labels are
-/// programmatic (which module / is-pub), never hand-labeled.
-const CODE_MODULES: &[&str] = &[
-    "embed.rs",
-    "engine.rs",
-    "readout.rs",
-    "serve.rs",
-    "harness/metrics.rs",
-    "harness/suites.rs",
-    "laya/agent.rs",
-    "laya/router.rs",
-];
-
-const CODE_MODULE_LABELS: &[&str] = &[
-    "embed",
-    "engine",
-    "readout",
-    "serve",
-    "harness::metrics",
-    "harness::suites",
-    "laya::agent",
-    "laya::router",
-];
-
-struct CodeFn {
-    src: String,
-    is_pub: bool,
-}
-
-/// Extract top-level `fn` decls from one source file: returns (decl line,
-/// body text up to the closing brace at column 0 or a 80-line cap).
-fn extract_fns(path: &Path) -> Vec<CodeFn> {
-    let Ok(text) = std::fs::read_to_string(path) else {
-        return Vec::new();
-    };
-    let lines: Vec<&str> = text.lines().collect();
-    let mut fns = Vec::new();
-    let mut i = 0;
-    while i < lines.len() {
-        let trimmed = lines[i].trim_start();
-        let is_pub = trimmed.starts_with("pub fn ");
-        let is_fn = trimmed.starts_with("fn ");
-        if is_pub || is_fn {
-            let start = i;
-            let mut body = String::new();
-            while i < lines.len() && i - start < 80 {
-                body.push_str(lines[i]);
-                body.push('\n');
-                if i > start && lines[i].starts_with('}') {
-                    break;
-                }
-                i += 1;
-            }
-            fns.push(CodeFn { src: body, is_pub });
-        }
-        i += 1;
-    }
-    fns
-}
-
-/// The deterministic code-fixture split: per module, fns[0..2] = eval cases,
-/// fns[2..10] = calibration cases, fns[10..16] = corpus docs (with graceful
-/// fallbacks for small modules; every module yields ≥1 eval case).
-fn code_fn_slices() -> Vec<(usize /*module idx*/, Vec<CodeFn>)> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
-    CODE_MODULES
+/// The option universe: the frozen module labels, in frozen (option) order.
+fn code_module_labels() -> Vec<String> {
+    crate::harness::code_frozen::frozen_modules()
         .iter()
-        .enumerate()
-        .map(|(mi, m)| (mi, extract_fns(&root.join(m))))
+        .map(|m| m.label.clone())
         .collect()
 }
 
-fn code_case(mi: usize, f: &CodeFn, id: &str) -> SuiteCase {
+fn code_case(mi: usize, f: &crate::harness::code_frozen::FrozenFn, labels: &[String], id: &str) -> SuiteCase {
     let mut crit = serde_json::Map::new();
-    for label in CODE_MODULE_LABELS {
-        crit.insert((*label).to_string(), Value::Null);
+    for label in labels {
+        crit.insert(label.clone(), Value::Null);
     }
     SuiteCase {
         id: id.to_string(),
@@ -413,7 +362,7 @@ fn code_case(mi: usize, f: &CodeFn, id: &str) -> SuiteCase {
         gold: vec![
             crate::harness::suites::GoldAnswer {
                 idx: mi,
-                soft: vec![0.0; CODE_MODULE_LABELS.len()],
+                soft: vec![0.0; labels.len()],
                 gold_score: None,
             },
             crate::harness::suites::GoldAnswer {
@@ -426,58 +375,61 @@ fn code_case(mi: usize, f: &CodeFn, id: &str) -> SuiteCase {
 }
 
 fn build_code_fixtures(_rows: &Value, _max_rows: usize) -> Suite {
+    let frozen = crate::harness::code_frozen::frozen_modules();
+    let labels = code_module_labels();
     let mut cases = Vec::new();
-    for (mi, fns) in code_fn_slices() {
-        if fns.is_empty() {
-            continue;
-        }
-        cases.push(code_case(
-            mi,
-            &fns[0],
-            &format!("code:{}:0", CODE_MODULES[mi]),
-        ));
-        if fns.len() > 1 {
+    for (mi, m) in frozen.iter().enumerate() {
+        for (k, f) in m.eval.iter().enumerate() {
             cases.push(code_case(
                 mi,
-                &fns[1],
-                &format!("code:{}:1", CODE_MODULES[mi]),
+                f,
+                &labels,
+                &format!("code:{}:{k}", m.label),
             ));
         }
     }
+    let (from, at) = crate::harness::code_frozen::frozen_provenance();
+    let _ = (from, at); // provenance is disclosed by code_frozen's own accessors
     Suite {
         name: "code_fixtures",
         cases,
-        option_counts_note: "8 modules × up to 2 real fn spans from this repo's own sources; \
-                             gold programmatic (module, is_pub)",
+        option_counts_note: "frozen modules × 2 real fn spans; gold programmatic (module, \
+                             is_pub); population BLAKE3-pinned (issue 044 T4) — \
+                             code_frozen::frozen_provenance() names the harvest",
     }
 }
 
 /// The code-fixture calibration cases (gold-programmatic, same questions).
 pub fn code_fixtures_cal_cases() -> Vec<SuiteCase> {
+    let frozen = crate::harness::code_frozen::frozen_modules();
+    let labels = code_module_labels();
     let mut cases = Vec::new();
-    for (mi, fns) in code_fn_slices() {
-        for (k, f) in fns.iter().enumerate().skip(2).take(8) {
+    for (mi, m) in frozen.iter().enumerate() {
+        for (i, f) in m.cal.iter().enumerate() {
+            // k = the absolute fn index in the harvested file (the cal
+            // slice starts at 2) — the historical id shape.
             cases.push(code_case(
                 mi,
                 f,
-                &format!("codecal:{}:{k}", CODE_MODULES[mi]),
+                &labels,
+                &format!("codecal:{}:{}", m.label, 2 + i),
             ));
         }
     }
     cases
 }
 
-/// The code-fixture corpora: per module, fns[10..16] as docs — STRICTLY
-/// after the eval (fns[0..2]) and calibration (fns[2..10]) slices, so no
-/// cal/eval fn ever scores against itself in its own corpus (the
-/// self-inclusion leak measured on the first run). Modules with fewer fns
-/// contribute what remains; empty corpora take the self-doc fallback.
+/// The code-fixture corpora: per module, the frozen docs slice — STRICTLY
+/// after the eval and calibration slices, so no cal/eval fn ever scores
+/// against itself in its own corpus (the self-inclusion leak measured on
+/// the first run).
 pub fn code_fixtures_docs() -> Vec<TrainDoc> {
+    let frozen = crate::harness::code_frozen::frozen_modules();
     let mut docs = Vec::new();
-    for (mi, fns) in code_fn_slices() {
-        for f in fns.iter().skip(10).take(6) {
+    for m in frozen {
+        for f in &m.docs {
             docs.push(TrainDoc {
-                label: CODE_MODULE_LABELS[mi].to_string(),
+                label: m.label.clone(),
                 text: f.src.clone(),
             });
         }
@@ -615,6 +567,11 @@ pub struct LaneResult {
     /// (present only when the `--pair-head-ab` arm ran). None otherwise,
     /// and on the laya lanes.
     pub pair_head_ab: Option<(PairHeadAb, PairHeadAb)>,
+    /// Issue 044 T3: the modelless NLI pair-feature head A/B record
+    /// (report-only, `--nli-feature-ab`; xnli-shaped suites only). None
+    /// otherwise, and on the laya lanes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub nli_feature_ab: Option<nli_lane::NliFeatureAb>,
     /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
     /// the same forced-row walk `hard` reads, restricted to the unflagged
     /// cases. None = feature off / suite out of scope / every row flagged
@@ -1716,6 +1673,9 @@ struct ModellessInput<'a> {
     /// Run the Issue-013 lever-3 pair-head A/B arm (report-only; pairs are
     /// armed from CAL-slice confusion, heads fitted from corpus docs).
     pair_head_ab: bool,
+    /// Issue 044 T3: run the NLI pair-feature head A/B (report-only;
+    /// premise/hypothesis-shaped suites only — a loud skip elsewhere).
+    nli_feature_ab: bool,
     /// Issue 024 T3: one leak flag per eval case (true = the case has an
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
@@ -2998,6 +2958,17 @@ fn run_modelless<const N: usize>(
         } else {
             None
         },
+        nli_feature_ab: if inp.nli_feature_ab {
+            nli_lane::nli_feature_ab_pass(
+                &raw_eval,
+                suite,
+                &cal_eval,
+                &cal_cases,
+                Some((readout_ece_cal, floor_ece)),
+            )?
+        } else {
+            None
+        },
     },
         modelless_questions,
     ))
@@ -3519,6 +3490,7 @@ fn assemble_laya_lane_result(
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
+        nli_feature_ab: None,
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
     }
@@ -4416,10 +4388,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             .map(|c| serialize_state(&c.state))
             .collect();
         return Ok(Prepared {
-            labels: CODE_MODULE_LABELS
-                .iter()
-                .map(|s| (*s).to_string())
-                .collect(),
+            labels: code_module_labels(),
             suite,
             train: code_fixtures_docs(),
             state_strs,
@@ -4724,6 +4693,7 @@ pub mod seat {
             cal_select_caps: &knobs.cal_select_caps,
             pool_rows: &s.pool_rows,
             pair_head_ab: false,
+            nli_feature_ab: false,
             leak_flags: None,
         };
         let fp = super::fit_posture_inner::<N>(&inp)?;
@@ -4960,6 +4930,13 @@ pub struct RunOptions {
     /// engine top-2 matches an armed pair. Report-only (a result-row
     /// record, never a gate); the test split is read once. Default off.
     pub pair_head_ab: bool,
+    /// Issue 044 T3: run the modelless NLI pair-feature head A/B
+    /// (`--nli-feature-ab`): closed-form diagonal-LDA over lexical
+    /// premise/hypothesis pair features, fitted on the CAL slice, one test
+    /// read under head-alone + two blend postures. Report-only
+    /// (a result-row record, never a gate); premise/hypothesis-shaped
+    /// suites only — a loud skip elsewhere. Default off.
+    pub nli_feature_ab: bool,
     /// Fitted per-label head blend scale for the modelless lane (issue 030
     /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
     /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
@@ -5215,6 +5192,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 cal_select_caps: &opts.cal_select_caps,
                 pool_rows: &prepared.pool_rows,
                 pair_head_ab: opts.pair_head_ab,
+                nli_feature_ab: opts.nli_feature_ab,
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,

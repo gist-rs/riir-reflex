@@ -9,6 +9,7 @@
 //!                                      [--nb-select] [--oc-select]
 //!                                      [--ridge-select] [--genome-select]
 //!                                      [--genome-accept-margin F]
+//!                                      [--pair-head-ab] [--nli-feature-ab]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
 //!                                      [--paw-local] [--cascade]
@@ -158,6 +159,7 @@ fn harness_main() {
         corpus_cap_override: 0,
         cal_select_caps: Vec::new(),
         pair_head_ab: false,
+        nli_feature_ab: false,
         head_scale: 0.0,
         head_select: false,
         nb_select: false,
@@ -210,6 +212,7 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--cascade-worthiness-margin needs a number"));
             }
             "--pair-head-ab" => opts.pair_head_ab = true,
+            "--nli-feature-ab" => opts.nli_feature_ab = true,
             "--head-scale" => {
                 i += 1;
                 opts.head_scale = args
