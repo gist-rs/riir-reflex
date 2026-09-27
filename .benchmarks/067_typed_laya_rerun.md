@@ -1,4 +1,4 @@
-# Bench 067 — typed_decisions laya re-run: the Bench 062 "Rust slower" cell was box state
+# Bench 067 — typed_decisions laya re-run: the Bench 062 "Rust slower" cell was run-to-run swing
 
 **Status:** DONE 2026-09-27 · republished at reflex-site (see commit below) · no code change
 
@@ -19,9 +19,14 @@ Issue 020 had closed at Bench 050 with typed english **190 vs 334 ms**.
 - The Python lane on typed also slowed in 062 (py/typed 350→442,
   py/multilingual 155→185), and typed_decisions is the FIRST suite the
   harness runs.
-- 062's own `box_state` read `latency_quotable: false` at BOTH ends
-  (load 6.31 / 6.97, "a sibling job is on the box"). The latency cells
-  were published regardless.
+- ~~062's own `box_state` read `latency_quotable: false` at BOTH ends
+  (load 6.31 / 6.97)~~ **CORRECTED 2026-09-27: WRONG RUN.** Those figures
+  are the published `data/bench.json`'s `meta.box_state`, and that field
+  belongs to the table's ORIGINAL primary run (Bench 001, `8028a10`,
+  2026-09-24). Lane-scoped updates never replace it. 062's own
+  `results.json` reads `latency_quotable: true` at both ends (load
+  **5.91 / 5.61**). So the box gate PASSED the run that printed the
+  406 ms cell.
 
 ## What ran
 
@@ -55,6 +60,15 @@ to the parity bar; one sequential cell cannot.
   (`PUBLISH_BENCH_LANES=laya`, current `data/bench.json` as primary). The
   pairing gate stayed green (29 same-sample pairs) and the TL;DR reads
   **Rust faster on 14/14**.
-- ⚠ Premise worth carrying: a republish can print a regression that is
-  the box. Before publishing, check `box_state.*.latency_quotable` on the
-  run you are about to publish. 062's cells were non-quotable at both ends.
+- ⚠ Premise worth carrying, CORRECTED: a republish can print a
+  regression that is run-to-run swing on a box the gate judged FIT. 062
+  passed the load-6.0 gate and still produced the 406 ms cell, and the
+  ±50% swing above was measured under passing verdicts too. A quotability
+  verdict is necessary, not sufficient. Only a paired comparison (both
+  lanes, same run, both orders) settles a Rust-vs-Python cell.
+- Mechanized at reflex-site `11cdfdf`: `publish_bench.py` now REFUSES
+  latency a doc's own `box_state` judged not quotable (the Issue-021
+  wall). Each lane-scoped update records its run's `latency_quotable` in
+  `lane_sources`, which is what should have been read instead of
+  `meta.box_state`. The same change fixed `PUBLISH_BENCH_LANES=laya:acc-only`,
+  which had been accepted and stripped nothing.
