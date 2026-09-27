@@ -542,12 +542,12 @@ that suite (re-derive with `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`
 typed_decisions and prompt_injections are unchanged (their caps already
 cover their train splits: 800 of 1200 by design, and 546 of 546).
 
-## ag_news full-pull measurement dir (issue 041 / Bench 064 — NOT a column)
+## ag_news full-pull measurement dir (issue 041 / Bench 065 — NOT a column)
 
 `SUITES=ag_news OUT=.raw/datasets_agnews_full TRAIN_CAP=120000
 scripts/fetch_datasets.sh` (2026-09-27, the SUITES filter added for it).
 A measurement SIDECAR for the volume-lever question — the canonical
-published basis stays the t20k pull above (Bench 064 measured the lever
+published basis stays the t20k pull above (Bench 065 measured the lever
 NEGATIVE: +0.25 pt at the count tables, ±0.00 at the corpus cap; the
 harness never reads this dir without `--datasets-dir`).
 
@@ -557,7 +557,7 @@ harness never reads this dir without `--datasets-dir`).
   (204/204 verified dir-vs-dir); pages 0200–1199 are new bytes.
 - Whole-dir fold (b3sum over the sorted per-file b3sum lines, all 1204
   pages): `59617a3ec0335ec6abc9ae5d554b2c64374fe2ea75c3df518fce522ca7d9d702`.
-- Per-file BLAKE3 table: `.benchmarks/064_agnews_full_volume/ag_news_full_digests.b3.txt`.
+- Per-file BLAKE3 table: `.benchmarks/065_agnews_full_volume/ag_news_full_digests.b3.txt`.
 - Limiter note: the datasets-server walls after ~300 pages per burst at
   sustained pull; 4 burst→cooldown→resume cycles (the skip logic resumes
   exactly, final burst 0 failed).

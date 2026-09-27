@@ -1,7 +1,7 @@
 # Issue 043 — prompt_injections: the selection slice cannot see the pure-NB polarity
 
 **Status:** OPEN — filed 2026-09-27, forwarded from issue 041's non-lever
-note (041 resolved by Bench 064: the ag_news volume lever measured
+note (041 resolved by Bench 065: the ag_news volume lever measured
 NEGATIVE; this was its recorded forward).
 
 ## The datum

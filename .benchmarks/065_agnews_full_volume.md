@@ -1,4 +1,4 @@
-# Bench 064 — ag_news full-pull volume lever (issue 041)
+# Bench 065 — ag_news full-pull volume lever (issue 041)
 
 **Status:** COMPLETE — the lever is PULLED and measured **NEGATIVE**. The
 120k full pull moves ag_news modelless accuracy **+0.25 pt** (0.8825 →
@@ -52,14 +52,14 @@ noise-reduction rule; entry in HISTORY.md).
    cargo run --release --bin harness -- --skip-laya \
      --datasets-dir .raw/datasets_agnews_full --suites ag_news \
      --nb-select --oc-select --ridge-select \
-     --out .benchmarks/064_agnews_full_volume
+     --out .benchmarks/065_agnews_full_volume
    # run 2 — the corpus axis pulled too (Issue 013 lever-1 instrument)
    ... --corpus-cap 1000 \
-     --out .benchmarks/064_agnews_full_volume_cap1000
+     --out .benchmarks/065_agnews_full_volume_cap1000
    # run 3 — run 2 + the T5 joint blend-genome walk (--genome-select, the
    # sibling's landed lane): the interaction question, one command
    ... --corpus-cap 1000 --genome-select \
-     --out .benchmarks/064_agnews_full_volume_genome
+     --out .benchmarks/065_agnews_full_volume_genome
    ```
 
 ## PROVENANCE (box state at the runs)

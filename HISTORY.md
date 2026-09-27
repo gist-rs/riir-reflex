@@ -8,7 +8,7 @@ lives in `.issues/` and `.plans/`, never here.
 ## 2026-09-27
 
 - **Issue 041 RESOLVED — the ag_news full-pull volume lever measured
-  NEGATIVE (Bench 064).** The full 120k train pull
+  NEGATIVE (Bench 065).** The full 120k train pull
   (`.raw/datasets_agnews_full/`, a measurement sidecar — the canonical
   t20k basis is UNCHANGED, no protocol column, no republish owed) moved
   ag_news modelless accuracy **+0.25 pt** (0.8825 → 0.8850) against the
@@ -30,7 +30,7 @@ lives in `.issues/` and `.plans/`, never here.
   burst sustained (4 burst→cooldown→resume cycles; the skip logic
   resumes exactly). Byte-identity law verified 204/204 shared pages;
   full per-file digest table + fold digest in the bench record.
-  Record: `.benchmarks/064_agnews_full_volume.md` + the three run dirs.
+  Record: `.benchmarks/065_agnews_full_volume.md` + the three run dirs.
 
 - **Issue 038 T5 steps 2+ LANDED — the joint blend-genome lane
   (`--genome-select`, Plan 005 / Bench 064).** `{route, head, nb(+α,+view),
@@ -52,7 +52,7 @@ lives in `.issues/` and `.plans/`, never here.
   pool distribution, the count tables generalize). RRF DECLINED on measured
   rationale. Site republish deferred to the post-041 whole re-run
   (`publish_bench` has no G1 filter). Note (same-day): the 041 full-pull
-  question was answered NEGATIVE (Bench 064 — the volume lever buys
+  question was answered NEGATIVE (Bench 065 — the volume lever buys
   +0.25 pt), so that deferred whole re-run happens at the CANONICAL t20k
   basis with the genome winners, not at a new corpus volume. Two
   protocol costs disclosed: the
