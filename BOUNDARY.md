@@ -88,6 +88,7 @@ publication.
 | sha2 | crates.io | MOVED with the lane (now `riir-infer-laya`'s dep — the weight pins are SHA-256, an external fact) |
 | blake3 | crates.io | opt-in `laya-riir` OR `corpus_db` — the small-file pins (house hash) + the G5 pairing check + the corpus-row digests (Issue 007 P1) |
 | `ndb` binary (runtime, NOT cargo) | `../riir-neuron-db` `target/release/ndb` (local build) or PATH / `NDB_BIN` | opt-in `corpus_db` ONLY (Issue 007 P1) — the harness's Warm-tier store as a SUBPROCESS (`std::process`), `--json`-only, writes via stdin never argv, one-corpus-one-row, consumer-side golden pin over the CLI wire. **Zero cargo dep on the storage leaf** — the no-source-leak posture is structural; NATIVE-ONLY (never a wasm32 combo) |
+| `reflexer-vessel` | `../riir-reflexer/crates/reflexer-vessel` | opt-in `vessel_public_read` / `vessel_hosted_read` (row-before-edge repair 2026-09-27 — filed as `.issues/051` and closed same day; the dep landed with the v0.2.x game-head vessel work) — the PUBLIC vessel FORMAT reader (blake3 + ed25519-dalek only, MIT): the game heads serve from PUBLIC-RELEASE vessels. All-public chain: reflex → reflexer-vessel → katgpt-core. One-way edge into the public format crate — never riir-train (the HOSTED minter) or any private sibling |
 
 Explicitly NOT allowed from ANY feature combination: any game crate
 (`riir-games*`, the engine facade, the game SDK — naming none of them in
