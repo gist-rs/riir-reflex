@@ -21,3 +21,9 @@ dist/
 
 # Agent-instructions symlink (CLAUDE.md -> AGENTS.md), local only
 CLAUDE.md
+
+# Wrangler local state (cache/tmp — never repo content)
+.wrangler/
+
+# Throwaway verification shots (the documented scratch spot, AGENTS.md)
+scripts/out/
