@@ -4726,19 +4726,39 @@ pub mod seat {
         pub cal_state_strs: Vec<String>,
         pub labels: Vec<String>,
         pub pool_rows: Value,
+        /// Issue 049 T1's posture-fork defence: true when the seat came
+        /// from an in-process synthetic build (the harness families +
+        /// `code_fixtures`) rather than dataset files. The consumer cannot
+        /// mistake it for a dataset seat — a synthetic seat carries
+        /// authored fixtures with programmatic gold, and its published row
+        /// must disclose the posture (never render as a dataset row).
+        pub synthetic: bool,
     }
 
-    /// Prepare a registered DATASET suite by name (the synthetic families
-    /// and `code_fixtures` refuse — no specialist exists for them, and a
-    /// seat there would be a silent posture fork).
+    /// Prepare a suite by name. The five MODELESS harness families +
+    /// `code_fixtures` seat through their in-process builds (Issue 049
+    /// T1/T2 — the seat marks them `synthetic`, so the posture fork the
+    /// old blanket refusal feared is now explicit); `harness_cache_reuse`
+    /// stays REFUSED (T3: the modelless lane has no KV cache — a modelless
+    /// seat there would be a fake task, and the lane is the seat's only
+    /// posture) with the reason naming the decision; dataset suites are
+    /// unchanged.
     pub fn prepare_seat(name: &str, dir: &Path) -> Result<Seat, String> {
         let spec = SUITES
             .iter()
             .find(|s| s.name == name)
-            .ok_or_else(|| format!("seat: unknown suite {name}"))?;
-        if spec.synthetic.is_some() || name == "code_fixtures" {
+            .ok_or_else(|| format!("seat: unknown suite {name}"))?
+            as &SuiteSpec;
+        let synthetic = spec.synthetic.is_some() || name == "code_fixtures";
+        if synthetic && !spec.modelless_lane {
+            // harness_cache_reuse (Issue 004 T3): the seat's only posture
+            // is the modelless one, and that lane has no honest answer for
+            // the family — the refusal is the DECISION, recorded in Issue
+            // 049 T3, never a silent fork.
             return Err(format!(
-                "seat: {name} is not a dataset suite (synthetic/code paths have no seat)"
+                "seat: {name} refuses a modelless seat (no KV cache in the modelless \
+                 lane — Issue 004 T3 / Issue 049 T3); compile laya-lane consumers \
+                 answer it through the laya lane instead"
             ));
         }
         let p = prepare(spec, dir)?;
@@ -4750,6 +4770,7 @@ pub mod seat {
             cal_state_strs: p.cal_state_strs,
             labels: p.labels,
             pool_rows: p.pool_rows,
+            synthetic,
         })
     }
 
