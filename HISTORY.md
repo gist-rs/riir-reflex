@@ -7,6 +7,42 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26/27
 
+- **Issues 036 + 037 + 039 CLOSED — issue files removed (noise-reduction);
+  records hash-pinned here.**
+  - **036 — the drafter-only path is degenerate on dynamic option spaces.**
+    T1 landed the disclosure (`Slot.drafter_only` + the `; drafter-only=N`
+    routing-reason suffix — any wire caller can see the weakest-scorer
+    posture); T2 measured all four `EngineConfig::drafter_fix` candidates
+    on the cua VALIDATION split and ALL fail the constant-skip floor (best
+    `ncd` 11.17% vs 52.22%) — nothing promotes and the test split stays
+    unread per the gate's own read-once rule; T3 closed the gate NEGATIVE.
+    `drafter_fix` stays an opt-in measurement knob with `ncd` the recorded
+    best base; the disclosed-abstain path is the product mitigation.
+    Closed at `b092869`. Full life:
+    `git log --follow -- .issues/036_modelless_dynamic_option_length_prior.md`.
+  - **037 — the e8 table converter arm (riir-infer Plan 612 reflex half).**
+    T1–T4 landed at `6535b75`: converter `--table-precision e8` + manifest
+    rows + conversion-log entries; 3 sidecars emitted local-only under the
+    repo's artifact rule (+ the `.gitignore` row); determinism asserted
+    in-run AND cross-run; the six `.mlpackage`s byte-identical throughout.
+    The RUNTIME half (`gather_e8`, `LAYA_ANE_TABLE=e8`, the G5-ANE re-pass)
+    stays riir-infer Plan 612 Phases 2–3. Full life:
+    `git log --follow -- .issues/037_ane_e8_table_converter.md`.
+  - **039 — the 4000-row train cap truncates the label universe on
+    label-sorted mirrors** (banking77 32/77, massive 42/60; modelless rows
+    inflated). Arc: filed `087856f` → Bench 051 full-pull posture
+    `fd3f3d3` → the stratified split + corpus-fallback guard + the
+    readout-selection lever demoted NEGATIVE at `a2353e2` (Bench 052:
+    modelless ≥ laya 5/8 suites at the representative sample; the
+    wide-label G1 gap closed via the stratified cal slice instead;
+    emotion's 051 pass explained as a sampling artifact) → T5 both-hosts
+    identity `d7c0d4f` (row below; the banking77 cuda repeat-check flag
+    filed as riir-infer Issue 021 and RESOLVED same-day — riir-infer
+    `c64d0b1` chain-cache stale-slot eviction fix, det true ×4 on the
+    re-run, in-repo instrument + note `e6f7108`). Records:
+    `.benchmarks/051_nb_count_tables/` + `.benchmarks/052_stratified_readout/`
+    (+ `results_4090.json` / `TABLES_4090.md`). Full life:
+    `git log --follow -- .issues/039_train_cap_truncates_label_universe.md`.
 - **Issue 039 T5 — the 4090 re-run at the Bench-052 protocol: both-hosts
   identity LANDED** (2026-09-27; record: `.benchmarks/052_stratified_readout/`
   §"4090 re-run" + `results_4090.json` / `TABLES_4090.md`; comparator
@@ -203,7 +239,8 @@ lives in `.issues/` and `.plans/`, never here.
   published result reproduced exactly (same 11 fill-for-skip errors), 2.20 ms
   p50 round-trip; laya-typed zero-shot 29.95% (N=2437 stride, metal, G5 green
   on that build); modelless 4.36% — a constant `check` pick (route terms
-  inactive on request-time options) → **Issue 036** (open). Constant-skip
+  inactive on request-time options) → **Issue 036** (closed 2026-09-26 —
+  see the 09-26/27 section). Constant-skip
   floor 52.16%: neither of our lanes clears it. No ANE-vs-CPU latency edge on
   the M3 (sequential readings overlap). Research 002 landscape row landed with
   the posture labeled. Code comments citing `.issues/035` resolve here.
