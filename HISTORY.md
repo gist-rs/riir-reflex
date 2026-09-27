@@ -7,6 +7,35 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 048 CLOSED — T5 discharged: the combined-posture LCB leg is a
+  PROVABLE NO-OP + the Bench-070 repro is BYTE-EXACT (Bench 071, prereg
+  `eedfe24`).** Both deferred 046-T5 legs ran in one session,
+  preregistered BEFORE the run (P1–P3 predictions, K1–K2 kill criteria;
+  the issue-046 pattern). Run A (066 `both/` posture +
+  `--cascade-worthiness-lcb 0.05`): all ten dataset rows byte-identical to
+  the committed 066 `both/` artifacts — the three armed rows clear the
+  margin on their own (probe Δ +0.2750/+0.2075/+0.3514) and every
+  disarmed row's LCB sits below 0.05, so the floor family rescues exactly
+  one cell workspace-wide: the fused posture's ag_news. The combined probe
+  sets are SMALLER than the fused family's (selection-slice fit raises
+  thresholds: ag_news 53 vs 190, massive 47 vs 60), weakening the LCBs
+  where it matters (massive −0.0086, sst5 +0.0152). Run B (the exact 070
+  command): byte-identical to `.benchmarks/070_cascade_probe_lcb/`
+  INCLUDING the probe_lcb floats — the pinned vectors reproduce a second
+  time, giving lever 4 the same second-independent-repro standing the
+  margin-0.16 promotion rode. P2 honesty: two numeric sub-prediction bands
+  missed (sst5 +0.0152 vs [−0.02, +0.01]; massive n 47 not 60) while the
+  decision predictions held — no kill criterion fired. Watch item
+  recorded: sst5's combined LCB +0.0152 is the closest a flip-class suite
+  has come to the floor (~0.035 of arming); the 066 third-flip tripwire
+  (per-suite probe-size floor, not a margin change) is the recorded
+  answer. Posture UNCHANGED: the recommended combined command needs no LCB
+  flag; the fused posture keeps it opt-in; no promotion trigger. Preflight
+  REFUSED at launch (load 6.92, siblings) — latency unclaimed; accuracy
+  pick-count/load-immune; runs at `eedfe24` (code-identical to `a6bfec3`).
+  Record: `.benchmarks/071_combined_lcb.md`; issue removed per the
+  noise-reduction rule.
+
 - **Issue 046 CLOSED — the probe-LCB arm leg LANDED and VERIFIED EXACTLY
   AS PREREGISTERED (Bench 070, lever `a6bfec3`).** The fused probe
   family's ag_news/massive tie (T3's recorded +6.75 price) is a SUPPORT

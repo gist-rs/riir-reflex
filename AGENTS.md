@@ -264,8 +264,15 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # the preregistered run armed ag_news EXACTLY (+6.75 recovered @ 93%
 # disclosed escalation), sst5+massive stayed modelless-exact, every other
 # row byte-identical to 063@0.16. OPT-IN — defaults, the combined lane's
-# T4′ record, and the recommended lane command unchanged; combined LCB +
-# second repro deferred (046 T5). Honest limit: support-confidence, never
+# T4′ record, and the recommended lane command unchanged. T5 CLOSED
+# (Bench 071, prereg `eedfe24`): the combined-posture LCB leg is a
+# PROVABLE no-op (all ten rows byte-identical to 066 both/ — every armed
+# row clears the margin, every disarmed LCB < 0.05; the combined probes
+# are smaller: ag_news 53 vs 190, massive 47 vs 60) and the 070 fused run
+# reproduced BYTE-EXACTLY a second time incl. probe_lcb floats. Watch
+# item: sst5's combined LCB +0.0152 sits ~0.035 under the floor — the 066
+# third-flip tripwire (per-suite probe-size floor) is the recorded answer
+# if it ever arms. Honest limit: support-confidence, never
 # a cal→test-shift guarantee.
 # Reopen (b) per-suite cal-fit only if a fixed-bar arm-side row flips on a
 # future lane run. G3: flag-off cascade rows carry no worthiness key
