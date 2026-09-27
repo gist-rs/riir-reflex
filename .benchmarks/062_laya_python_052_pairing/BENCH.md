@@ -72,8 +72,23 @@ Latency columns refresh; the pairing claim does not depend on them.
 
 ## Aftermath
 
-Republish refreshes the modelless + laya(+py) classes site-wide from this
-run; every rust↔py TL;DR pair carries the same `cases_digest` → the
-`check_lane_pairing.py` gate passes with NO `PUBLISH_ALLOW_SAMPLE_MISMATCH`
-ack — the 09-27 ack is retired, and the TL;DR reads `identical on 14/14`
-(was `11/14` with 3 cross-sample pairs miscounted as parity failures).
+Republished lane-scoped (`PUBLISH_BENCH_LANES=laya`): the laya + py lanes
+refresh from this run — every rust↔py TL;DR pair carries the same
+`cases_digest` → the `check_lane_pairing.py` gate passes with NO
+`PUBLISH_ALLOW_SAMPLE_MISMATCH` ack (the 09-27 ack is retired), and the
+TL;DR reads `identical on 14/14 same-sample pair(s) — a parity port, by
+design.` (was `11/14` + 3 cross-sample pairs miscounted as parity
+failures). Live-verified on reflex.gist.rs: 29/29 pairing blocks `same`,
+0 `differs`.
+
+The modelless class was deliberately NOT refreshed from this run: the
+published modelless cells are the concurrent Issue-038 session's
+ARMED-POSTURE state (typed `oc@2` 0.4655, emotion `ridge@8` 0.885 —
+cal-selected arms, cross-host bit-identity re-proven at their Bench 057
+and round-2), while this run is the DEFAULT posture (typed 0.33, emotion
+0.7375 — byte-identical to the published cells on the other 12 suites,
+where the levers declined). Publishing default-posture modelless cells
+would have regressed the lane and tripped the cross-host drift gate
+(first publish attempt refused exactly there — the gate working as
+designed). A run that arms the 057-selected postures is the doc that may
+refresh modelless.
