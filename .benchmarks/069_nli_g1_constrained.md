@@ -4,7 +4,10 @@
 pre-registered protocol executed faithfully and refused every rung
 (UNSATISFIABLE → λ*=0 → zero gain). The pair-feature head's xnli signal
 stays report-only. Two instrument findings recorded (the void first run;
-mini-G1 screen non-transferability at n_cal=200).
+mini-G1 screen non-transferability at n_cal=200). **Verdict CONFIRMED by
+Claude review (see the closing section): the negative is overdetermined —
+it survives the raw-surface feasibility object too — and the record
+carries seven amended holes.**
 
 M3, AC, release at the working tree on `7b4b9e8`+ (modelless lane only —
 no laya number is published by this bench, G5 not implicated; the claims
@@ -167,17 +170,19 @@ report-only; the lane's published xnli row is UNCHANGED (0.5233).
    verdict instrument. (The FIRST order finding stands regardless: the
    test-side recal at every pick-changing λ fails or the λ gains nothing
    — see 2.)
-2. **There is nothing to promote even where recal passes.** The only
-   passing surface (λ=0 recal, 0.0964) is the engine's OWN picks with a
-   re-fitted confidence — zero accuracy delta — and it is 14× worse than
-   what the lane already ships (its own calibrated readout, ECE 0.0067).
-   The blend's max-prob surface cannot approach the lane's readout
-   surface, and the pick-level harvest (+5.67 pt at λ=0.5) only exists
-   on λ where the surface fails the floor. The xnli gap's honest closing
-   shape: the pair-feature signal is REAL (decorrelated, 56/53) but no
-   promotable confidence surface for it exists in the shipped machinery.
-   A future mechanism must bring its OWN calibrated surface (or ride the
-   lane's readout confidence), not borrow the max-prob one.
+2. **Nothing promotable was FOUND — and the search was underpowered.** The
+   only passing surface (λ=0 recal, 0.0964) is the engine's OWN picks with
+   a re-fitted confidence — zero accuracy delta — and it reads 14× the
+   lane's shipped calibrated ECE (0.0067) — a comparison that itself needs
+   a sharpness companion (see the review section: binned ECE 0.0067 at
+   n=300 is at/below sampling noise; the 14× is not yet a meaningful
+   ranking). The pick-level harvest only exists on λ where the surface
+   fails the floor. Closing shape: the pair-feature signal is REAL
+   (decorrelated, 56/53) but no promotable surface was found by the ONE
+   family tried, under a screen later shown underpowered and
+   head-in-sample-contaminated. A future mechanism must bring its OWN
+   calibrated surface (or ride the lane's readout confidence), never the
+   max-prob blend one.
 
 ### Run
 
@@ -197,3 +202,78 @@ is removed per the noise-reduction rule; the remaining gap (ag_news −6.8
 pt, no shipped lever — measured three times now) and the routing/
 sensitivity eval-slice note carry forward as reopen paths in HISTORY.md,
 not as open questions of a closed issue.
+
+## Verdict review (Claude, rounds 1–2, post-landing) — verdict AGREE, record amended
+
+An independent Claude review confirmed the negative verdict and supplied
+the closure this record was missing, plus seven holes (all accepted and
+written in):
+
+**The verdict is overdetermined — it survives the RAW feasibility object.**
+Under a raw-surface screen (feasibility on `raw_b` instead of
+`recal_b`), every rung's raw_b (0.0876–0.2008) already sits below
+floor_b (0.2045) — so the screen picks the cal-best rung λ=0.125, and
+the VOID run 1 already measured that rung's test PICK COUNT validly
+(picks are calibrator-independent; the void defect only touched the
+confidence surfaces): **0.5567 = +3.33 pt, below the 5 pt bar.** Raw
+object or recal object, the accuracy leg fails. The split-instability
+finding cannot flip the verdict either — the only test-passing rung
+(λ=0) changes zero picks.
+
+**Holes accepted into the record:**
+
+1. **The head is scored IN-SAMPLE on cal.** `NliLda::fit` uses the FULL
+   cal slice and the cal blend pairs are scored by that same head —
+   `cal_acc(λ>0)` is inflated, and the mini-calibrator learns the
+   confidence map of an in-sample head: a ready reason the screen did
+   not transfer to test. Any reopen must CROSS-FIT the head (K-fold,
+   out-of-fold deltas — closed-form, cheap).
+2. **"Platt minimizes NLL, not binned ECE" is an UNTESTED explanation.**
+   A 2-parameter NLL fit on an already-calibrated surface (raw_b 0.0876)
+   should land near identity; tripling held-out ECE to 0.2838 is not the
+   expected failure. The diagnostic is owed: dump `(w, c)` per rung plus
+   held-out NLL/Brier. If held-out NLL improves while ECE worsens, the
+   metric story holds; if NLL also worsens, the suspect is the shared
+   katgpt-core `refit` solver (undamped f32 Newton, no line search,
+   unnormalized Hessian, absolute `det < f32::EPSILON` guard) — a
+   shared-substrate issue to file in katgpt-rs, not a reflex finding.
+3. **The bar itself is noisy.** floor_b reads 0.2045 on the 100-pair cal
+   half against 0.1351 on test — the floor moves ~50% between splits,
+   and binned-ECE noise at n=100 is larger than most gaps in the
+   ladder. Feasibility should carry a paired-bootstrap interval on ECE
+   differences, not point comparisons.
+4. **The floor is built on a different surface.** `engine_raw_b` (0.4374)
+   vs the blend's raw_b (0.0876 at λ=0) are different confidence
+   surfaces. Judging the blend against an engine-derived floor mirrors
+   the test-side construction and was pre-registered — defensible, but a
+   blend readout's floor should ultimately come from the blend's own
+   pick outcomes.
+5. **The lane's 0.0067 needs a sharpness check.** Binned ECE that low at
+   n=300 is at/below the sampling noise of a perfectly calibrated
+   predictor — consistent with near-constant confidence at the base
+   rate, which GAMES binned ECE (a G1 loophole: a constant predictor
+   passes). The 14× comparison is not meaningful until an AUROC
+   (confidence vs correctness) or Brier-resolution term is reported
+   beside it.
+6. **The 068 harvest is λ-grid-sensitive.** On the finer ladder the
+   cal-best λ (0.125) reads +3.33 pt on test, not +5.67. The harvest is
+   **3–6 pt, depending on the λ grid, with no confidence interval**.
+   The win/loss override split was not recorded, so McNemar is not
+   computable from the aggregates; the reopen must carry it.
+7. **The spent test set is the binding constraint.** 068, void run 1 and
+   run 2 all read the same 300 test items. Any reopen reads a FRESH,
+   pre-registered confirmation slice (xnli_en validation, ~2490 items)
+   with a cross-fitted head and bootstrap bars — never another pass at
+   the test split.
+
+**Reopen rules contributed by the review (binding on the next attempt):**
+name ONE primary posture before any read of the validation slice (the
+four candidate mechanisms — pick/confidence logistic, log-odds
+combination, gated switch, more cal data — must not each get its own
+look; secondaries are reported without promotion, or the slice is split
+up front); and log PER-ITEM picks `(engine_pick, head_pick, blend_pick,
+gold)` so McNemar, the win/loss split and bootstrap intervals are
+computable after the run instead of planned before it.
+
+These rules + the mechanism candidates are filed in
+`.issues/045_accuracy_gap_reopen_protocol.md`.

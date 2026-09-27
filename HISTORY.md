@@ -43,6 +43,18 @@ lives in `.issues/` and `.plans/`, never here.
   modelless mechanism that clears G1 first) and routing/sensitivity (3
   questions each — the lever is authored questions, not mechanisms).
   Record: `.benchmarks/069_nli_g1_constrained.md` + `results.json`.
+  **Post-landing Claude review (rounds 1–2): verdict AGREE — the negative
+  is overdetermined** (it survives the raw-surface feasibility object:
+  every rung's raw_b sits below floor_b, so the screen would pick
+  λ=0.125, whose test pick count the void run 1 already measured at
+  +3.33 pt — below the bar). Seven record holes accepted (in-sample head
+  on cal; the NLL-vs-ECE explanation untested pending a (w,c) diagnostic;
+  a ~50%-split-noise bar needing bootstrap intervals; the cross-surface
+  floor; the 0.0067 sharpness caveat — a G1 binned-ECE loophole; the
+  harvest relabeled 3–6 pt grid-dependent with McNemar uncomputable from
+  aggregates; the spent 300-item test set as the binding constraint).
+  Reopen rules + mechanism candidates filed as `.issues/045_accuracy_gap
+  _reopen_protocol.md`.
 
 - **Issue 044 EXECUTED — the accuracy-gap audit + the frozen code_fixtures
   population + the NLI pair-feature head (Bench 068, `fe7c123`).** Five
