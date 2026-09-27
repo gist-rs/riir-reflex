@@ -1,0 +1,74 @@
+[09:12:35] === PHASE A PREFLIGHT ===
+[09:12:35] box state: {"mem_load_pct": 65, "phys_total_gb": 31.8, "phys_free_gb": 10.8, "commit_limit_gb": 82.9, "commit_avail_gb": 11.6}
+[09:12:35] gpu state: {"vram_used_mb": 19868, "vram_total_mb": 24564, "gpu_util_pct": 21, "gpu_temp_c": 45}
+[09:12:36] gpu compute apps: '2312, [Insufficient Permissions], [N/A]\n10288, C:\\Windows\\System32\\ShellHost.exe, [N/A]\n3484, C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\CrossDeviceResume.exe, [N/A]\n5360, C:\\Windows\\explorer.exe, [N/A]\n12600, C:\\Windows\\SystemApps\\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\\StartMenuExperienceHost.exe, [N/A]\n12576, C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\SearchHost.exe, [N/A]\n14428, C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA Overlay.exe, [N/A]\n12120, C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\CEF\\NVIDIA Overlay.exe, [N/A]\n16532, C:\\Program Files (x86)\\Microsoft\\EdgeWebView\\Application\\153.0.4234.32\\msedgewebview2.exe, [N/A]\n18368, C:\\Program Files\\PowerToys\\PowerToys.FancyZones.exe, [N/A]\n16064, C:\\Program Files\\PowerToys\\WinUI3Apps\\PowerToys.Peek.UI.exe, [N/A]\n572, [Insufficient Permissions], [N/A]\n19156, C:\\Windows\\SystemApps\\MicrosoftWindows.Client.CBS_cw5n1h2txyewy\\TextInputHost.exe, [N/A]\n9096, C:\\Windows\\System32\\ApplicationFrameHost.exe, [N/A]\n17544, C:\\Program Files\\PowerToys\\PowerToys.PowerLauncher.exe, [N/A]\n21408, C:\\Windows\\SystemApps\\ShellExperienceHost_cw5n1h2txyewy\\ShellExperienceHost.exe, [N/A]\n8128, C:\\Program Files\\Docker\\Docker\\frontend\\Docker Desktop.exe, [N/A]\n4924, C:\\Program Files\\LGHUB\\system_tray\\lghub_system_tray.exe, [N/A]\n59600, C:\\Users\\katop\\OneDrive\\Desktop\\zed.exe, [N/A]\n138204, C:\\Program Files\\RustDesk\\rustdesk.exe, [N/A]\n6800, [Insufficient Permissions], [N/A]\n4, [Insufficient Permissions], [N/A]\n151788, C:\\Program Files\\WindowsApps\\Microsoft.WindowsTerminal_1.24.11911.0_x64__8wekyb3d8bbwe\\WindowsTerminal.exe, [N/A]'
+[09:12:36] === PHASE B BOOT clm stack (util 0.72) ===
+[09:12:36] boot rc=0
+[09:12:36] boot stdout:
+waiting for vLLM pooling server on :8090 (model load takes minutes)โ€ฆ
+CLM stack up:
+  encoder   http://127.0.0.1:8090/v1/embeddings (qwen3-8b, runner=pooling)
+  systemone http://127.0.0.1:8700/v1/systemone
+harness:   CLM_SERVE_URL=http://127.0.0.1:8700 cargo run --release --features clm-lane --bin harness -- --clm โ€ฆ
+
+[09:12:36] === PHASE C WARMUP + DETERMINISM PIN ===
+[09:12:36] warmup rc=200 in 5.8 ms; usage={"billing_units": 1, "input_tokens": 0, "output_tokens": 0}
+[09:12:36] det req 0: 22.3 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 1: 4.0 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 2: 32.1 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 3: 26.7 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 4: 8.4 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 5: 14.8 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 6: 5.4 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] det req 7: 6.7 ms tokens=0 probs={'jump': 0.9750385981619527, 'duck': 0.01248070091902369, 'run': 0.01248070091902369}
+[09:12:36] DETERMINISM PIN: 8/8 byte-identical (distinct=1) -> GREEN
+[09:12:36] health(before): {"ok": true, "embedder": true, "models": ["clm-latest", "clm-raw"], "cache": {"device": "cuda", "reserved_mb": 515.1, "hit_rate": 0.9516, "pools": {"512": {"dim": 512, "capacity": 220088, "used": 2766, "reserved_mb": 450.7, "hits": 57317, "misses": 2915, "evictions": 0, "hit_rate": 0.9516}, "4096": {"dim": 4096, "capacity": 3930, "used": 0, "reserved_mb": 64.4, "hits": 0, "misses": 0, "evictions": 0, "hit_rate": null}}}}
+[09:12:36] === PHASE D T-REX (5 seeds x 60s, realtime, inflight 6) ===
+[09:12:36] --- shield-on (their table posture) -> clm_realtime_4090.json ALREADY PRESENT, skipping (resume)
+[09:12:36] --- no-shield (model-alone secondary) -> clm_realtime_noshield_4090.json
+[09:17:39] no-shield (model-alone secondary) rc=0 wall=302.3s
+[09:17:39] stdout:
+CLM: http://127.0.0.1:8700 · clm-latest · 6 requests in flight, warm answer 2 ms
+[clm_realtime_noshield seed=0] survived=False deaths=6 best_score=108 decisions=2993 agreement=0.91 latency_p50=16.7ms model_p50=4.0ms errors=0
+wrote E:\git\riir-reflex\.benchmarks\057_clm_trex_4090\clm_realtime_noshield_4090.json
+CLM: http://127.0.0.1:8700 · clm-latest · 6 requests in flight, warm answer 3 ms
+[clm_realtime_noshield seed=1] survived=False deaths=8 best_score=99 decisions=2858 agreement=0.927 latency_p50=16.6ms model_p50=4.8ms errors=0
+wrote E:\git\riir-reflex\.benchmarks\057_clm_trex_4090\clm_realtime_noshield_4090.json
+CLM: http://127.0.0.1:8700 · clm-latest · 6 requests in flight, warm answer 3 ms
+[clm_realtime_noshield seed=2] survived=False deaths=2 best_score=399 decisions=3332 agreement=0.844 latency_p50=16.6ms model_p50=4.3ms errors=0
+wrote E:\git\riir-reflex\.benchmarks\057_clm_trex_4090\clm_realtime_noshield_4090.json
+CLM: http://127.0.0.1:8700 · clm-latest · 6 requests in flight, warm answer 3 ms
+[clm_realtime_noshield seed=3] survived=False deaths=2 best_score=284 decisions=3341 agreement=0.836 latency_p50=16.7ms model_p50=3.9ms errors=0
+wrote E:\git\riir-reflex\.benchmarks\057_clm_trex_4090\clm_realtime_noshield_4090.json
+CLM: http://127.0.0.1:8700 · clm-latest · 6 requests in flight, warm answer 2 ms
+[clm_realtime_noshield seed=4] survived=False deaths=5 best_score=118 decisions=3093 agreement=0.909 latency_p50=16.8ms model_p50=3.9ms errors=0
+wrote E:\git\riir-reflex\.benchmarks\057_clm_trex_4090\clm_realtime_noshield_4090.json
+{
+ "model": "clm-latest",
+ "endpoint": "http://127.0.0.1:8700 \u00b7 clm-latest \u00b7 6 requests in flight",
+ "mode": "realtime",
+ "shield": false,
+ "course_style": "original",
+ "prompt": "labeled",
+ "duration_s": 60.0,
+ "seeds": 5,
+ "survived": 0,
+ "deaths": 23,
+ "mean_best_score": 201.6,
+ "mean_decisions": 3123.4,
+ "mean_agreement_with_planner": 0.885,
+ "latency_ms_p50_median": 16.7,
+ "model_ms_p50_median": 4.0,
+ "errors": 0,
+ "answers_discarded": 204,
+ "shield_interventions": 0,
+ "inflight": 6
+}
+
+[09:17:39] summary: {"model": "clm-latest", "endpoint": "http://127.0.0.1:8700 \u00b7 clm-latest \u00b7 6 requests in flight", "mode": "realtime", "shield": false, "course_style": "original", "prompt": "labeled", "duration_s": 60.0, "seeds": 5, "survived": 0, "deaths": 23, "mean_best_score": 201.6, "mean_decisions": 3123.4, "mean_agreement_with_planner": 0.885, "latency_ms_p50_median": 16.7, "model_ms_p50_median": 4.0, "errors": 0, "answers_discarded": 204, "shield_interventions": 0, "inflight": 6}
+[09:17:39] box state mid-window: {"mem_load_pct": 66, "phys_total_gb": 31.8, "phys_free_gb": 10.5, "commit_limit_gb": 82.9, "commit_avail_gb": 11.7} / gpu {"vram_used_mb": 19904, "vram_total_mb": 24564, "gpu_util_pct": 18, "gpu_temp_c": 48}
+[09:17:39] === PHASE E POSTFLIGHT ===
+[09:17:39] health(after): {"ok": true, "embedder": true, "models": ["clm-latest", "clm-raw"], "cache": {"device": "cuda", "reserved_mb": 515.1, "hit_rate": 0.9749, "pools": {"512": {"dim": 512, "capacity": 220088, "used": 2951, "reserved_mb": 450.7, "hits": 120632, "misses": 3100, "evictions": 0, "hit_rate": 0.9749}, "4096": {"dim": 4096, "capacity": 3930, "used": 0, "reserved_mb": 64.4, "hits": 0, "misses": 0, "evictions": 0, "hit_rate": null}}}}
+[09:17:39] box state: {"mem_load_pct": 66, "phys_total_gb": 31.8, "phys_free_gb": 10.5, "commit_limit_gb": 82.9, "commit_avail_gb": 11.7}
+[09:17:39] gpu state: {"vram_used_mb": 19904, "vram_total_mb": 24564, "gpu_util_pct": 15, "gpu_temp_c": 48}
+[09:17:39] WINDOW COMPLETE

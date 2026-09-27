@@ -55,7 +55,11 @@ cargo test                                     # the gates
   `CLM_SERVE_URL` (default `http://127.0.0.1:8700`). First cells
   (4090-windows, bench 033): typed_decisions 0.3465 against laya-typed
   0.7445 on the same split — an honest loss row; p50 ≈31 ms/case
-  localhost.
+  localhost. The T-Rex re-run under our protocol (their harness, bench
+  057): 5/5 survive / 697 score with the shield — their headline 16.5 ms
+  p50 is the WARM arena steady state (our cold boot pays 66.6 → 16.7 ms
+  across seeds; warm steady state reproduces it), and without the shield
+  the model alone dies 23× in five minutes.
 - `harness --gliner` ADDS the GLiNER comparison lane (issue 029):
   fastino/GLiNER2.5-Decide as a JSONL subprocess oracle
   (`scripts/gliner_lane.py`, their `gliner2` package; `GLINER_PYTHON`
@@ -519,7 +523,9 @@ above is the verdict, and the retraction is recorded in Bench 001.)
   the `CLM-v0.1-8B` head over Qwen3-8B, both Apache-2.0) over HTTP —
   served by THEIR stack, measured by ours; a comparison lane, never a
   product lane, and never bundled. Not affiliated with, or endorsed by,
-  Contrastive-LM's authors.
+  Contrastive-LM's authors. The vendor T-Rex table was re-run under our
+  protocol with their Apache-2.0 harness (bench 057; our cells only —
+  their JSONs stay reference).
 - The **GLiNER** comparison lane (issue 029) measures the external
   fastino/GLiNER2.5-Decide reference (the 340M DeBERTa-v3-large checkpoint
   and the `gliner2` package, both Apache-2.0) through THEIR Python package

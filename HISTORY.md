@@ -5,6 +5,42 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-27
+
+- **Issue 019 CLOSED — the CLM T4 T-Rex re-run under OUR protocol (Bench
+  057, `.benchmarks/057_clm_trex_4090/`, this commit); issue file removed
+  (noise-reduction) with all seven tasks done.** Upstream had force-pushed
+  `main` and stripped `examples/t_rex/` from its tree — the pin commit
+  `cca045ff` is no longer reachable from `main` but GitHub still serves it
+  by SHA, so the pin held and the harness ran FROM THE PIN (re-verified:
+  `git fetch origin cca045ff…` succeeds; their current `main` is 8 commits
+  with no T-Rex). The window (4090-windows, serialized, 027 laws — util
+  0.72, one fixed warmup first, same-box latency law): vLLM
+  `0.29.1rc1.dev397+ga8d1aa9c9` (the SAME nightly image as Bench 034) over
+  a fresh `Qwen/Qwen3-8B` snapshot + `clm-serve` over the head (sha256
+  `b2b4a8c9…` pinned in the record). **Determinism pin GREEN 8/8
+  byte-identical, twice** (boot + resume invocation). Cells (ours, never
+  theirs): shield-on **5/5 survive / 0 deaths / 697 ×5** — the headline
+  reproduces; decisions 2441.6 vs their 3341.8; agreement 0.749 vs 0.658;
+  latency p50 median 48.9 ms vs their 16.5 — and the record publishes the
+  COLD→WARM trajectory their table hides: seed 0 pays 66.6 ms, seed 4
+  (arena warm) reads 16.7 ms p50 / 3.4 ms model-side ≈ their headline, so
+  the vendor 16.5 is the WARM steady state of the VectorArena (post-run
+  `/health` hit_rate 0.9749). The no-shield secondary: **0/5 survive, 23
+  deaths, mean score 201.6** at warm-state 16.7 ms — the shield is
+  load-bearing and the survival number measures the combined system, their
+  own convention. T-Rex cells are bench-record-only by design (not `/bench`
+  lane columns — those come from OUR harness). Two live specimens of the
+  katgpt-rs console-encoding class on the way: their harness `log()` prints
+  a U+00B7 detail string and dies on this cp874 console
+  (`PYTHONIOENCODING=utf-8` for the child — no source changes to their
+  tree), and then the window driver itself died the same death one layer up
+  (its redirected stdout inherited cp874) — both fixed posture-side, the
+  workspace rule about `subprocess` encoding now has a third measured
+  surface. Stack torn down after the window (container removed, VRAM back
+  to 517 MiB); `.raw/` scratch (weights, clone, venv) cleaned in this
+  commit.
+
 ## 2026-09-26/27
 
 - **Issue 033 — the PAW comparison lane CLOSED — issue file removed (noise-reduction);
