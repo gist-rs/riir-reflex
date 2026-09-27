@@ -96,7 +96,7 @@ option_cond = ["nb_scope"]
 # The engine knob `ridge_scale` stays 0 (byte-identical serving posture,
 # NO fit cost at 0) unless a caller — or the harness's `--ridge-select`
 # arena protocol — arms it. The fit is O(k³) per class, build-time only.
-nb_ridge = ["nb_scope"]
+nb_ridge = ["nb_scope", "option_cond"]
 # The heads lane's vessel capability (instinct Proposal 001 T3+T4 — A1:
 # bytes are runtime, capability is compile-time; vessels never committed,
 # never compiled in): the PUBLIC-RELEASE reader from reflexer-vessel,
