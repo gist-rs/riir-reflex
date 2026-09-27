@@ -30,7 +30,9 @@
 //! slice, where selection is protocol-legal: the escalator answers the
 //! cal questions the calibrated gate abstained on, and the cascade stays
 //! ARMED only where the escalator reads ≥ the forced modelless picks on
-//! that probe set (delta ≥ `min_delta`, default 0.0). A negative probe
+//! that probe set (delta ≥ `min_delta`, default 0.16 — the Bench-063/066
+//! measured bar, promoted per the issue's own trigger; 0.0 = arm at
+//! parity). A negative probe
 //! disarms the suite's escalation — every abstain then stands as the
 //! modelless forced pick, disclosed as `disarmed` in the row. No cal
 //! records / thin support (< [`PROBE_MIN_QUESTIONS`]) stays armed with a

@@ -82,7 +82,9 @@
 //! the escalation per suite by a cal-slice probe: the checkpoint answers
 //! the cal questions the calibrated gate abstained on, and the suite's
 //! escalation stays armed only where it reads ≥ the forced modelless
-//! picks (`--cascade-worthiness-margin <F64>`, default 0.0). A negative
+//! picks (`--cascade-worthiness-margin <F64>`, default 0.16 — the
+//! Bench-063/066 measured bar, promoted per the issue's own trigger; 0.0
+//! restores arm-at-parity). A negative
 //! probe disarms the suite's escalation (disclosed in the row); missing
 //! cal records / thin support stay armed with the named reason.
 //! `--gate-fit-selection` (issue 042 lever 1) fits the fused-gate
@@ -138,7 +140,13 @@ fn harness_main() {
         skip_laya: false,
         cascade: false,
         cascade_worthiness: false,
-        cascade_worthiness_margin: 0.0,
+        // Issue 042 T3 (a), promoted per the issue's own trigger (a second
+        // independent lane run reproduced 10/10 at 0.16 — byte-identical
+        // probe deltas, recorded in the 042 HISTORY row): the measured
+        // arm bar sits in the (0.150, 0.288] gap that separated every
+        // probe family measured (Bench 063 fused, Bench 066 distance +
+        // combined). An explicit --cascade-worthiness-margin overrides.
+        cascade_worthiness_margin: 0.16,
         gate_fit_selection: false,
         gate_distance_only: false,
         laya_python: false,

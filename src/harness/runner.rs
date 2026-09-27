@@ -4887,7 +4887,11 @@ pub struct RunOptions {
     pub cascade_worthiness: bool,
     /// The worthiness arm bar: the probe disarms when
     /// `(escalator − modelless accuracy on the cal probe set) <` this
-    /// value. Default 0.0 — arm only at parity or better.
+    /// value. Default 0.16 (issue 042 T3 (a), promoted per the issue's
+    /// own trigger — a second independent lane run reproduced 10/10 at
+    /// 0.16 byte-identically; the bar sits in the measured (0.150, 0.288]
+    /// gap that separated every probe family, Benches 063 + 066). 0.0
+    /// restores arm-at-parity.
     pub cascade_worthiness_margin: f64,
     /// Issue 042 lever 1 (`--gate-fit-selection`): fit the fused-gate
     /// thresholds on the STRATIFIED selection slice (the shared held-out

@@ -233,8 +233,11 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # (0.150, 0.288]. T3 DECIDED (a) — fixed margin 0.16 is the recommended
 # posture (in the measured gap; acceptance re-run .benchmarks/063_cascade_worthiness_margin016:
 # 10/10 PASS, sst5+massive read modelless exactly, typed +0.277 / xnli +0.117
-# kept, ag_news's +6.75 the recorded price). Library default stays 0.0
-# (neutral arm-at-parity); the docs command carries the recommended value.
+# kept, ag_news's +6.75 the recorded price). Library default PROMOTED to
+# 0.16 2026-09-27 per the issue's own trigger — a second independent lane
+# run reproduced 10/10 at 0.16 BYTE-IDENTICALLY (every probe delta +
+# probe n matches 063@0.16; recorded in the 042 HISTORY row); the flag
+# still overrides (0.0 = arm-at-parity).
 # Reopen (b) per-suite cal-fit only if a fixed-bar arm-side row flips on a
 # future lane run. G3: flag-off cascade rows carry no worthiness key
 # (byte-shape identical to 061).
