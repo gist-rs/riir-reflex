@@ -244,48 +244,67 @@ accuracy is bit-identical across the 09-23 runs — deterministic lanes —
 and the latency rows are the committed 18:09Z refresh run `83173e5`;
 the laya latency columns are stale-by-progress — the riir Metal lane has
 since climbed the kernel ladder (`374d9af` → `4ef290c` → `a51ea42`), see
-the three-way table below for the current rows):
+the three-way table below for the current rows).
+**The modelless column is the issue-038 arc's ARMED posture state** — the
+cal-selected postures of the count-table (`nb_scope`, Bench 051),
+option-conditioned (T7b, Bench 057) and blend-genome (T5, Bench 064) lanes,
+cross-host-verified and recorded "all == published" in
+[`064_issue038_t5_genome.md`](.benchmarks/064_issue038_t5_genome.md) — not
+the 09-23 Phase-1 default-posture rows, which it supersedes row by row
+(typed 0.3190 → 0.4655, emotion 0.7375 → 0.8850, sst5 0.3917 → 0.4017,
+prompt_injections 0.4828 → 0.7672, massive 0.8967 → 0.7800 (the honest
+fair-pull number; the 051-era 0.8967 was the Issue-039-inflated truncated
+pull), banking77 0.7700 → 0.8620):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
-| typed_decisions | 2000 | 0.3190 | **0.7445** (`typed`) | 0.5 ms | 1312 ms |
+| typed_decisions | 2000 | 0.4655 ³ | **0.7445** (`typed`) | 0.5 ms | 1312 ms |
 | ag_news | 400 | 0.8825 ³ | **0.9500** | 0.2 ms | 116 ms |
-| emotion | 400 | **0.7375** ³ | 0.5925 | 0.1 ms | 66 ms |
-| sst5 | 600 | **0.3917** ³ | 0.3717 | 0.1 ms | 88 ms |
-| prompt_injections | 116 | 0.4828 ¹ | **0.6983** | 0.1 ms | 88 ms |
+| emotion | 400 | **0.8850** ³ | 0.5925 | 0.1 ms | 66 ms |
+| sst5 | 600 | **0.4017** ³ | 0.3717 | 0.1 ms | 88 ms |
+| prompt_injections | 116 | **0.7672** ¹³ | 0.6983 | 0.1 ms | 88 ms |
 | xnli_en | 300 | 0.5233 ³ | **0.8600** | 0.1 ms | 99 ms |
-| massive_intent_en | 300 | **0.8967** ²³ | 0.7500 | 0.1 ms | 159 ms |
-| banking77 | 500 | **0.7700** ²³ | 0.4980 | 0.3 ms | 249 ms |
+| massive_intent_en | 300 | **0.7800** ³ | 0.7500 | 0.1 ms | 159 ms |
+| banking77 | 500 | **0.8620** ³ | 0.4980 | 0.3 ms | 249 ms |
 | code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
 
-³ Issue 038 (Bench 051): the count-table lane (`nb_scope`, default-on
+³ Issue 038 (Bench 051 → 057 → 064): the count-table lane (`nb_scope`, default-on
 feature; the arena protocol adds `--nb-select`). One-vs-rest naive-Bayes
 log-odds tables per label (katgpt-core `contrastive_scope`), built from
-TRAIN rows only at the **full train pull** (Issue 038 T2; the 4000-row pull
-truncated banking77 to 32/77 labels and massive to 42/60, which inflated
-those modelless rows, including ², see Issue 039). The posture (scale × α ×
-bag/pair view × noul polarity) is selected on the stratified selection slice
+TRAIN rows only at the **full train pull** (Issue 038 T2; the earlier
+4000-row pull had truncated banking77 to 32/77 labels and massive to 42/60,
+inflating those 051-era rows — see Issue 039; the rows in the table are the
+fair-pull published state). The posture (scale × α ×
+bag/pair view × noul polarity, plus the option-conditioned and blend-genome
+lanes) is selected on the stratified selection slice
 with the +5 pt bar, and test is read once. Against the fair baseline:
-ag_news 0.5100 → 0.8825, emotion 0.2825 → 0.7375 (+14.5 over laya), sst5
-0.2167 → 0.3917 (past laya), xnli 0.3467 → 0.5233 (sentence-pair view),
-massive 0.7367 → 0.8967, banking77 0.5940 → 0.7700. prompt_injections and
-typed_decisions select off and stay bit-identical. G2/G4 PASS with the
-tables armed. G1: at the full pull the baseline itself fails on the
-wide-label suites; the tables flip ag_news to PASS but massive/banking77
-stay FAIL (Issue 039). A separate **transductive** column (test TEXT
+ag_news 0.5100 → 0.8825, emotion 0.2825 → 0.8850 (ridge@8), sst5
+0.2167 → 0.4017 (genome, Bench 064), xnli 0.3467 → 0.5233 (sentence-pair
+view), massive 0.7367 → 0.7800, banking77 0.5940 → 0.8620 (genome),
+typed_decisions 0.3190 → 0.4655 (option-conditioned oc@2, Bench 057,
+default-on), prompt_injections 0.4828 → 0.7672 (noul polarity ON — see ¹
+and Issue 043). G2/G4 PASS with the tables armed. G1: at the full pull the
+baseline itself fails on the wide-label suites; the tables flip ag_news to
+PASS; the adopted genome rows PASS their floors (Bench 064) and the
+rejected massive walk FAILED it (+5.33 pt with ECE .2383 vs floor .1361 —
+the UQ law binding: an accuracy gain that breaks calibration is a failed
+gate). A separate **transductive** column (test TEXT
 self-labelled, 2-fold cross-fit, gold never read) is published beside the
 headline, never in it. It measured +0.7 to −1.7 pt: train already carries the
-vocabulary. Record + disclosures:
-[`051_nb_count_tables/BENCH.md`](.benchmarks/051_nb_count_tables/BENCH.md).
+vocabulary. Records + disclosures:
+[`051_nb_count_tables/BENCH.md`](.benchmarks/051_nb_count_tables/BENCH.md),
+[`057_issue038_t7_levers.md`](.benchmarks/057_issue038_t7_levers.md),
+[`064_issue038_t5_genome.md`](.benchmarks/064_issue038_t5_genome.md).
 
 ² Issue 030 lever 4 (Bench 040): fitted per-label heads over the
 hashed-bag features — banking77 0.4460 → 0.6840 (+23.8 pt), massive
 0.6900 → 0.7933 (+10.3 pt, after Issue 023's 0.0767 → 0.6900 centroid
-repair), taking BOTH rows past their laya-best opponents; every other
-suite selects head-off and stays bit-identical. The arena posture is
-the cal-selected `--head-select` protocol (stratified-slice selection,
-5 pt promotion bar, ties → off; per-row candidates disclosed); the
-engine default stays head_scale 0 (byte-identical baseline); noul never
+repair). Arena-protocol history: the head lever is `--head-select`-armed
+per suite (cal-selected, 5 pt promotion bar, ties → off), NOT part of the
+current table rows — the Bench-064 genome walk moved banking77's head
+to OFF (ridge@1 replaced it) and massive's +5.33 head-on walk was
+REJECTED on G1 — so the rows above carry no head term. The engine
+default stays head_scale 0 (byte-identical baseline); noul never
 takes head terms. G1/G2/G4 PASS at the promoted postures; record:
 [`040_label_heads_head_select.md`](.benchmarks/040_label_heads_head_select.md).
 
@@ -295,7 +314,18 @@ path, which on this 2-domain suite scored "yes, injection" against the
 BENIGN centroid — an anti-signal by construction. Noul questions never
 take route terms now (nor head terms, bench 040); the modelless-only
 re-read restores the drafter posture (0.4828, ECE 0.1070 → 0.0228);
-laya columns unchanged.
+laya columns unchanged. The row has since moved twice: the count-table
+noul polarity arms it (0.7672 — the shipped row), and Issue 043 measured
+the selection history behind it: the old "both polarity candidates read
+~.50" was a POSITIONAL-slice artifact (positional prefixes flip the
+preferred polarity by region — prefix200+ reads nb0, the wrong posture),
+while the stratified selection slice discriminates cleanly (Some(1)
+0.61 vs off 0.50 — selected, stable across every scale, the noul pick is
+the margin's sign). The polarity term's test read is byte-identical to
+the shipped row (the margin-sign picks coincide with the shipped picks
+on test); the 0.8362 pure-NB probe datum is unreachable through the
+shipped term (different scorer shape: no priors, margin-sign pick).
+Record: HISTORY.md 2026-09-27 (`37cb732d` probe, `44bb7cbd` verdict).
 
 Protocol validation: the port reproduces the reference's published numbers
 within noise — ag_news 0.9500 vs 0.953, emotion 0.5925 vs 0.600,
