@@ -11,7 +11,7 @@
 //!                                      [--genome-accept-margin F]
 //!                                      [--pair-head-ab] [--nli-feature-ab]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
-//!                                      [--clm] [--gliner] [--agentjev] [--paw]
+//!                              [--clm] [--gliner] [--agentjev] [--openthai] [--paw]
 //!                                      [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
@@ -167,6 +167,7 @@ fn harness_main() {
         clm: false,
         gliner: false,
         agentjev: false,
+        openthai: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -283,6 +284,7 @@ fn harness_main() {
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
             "--agentjev" => opts.agentjev = true,
+            "--openthai" => opts.openthai = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {

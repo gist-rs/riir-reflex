@@ -16,3 +16,9 @@ pub mod clm;
 pub mod paw;
 #[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]
 pub mod paw_local;
+// Plan 003 Phase 2: the OpenThai comparison lane — agentjev-shaped
+// (ungated: imports only `crate::harness::suites` + std + serde_json, the
+// G-ISO-4 import law; its tripwire test fires the recorded
+// `openthai-lane` feature trigger if `decision_wire` is ever needed).
+#[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]
+pub mod openthai;

@@ -1073,6 +1073,13 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agentjev: Option<LaneResult>,
+    /// Plan 003 Phase 2: the OpenThai comparison lane's row — their
+    /// `openthai_systemone` (Apache-2.0, not affiliated) served on
+    /// loopback, measured over HTTP; the family's first Thai+English
+    /// specialist. Absent (never a fabricated row) when the lane did not
+    /// run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub openthai: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1153,6 +1160,11 @@ pub struct RunMeta {
     /// `jev_service` on loopback, measured over HTTP — the MEASURE-vs-SERVE
     /// split; comparison lane, never a product lane).
     pub agentjev_lane: String,
+    /// Whether the OpenThai comparison lane ran (Plan 003 Phase 2), and
+    /// its serving posture when it did (their `openthai_systemone` on
+    /// loopback, measured over HTTP — comparison lane, never a product
+    /// lane).
+    pub openthai_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -4336,6 +4348,137 @@ fn run_agentjev_lane(
     ))
 }
 
+/// The OpenThai comparison lane (Plan 003 Phase 2): their
+/// `openthai_systemone` served on loopback, measured over HTTP — the
+/// agentjev lane's shape (same cases, their contract via
+/// `src/lanes/openthai.rs`, the same metrics tail through
+/// [`assemble_laya_lane_result`]). Latency = client round-trip per case.
+///
+/// Provenance posture (T2.2, the agentjev divergence): no `/api/info` —
+/// `GET /healthz` is the liveness probe and the model id comes from the
+/// FIRST decide response's `model` field; their
+/// `usage.input_tokens` + the abstain-slot count are reported beside the
+/// metrics (provenance observations, never folded into probabilities).
+///
+/// Env: `OPENTHAI_SERVE_URL` (default `http://127.0.0.1:8000`).
+fn run_openthai_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::openthai::OpenThaiLane;
+
+    let t_start = Instant::now();
+    let lane = OpenThaiLane::default();
+    lane.health()?;
+
+    // WARMUP (the clm lane's cold-start law): one FIXED throwaway request
+    // absorbs the service's cold path AND captures the model id (T2.2 —
+    // the response's own `model` field, never a hardcoded name).
+    let model;
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        let raw = lane.decide_raw(&warm).map_err(|e| format!("openthai warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("openthai warmup response: {e}"))?;
+        model = OpenThaiLane::model_of(&parsed);
+        lane.decide(&warm)
+            .map_err(|e| format!("openthai warmup: {e}"))?;
+    }
+    eprintln!("    [openthai] service up: {model}");
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N openthai row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    let mut abstains: usize = 0;
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (outcome, _client_ms) = lane
+            .decide(case)
+            .map_err(|e| format!("openthai lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        abstains += outcome.abstains;
+        input_tokens += outcome.input_tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column.
+        if ci < 10 {
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("openthai determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("openthai determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(outcome.answers.len());
+        let mut cpicks = Vec::with_capacity(outcome.answers.len());
+        let mut cconfs = Vec::with_capacity(outcome.answers.len());
+        for (p, pick, conf) in outcome.answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!(
+        "    [openthai] abstain slots: {abstains} · input tokens: {input_tokens}"
+    );
+
+    Ok(assemble_laya_lane_result(
+        "openthai",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 // ── prepared suite + run ────────────────────────────────────────────────
 
 struct Prepared {
@@ -4915,6 +5058,13 @@ pub struct RunOptions {
     /// lane). An unreachable server is a LOUD error, never a silent skip.
     /// Default off.
     pub agentjev: bool,
+    /// Also run the OpenThai comparison lane (Plan 003 Phase 2): their
+    /// `openthai_systemone` service answered over HTTP
+    /// (`OPENTHAI_SERVE_URL`, default `http://127.0.0.1:8000`) — the
+    /// agentjev shape, the first Thai+English specialist in the family.
+    /// An unreachable server is a LOUD error, never a silent skip.
+    /// Default off.
+    pub openthai: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -5430,6 +5580,31 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // OpenThai comparison lane (Plan 003 Phase 2): their
+        // openthai_systemone served on loopback, measured over HTTP —
+        // same cases, their contract, the same metrics tail.
+        let openthai_result = if opts.openthai {
+            eprintln!("    openthai: running…");
+            match run_openthai_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    openthai: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (openthai): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -5575,6 +5750,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             clm: clm_result,
             gliner: gliner_result,
             agentjev: agentjev_result,
+            openthai: openthai_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -5786,6 +5962,14 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --agentjev to add the comparison lane; needs their \
              jev_service on AGENTJEV_SERVE_URL — .issues/025)"
+                .to_string()
+        },
+        openthai_lane: if opts.openthai {
+            "on — openthai_systemone (iapp-technology/OpenThai-SystemOne,              Apache-2.0, not affiliated) served on loopback, measured over              HTTP (comparison lane, never a product lane): same cases,              their /v1/systemone contract, gold-label scoring; liveness =              GET /healthz, the model id read from the response's own model              field (never hardcoded); their usage.input_tokens + the              in-head abstain-slot count reported beside the metrics;              determinism = the observed-repeat check; plan 003 Phase 2"
+                .to_string()
+        } else {
+            "off (pass --openthai to add the comparison lane; needs their \
+             openthai service on OPENTHAI_SERVE_URL — plan 003)"
                 .to_string()
         },
         paw_lane: if opts.paw {
@@ -6365,6 +6549,34 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             // Same shape as the gliner row — the AgentJev reference is a
             // comparison lane with the same metrics surface (no abstain,
             // no gates; latency = client round-trip over HTTP).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
+        if let Some(r) = &suite.openthai {
+            // Same shape as the agentjev row — the OpenThai reference is a
+            // comparison lane with the same metrics surface (their abstain
+            // slots are provenance, not our selective metrics; latency =
+            // client round-trip over HTTP).
             s.push_str(&format!(
                 "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
                 r.lane,
