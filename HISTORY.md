@@ -7,6 +7,43 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 042 CLOSED — the gate rate axis measured (Bench 066,
+  `842f89d`): the COMBINED posture (`--gate-fit-selection
+  --gate-distance-only`, worthiness margin 0.16 unchanged) is the first
+  that passes the issue's full T4′ acceptance.** Three full 15-suite runs
+  (the 063 lane posture ± the lever flags; artifacts
+  `.benchmarks/066_gate_rate_axis_levers/{lever2_only,lever1_only,both}/`).
+  Lever 2 (distance-only: score threshold pinned 0.0) CONFIRMS the
+  transfer finding — the corpus-distance axis lands 31.5–49.6% test-side
+  abstain on every armed topical suite (the 061 90–99% pathology is a
+  score-axis property) and xnli +0.1167 / ag_news +0.0325 recover at sane
+  rates — but arms sst5 on a probe reading +0.2000, EXACTLY equal to
+  ag_news's +0.2000 (no margin separates them), and the armed sst5 flips
+  −0.0133 on test: the arm-side flip class now measured on BOTH probe
+  families (fused +0.072 → −2.2; distance +0.20 → −1.33). Lever 1
+  (selection-slice threshold fit) is NULL alone — every verdict repeats
+  the shipped posture, xnli's gain halves — and is the combination's
+  FIXER: at BOTH, sst5's distance threshold shifts, its probe reads
+  +0.1341 < 0.16, the suite disarms to modelless-exact, and the loss is
+  gone. BOTH rows: typed +0.1685 @ 49.6% escalation, ag_news +0.0300 @
+  37.5%, xnli +0.0600 @ 15.7%, every other dataset suite reads modelless
+  EXACTLY — cascade ≥ modelless everywhere, escalation inside [15%, 60%]
+  (the shipped fused posture's typed 96.7% fails this window — cascade
+  0.7430 vs laya-typed alone 0.7445 at near-full escalator cost, which is
+  why the window exists), zero regressions, and the fixed 0.16 margin
+  holds 8/8 on the shifted probe sets (second independent probe family
+  where (0.150, 0.288] separates). The recommended lane command
+  (AGENTS.md) carries the combined posture; library defaults stay OFF;
+  the shipped fused command keeps its 063@0.16 record (higher headline
+  +0.394 total). Latency PROVISIONAL (preflight REFUSED, load 7.93,
+  sibling session); accuracy pick-count/load-immune — forced rows
+  byte-match the published state (ag 0.8825 / xnli 0.5233 / emotion
+  ridge@8 0.8850). sst5 is a twice-measured arm-side flip across both
+  probe families: a third flip anywhere files a per-suite probe-size
+  floor, not a margin change. T4′ promotion to any DEFAULT surface stays
+  a separate owner call (the lane is opt-in). Issue file removed per the
+  noise-reduction rule; this row + the bench doc are the record.
+
 - **Issue 043 RESOLVED (measured, `37cb732d` + `44bb7cbd`) — the
   prompt_injections polarity gap does not exist as a slice problem, and
   the gain does not exist through the shipped term.** The issue asked for

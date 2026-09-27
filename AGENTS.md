@@ -238,10 +238,26 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # Reopen (b) per-suite cal-fit only if a fixed-bar arm-side row flips on a
 # future lane run. G3: flag-off cascade rows carry no worthiness key
 # (byte-shape identical to 061).
+# Issue 042 levers 1–2 (Bench 066, `--gate-fit-selection` +
+# `--gate-distance-only`): the RATE axis. Lever 2 disables the gate's score
+# axis (threshold 0.0) — the corpus-distance half transfers cal→test
+# (armed topical suites escalate 15.7–49.6% vs the fused gate's 90–99%
+# pathology; xnli +11.67 and ag_news +3.25 recover at sane rates) but arms
+# sst5 on a probe that flips −1.33 on test. Lever 1 (fit the thresholds on
+# the stratified selection slice) is NULL alone and is the combination's
+# fixer: it shifts sst5's probe to +0.1341 < 0.16 → disarms the flip.
+# The COMBINED posture is the first that passes the issue's full T4′
+# acceptance — cascade ≥ modelless on every dataset suite, escalation
+# within [15%, 60%] on the armed topical suites (the shipped fused posture's
+# typed 96.7% fails this window), zero regressions — and the fixed 0.16
+# margin holds 8/8 on the shifted probe sets (second independent probe
+# family where (0.150, 0.288] separates). sst5 is a TWICE-measured arm-side
+# flip across both probe families — a third flip anywhere files a
+# per-suite probe-size floor, not a margin change.
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -- \
   --datasets-dir .raw/datasets_t20k --cascade --cascade-worthiness --cascade-worthiness-margin 0.16 \
-  --nb-select --oc-select --ridge-select \
-  --out .benchmarks/063_cascade_worthiness_margin016
+  --nb-select --oc-select --ridge-select --gate-fit-selection --gate-distance-only \
+  --out .benchmarks/066_gate_rate_axis_levers/both
 
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
