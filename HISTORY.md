@@ -7,6 +7,32 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-26/27
 
+- **Issue 033 — the PAW comparison lane CLOSED — issue file removed (noise-reduction);
+  record hash-pinned here.** ProgramAsWeights (compile-a-classifier category) measured on
+  the same harness instead of quoting their marketing tiers. Arc: filed from the PAW
+  distill → Posture A hosted lane + specs + first cells `2e9f351` (Bench 049: default
+  mapper compiler, hosted-anonymous; banking77 refusal-dominated 73% — the honest table
+  WAS the finding) → ft-tier cells measured TWICE independently (Bench 055 M3 stratified
+  hand-derived `4cef66b` + Bench 054 4090 full-pull; every direction agreeing, the tier
+  claim TRUE on every suite) → Posture B local llama.cpp runtime `7f9c2f5` (Bench 056:
+  accuracy-neutral vs hosted, determinism-positive 4/4) → **arena republish + close
+  (this entry):** the site's publisher grew the `paw`/`paw_local` lane classes, the
+  `shikuwa`→`4090-win` host alias, and the `PUBLISH_BENCH_LANES` lane-scoped update
+  filter with `:acc-only` latency suppression (reflex-site `dffabe3`, deployed live) —
+  because the PAW docs' by-product modelless controls are the UNCALIBRATED baseline
+  posture and must never publish over the calibrated same-law rows (or trip the drift
+  gate over a posture difference); a fresh same-law hosted ft run (Bench 058,
+  `de67f50`, stratified 400/400/600/500) mechanized 055's hand-derived anchor — ag
+  0.7900 / emotion 0.5000 / sst5 0.3950 / banking77 0.4200 @ 34.6% refusals, matching
+  055 within noise — and 056's local cells published beside it. **Posture record (which
+  cells published):** `paw (hosted)` = ft-bs48 tier, hosted-anonymous, Bench 058,
+  accuracy-only (end-load box state made latency NOT QUOTABLE — the `:acc-only`
+  disclosure); `paw (local)` = ft-bs48 tier via their llama.cpp runtime, Bench 056
+  (stratified, det 4/4, latency cells published — measured on the idle 4090). The
+  default-mapper hosted cells (049) and the first-N ft cells (054) stay bench records,
+  never published (different sample law). Deferred: a latency-quotable hosted re-run
+  (publishes by removing the `:acc-only` suffix). Full life:
+  `git log --follow -- .issues/033_paw_comparison_lane.md`.
 - **Issues 036 + 037 + 039 CLOSED — issue files removed (noise-reduction);
   records hash-pinned here.**
   - **036 — the drafter-only path is degenerate on dynamic option spaces.**
