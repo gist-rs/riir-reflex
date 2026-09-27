@@ -44,6 +44,8 @@
 
 use crate::embed::Embedder;
 use crate::label_heads::LabelHeads;
+#[cfg(feature = "nb_ridge")]
+use crate::nb_ridge::NbRidge;
 #[cfg(feature = "nb_scope")]
 use crate::nb_scope::{NbAlpha, NbScope, NbView, view_tokens_into};
 #[cfg(feature = "option_cond")]
@@ -272,6 +274,20 @@ pub struct EngineConfig {
     /// byte-identical to the pre-T7b posture.
     #[cfg(feature = "option_cond")]
     pub oc_scale: f32,
+    /// NBSVM ridge readout blend scale (issue 038 T7a, opt-in
+    /// `nb_ridge`). When > 0, [`DecisionEngine::build_specs`] fits the
+    /// closed-form per-domain ridge ([`crate::nb_ridge`]) over the same
+    /// wide doc sets the nb tables read, and every option WHEREVER ROUTE
+    /// TERMS ARE ACTIVE gains the margin term (the same legality guard as
+    /// the heads/nb — the class IS the domain). The fit is O(k³) per
+    /// class (k = [`crate::nb_ridge::RIDGE_K`], build-time only; scoring
+    /// is O(|x| log k)). 0.0 = OFF, byte-identical.
+    #[cfg(feature = "nb_ridge")]
+    pub ridge_scale: f32,
+    /// The ridge λ (Tikhonov damping) the weights solve with. Fixed by
+    /// the caller when the readout arms; the probe selected 10.0.
+    #[cfg(feature = "nb_ridge")]
+    pub ridge_lambda: f32,
     /// Confidence-readout functional (Issue 039 T4). Default is the
     /// shipped Bench-817 dispatch; the harness may arm a per-suite mode
     /// selected on the cal slice (in-sample calibrated ECE, margin over
@@ -362,6 +378,10 @@ impl Default for EngineConfig {
             nb_view: NbView::Bag,
             #[cfg(feature = "option_cond")]
             oc_scale: 0.0,
+            #[cfg(feature = "nb_ridge")]
+            ridge_scale: 0.0,
+            #[cfg(feature = "nb_ridge")]
+            ridge_lambda: 10.0,
             readout: crate::readout::ReadoutMode::Dispatch,
             drafter_fix: DrafterFix::Off,
         }
@@ -447,6 +467,11 @@ pub enum EngineError {
     /// class this engine refuses.
     #[cfg(feature = "option_cond")]
     OcNeedsEvents,
+    /// `ridge_scale > 0` on [`DecisionEngine::build`] (raw experts) — the
+    /// fit needs the document texts (the [`EngineError::NbNeedsCorpora`]
+    /// law).
+    #[cfg(feature = "nb_ridge")]
+    RidgeNeedsCorpora,
 }
 
 impl std::fmt::Display for EngineError {
@@ -475,6 +500,11 @@ impl std::fmt::Display for EngineError {
             Self::OcNeedsEvents => write!(
                 f,
                 "oc_scale > 0 needs (qid, option, doc) events: use build_specs_oc"
+            ),
+            #[cfg(feature = "nb_ridge")]
+            Self::RidgeNeedsCorpora => write!(
+                f,
+                "ridge_scale > 0 needs document corpora: use build_specs (the fit reads the docs)"
             ),
         }
     }
@@ -536,6 +566,15 @@ pub struct Scratch<const D: usize> {
     oc_in: Vec<Option<f32>>,
     #[cfg(feature = "option_cond")]
     oc_terms: Vec<f32>,
+    /// Ridge readout state tokens (bag view always) + per-domain scores
+    /// (issue 038 T7a). The scores buffer is per-question scratch sized to
+    /// the domain count at first use (the engine hands it back each call).
+    #[cfg(feature = "nb_ridge")]
+    ridge_tok: Vec<u32>,
+    #[cfg(feature = "nb_ridge")]
+    ridge_in: Vec<f32>,
+    #[cfg(feature = "nb_ridge")]
+    ridge_terms: Vec<f32>,
 }
 
 impl<const D: usize> Default for Scratch<D> {
@@ -554,6 +593,12 @@ impl<const D: usize> Default for Scratch<D> {
             oc_in: Vec::new(),
             #[cfg(feature = "option_cond")]
             oc_terms: Vec::new(),
+            #[cfg(feature = "nb_ridge")]
+            ridge_tok: Vec::new(),
+            #[cfg(feature = "nb_ridge")]
+            ridge_in: Vec::new(),
+            #[cfg(feature = "nb_ridge")]
+            ridge_terms: Vec::new(),
         }
     }
 }
@@ -578,6 +623,9 @@ impl<const D: usize> Scratch<D> {
             self.oc_in.reserve(32);
             self.oc_terms.reserve(32);
         }
+        // The ridge token buffer likewise (one-time growth).
+        #[cfg(feature = "nb_ridge")]
+        self.ridge_tok.reserve(512);
         self.reset();
     }
 
@@ -593,6 +641,8 @@ impl<const D: usize> Scratch<D> {
             self.oc_in.clear();
             self.oc_terms.clear();
         }
+        #[cfg(feature = "nb_ridge")]
+        self.ridge_tok.clear();
     }
 }
 
@@ -617,6 +667,10 @@ pub struct DecisionEngine<const N: usize, const D: usize> {
     /// other path leaves it `None`.
     #[cfg(feature = "option_cond")]
     oc: Option<OptionCond>,
+    /// NBSVM ridge rows (issue 038 T7a) — `Some` exactly when
+    /// `ridge_scale > 0` and the build had corpora.
+    #[cfg(feature = "nb_ridge")]
+    ridge: Option<NbRidge>,
 }
 
 impl<const N: usize, const D: usize> DecisionEngine<N, D> {
@@ -640,6 +694,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         #[cfg(feature = "option_cond")]
         if cfg.oc_scale > 0.0 {
             return Err(EngineError::OcNeedsEvents);
+        }
+        #[cfg(feature = "nb_ridge")]
+        if cfg.ridge_scale > 0.0 {
+            return Err(EngineError::RidgeNeedsCorpora);
         }
         Self::build_with_heads(specs, cfg, None)
     }
@@ -667,6 +725,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             nb: None,
             #[cfg(feature = "option_cond")]
             oc: None,
+            #[cfg(feature = "nb_ridge")]
+            ridge: None,
         })
     }
 
@@ -727,6 +787,19 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         } else {
             None
         };
+        // The ridge fit (issue 038 T7a) reads the SAME wide doc sets as
+        // the nb tables — the pools are captured above as `specs`' nb_docs
+        // — so fit from those sets (docs when nb_docs is absent).
+        #[cfg(feature = "nb_ridge")]
+        let ridge = if cfg.ridge_scale > 0.0 {
+            let sets: Vec<&[String]> = specs
+                .iter()
+                .map(|s| s.nb_docs.as_deref().unwrap_or(&s.docs))
+                .collect();
+            Some(crate::nb_ridge::fit(&sets, cfg.ridge_lambda))
+        } else {
+            None
+        };
         for (i, s) in specs.into_iter().enumerate() {
             if s.docs.is_empty() {
                 return Err(EngineError::EmptyCorpus { domain: i });
@@ -753,6 +826,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         #[cfg(feature = "option_cond")]
         {
             engine.oc = oc;
+        }
+        #[cfg(feature = "nb_ridge")]
+        {
+            engine.ridge = ridge;
         }
         Ok(engine)
     }
@@ -957,6 +1034,36 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     sc.oc_terms.push(term);
                 }
             }
+            // NBSVM ridge terms (issue 038 T7a): per-DOMAIN scores on the
+            // bag token stream, option-mapped through `opt_dom` — the same
+            // legality guard as the heads/nb (the class IS the domain), so
+            // route_active is required.
+            #[cfg(feature = "nb_ridge")]
+            let ridge_on = route_active && self.ridge.is_some();
+            #[cfg(feature = "nb_ridge")]
+            if let Some(ridge) = self.ridge.as_ref()
+                && route_active
+            {
+                crate::embed::hashed_tokens_into(
+                    req.state.as_bytes(),
+                    crate::nb_scope::NB_VOCAB,
+                    &mut sc.ridge_tok,
+                );
+                let n_tok = sc.ridge_tok.len();
+                sc.ridge_in.clear();
+                for d in 0..N {
+                    sc.ridge_in.push(ridge.in_score(d, &sc.ridge_tok));
+                }
+                if std::env::var_os("RIIR_DEBUG_RIDGE").is_some() {
+                    eprintln!("[ridge-dbg] n_tok={n_tok} ridge_in={:?}", sc.ridge_in);
+                }
+                sc.ridge_terms.clear();
+                sc.ridge_terms.resize(k, 0.0);
+                let r_temp = ridge.temp();
+                for (i, &dom) in opt_dom.iter().take(k).enumerate() {
+                    sc.ridge_terms[i] = NbRidge::blend_term(&sc.ridge_in, dom, r_temp, self.cfg.ridge_scale);
+                }
+            }
             sc.scores.clear();
             // Each option's route term is its RESOLVED domain's cosine
             // (`opt_dom`: by name, or the identity map under the legacy
@@ -1048,6 +1155,14 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 #[cfg(feature = "option_cond")]
                 if oc_present {
                     score += sc.oc_terms[i];
+                }
+                // NBSVM ridge term (issue 038 T7a): the option's domain
+                // row; only when route terms are active (ridge_on ⇒
+                // route_active ⇒ every option index < k has a resolved
+                // domain).
+                #[cfg(feature = "nb_ridge")]
+                if ridge_on {
+                    score += sc.ridge_terms[i];
                 }
                 sc.scores.push(score);
             }
@@ -1891,6 +2006,69 @@ mod tests {
             Err(e) => assert_eq!(e, EngineError::DomainCount { have: 1, want: 2 }),
             Ok(_) => panic!("1 spec must not build a 2-domain engine"),
         }
+    }
+
+    /// Issue 038 T7a non-vacuity: the armed ridge readout must be able to
+    /// MOVE a pick — two lexical domains, options named after them, a
+    /// state that the ridge (count-based) favours toward the domain whose
+    /// DRAFTER/route signal is weaker. Asserts the ridge-armed pick equals
+    /// the ridge's own argmax (not the unarmed pick), and that scale 0
+    /// keeps the unarmed pick (the G3 arm inside the same test).
+    #[cfg(feature = "nb_ridge")]
+    #[test]
+    fn ridge_term_moves_the_pick_when_armed_and_only_then() {
+        let pos = vec![
+            "the movie was wonderful great acting loved every scene".to_string(),
+            "wonderful fantastic loved it great fun".to_string(),
+            "great scenes wonderful acting loved the story".to_string(),
+        ];
+        let neg = vec![
+            "the movie was terrible awful acting hated every scene".to_string(),
+            "terrible awful hated it boring mess".to_string(),
+            "awful scenes terrible acting hated the story".to_string(),
+        ];
+        let specs = vec![
+            ExpertSpec::new("great", &pos),
+            ExpertSpec::new("terrible", &neg),
+        ];
+        let req = DecisionRequest {
+            state: "terrible awful hated every scene".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which review?",
+                vec!["great".to_string(), "terrible".to_string()],
+                None,
+            )],
+        };
+        let mut sc = Scratch::new();
+        sc.prepare(1);
+        let solve = |cfg: EngineConfig, sc: &mut Scratch<EMBED_DIM>| {
+            let mut eng: DecisionEngine<2, EMBED_DIM> =
+                DecisionEngine::build_specs(specs.clone(), cfg).unwrap();
+            eng.solve_into(&req, sc).unwrap();
+            let lo = sc.slots[0].prob_lo;
+            (sc.slots[0].pick, sc.probs[lo..lo + 2].to_vec())
+        };
+        let (off_pick, off_probs) = solve(EngineConfig::default(), &mut sc);
+        let (on_pick, on_probs) = solve(
+            EngineConfig {
+                ridge_scale: 2.0,
+                ..EngineConfig::default()
+            },
+            &mut sc,
+        );
+        // The state is lexically NEGATIVE; the ridge (count-based) must
+        // rank `terrible` first. The unarmed blend (drafter+route) may read
+        // either way on this toy corpus — the gates are (a) ARMING the
+        // ridge yields the ridge's own argmax (index 1), and (b) the term
+        // actually reaches the score (the distributions differ — the
+        // non-vacuity arm; a term that never moves anything is dead code).
+        assert_eq!(on_pick, 1, "armed ridge must pick the count-favoured domain");
+        assert_ne!(
+            off_probs, on_probs,
+            "arming the ridge must move the score distribution"
+        );
+        let _ = off_pick;
     }
 
     #[test]

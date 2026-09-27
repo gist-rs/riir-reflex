@@ -1,6 +1,6 @@
 # Plan 004 — Issue 038 T7(b)+T7(a): the option-conditioned scorer and the NBSVM ridge readout
 
-**Status:** IN PROGRESS — premises probed 2026-09-27 (T7a emotion +15.5pt, T7b typed +13pt); implementation started.
+**Status:** COMPLETE — 2026-09-27. T7b + T7a landed, GOAT-gated, both promoted default-on; typed 0.33 → 0.4655 (+13.5 pt), emotion 0.7375 → 0.8475 (+11.0 pt); every other suite byte-identical (G3 verified against the site rows). T5/T4′ remain open (issue 038).
 
 ## Premise probes (done, recorded before any Rust)
 
@@ -44,45 +44,30 @@ slice-size re-measure (selection-side only, protocol-legal).
 
 ## Tasks
 
-- [ ] **T1 — `src/option_cond.rs`: the option-conditioned count tables (T7b).**
-      Frozen sorted `Vec<(u64, u32)>` keyed `fnv1a(qid ‖ 0x00 ‖ option)`;
-      per-key `ContrastiveScoreTable` one-vs-the-SAME-qid's other options
-      (katgpt-core `ContrastiveScoreBuilder`, the nb_scope substrate — DRY).
-      Fit input: `(qid, option, doc)` events. Score-time term (mirrors
-      `NbScope::blend_term`): `scale · σ((in_d − max_other)/n_tok)`, absent
-      key → no term. Zero-alloc hot path (binary search + fnv, no alloc).
-- [ ] **T2 — engine wiring:** `ExpertSpec::option_events` (build-time only) +
-      `EngineConfig::oc_scale` (0 = off); build refuses scale > 0 with no
-      events (fail-closed, the `NbNeedsCorpora` shape); hot path adds the
-      oc term for any question kind (choice/score keys; noul internal
-      "yes"/"no" candidates) — independent of `route_active` (typed is
-      drafter_only today and must still arm).
-- [ ] **T3 — harness:** `typed_option_events(rows)` (gold → option key per
-      suites.rs rules: choice criteria key, score `str(int)`, noul
-      true→yes/false→no; doc = the RAW stored state string, the corpus rule);
-      oc-scale selection ladder on the stratified slice (the nb_lane shape,
-      promotion bar + margin); test read once. G3: every other suite has no
-      events → byte-identical.
-- [ ] **T4 — T7a `src/nb_ridge.rs`:** df-top-k (k=2048) binary presence
-      features over the SAME `hashed_tokens_into` stream; NB log-count-ratio
-      scaling R (per-class form; the probe's 3/4 winner); Gram from sparse
-      rows (shared, O(Σ nnz²)); `katgpt-core::linalg::ridge_solve_direct_f32`
-      per class (λ=10 fixed, probe-selected); score = w_cᵀ(x ⊙ r_c) + b_c.
-      `EngineConfig::ridge_scale` (0 = off) + the same selection ladder.
-      Emotion is the target suite; a suite whose slice doesn't clear the bar
-      stays OFF and pays nothing.
-- [ ] **T5 — gates:** feature `nb_ridge` (+ the oc tables under the existing
-      `nb_scope`? NO — oc is NOT contrastive-scope-dependent; gate it as
-      `option_cond`, default-on-safe); G1 cal-selected/test-once per lever;
-      G2 p50 sub-ms (oc lookup + ridge dot are O(tokens)); G3 unarmed suites
-      byte-identical (pinned); G4 alloc-free hot path (counting-allocator
-      bench arms). Fit-time budget: typed oc fit is O(events) trivial; the
-      emotion ridge fit is ONE Cholesky set at k=2048 (probe-instrumented
-      before promotion — if scalar solve exceeds ~60 s, k drops or the fit
-      moves behind the bench gate).
-- [ ] **T6 — bench + record:** `benches/` arm per lever (latency + alloc),
-      `.benchmarks/057_issue038_t7_levers/` record with the probe tables
-      above, tables + site republish if any published row moves, issue 038
-      checkboxes updated, commit + push (docs/feat/fix prefix).
-- [-] T4′ cascade lane + T5 blend genome — DEFERRED to after the two levers
-      land (T5's genome should tune the blend INCLUDING the new terms).
+- [x] **T1 — `src/option_cond.rs`: the option-conditioned count tables (T7b).**
+      LANDED — one-vs-rest `ContrastiveScoreTable` per (qid, option) from gold events;
+      blend term = the nb margin sigmoid; 6 module tests.
+- [x] **T2 — engine wiring:** LANDED — `oc_scale` + `build_specs_oc` (fail-closed
+      `OcNeedsEvents`), hot path O(tokens) with no alloc (G4 bench arm).
+- [x] **T3 — harness:** LANDED — `typed_gold_events` + `--oc-select` selection ladder
+      (slice 0.370 → 0.558 @ scale 2) + seat plumbing; test read once 0.4655.
+- [x] **T4 — T7a `src/nb_ridge.rs`:** LANDED — df-top-k (2048, bucket-sorted for the
+      binary search — the unsorted-vec silent-miss bug is recorded in the module),
+      per-class NB ratios (the PROBE'S ARITHMETIC MIRRORED VERBATIM including its
+      `tot[lab]`-missing-key quirk — "fixing" it breaks the denominator, measured),
+      shared presence Gram, `ridge_solve_direct_f32` per class, fit-time
+      SELF-CALIBRATED margin temperature (mean per-doc class spread over a strided
+      512-doc sample — `/n_tokens` crushes the damped margins to a constant shift,
+      measured 0.5500-at-every-scale before this). λ = 10 fixed (probe).
+- [x] **T5 — gates:** G1 cal-selected/test-once both levers (typed oc@2 slice +18.8;
+      emotion ridge@2 slice +14) with calibrated ECE ≤ conformal floor on both moved
+      rows; G2 p50 ≤ 0.58 ms (typed oc) / 0.13 ms (emotion ridge), bench p99 ≤ 50 µs;
+      G3 full-workspace run byte-identical on every unmoved suite (site-row diff, 12
+      suites × 0.0000); G4 `solve_into` 0 allocs with BOTH levers armed (canary live).
+      `option_cond` + `nb_ridge` both PROMOTED default-on (cfg knobs stay 0 =
+      byte-identical serving posture).
+- [x] **T6 — bench + record:** decision_set_goat carries option_cond + nb_ridge
+      armed postures; `.benchmarks/057_issue038_t7_levers/` record + issue 038
+      checkboxes + site republish.
+- [-] T4′ cascade lane + T5 blend genome — DEFERRED (issue 038's remaining open
+      items; the genome should tune the blend INCLUDING the two new terms).

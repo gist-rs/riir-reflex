@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. Open here: T7 (NBSVM/ridge, typed option-conditioned scorer), T5 blend self-evolve.
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. T7(a)+(b) LANDED 2026-09-27 (Plan 004: option-conditioned tables + NBSVM ridge, both promoted default-on — typed +13.5 pt, emotion +11 pt). Open here: T5 blend self-evolve (now over FOUR terms), T4′ cascade lane, T7(c) BM25 kNN, T7(d) Hebbian xnli.
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -147,20 +147,24 @@ tried.
 - [x] **Transductive column** (owner ask, 2026-09-26): published beside
       the headline, never in it. Measured +0.3 to −4.0 pt (Bench 051): train
       already supplies the vocabulary; self-labelling feeds back errors.
-- [ ] **T7 — next levers (from the 2026-09-26 GOAT hunt, none tried yet):**
-      (a) closed-form ridge / NBSVM readout — katgpt-core
-      `linalg::ridge_solve` (default-on via karc_forecaster, deterministic,
-      no gradient) over sketched features scaled by the contrastive-scope
-      log-count ratio (NBSVM, the standard sst5/emotion winner);
-      (b) option-conditioned scorer for typed_decisions (question ⊗ option
-      ⊗ state-field bindings; `tpr` role binding is the principled form),
-      because the tables never arm there; (c) BM25 kNN vote
-      (riir-neuron-db `bm25.rs`) fused additively; (d) Hebbian bilinear map
-      over premise/hypothesis sketches for xnli cross terms. The suspected
-      "T-pass / looped transformer / shallow reasoning" items were checked
-      and all need a model (LT2 `forward_looped` is a throughput GOAT only;
-      "shallow reasoning" is a positioning phrase whose shipped form is a
-      kNN + operator tokenizer). None applies to the modelless lane.
+- [x] **T7 — next levers (from the 2026-09-26 GOAT hunt):** (a)+(b) LANDED
+      2026-09-27 (Plan 004, `.benchmarks/057_issue038_t7_levers/`): (b) the
+      option-conditioned per-(qid, option) count tables (`option_cond`, promoted
+      default-on) — typed_decisions 0.33 → **0.4655** (+13.5 pt, cal-selected
+      oc@2; per-kind choice .415/noul .592/score .364 at the probe); (a) the
+      NBSVM closed-form ridge (`nb_ridge`, promoted default-on) — emotion
+      0.7375 → **0.8475** (+11.0 pt, cal-selected ridge@2, calibrated ECE 0.0
+      vs floor 0.204; the banking77/ag_news/sst5/xnli/massive ladders all
+      decline — G3 byte-identical). Probed first (scripts/issue038_t7_probe*.py):
+      banking77 +1.2 (under the 5 pt bar), sst5/xnli WORSE (shipped NB/pair
+      views win), ag_news/massive flat — none armed. (c) BM25 kNN vote and
+      (d) the Hebbian bilinear xnli map remain UNTRIED (deferred — the two
+      landed levers took the two biggest modelless gaps; reopen when the
+      blend genome (T5) lands). The suspected "T-pass / looped transformer /
+      shallow reasoning" items were checked and all need a model (LT2
+      `forward_looped` is a throughput GOAT only; "shallow reasoning" is a
+      positioning phrase whose shipped form is a kNN + operator tokenizer).
+      None applies to the modelless lane.
 
 ## Protocol rule — test data NEVER enters a corpus, grammar, or vocabulary
 

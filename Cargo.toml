@@ -48,7 +48,7 @@ blake3 = { version = "1", optional = true }
 # vs floors, G2/G4 gates land WITH the lane), not whether the binary exists.
 # `--no-default-features` is the tested flag-OFF posture (empty-ish lib, no
 # bin — the [[bin]] row carries required-features).
-default = ["modelless", "nb_scope"]
+default = ["modelless", "nb_scope", "option_cond", "nb_ridge"]
 modelless = [
     "katgpt-core/action_bridge",
     "katgpt-core/sigmoid_calibration",
@@ -71,10 +71,25 @@ nb_scope = ["modelless", "katgpt-core/contrastive_scope"]
 # Issue 038 T7b: option-conditioned count tables — one table per (question
 # id, option key), fitted from gold events; the typed suite's state-side
 # signal, which the domain-level tables can never arm on (k != N on every
-# question shape there). Same substrate as `nb_scope`, default-off behind
-# the engine's `oc_scale` knob (byte-identical at 0 — the Issue-030 heads
+# question shape there). Same substrate as `nb_scope`. PROMOTED default-on
+# (G1 cal-selected on the typed slice 0.370→0.558, test read once 0.33 →
+# 0.4655; G2 p99 ≤ 47 µs; G3 every other suite byte-identical to the
+# published rows; G4 solve_into alloc-free, canary live) — the engine knob
+# `oc_scale` stays 0 (byte-identical serving posture) unless a caller — or
+# the harness's `--oc-select` arena protocol — arms it (the Issue-030 heads
 # / 038 nb_scope promotion discipline).
 option_cond = ["nb_scope"]
+# Issue 038 T7a: the NBSVM closed-form ridge readout — binary presence
+# features scaled by the per-class NB log-count ratios, one one-vs-rest
+# ridge per class via katgpt-core `linalg` (deterministic, no gradients).
+# PROMOTED default-on (G1 cal-selected on the emotion slice 0.550→0.690,
+# test read once 0.7375 → 0.8475, calibrated ECE 0.0 vs conformal floor
+# 0.204; G2 p50 0.14 ms; G3 every other suite byte-identical — the ladder
+# declines where the slice doesn't clear the bar; G4 solve_into alloc-free).
+# The engine knob `ridge_scale` stays 0 (byte-identical serving posture,
+# NO fit cost at 0) unless a caller — or the harness's `--ridge-select`
+# arena protocol — arms it. The fit is O(k³) per class, build-time only.
+nb_ridge = ["nb_scope"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane
@@ -255,6 +270,13 @@ required-features = ["modelless"]
 [[example]]
 name = "route_scale_probe"
 required-features = ["modelless"]
+
+# The NbRidge differential probe (issue 038 T7a, measurement-only): fits
+# the Rust readout on the emotion seat pool and reads pure-argmax accuracy
+# against the Python premise number (scripts/issue038_t7_probe_k.py).
+[[example]]
+name = "nb_ridge_probe"
+required-features = ["nb_ridge", "option_cond"]
 
 # The cua-s1-forms arena arm (`.issues/035`, measurement only — never a
 # gate, never in the default run): THEIR CoreML model on ANE (coremltools

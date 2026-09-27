@@ -68,9 +68,13 @@ use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 mod nb_lane;
 #[cfg(feature = "option_cond")]
 mod oc_lane;
+#[cfg(feature = "nb_ridge")]
+mod ridge_lane;
 pub use nb_lane::{NbCandidate, NbSelection, TRANSDUCTIVE_PROTOCOL, TransductiveReport};
 #[cfg(feature = "option_cond")]
 pub use oc_lane::{OcCandidate, OcSelection};
+#[cfg(feature = "nb_ridge")]
+pub use ridge_lane::{RidgeCandidate, RidgeSelection};
 
 /// Issue 005 (riir-instinct) E0 — the count-table evidence-density
 /// measurement (T1, reflex-only). Lives beside [`nb_lane`] as a child
@@ -585,6 +589,10 @@ pub struct LaneResult {
     /// suite / the feature is compiled out).
     #[cfg(feature = "option_cond")]
     pub oc_selection: Option<oc_lane::OcSelection>,
+    /// The cal-selected ridge-readout posture (issue 038 T7a,
+    /// `--ridge-select`). None = no selection ran.
+    #[cfg(feature = "nb_ridge")]
+    pub ridge_selection: Option<ridge_lane::RidgeSelection>,
     /// The TRANSDUCTIVE column (issue 038): a different protocol, published
     /// beside `hard.accuracy`, never inside it. None unless the count
     /// tables are armed on this row.
@@ -1618,6 +1626,9 @@ struct ModellessInput<'a> {
     /// Cal-slice option-conditioned selection (issue 038 T7b, `--oc-select`).
     #[cfg_attr(not(feature = "option_cond"), allow(dead_code))]
     oc_select: bool,
+    /// Cal-slice ridge-readout selection (issue 038 T7a, `--ridge-select`).
+    #[cfg_attr(not(feature = "nb_ridge"), allow(dead_code))]
+    ridge_select: bool,
     /// The cap's base source when no cal-slice selection ran
     /// ("registry" or "--corpus-cap override").
     cap_source_base: &'static str,
@@ -2054,6 +2065,8 @@ struct FittedPosture {
     nb_selected: Option<NbSelection>,
     #[cfg(feature = "option_cond")]
     oc_selected: Option<oc_lane::OcSelection>,
+    #[cfg(feature = "nb_ridge")]
+    ridge_selected: Option<ridge_lane::RidgeSelection>,
     default_cfg: EngineConfig,
     score_threshold: f32,
     distance_threshold: f32,
@@ -2138,13 +2151,25 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         && spec.synthetic.is_none()
         && spec.corpus_cap_per_label != usize::MAX
     {
-        Some(oc_lane::build_oc_selection::<N>(
-            inp,
-            effective_cap,
-            selected_scale,
-            &default_cfg,
-            |pool| oc_events_for(inp.pool_rows, pool),
-        )?)
+        // Eligibility: the suite must carry per-question gold events in its
+        // pool at all (typed_decisions is the only one today). A suite
+        // without them DECLINES the lever loudly — an error would abort
+        // every other suite's lane on a whole-workspace run.
+        if oc_events_for(inp.pool_rows, inp.train).is_empty() {
+            eprintln!(
+                "    oc-select: DECLINED — the suite's train rows carry no per-question gold \
+                 events to condition on (baseline posture holds, byte-identical)"
+            );
+            None
+        } else {
+            Some(oc_lane::build_oc_selection::<N>(
+                inp,
+                effective_cap,
+                selected_scale,
+                &default_cfg,
+                |pool| oc_events_for(inp.pool_rows, pool),
+            )?)
+        }
     } else {
         None
     };
@@ -2154,6 +2179,30 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     }
     #[cfg(not(feature = "option_cond"))]
     let _ = inp.oc_select;
+    // ── Ridge selection (issue 038 T7a): last posture axis (it rides the
+    // selected cap/head/nb/oc), same slice, same promotion bar. SHORT
+    // ladder — every candidate pays a full O(k³)-per-class fit.
+    #[cfg(feature = "nb_ridge")]
+    let ridge_selected = if inp.ridge_select
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        Some(ridge_lane::build_ridge_selection::<N>(
+            inp,
+            effective_cap,
+            &default_cfg,
+            |pool| oc_events_for(inp.pool_rows, pool),
+        )?)
+    } else {
+        None
+    };
+    #[cfg(feature = "nb_ridge")]
+    if let Some(sel) = &ridge_selected {
+        default_cfg.ridge_scale = sel.selected_scale;
+        default_cfg.ridge_lambda = sel.selected_lambda;
+    }
+    #[cfg(not(feature = "nb_ridge"))]
+    let _ = inp.ridge_select;
     // The full-pool events (corpus pool = the complement of the cal front),
     // needed by EVERY build made at the selected posture (the threshold
     // probe here, the three run_modelless builds, the readout report and
@@ -2273,6 +2322,8 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         nb_selected,
         #[cfg(feature = "option_cond")]
         oc_selected,
+        #[cfg(feature = "nb_ridge")]
+        ridge_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
@@ -2299,6 +2350,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         nb_selected,
         #[cfg(feature = "option_cond")]
         oc_selected,
+        #[cfg(feature = "nb_ridge")]
+        ridge_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
@@ -2638,6 +2691,8 @@ fn run_modelless<const N: usize>(inp: &ModellessInput<'_>) -> Result<LaneResult,
         nb_selection: nb_selected,
         #[cfg(feature = "option_cond")]
         oc_selection: oc_selected,
+        #[cfg(feature = "nb_ridge")]
+        ridge_selection: ridge_selected,
         transductive,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
         pair_head_ab: if inp.pair_head_ab {
@@ -3089,6 +3144,8 @@ fn assemble_laya_lane_result(
         nb_selection: None,
         #[cfg(feature = "option_cond")]
         oc_selection: None,
+        #[cfg(feature = "nb_ridge")]
+        ridge_selection: None,
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
@@ -4214,6 +4271,8 @@ pub mod seat {
         /// posture by construction.
         #[cfg(feature = "option_cond")]
         pub oc_select: bool,
+        #[cfg(feature = "nb_ridge")]
+        pub ridge_select: bool,
         pub cal_select_caps: Vec<usize>,
     }
 
@@ -4230,6 +4289,8 @@ pub mod seat {
         pub nb_selection: Option<NbSelection>,
         #[cfg(feature = "option_cond")]
         pub oc_selection: Option<super::oc_lane::OcSelection>,
+        #[cfg(feature = "nb_ridge")]
+        pub ridge_selection: Option<super::ridge_lane::RidgeSelection>,
         pub cap_candidates: Option<Vec<CapCandidate>>,
     }
 
@@ -4262,6 +4323,10 @@ pub mod seat {
             oc_select: knobs.oc_select,
             #[cfg(not(feature = "option_cond"))]
             oc_select: false,
+            #[cfg(feature = "nb_ridge")]
+            ridge_select: knobs.ridge_select,
+            #[cfg(not(feature = "nb_ridge"))]
+            ridge_select: false,
             cap_source_base: "registry",
             cal_select_caps: &knobs.cal_select_caps,
             pool_rows: &s.pool_rows,
@@ -4283,6 +4348,8 @@ pub mod seat {
             nb_selection: fp.nb_selected,
             #[cfg(feature = "option_cond")]
             oc_selection: fp.oc_selected,
+            #[cfg(feature = "nb_ridge")]
+            ridge_selection: fp.ridge_selected,
             cap_candidates: fp.selection.map(|c| c.rows),
         })
     }
@@ -4489,6 +4556,12 @@ pub struct RunOptions {
     /// promotion bar, test read once. Needs the `option_cond` feature (a
     /// loud error without it, never a silent no-op). Default off.
     pub oc_select: bool,
+    /// Cal-slice ridge-readout selection (issue 038 T7a; `--ridge-select`):
+    /// the NBSVM closed-form ridge readout scale, selected on the same
+    /// slice under the same promotion bar; λ fixed at the probe's 10.0
+    /// (a λ ladder multiplies the O(k³)-per-class fit cost). Needs the
+    /// `nb_ridge` feature (a loud error without it). Default off.
+    pub ridge_select: bool,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -4522,6 +4595,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         return Err(
             "--nb-select needs the nb_scope feature (issue 038): rebuild with \
              --features nb_scope"
+                .to_string(),
+        );
+    }
+    if opts.oc_select && !cfg!(feature = "option_cond") {
+        return Err(
+            "--oc-select needs the option_cond feature (issue 038 T7b): rebuild with \
+             --features option_cond"
+                .to_string(),
+        );
+    }
+    if opts.ridge_select && !cfg!(feature = "nb_ridge") {
+        return Err(
+            "--ridge-select needs the nb_ridge feature (issue 038 T7a): rebuild with \
+             --features nb_ridge"
                 .to_string(),
         );
     }
@@ -4655,6 +4742,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,
                 oc_select: opts.oc_select,
+                ridge_select: opts.ridge_select,
                 leak_flags: leak_flags_ref,
             };
             macro_rules! dispatch {

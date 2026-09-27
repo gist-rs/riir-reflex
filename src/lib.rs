@@ -96,6 +96,14 @@ pub mod nb_scope;
 #[cfg(feature = "option_cond")]
 pub mod option_cond;
 
+/// NBSVM-style closed-form ridge readout (issue 038 T7a): binary-presence
+/// features over the same hashed lexicon, per-class NB log-count-ratio
+/// scaling, one closed-form one-vs-rest ridge per class (katgpt-core
+/// `linalg` — no gradients, deterministic). Default-off behind
+/// `ridge_scale`.
+#[cfg(feature = "nb_ridge")]
+pub mod nb_ridge;
+
 /// The laya native-Rust comparison lane (Plan 603 T1.4) — the riir-owned
 /// forward (opt-in `laya-riir`). MOVED substrate-side (the consolidation
 /// issue's encoder-lane move): the lane lives in the inference substrate's

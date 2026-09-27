@@ -251,6 +251,101 @@ fn main() {
         run_gates("nb_scope armed", engine, &nb_request(n_questions), n_questions);
     }
 
+    // ── Issue 038 T7b: the option-conditioned tables ARMED — every
+    // question kind gains the (qid, option) term (the oc hot path: one FNV
+    // key hash + binary search + a table score per option). Same G2 + G4
+    // gates; the oc scratch buffers must stay alloc-free post-warmup.
+    #[cfg(feature = "option_cond")]
+    {
+        let events = vec![
+            riir_reflex::option_cond::OcEvent {
+                qid: "q0".into(),
+                option: "production".into(),
+                doc: OPS_DOC.into(),
+            },
+            riir_reflex::option_cond::OcEvent {
+                qid: "q0".into(),
+                option: "staging".into(),
+                doc: SUPPORT_DOC.into(),
+            },
+            riir_reflex::option_cond::OcEvent {
+                qid: "q1".into(),
+                option: "low".into(),
+                doc: OPS_DOC.into(),
+            },
+            riir_reflex::option_cond::OcEvent {
+                qid: "q1".into(),
+                option: "high".into(),
+                doc: SUPPORT_DOC.into(),
+            },
+            riir_reflex::option_cond::OcEvent {
+                qid: "q2".into(),
+                option: "yes".into(),
+                doc: OPS_DOC.into(),
+            },
+            riir_reflex::option_cond::OcEvent {
+                qid: "q2".into(),
+                option: "no".into(),
+                doc: SUPPORT_DOC.into(),
+            },
+        ];
+        let cfg = EngineConfig {
+            oc_scale: 1.0,
+            ..EngineConfig::default()
+        };
+        let engine: DecisionEngine<2, EMBED_DIM> =
+            DecisionEngine::build_specs_oc(demo_specs(), cfg, &events)
+                .expect("demo corpus well-formed");
+        // The oc request: exactly the three armed question ids (unique —
+        // the wire refuses duplicates), one per kind, with options covering
+        // both armed keys and keys with NO table (the no-term path).
+        let oc_request = {
+            use katgpt_core::decision_wire::Question;
+            let questions = vec![
+                Question::choice(
+                    "q0",
+                    "Which environment should receive this build next?",
+                    vec![
+                        "production".to_string(),
+                        "staging".to_string(),
+                        "local sandbox".to_string(),
+                        "do not deploy".to_string(),
+                    ],
+                    None,
+                ),
+                Question::score(
+                    "q1",
+                    "How risky is promoting this build now?",
+                    vec!["low".to_string(), "moderate".to_string(), "high".to_string()],
+                ),
+                Question::noul("q2", "Should the rollout proceed now?"),
+            ];
+            katgpt_core::decision_wire::DecisionRequest {
+                state: "The release candidate passed staging smoke tests; the on-call engineer \
+verified the health endpoints and the error budget is clean."
+                    .to_string(),
+                questions,
+            }
+        };
+        run_gates("option_cond armed", engine, &oc_request, 3);
+    }
+
+    // ── Issue 038 T7a: the NBSVM ridge readout ARMED — the same 2-option
+    // request as the nb posture (route-armed, k == N). The fit here runs
+    // on the 2 demo docs (build-time cost scales with the real corpus and
+    // is priced in the harness lane, not here); the gates cover the HOT
+    // path: per-option dot over the query's present selected features.
+    #[cfg(feature = "nb_ridge")]
+    {
+        let cfg = EngineConfig {
+            ridge_scale: 2.0,
+            ..EngineConfig::default()
+        };
+        let engine: DecisionEngine<2, EMBED_DIM> =
+            DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
+        run_gates("nb_ridge armed", engine, &nb_request(n_questions), n_questions);
+    }
+
     println!("═══════════════════════════════════════════════════════════════");
     println!(
         "  G2 PASS (p99 {p99} µs ≤ 1000 µs) · G4 PASS (core alloc-free, canary {canary_count})"
