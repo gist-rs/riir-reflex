@@ -81,3 +81,27 @@ serving posture) pays NOTHING — the fit is skipped entirely.
 - Site: republished + deployed — the typed + emotion rows move on BOTH
   hosts; every other row unchanged. The publish gate's cross-host drift
   tripwire refused the one-host state first (working as designed).
+
+## Addendum — round 2, the ladder extension (`6199e5e`)
+
+The round-1 argmaxes SATURATED their top rungs (emotion ridge@2, typed oc@2,
+sst5 nb@16, xnli nb@16) and the pure-count probes read HIGHER than the shipped
+blends on emotion (+3–4) and prompt_injections (+5–6) — the slice was asking
+for more. The ladders went up (nb +32/64; oc +4/8; ridge +4/8) and every
+selection re-ran (selection round 2 — disclosed: the round-1 test reads were
+spent at the round-1 postures; each round reads test once at its cal-selected
+posture):
+
+- **emotion: ridge@8 selected → test 0.8850** (+3.75 pt over 0.8475; +29.25
+  over laya). G1 PASS (calibrated ECE 0.0 vs floor 0.278). Cross-host
+  re-proven 14/14 at `6199e5e` (both hosts 0.8850).
+- typed (oc@2), sst5 (nb@16), xnli (nb@16): the slice HELD the round-1
+  postures against the extended ladders — no move, byte-identical rows.
+- prompt_injections: nb@1 held — the slice cannot see the higher-scale signal
+  (the T1b slice-weakness class; pure-NB 0.836 on test stays unreachable via
+  the slice — recorded in `.issues/041` with the slice-size idea).
+- ag_news/massive/banking77/code_fixtures/harness families: byte-identical.
+- Site: republished + deployed (emotion 0.885 on both hosts); the sibling's
+  new pairing-identity gate fired on 3 suites (accuracy-identical re-runs,
+  oracle-snapshot tag drift only) — published with the gate's own explicit
+  ack naming them, reason in the reflex-site commit message.
