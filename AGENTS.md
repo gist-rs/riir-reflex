@@ -230,11 +230,18 @@ PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
 # the default margin the four gross direction errors of 061 disarm to zero
 # (emotion/banking77/typed-en+multi/prompt) and the two small-magnitude
 # flips remain (sst5 −2.2, massive −3.0); the measured arm-bar gap is
-# (0.150, 0.288] — issue 042 T3 owns the margin call. G3: flag-off cascade
-# rows carry no worthiness key (byte-shape identical to 061).
+# (0.150, 0.288]. T3 DECIDED (a) — fixed margin 0.16 is the recommended
+# posture (in the measured gap; acceptance re-run .benchmarks/063_cascade_worthiness_margin016:
+# 10/10 PASS, sst5+massive read modelless exactly, typed +0.277 / xnli +0.117
+# kept, ag_news's +6.75 the recorded price). Library default stays 0.0
+# (neutral arm-at-parity); the docs command carries the recommended value.
+# Reopen (b) per-suite cal-fit only if a fixed-bar arm-side row flips on a
+# future lane run. G3: flag-off cascade rows carry no worthiness key
+# (byte-shape identical to 061).
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -- \
-  --datasets-dir .raw/datasets_t20k --cascade --cascade-worthiness --nb-select --oc-select --ridge-select \
-  --out .benchmarks/063_cascade_worthiness
+  --datasets-dir .raw/datasets_t20k --cascade --cascade-worthiness --cascade-worthiness-margin 0.16 \
+  --nb-select --oc-select --ridge-select \
+  --out .benchmarks/063_cascade_worthiness_margin016
 
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a

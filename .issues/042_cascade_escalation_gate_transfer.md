@@ -1,12 +1,14 @@
 # Issue 042 — the cascade's escalation gate: cal→test abstain transfer breaks at the armed postures
 
-**Status:** OPEN — lever 3 LANDED + measured (Bench 063: the gross direction
-blindness is FIXED — all four suites 061 lost now disarm and read exactly
-the modelless row; the two residual FAILs are the cal→test sign flip at
-|probe Δ| ≤ 0.15, same amounts 061 had; a margin ≥ 0.16 would pass the gate
-10/10 on that run at the price of ag_news's +6.75). Live: the margin call
-(fixed constant vs per-suite cal-fit, T3 below) + levers 1–2 (the rate axis,
-blocked on the sibling's T5 genome work).
+**Status:** OPEN — T3 DECIDED 2026-09-27: option (a), fixed margin 0.16
+(recommended posture, zero code; acceptance re-run
+`.benchmarks/063_cascade_worthiness_margin016` PASSED the gate 10/10 —
+cascade ≥ modelless on every suite, sst5 + massive read modelless exactly,
+typed +0.2770 / xnli +0.1167 kept, ag_news's +6.75 the recorded price).
+Library default stays 0.0; the docs lane command carries the recommended
+value. Live: levers 1–2 (the rate axis, blocked on the sibling's T5 genome
+work) + the (b) reopen trigger (a fixed-bar arm-side row flips on a future
+lane run).
 
 ## The finding (Bench 061, measured)
 
@@ -79,6 +81,41 @@ the gate moves).
 
 ## T3 — the margin call (lever 3's open half, measured Bench 063)
 
+**DECIDED 2026-09-27: option (a) — fixed margin 0.16 as the recommended
+posture.** Why (a) over (b): the measured failure mode is the cal→test SIGN
+FLIP on small positive probes (sst5 +0.072 → −0.0217, massive +0.150 →
+−0.030) — a cal-split fit re-estimates from MORE cal data and reduces
+estimator variance, but it cannot OBSERVE a cal→test shift (test never
+enters any fit, protocol); nothing measured shows the cal-half distributions
+separate ag_news (true positive) from sst5/massive (the flips), while
+MAGNITUDE is the one measured discriminator (≥ 0.288 → 2/2, 0.072–0.150 →
+1/3, negatives → 5/5) and the fixed bar implements exactly that. (b) also
+touches selection-adjacent code near the sibling's T5 work, and its
+acceptance (ag_news ≥ +0.0675) is unguaranteeable from cal-only fitting.
+Levers 1–2 (rate axis) shift the probe sets next — per-suite fit plumbing
+built now would be premature.
+
+**Acceptance re-run** (the exact 063 command + `--cascade-worthiness-margin
+0.16`, artifacts `.benchmarks/063_cascade_worthiness_margin016/`; preflight
+REFUSED on load 6.08 — sibling session — same provisional-latency posture
+as 063, accuracy gates pick-count load-immune): **10/10 PASS** — cascade ≥
+modelless on every suite; typed·typed armed (probe +0.2881 → test +0.2770)
+and xnli armed (+0.4000 → +0.1167) keep their gains; every other suite
+(incl. sst5 +0.0718 and massive +0.1500, both < 0.16) disarms and reads
+modelless EXACTLY — the two 063 FAILs are gone. ag_news (probe +0.1316)
+disarms: its +6.75 is the recorded price of (a). All probe deltas re-read
+byte-identical to 063 (G5 determinism end to end).
+
+Posture discipline: the LIBRARY default stays 0.0 (neutral arm-at-parity,
+no knob magic) — the recommended value rides the documented lane command
+(AGENTS.md). Default-promotion trigger: a second independent lane run
+reproducing 10/10 at 0.16, ideally after levers 1–2 settle the rate axis.
+**(b) reopen trigger:** a future lane run where a fixed-bar ARM-side row
+flips on test (the measured gap misclassifies an armed suite) — that is the
+only evidence cal-split fitting could act on.
+
+<details><summary>Pre-decision record (the measured basis)</summary>
+
 The probe's DISARM side is magnitude-robust: every negative probe
 (−0.049…−0.350, five checkpoints) predicted a test-side loss and disarmed
 — 5/5, including the smallest (prompt −0.049 → would-be −2.6). The ARM
@@ -96,10 +133,13 @@ Two candidate fixes, both protocol-legal:
   ag_news's margin is fit from its own cal distribution. More code, keeps
   the gains; the fit-split law must be pinned (never test, and the probe
   half never overlaps the fit half).
+</details>
 
 Acceptance for either: Bench 063's command re-run → cascade ≥ modelless on
 every dataset suite AND no armed suite loses its measured gain vs the
-0.0-margin run (ag_news must keep ≥ +0.0675 under (b)).
+0.0-margin run (ag_news must keep ≥ +0.0675 under (b)). **(a) MET 2026-09-27**
+(see the decision block above; the ag_news gain-retention clause is (b)-scoped
+by the issue's own wording — (a) names the surrender explicitly).
 
 ## Acceptance
 

@@ -7,6 +7,31 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 042 T3 DECIDED (a) — fixed escalation-worthiness margin 0.16, the
+  recommended cascade posture (acceptance re-run
+  `.benchmarks/063_cascade_worthiness_margin016/`, 10/10 PASS).** Why (a)
+  over the per-suite cal-fit (b): the failure being fixed is the cal→test
+  SIGN FLIP on small positive probes — a cal-split fit re-estimates from
+  more cal data (variance ↓) but cannot observe a cal→test shift (test
+  never enters any fit), nothing measured separates ag_news's cal
+  distribution from sst5/massive's, and MAGNITUDE is the one measured
+  discriminator — the fixed bar implements exactly that; (b) also touches
+  selection-adjacent code near the sibling's T5 genome work and its
+  ag_news-retention clause is unguaranteeable from cal-only fitting. The
+  re-run (exact 063 command + `--cascade-worthiness-margin 0.16`; preflight
+  REFUSED on load 6.08 — sibling session — accuracy pick-counts load-immune
+  as in 063): cascade ≥ modelless on every suite; typed·typed armed
+  (+0.2881 → test +0.2770) and xnli armed (+0.4000 → +0.1167) keep their
+  gains; every other suite — including sst5 (+0.0718) and massive
+  (+0.1500), both under the bar — disarms and reads modelless EXACTLY (the
+  two 063 FAILs gone); ag_news (+0.1316) disarms, its +6.75 the recorded
+  price. All probe deltas byte-identical to 063 (G5 determinism end to
+  end). Library default stays 0.0 (neutral arm-at-parity); the AGENTS.md
+  lane command carries 0.16. Default-promotion trigger: a second
+  independent lane run reproducing 10/10, ideally post-levers-1–2. (b)
+  reopen trigger: a future lane run where a fixed-bar ARM-side row flips on
+  test.
+
 - **Issue 042 lever 3 LANDED — the per-suite cascade escalation-worthiness
   gate (`--cascade-worthiness`, Bench 063).** The `--cascade` lane's
   escalation was direction-blind (Bench 061: banking77 −14.0 pt while xnli

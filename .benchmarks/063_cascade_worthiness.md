@@ -109,3 +109,39 @@ suite+checkpoint, the probe's cost face: ~2 s/suite on the metal lane).
 - The suite modelless rows reproduce 061's to 4dp (13/14 byte-identical
   reproduction was 061's own posture proof; this run reads the same
   posture through the same selection flags).
+
+## Addendum — T3 acceptance re-run at the fixed margin 0.16 (2026-09-27)
+
+Issue 042 T3 DECIDED (a): **0.16 is the recommended posture** — in the
+measured gap (0.150, 0.288], the only measured discriminator (magnitude),
+and the one a cal-split fit (b) cannot improve on: (b) reduces estimator
+variance but cannot observe a cal→test shift, which is precisely the
+failure mode at small positive probes. Recorded in the issue; the reopen
+trigger for (b) is a future lane run where a fixed-bar ARM-side row flips.
+
+Acceptance evidence — the exact command above plus
+`--cascade-worthiness-margin 0.16`, artifacts
+`.benchmarks/063_cascade_worthiness_margin016/` (results.json + TABLES.md):
+
+| suite | probe Δ | verdict @0.16 | cascade | modelless | test Δ |
+|---|---|---|---|---|---|
+| typed_decisions · typed | +0.2881 | armed | 0.7425 | 0.4655 | **+0.2770** |
+| typed_decisions · english | −0.1378 | DISARMED | 0.4655 | 0.4655 | 0.0000 |
+| typed_decisions · multilingual | −0.1879 | DISARMED | 0.4655 | 0.4655 | 0.0000 |
+| ag_news | +0.1316 | DISARMED | 0.8825 | 0.8825 | 0.0000 (the +6.75 price) |
+| emotion | −0.3131 | DISARMED | 0.8850 | 0.8850 | 0.0000 |
+| sst5 | +0.0718 | DISARMED | 0.3967 | 0.3967 | 0.0000 (was FAIL −2.2) |
+| prompt_injections | −0.0494 | DISARMED | 0.7672 | 0.7672 | 0.0000 |
+| xnli_en | +0.4000 | armed | 0.6400 | 0.5233 | **+0.1167** |
+| massive_intent_en | +0.1500 | DISARMED | 0.7800 | 0.7800 | 0.0000 (was FAIL −3.0) |
+| banking77 | −0.3500 | DISARMED | 0.8420 | 0.8420 | 0.0000 |
+
+**10/10 PASS** — cascade ≥ modelless on every suite; the two 063 FAILs
+read modelless exactly; both armed gains kept. Every probe delta re-read
+byte-identical to the 0.0-margin run (G5 determinism end to end).
+PROVENANCE (this box, the re-run): preflight REFUSED — load 6.08 (sibling
+session), swap 1890 MB, canary 125.8 µs (healthy), power AC, powermode 2
+— same provisional-latency posture as the main run; accuracy gates are
+pick-counts, load-immune. Library default stays 0.0; the AGENTS.md lane
+command carries 0.16 (the second independent 10/10 run — ideally after
+levers 1–2 — is the default-promotion trigger).
