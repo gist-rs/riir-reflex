@@ -7,6 +7,39 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 043 RESOLVED (measured, `37cb732d` + `44bb7cbd`) — the
+  prompt_injections polarity gap does not exist as a slice problem, and
+  the gain does not exist through the shipped term.** The issue asked for
+  a discriminating cal slice; measurement split the premise: (a) the
+  positional-prefix hypothesis is REFUTED as dangerous —
+  `scripts/issue043_slice_probe.py` shows the train mirror is NOT
+  label-grouped (injections from index 4) and positional prefixes FLIP
+  the preferred polarity by region (prefix100 → nb1, prefix200/300/400 →
+  nb0, the WRONG posture, mirror-test 0.32–0.34), so raising the
+  positional cal_cap (candidate 1) would have been actively harmful; (b)
+  the stratified lanes (`--nb-select`, `--cal-select-cap`) ALREADY
+  select on `stratified_selection_slices` — on that slice the polarity
+  candidates separate cleanly (off 0.5000 / Some(0) 0.3900 / **Some(1)
+  0.6100**, stable across every scale — the noul pick is the margin's
+  sign, scale-invariant — and across the α axis, observed-laplace 0.61
+  vs fixed-1 0.51); selection picks `scale 1 α observed-laplace noul-yes
+  Some(1)`, clearing the house margin; (c) the SINGLE TEST READ at that
+  posture is **0.7672 — byte-identical to the shipped row** (run at
+  `/tmp/reflex_issue043_run`, HEAD `767c577`, isolated worktree: the
+  sibling's in-flight manifest edits blocked the main checkout); (d) the
+  corpus-cap axis is FLAT (every cap 8..512 reads 0.5000 on the slice;
+  `/tmp/reflex_issue043_run2`). The 0.8362 probe datum is unreachable
+  through the shipped mechanism: it came from plain MNB argmax WITH
+  priors over the full train corpus, while the engine's noul polarity is
+  σ(margin/n_tokens) of one-vs-rest in-scope log2-odds with no prior
+  term, pick = margin sign; at the engine's reachable corpus (≤64/label)
+  even the mirror's MNB reads only 0.63–0.65 — below the shipped 0.7672.
+  Reopen path recorded in the issue (removed per the noise-reduction
+  rule; this row is the record): a `noul_full_posterior` term + an
+  NB-table-only corpus rise, expected gain unproven and possibly
+  negative. Probe-mirror validation: full-train MNB reads 0.8017 ≈ the
+  038-POC's recorded 0.802.
+
 - **Issue 038 CLOSED — every lever in the ranked plan has a verdict; the
   remaining gap belongs to the model-based lane (T4 → riir-instinct).
   Final probe verdicts (T7c/d, `e36b7e09`):
