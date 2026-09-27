@@ -370,7 +370,12 @@ fn http_edge_contract() {
     ));
     let eng = std::sync::Arc::clone(&engine);
     let server = std::thread::spawn(move || {
-        let _ = riir_reflex::serve::serve_listener(listener, eng);
+        let heads = std::sync::Arc::new(riir_reflex::game_heads::GameHeads::build(
+            include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl"),
+            include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl"),
+            include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl"),
+        ));
+        let _ = riir_reflex::serve::serve_listener(listener, eng, heads);
     });
 
     // Liveness: JSON with the lane map (the arena page's lane discovery —

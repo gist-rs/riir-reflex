@@ -812,9 +812,22 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         }
         self.cfg.route_scale = route_scale;
         self.cfg.head_scale = head_scale;
-        self.cfg.nb_scale = nb_scale;
-        self.cfg.oc_scale = oc_scale;
-        self.cfg.ridge_scale = ridge_scale;
+        // The gated fields only exist behind their features; the guards
+        // above already refused every off-feature scale > 0, so skipping
+        // the write here is behavior-identical to writing 0 (the value is
+        // always 0 at this point on a gated-off feature).
+        #[cfg(feature = "nb_scope")]
+        {
+            self.cfg.nb_scale = nb_scale;
+        }
+        #[cfg(feature = "option_cond")]
+        {
+            self.cfg.oc_scale = oc_scale;
+        }
+        #[cfg(feature = "nb_ridge")]
+        {
+            self.cfg.ridge_scale = ridge_scale;
+        }
         Ok(())
     }
 

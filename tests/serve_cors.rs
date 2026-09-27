@@ -15,7 +15,12 @@ fn spawn(allow: Vec<String>) -> String {
     let eng = Arc::new(Mutex::new(demo_engine()));
     let laya = Arc::new(Mutex::new(LayaLane::Off));
     std::thread::spawn(move || {
-        let _ = serve_listener_with(listener, eng, laya, allow);
+        let heads = std::sync::Arc::new(riir_reflex::game_heads::GameHeads::build(
+            include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl"),
+            include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl"),
+            include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl"),
+        ));
+        let _ = serve_listener_with(listener, eng, laya, allow, heads);
     });
     addr
 }

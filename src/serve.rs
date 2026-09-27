@@ -571,40 +571,144 @@ pub fn run() -> std::io::Result<()> {
         "[riir-reflex] laya lane: {} (set RIIR_REFLEX_LAYA=1 to enable the comparison lane)",
         laya.lock().unwrap().as_str()
     );
-    // The fitted game heads (Plan 607's decoded arms — boot-fitted from
-    // the digest-pinned oracle fixtures; issue 011 closed: all three arena
-    // boards serve). Failure here is a broken build, never a runtime
-    // condition: the fixtures are compile-time and the tests pin each
-    // fit's determinism + published agreement anchors.
-    let heads = Arc::new(GameHeads::build());
-    eprintln!(
-        "[riir-reflex] game head: tetris fitted ({} corpus options, λ {}, digest {})",
-        heads.n_options(),
-        heads.lambda(),
-        heads.digest_hex()
-    );
-    let (lanes_lambda, lanes_digest, lanes_n) = heads.lanes_fit();
-    eprintln!(
-        "[riir-reflex] game head: lanes fitted ({} corpus options, λ {}, digest {})",
-        lanes_n, lanes_lambda, lanes_digest
-    );
-    let (flappy_lambda, flappy_digest, flappy_n) = heads.flappy_fit();
-    eprintln!(
-        "[riir-reflex] game head: flappy v3 fitted ({} corpus options, λ {}, digest {})",
-        flappy_n, flappy_lambda, flappy_digest
-    );
+    // The game heads (Plan 607's decoded arms): loaded from the minted
+    // PUBLIC-RELEASE head vessels (instinct Proposal 001 T4 — A1: bytes
+    // are runtime, vessels never committed, never compiled in; the boot
+    // fit is GONE). Absent dir = a LOUD serving posture (the boards
+    // abstain), never a silent empty; a present-but-broken vessel is a
+    // hard boot failure — a vessel that asked to be a head and failed is
+    // never papered over.
+    let heads = Arc::new(resolve_serve_heads());
+    if heads.has_tetris() {
+        eprintln!(
+            "[riir-reflex] game head: tetris loaded from vessel ({} corpus options, λ {}, digest {})",
+            heads.n_options(),
+            heads.lambda(),
+            heads.digest_hex()
+        );
+    }
+    if heads.has_lanes() {
+        let (lanes_lambda, lanes_digest, lanes_n) = heads.lanes_fit();
+        eprintln!(
+            "[riir-reflex] game head: lanes loaded from vessel ({} corpus options, λ {}, digest {})",
+            lanes_n, lanes_lambda, lanes_digest
+        );
+    }
+    if heads.has_flappy() {
+        let (flappy_lambda, flappy_digest, flappy_n) = heads.flappy_fit();
+        eprintln!(
+            "[riir-reflex] game head: flappy v3 loaded from vessel ({} corpus options, λ {}, digest {})",
+            flappy_n, flappy_lambda, flappy_digest
+        );
+    }
     serve_listener_lanes(listener, engine, laya, heads)
 }
 
-/// Serve on an ALREADY-BOUND listener with an EXPLICIT CORS allow-list (the
-/// test seam — no process-global env mutation across test threads).
+/// Resolve the serve-time game heads. DEFAULT posture (no
+/// `RIIR_REFLEX_HEADS_DIR`): loud-absent — the arena game boards abstain
+/// and the boot line names the env + the mint command. With a dir: the
+/// vessels are opened (strict ed25519 + blake3) and the heads installed
+/// WHOLE — nothing is re-fitted.
+#[cfg(feature = "vessel_public_read")]
+fn resolve_serve_heads() -> crate::game_heads::GameHeads {
+    use crate::game_heads::{absent_heads_message, GameHeads, HEAD_VESSEL_FILES};
+    let dir = match std::env::var("RIIR_REFLEX_HEADS_DIR") {
+        Ok(d) if !d.trim().is_empty() => std::path::PathBuf::from(d),
+        _ => {
+            eprintln!("[riir-reflex] {}", absent_heads_message("RIIR_REFLEX_HEADS_DIR"));
+            return GameHeads::absent();
+        }
+    };
+    // Trust anchors: the compiled pin table first (EMPTY until the first
+    // release artifact ships), then the operator env — the same
+    // pins-first-wildcard-adds shape the reflexer bin uses. A dir with
+    // vessels but NO trust anchor is a config gap: refuse loud (exit 2)
+    // naming the env, never fail every vessel with a generic unknown-key.
+    let mut pins = reflexer_vessel::default_pins();
+    let wildcard = std::env::var("RIIR_REFLEX_HEADS_PUBKEY").ok();
+    if let Some(hex) = wildcard.as_deref() {
+        let bytes = hex_decode32(hex.trim()).unwrap_or_else(|e| {
+            eprintln!("[riir-reflex] RIIR_REFLEX_HEADS_PUBKEY: {e}");
+            std::process::exit(2);
+        });
+        let vk = reflexer_vessel::ed25519_dalek::VerifyingKey::from_bytes(&bytes)
+            .unwrap_or_else(|e| {
+                eprintln!("[riir-reflex] RIIR_REFLEX_HEADS_PUBKEY: bad verifying key: {e}");
+                std::process::exit(2);
+            });
+        pins = pins.with_wildcard(vk);
+    }
+    let dir_has_vessels = HEAD_VESSEL_FILES.iter().any(|f| dir.join(f).exists());
+    if dir_has_vessels && reflexer_vessel::DEFAULT_PIN_KEYS.is_empty() && wildcard.is_none() {
+        eprintln!(
+            "[riir-reflex] game heads: {} carries vessels but no trust anchor is configured — \
+             set RIIR_REFLEX_HEADS_PUBKEY to the minting key's verifying key hex (printed by \
+             `reflexer sign` / `reflex mint-heads`)",
+            dir.display()
+        );
+        std::process::exit(2);
+    }
+    match GameHeads::from_vessel_dir(&dir, &pins) {
+        Ok(heads) => {
+            if !heads.has_any() {
+                eprintln!(
+                    "[riir-reflex] game heads: {} carries none of {:?} — {}",
+                    dir.display(),
+                    HEAD_VESSEL_FILES,
+                    absent_heads_message("RIIR_REFLEX_HEADS_DIR")
+                );
+            }
+            heads
+        }
+        Err(e) => {
+            eprintln!("[riir-reflex] game heads refused from {}: {e}", dir.display());
+            std::process::exit(1);
+        }
+    }
+}
+
+/// Feature-off posture: the vessel reader is not compiled — serve boots
+/// WITHOUT head vessels, with the same loud line (never a silent empty).
+#[cfg(not(feature = "vessel_public_read"))]
+fn resolve_serve_heads() -> crate::game_heads::GameHeads {
+    eprintln!(
+        "[riir-reflex] {}",
+        crate::game_heads::absent_heads_message("RIIR_REFLEX_HEADS_DIR")
+    );
+    eprintln!(
+        "[riir-reflex] game heads: unavailable — this build was compiled without the \
+         vessel_public_read feature"
+    );
+    crate::game_heads::GameHeads::absent()
+}
+
+/// Parse a 64-hex verifying key (the `RIIR_REFLEX_HEADS_PUBKEY` env form).
+#[cfg(feature = "vessel_public_read")]
+fn hex_decode32(s: &str) -> Result<[u8; 32], String> {
+    if s.len() != 64 || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
+        return Err(format!("expected 64 hex chars (32 bytes), got {} chars", s.len()));
+    }
+    let mut out = [0u8; 32];
+    for (i, chunk) in s.as_bytes().chunks(2).enumerate() {
+        let hi = (chunk[0] as char).to_digit(16).expect("hex");
+        let lo = (chunk[1] as char).to_digit(16).expect("hex");
+        out[i] = ((hi << 4) | lo) as u8;
+    }
+    Ok(out)
+}
+
+/// Serve on an ALREADY-BOUND listener with an EXPLICIT CORS allow-list and
+/// an EXPLICIT game-head lane (the test seam — no process-global env
+/// mutation across test threads, and no boot-fit: the caller owns the
+/// heads, fitted or loaded).
 pub fn serve_listener_with<const N: usize, const D: usize>(
     listener: TcpListener,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
     laya: Arc<Mutex<LayaLane>>,
     allow: Vec<String>,
+    heads: Arc<GameHeads>,
 ) -> std::io::Result<()> {
-    serve_listener_heads(listener, engine, laya, allow, Arc::new(GameHeads::build()))
+    serve_listener_heads(listener, engine, laya, allow, heads)
 }
 
 /// Serve on an ALREADY-BOUND listener with an EXPLICIT game-head lane (the
@@ -648,17 +752,19 @@ pub fn serve_listener_lanes<const N: usize, const D: usize>(
 }
 
 /// Serve on an ALREADY-BOUND listener (the production seam — the allow-list
-/// comes from `allowed_origins()`, the laya lane stays off).
+/// comes from `allowed_origins()`, the laya lane stays off, and the caller
+/// owns the heads).
 pub fn serve_listener<const N: usize, const D: usize>(
     listener: TcpListener,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
+    heads: Arc<GameHeads>,
 ) -> std::io::Result<()> {
     serve_listener_heads(
         listener,
         engine,
         Arc::new(Mutex::new(LayaLane::Off)),
         allowed_origins(),
-        Arc::new(GameHeads::build()),
+        heads,
     )
 }
 
@@ -804,14 +910,19 @@ fn handle_conn<const N: usize, const D: usize>(
         },
         ("GET", "/healthz") => {
             let laya_state = laya.lock().unwrap().as_str();
-            // The game heads are compile-time surfaces (they boot-fitted or
-            // the process died): advertised statically so the arena page can
-            // label precisely instead of guessing the engine version.
+            // The game-head map reflects the ACTUAL lanes: true when the
+            // head is installed (loaded from its vessel — or fitted, the
+            // caller's choice), false when absent (the loud-absent
+            // serving posture — the arena page labels precisely instead
+            // of guessing).
             json_response(
                 &mut writer,
                 "200 OK",
                 &format!(
-                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}},\"heads\":{{\"tetris\":true,\"lanes\":true,\"flappy\":true}}}}"
+                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}},\"heads\":{{\"tetris\":{},\"lanes\":{},\"flappy\":{}}}}}",
+                    heads.has_tetris(),
+                    heads.has_lanes(),
+                    heads.has_flappy()
                 ),
                 cors.as_deref(),
             );

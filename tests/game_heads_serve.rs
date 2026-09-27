@@ -16,6 +16,19 @@ use riir_reflex::game_heads::{
     FLAPPY_V3_FIXTURE_BLAKE3, GameHeads, LANES_FIXTURE_BLAKE3, TETRIS_D, TETRIS_FIXTURE_BLAKE3,
     fixture_pins, head_digest, loo_select, parse_corpus,
 };
+
+/// The fixture texts, read into the TEST binary (never the serve binary —
+/// the vessel extraction removed the serve side's compile-time fixtures;
+/// the tests still need them to fit + pin the recipes).
+const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl");
+const LANES_FIXTURE: &str = include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl");
+const FLAPPY_FIXTURE: &str = include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl");
+
+/// The fitted-head constructor for this test file (all three heads from
+/// the repo fixture texts).
+fn build_heads() -> GameHeads {
+    GameHeads::build(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE)
+}
 use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_heads};
 
 use std::path::PathBuf;
@@ -45,7 +58,7 @@ const N_STATES: usize = 120;
 fn fixture_bytes_match_the_pinned_blake3() {
     // The include_str! bytes hashed through the same blake3 the pin names —
     // a corrupted or stale embedded copy reds here instead of serving.
-    let (corpus, _stdizer) = parse_corpus(); // panics on parse drift; cheap enough (~ms)
+    let (corpus, _stdizer) = parse_corpus(TETRIS_FIXTURE); // panics on parse drift; cheap enough (~ms)
     assert_eq!(corpus.question, "Does the stack look clean?");
     // The digest pin itself: hash the fixture through blake3's streaming
     // reader by re-reading it from the binary — include_str! has no path at
@@ -62,7 +75,7 @@ fn every_embedded_fixture_hashes_to_its_pin() {
     // The include_str! bytes hashed through blake3 against the pinned hex —
     // before Issue 884 the three pins were asserted by LENGTH only, so a
     // stale pin beside a re-copied fixture passed.
-    for (name, got, pin) in fixture_pins() {
+    for (name, got, pin) in fixture_pins(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE) {
         assert_eq!(got, pin, "{name}: embedded fixture blake3 != pinned blake3");
     }
 }
@@ -95,7 +108,7 @@ fn corpus_round_trip_is_byte_identical() {
     // Every corpus sentence must decode AND re-render byte-identically —
     // the grammar port's drift detector (the katgpt-rs decode example runs
     // the same check over the same fixture).
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let g = *heads.grammar();
     let mut n = 0usize;
     for line in include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl").lines() {
@@ -117,7 +130,7 @@ fn corpus_round_trip_is_byte_identical() {
 
 #[test]
 fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
-    let (corpus, _stdizer) = parse_corpus();
+    let (corpus, _stdizer) = parse_corpus(TETRIS_FIXTURE);
     let mut fitter = katgpt_core::state_option_scoring::head::HeadFitter::<TETRIS_D>::new();
     let (lambda, loo_picks) = loo_select(&mut fitter, &corpus);
     assert_eq!(lambda, ANCHOR_LAMBDA, "LOO-selected λ drifted");
@@ -142,7 +155,7 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
     assert_eq!(in_agree, ANCHOR_IN_CORPUS, "in-corpus agreement drifted from the v3 refit (Bench 892)");
 
     // Determinism: a fresh fit from the same corpus is byte-identical.
-    let (corpus2, _) = parse_corpus();
+    let (corpus2, _) = parse_corpus(TETRIS_FIXTURE);
     let mut fitter2 = katgpt_core::state_option_scoring::head::HeadFitter::<TETRIS_D>::new();
     let (lambda2, _) = loo_select(&mut fitter2, &corpus2);
     let head2 = fitter2.fit_into(&corpus2.rows, &corpus2.targets, lambda2);
@@ -153,7 +166,7 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
     );
 
     // The serving struct reproduces the same fit (the boot path).
-    let heads = GameHeads::build();
+    let heads = build_heads();
     assert_eq!(heads.digest_hex(), head_digest(&head).to_string());
     assert_eq!(heads.lambda(), ANCHOR_LAMBDA);
     assert_eq!(heads.n_options(), 2660);
@@ -200,7 +213,7 @@ fn post_decide(body: &str) -> (u16, String) {
     let addr = listener.local_addr().expect("addr");
     let eng = Arc::new(Mutex::new(demo_engine()));
     let laya = Arc::new(Mutex::new(LayaLane::Off));
-    let heads = Arc::new(GameHeads::build());
+    let heads = Arc::new(build_heads());
     std::thread::spawn(move || {
         let _ = serve_listener_heads(listener, eng, laya, vec![], heads);
     });
@@ -239,7 +252,7 @@ fn post_decide(body: &str) -> (u16, String) {
 
 #[test]
 fn a_fixture_question_is_answered_from_the_head() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (sentence, _argmax) = first_fixture_sentence();
     let req = spot_request(&sentence, heads.question());
     let resp = heads.respond(&req).expect("a spot question is served");
@@ -268,7 +281,7 @@ fn a_fixture_question_is_answered_from_the_head() {
 
 #[test]
 fn a_non_noul_or_foreign_question_falls_through() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (sentence, _) = first_fixture_sentence();
     // A foreign question: the head's semantic is pinned; refuse.
     assert!(
@@ -354,7 +367,7 @@ fn lanes_fixture_bytes_match_the_published_blake3() {
     assert_eq!(LANES_FIXTURE_BLAKE3.len(), 64);
     // The published Bench 880 fixture pin's prefix.
     assert!(LANES_FIXTURE_BLAKE3.starts_with("6a6d02af"));
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (lambda, digest, n) = heads.lanes_fit();
     assert_eq!(n, LANES_OPTIONS, "lanes corpus option count drifted");
     assert_eq!(lambda, LANES_ANCHOR_LAMBDA, "lanes LOO-selected λ drifted");
@@ -366,7 +379,7 @@ fn lanes_fixture_bytes_match_the_published_blake3() {
 
 #[test]
 fn lanes_fit_hits_the_published_anchors() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (lambda, digest, n) = heads.lanes_fit();
     assert_eq!(lambda, LANES_ANCHOR_LAMBDA);
     assert_eq!(n, LANES_OPTIONS);
@@ -414,7 +427,7 @@ fn lanes_fit_hits_the_published_anchors() {
 
 #[test]
 fn lanes_corpus_round_trip_is_byte_identical() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let g = heads.lanes_grammar();
     let mut n = 0usize;
     for line in include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl").lines() {
@@ -435,7 +448,7 @@ fn lanes_corpus_round_trip_is_byte_identical() {
 
 #[test]
 fn the_wire_serves_the_lanes_joined_turn() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (sents, _argmax) = first_lanes_turn();
     let joined = sents.join("\n");
     let q = heads.lanes_question().to_string();
@@ -536,7 +549,7 @@ fn flappy_fixture_bytes_match_the_published_blake3() {
 
 #[test]
 fn flappy_fit_hits_the_published_anchors_exactly() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (lambda, digest, n) = heads.flappy_fit();
     assert_eq!(
         lambda, FLAPPY_ANCHOR_LAMBDA,
@@ -594,7 +607,7 @@ fn flappy_fit_hits_the_published_anchors_exactly() {
 
 #[test]
 fn flappy_corpus_round_trip_is_byte_identical() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (go, gs) = heads.flappy_grammars();
     let mut n = 0usize;
     for line in include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl").lines() {
@@ -617,7 +630,7 @@ fn flappy_corpus_round_trip_is_byte_identical() {
 
 #[test]
 fn the_wire_serves_the_flappy_pair() {
-    let heads = GameHeads::build();
+    let heads = build_heads();
     let (state_sentence, opt_sents, _argmax) = first_flappy_pair();
     let q = heads.flappy_question().to_string();
     let build = |option: &str| DecisionRequest {

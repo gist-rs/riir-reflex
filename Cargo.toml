@@ -34,6 +34,13 @@ serde = { version = "1", features = ["derive"] }
 # `default-features = false` is explicit: nothing of the lane lights up
 # until the forwarding features below.
 riir-infer-laya = { path = "../riir-infer/crates/riir-infer-laya", default-features = false }
+# reflexer-vessel (optional, default-features = false): the PUBLIC
+# decision-artifact vessel format crate (the public reflexer repo) — the
+# heads lane's signed PUBLIC-RELEASE reader + the mint path's public
+# writer. Selected ONLY through the `vessel_public_read` feature below;
+# the HOSTED-ONLY reader is never compiled into this repo (the moat:
+# hosted vessels refuse here at the class gate).
+reflexer-vessel = { path = "../riir-reflexer/crates/reflexer-vessel", default-features = false, optional = true }
 # blake3: the small-file house hash for the MODELLESS engine — the fixture
 # digests, the G5 pairing check, the corpus-row digests (the `modelless` +
 # `corpus_db` features below). The LANE's hash-family rationale (SHA-256
@@ -48,7 +55,7 @@ blake3 = { version = "1", optional = true }
 # vs floors, G2/G4 gates land WITH the lane), not whether the binary exists.
 # `--no-default-features` is the tested flag-OFF posture (empty-ish lib, no
 # bin — the [[bin]] row carries required-features).
-default = ["modelless", "nb_scope", "option_cond", "nb_ridge"]
+default = ["modelless", "nb_scope", "option_cond", "nb_ridge", "vessel_public_read"]
 modelless = [
     "katgpt-core/action_bridge",
     "katgpt-core/sigmoid_calibration",
@@ -90,6 +97,17 @@ option_cond = ["nb_scope"]
 # NO fit cost at 0) unless a caller — or the harness's `--ridge-select`
 # arena protocol — arms it. The fit is O(k³) per class, build-time only.
 nb_ridge = ["nb_scope"]
+# The heads lane's vessel capability (instinct Proposal 001 T3+T4 — A1:
+# bytes are runtime, capability is compile-time; vessels never committed,
+# never compiled in): the PUBLIC-RELEASE reader from reflexer-vessel,
+# which the serve edge lazy-loads the arena game heads from
+# (RIIR_REFLEX_HEADS_DIR) and the `mint-heads` subcommand signs through
+# (the format repo owns the public writer). Default-on. Feature-off:
+# the vessel-load + mint code compiles OUT entirely — serve boots with
+# the same loud heads-absent line (the boards abstain), every existing
+# call site still compiles. The HOSTED reader is NOT selectable here —
+# the public repo never compiles it (the moat).
+vessel_public_read = ["modelless", "dep:reflexer-vessel", "reflexer-vessel/vessel_public_read"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane
@@ -186,6 +204,17 @@ required-features = ["modelless"]
 [[test]]
 name = "game_heads_serve"
 required-features = ["modelless"]
+
+# The heads→vessels lane (instinct Proposal 001 T4): the PUBLIC-RELEASE
+# mint→load round trip — vessel-served answers byte-identical to the
+# fitted head's, the published head digests reproduced from the vessel
+# payload, the mint-side commitment equality, and the loud-absent
+# serving posture. Whole-file `#![cfg(all(feature = "modelless",
+# feature = "vessel_public_read"))]` — this row keeps a feature-less
+# selection skipping it loudly instead of printing a green zero.
+[[test]]
+name = "game_heads_vessels"
+required-features = ["modelless", "vessel_public_read"]
 
 # The substrate lane's G5 gate (CONSUMER-SIDE — the lane moved to the
 # inference substrate, this gate stays): the SAME fixture corpus +

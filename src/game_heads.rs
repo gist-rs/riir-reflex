@@ -37,10 +37,15 @@
 //!   asserted in `tests/game_heads_serve.rs`; the UNSERVED tetris v3/v4
 //!   oracle fixtures are pinned the same way test-side (the issue-031
 //!   four-hash: every pin is verified against bytes, never length-only);
-//! - each head is FITTED AT BOOT from its fixture by the published recipe
+//! - each head is FITTED from its fixture by the published recipe
 //!   (standardize → λ by state-level LOO MSE over the pinned grid → final
-//!   fit) — no weight artifact exists to drift, and the tests pin each
-//!   fit's bit-determinism plus the published agreement anchors;
+//!   fit). SINCE THE VESSEL EXTRACTION (instinct Proposal 001 T4), the
+//!   fit runs at MINT time (`reflex mint-heads`, or the tests) — the
+//!   serve binary carries no fixture bytes and fits nothing: it loads
+//!   the signed PUBLIC-RELEASE head vessels from `RIIR_REFLEX_HEADS_DIR`
+//!   (feature `vessel_public_read`, default-on) and installs them whole;
+//!   the tests pin each fit's bit-determinism plus the published
+//!   agreement anchors, and the vessel lane pins byte-identical answers;
 //! - grammar-invalid sentences, foreign questions and unknown inputs are
 //!   LOUD refusals here: they return `None` and the request falls through
 //!   to the cosine engine, which abstains off-corpus as before.
@@ -60,32 +65,27 @@ use katgpt_core::decision_wire::{
 use katgpt_core::state_option_scoring::head::{FittedHead, HeadFitter};
 use katgpt_core::template_decode::{DecodeError, Grammar, Seg, Template, Vocab};
 
-/// The tetris oracle fixture, verbatim from katgpt-rs `tests/fixtures/` —
-/// the **v3** grammar (Issue 884's real hard drop; the arena serves v3 and
-/// the head must be fitted on the distribution it scores — the v2-fitted
-/// head measured raw-class play under v3 sentences, demo re-record
-/// 2026-09-25). Pinned by BLAKE3 in the serve tests.
-const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl");
+/// The three oracle fixtures' file names under `assets/game_heads/` —
+/// the MINT INPUTS (repo files; never compiled into the serve binary
+/// since the vessel extraction). The mint command and the tests read
+/// them from disk; the serve binary never sees them.
+pub const TETRIS_FIXTURE_FILE: &str = "tetris_oracle_laya_en_v3.jsonl";
+pub const LANES_FIXTURE_FILE: &str = "lanes_oracle_laya_en_v1.jsonl";
+pub const FLAPPY_FIXTURE_FILE: &str = "flappy_oracle_laya_en_v3.jsonl";
 
-/// BLAKE3 of [`TETRIS_FIXTURE`] — equals the published v3 fixture pin
-/// `12035ebf…6e804` (katgpt-rs tetris_oracle_v3_README).
+/// BLAKE3 of the tetris fixture — equals the published v3 fixture pin
+/// `12035ebf…6e804` (katgpt-rs tetris_oracle_v3_README). Asserted against
+/// the on-disk bytes at mint time and in the tests.
 pub const TETRIS_FIXTURE_BLAKE3: &str =
     "12035ebf43d0293c7ec00e716e72ee6a21686cc41a222938a81d0abd9316e804";
 
-/// The lanes oracle fixture, verbatim from katgpt-rs `tests/fixtures/`
-/// (Plan 607 T5 / Bench 880).
-const LANES_FIXTURE: &str = include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl");
-
-/// BLAKE3 of [`LANES_FIXTURE`] — equals the published Bench 880 pin
-/// `6a6d02af…4f600`.
+/// The lanes oracle fixture file (Plan 607 T5 / Bench 880), verbatim from
+/// katgpt-rs `tests/fixtures/`. BLAKE3 of it equals the published Bench 880
+/// pin `6a6d02af…4f600`.
 pub const LANES_FIXTURE_BLAKE3: &str =
     "6a6d02af05b529749ddac3bf962344c2e22565b467f28a5eecd37031d0a4f600";
 
-/// The flappy v3 oracle fixture, verbatim from katgpt-rs
-/// `tests/fixtures/` (Issue 876 / Bench 882).
-const FLAPPY_V3_FIXTURE: &str = include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl");
-
-/// BLAKE3 of [`FLAPPY_V3_FIXTURE`] — equals the published Bench 882 pin
+/// BLAKE3 of the flappy v3 fixture — equals the published Bench 882 pin
 /// `88ac82bf…51fba`.
 pub const FLAPPY_V3_FIXTURE_BLAKE3: &str =
     "88ac82bfd2d50fb9f3448d57242d93f8fd9fd02ce101b5c1f97c249206f51fba";
@@ -618,9 +618,9 @@ fn assert_features_match(name: &str, ln: usize, i: usize, raw: &[f64], fixture: 
     }
 }
 
-/// Parse the tetris fixture, decode every option sentence through the
+/// Parse the tetris fixture text, decode every option sentence through the
 /// grammar and standardize by the corpus stats. Panics on any drift.
-pub fn parse_corpus() -> (TetrisCorpus, Standardizer<TETRIS_DECODED_F>) {
+pub fn parse_corpus(fixture: &str) -> (TetrisCorpus, Standardizer<TETRIS_DECODED_F>) {
     let g = tetris_spot();
     let mut question = String::new();
     let mut raws: Vec<[f64; TETRIS_DECODED_F]> = Vec::new();
@@ -628,7 +628,7 @@ pub fn parse_corpus() -> (TetrisCorpus, Standardizer<TETRIS_DECODED_F>) {
     let mut offsets = vec![0usize];
     let mut argmaxes = Vec::new();
 
-    for (ln, line) in TETRIS_FIXTURE.lines().enumerate() {
+    for (ln, line) in fixture.lines().enumerate() {
         let v: serde_json::Value = serde_json::from_str(line)
             .unwrap_or_else(|e| panic!("tetris fixture line {}: {e}", ln + 1));
         if v["state_id"] == "_meta" {
@@ -677,7 +677,7 @@ pub fn parse_corpus() -> (TetrisCorpus, Standardizer<TETRIS_DECODED_F>) {
 /// structured `features` (the losslessness proof, replayed per row). The
 /// lane-name fill must equal the option's position (the pinned slot
 /// order). Panics on any drift.
-pub fn parse_lanes_corpus() -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_F>) {
+pub fn parse_lanes_corpus(fixture: &str) -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_F>) {
     let g = lanes_option();
     let mut question = String::new();
     let mut raws: Vec<[f64; LANES_DECODED_F]> = Vec::new();
@@ -685,7 +685,7 @@ pub fn parse_lanes_corpus() -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_
     let mut offsets = vec![0usize];
     let mut argmaxes = Vec::new();
 
-    for (ln, line) in LANES_FIXTURE.lines().enumerate() {
+    for (ln, line) in fixture.lines().enumerate() {
         let v: serde_json::Value = serde_json::from_str(line)
             .unwrap_or_else(|e| panic!("lanes fixture line {}: {e}", ln + 1));
         if v["state_id"] == "_meta" {
@@ -749,7 +749,9 @@ pub fn parse_lanes_corpus() -> (HeadCorpus<LANES_D>, Standardizer<LANES_DECODED_
 /// 882 pins TWO digests at one 96/100 agreement (structured `dc6bcf73…`,
 /// decoded `c93d36dc…`): the reconstruction is pinned by the FULL decoded
 /// digest instead. Panics on any decode drift.
-pub fn parse_flappy_v3_corpus() -> (HeadCorpus<FLAPPY_V3_D>, Standardizer<FLAPPY_V3_DECODED_F>) {
+pub fn parse_flappy_v3_corpus(
+    fixture: &str,
+) -> (HeadCorpus<FLAPPY_V3_D>, Standardizer<FLAPPY_V3_DECODED_F>) {
     let go = flappy_option_v3();
     let gs = flappy_state();
     let mut question = String::new();
@@ -758,7 +760,7 @@ pub fn parse_flappy_v3_corpus() -> (HeadCorpus<FLAPPY_V3_D>, Standardizer<FLAPPY
     let mut offsets = vec![0usize];
     let mut argmaxes = Vec::new();
 
-    for (ln, line) in FLAPPY_V3_FIXTURE.lines().enumerate() {
+    for (ln, line) in fixture.lines().enumerate() {
         let v: serde_json::Value = serde_json::from_str(line)
             .unwrap_or_else(|e| panic!("flappy fixture line {}: {e}", ln + 1));
         if v["state_id"] == "_meta" {
@@ -846,33 +848,55 @@ pub fn loo_select<const D: usize>(
 
 /// BLAKE3 over the head weights (f64 LE) — the determinism anchor.
 pub fn head_digest<const D: usize>(h: &FittedHead<D>) -> blake3::Hash {
+    head_digest_weights(h.weights())
+}
+
+/// [`head_digest`] over raw weights — the VESSEL path's digest: the
+/// loaded weights are digested through the exact same bytes the fit-side
+/// digest hashes, so a loaded head and its fitted original carry the SAME
+/// digest (the acceptance gate asserts the published pins against it).
+pub fn head_digest_weights<const D: usize>(weights: &[f64; D]) -> blake3::Hash {
     let mut bytes = Vec::with_capacity(D * 8);
-    for w in h.weights() {
+    for w in weights {
         bytes.extend_from_slice(&w.to_le_bytes());
     }
     blake3::hash(&bytes)
 }
 
-/// Every embedded oracle fixture as `(name, embedded bytes' BLAKE3 hex,
-/// pinned BLAKE3 hex)` — the cross-repo data contract made checkable. The
-/// pins were documentation until this hashed the `include_str!` bytes
-/// (katgpt-rs Issue 884): a re-copied fixture whose pin was not bumped, or a
-/// bumped pin whose fixture was not re-copied, reds in the serve tests.
-pub fn fixture_pins() -> [(&'static str, String, &'static str); 3] {
+/// Every oracle fixture as `(name, given text's BLAKE3 hex, pinned BLAKE3
+/// hex)` — the cross-repo data contract made checkable. The pins were
+/// documentation until the bytes were hashed (katgpt-rs Issue 884): a
+/// re-copied fixture whose pin was not bumped, or a bumped pin whose
+/// fixture was not re-copied, reds in the tests (and the mint refuses
+/// before fitting). The fixture TEXTS are passed in — the serve binary
+/// carries none.
+pub fn fixture_pins<'a>(
+    tetris: &str,
+    lanes: &str,
+    flappy: &str,
+) -> [(&'a str, String, &'static str); 3] {
     let hex = |s: &str| blake3::hash(s.as_bytes()).to_hex().to_string();
     [
-        ("tetris", hex(TETRIS_FIXTURE), TETRIS_FIXTURE_BLAKE3),
-        ("lanes", hex(LANES_FIXTURE), LANES_FIXTURE_BLAKE3),
-        ("flappy_v3", hex(FLAPPY_V3_FIXTURE), FLAPPY_V3_FIXTURE_BLAKE3),
+        ("tetris", hex(tetris), TETRIS_FIXTURE_BLAKE3),
+        ("lanes", hex(lanes), LANES_FIXTURE_BLAKE3),
+        ("flappy_v3", hex(flappy), FLAPPY_V3_FIXTURE_BLAKE3),
     ]
 }
 
 // ── the serving struct ──────────────────────────────────────────────
 
 /// One fitted head + its standardizer + the published-fit metadata. Built
-/// once at boot; scoring is one decode + one design + one dot product.
+/// once at mint time (from the fit) or load time (from the signed vessel
+/// payload); scoring is one decode + one design + one dot product.
+///
+/// The weights are held DIRECTLY ([f64; D]) rather than as a
+/// `FittedHead<D>`: the substrate type has no public constructor from
+/// weights (fit-only), and the vessel path must install the minted
+/// weights WHOLE — never re-fit. The score fold below is the substrate's
+/// sequential f64 fold verbatim, and the vessel-vs-fitted answer-identity
+/// gate (`tests/game_heads_vessels.rs`) pins the two paths byte-equal.
 struct FittedGameHead<const F: usize, const D: usize> {
-    head: FittedHead<D>,
+    weights: [f64; D],
     stdizer: Standardizer<F>,
     question: String,
     lambda: f64,
@@ -888,9 +912,10 @@ impl<const F: usize, const D: usize> FittedGameHead<F, D> {
         let mut fitter = HeadFitter::<D>::new();
         let (lambda, _loo_picks) = loo_select(&mut fitter, &corpus);
         let head = fitter.fit_into(&corpus.rows, &corpus.targets, lambda);
+        let weights = *head.weights();
         let digest = head_digest(&head);
         Self {
-            head,
+            weights,
             stdizer,
             question: corpus.question,
             lambda,
@@ -899,10 +924,21 @@ impl<const F: usize, const D: usize> FittedGameHead<F, D> {
         }
     }
 
+    /// `w·x` — the substrate's sequential f64 fold VERBATIM (no SIMD
+    /// reordering): the serving path must score a loaded head exactly as
+    /// `FittedHead::score` scores the fitted one.
+    fn score_row(&self, x: &[f64; D]) -> f64 {
+        let mut s = 0.0f64;
+        for (wi, &xi) in self.weights.iter().zip(x.iter()) {
+            s = wi.mul_add(xi, s);
+        }
+        s
+    }
+
     /// Score one decoded feature row: design → head score, clamped [0, 1].
     fn score_raw(&self, raw: &[f64; F]) -> f64 {
         let row: [f64; D] = self.stdizer.design(raw);
-        self.head.score(&row).clamp(0.0, 1.0)
+        self.score_row(&row).clamp(0.0, 1.0)
     }
 }
 
@@ -914,8 +950,8 @@ struct TetrisHead {
 }
 
 impl TetrisHead {
-    fn build() -> Self {
-        let (corpus, stdizer) = parse_corpus();
+    fn build(fixture: &str) -> Self {
+        let (corpus, stdizer) = parse_corpus(fixture);
         Self {
             grammar: tetris_spot(),
             fit: FittedGameHead::build(corpus, stdizer),
@@ -938,8 +974,8 @@ struct LanesHead {
 }
 
 impl LanesHead {
-    fn build() -> Self {
-        let (corpus, stdizer) = parse_lanes_corpus();
+    fn build(fixture: &str) -> Self {
+        let (corpus, stdizer) = parse_lanes_corpus(fixture);
         Self {
             grammar: lanes_option(),
             fit: FittedGameHead::build(corpus, stdizer),
@@ -985,8 +1021,8 @@ struct FlappyHead {
 }
 
 impl FlappyHead {
-    fn build() -> Self {
-        let (corpus, stdizer) = parse_flappy_v3_corpus();
+    fn build(fixture: &str) -> Self {
+        let (corpus, stdizer) = parse_flappy_v3_corpus(fixture);
         Self {
             option_grammar: flappy_option_v3(),
             state_grammar: flappy_state(),
@@ -1005,13 +1041,31 @@ impl FlappyHead {
     }
 }
 
-/// The arena's three fitted game heads. Built once at boot; `respond`
-/// tries each game's pinned question shape in turn and falls through
-/// (`None`) to the cosine engine when none matches.
+/// The arena's game heads. Since the vessel extraction (instinct Proposal
+/// 001 T4 — A1: bytes are runtime, capability is compile-time) each head
+/// is an `Option`: PRESENT when fitted at mint time or loaded from its
+/// signed PUBLIC-RELEASE vessel, ABSENT otherwise — and an absent lane is
+/// a LOUD serving posture (the boot line names the env + the mint
+/// command), never a silent one.
 pub struct GameHeads {
-    tetris: TetrisHead,
-    lanes: LanesHead,
-    flappy: FlappyHead,
+    tetris: Option<TetrisHead>,
+    lanes: Option<LanesHead>,
+    flappy: Option<FlappyHead>,
+}
+
+/// The vessel file names inside the heads dir (`RIIR_REFLEX_HEADS_DIR`).
+pub const HEAD_VESSEL_FILES: [&str; 3] = ["tetris.vessel", "lanes.vessel", "flappy.vessel"];
+
+/// A loud-absent `GameHeads`: every lane absent. `respond` answers `None`
+/// for everything (the requests fall through to the abstaining engine).
+pub fn absent_heads_message(dir_env: &str) -> String {
+    format!(
+        "game heads: ABSENT — the arena game boards will abstain. Set {dir_env} to a minted \
+         heads dir; mint with: reflex mint-heads --fixtures assets/game_heads --out <dir> \
+         --key-id <u32> --key <64-hex-seed> (then trust it: RIIR_REFLEX_HEADS_PUBKEY=<the \
+         verifying key hex `reflexer sign` / `reflex mint-heads` prints>)",
+        dir_env = dir_env
+    )
 }
 
 fn head_response(req: &DecisionRequest, ps: &[f64], reason: &str) -> DecisionResponse {
@@ -1032,94 +1086,116 @@ fn head_response(req: &DecisionRequest, ps: &[f64], reason: &str) -> DecisionRes
 }
 
 impl GameHeads {
-    /// Fit all three heads from the embedded fixtures (the published
-    /// recipes). Panics on any fixture drift — the data is compile-time and
-    /// digest-pinned; a panic here means a broken build, loud by design.
-    pub fn build() -> Self {
+    /// Fit all three heads from the given fixture texts (the published
+    /// recipes) — the MINT-time constructor (the mint subcommand, the
+    /// tests). Panics on any fixture drift — the data is digest-pinned; a
+    /// panic here means a broken mint, loud by design. The SERVE binary
+    /// never calls this: it loads vessels (`from_vessel_dir`).
+    pub fn build(tetris_fixture: &str, lanes_fixture: &str, flappy_fixture: &str) -> Self {
         Self {
-            tetris: TetrisHead::build(),
-            lanes: LanesHead::build(),
-            flappy: FlappyHead::build(),
+            tetris: Some(TetrisHead::build(tetris_fixture)),
+            lanes: Some(LanesHead::build(lanes_fixture)),
+            flappy: Some(FlappyHead::build(flappy_fixture)),
         }
     }
 
+    /// The loud-absent posture: every lane absent (`respond` falls through
+    /// for everything).
+    pub fn absent() -> Self {
+        Self { tetris: None, lanes: None, flappy: None }
+    }
+
+    pub fn has_tetris(&self) -> bool {
+        self.tetris.is_some()
+    }
+
+    pub fn has_lanes(&self) -> bool {
+        self.lanes.is_some()
+    }
+
+    pub fn has_flappy(&self) -> bool {
+        self.flappy.is_some()
+    }
+
+    #[cfg(feature = "vessel_public_read")]
+    pub fn has_any(&self) -> bool {
+        self.tetris.is_some() || self.lanes.is_some() || self.flappy.is_some()
+    }
+
     /// The tetris head's blake3 (f64 LE weights) — the determinism anchor.
+    /// Panics when the tetris lane is absent (callers gate on
+    /// [`Self::has_tetris`]; the tests and the boot log always do).
     pub fn digest_hex(&self) -> String {
-        self.tetris.fit.digest.to_hex().to_string()
+        self.tetris.as_ref().expect("tetris head absent").fit.digest.to_hex().to_string()
     }
 
     /// The tetris head's chosen λ (the LOO-selected ridge, honesty).
     pub fn lambda(&self) -> f64 {
-        self.tetris.fit.lambda
+        self.tetris.as_ref().expect("tetris head absent").fit.lambda
     }
 
     /// The tetris corpus size (options), for the boot log.
     pub fn n_options(&self) -> usize {
-        self.tetris.fit.n_options
+        self.tetris.as_ref().expect("tetris head absent").fit.n_options
     }
 
     /// The tetris head's pinned question (from the fixture's `_meta`).
     pub fn question(&self) -> &str {
-        &self.tetris.fit.question
+        &self.tetris.as_ref().expect("tetris head absent").fit.question
     }
 
     /// The tetris grammar, for the round-trip tests.
     pub fn grammar(&self) -> &Grammar {
-        &self.tetris.grammar
+        &self.tetris.as_ref().expect("tetris head absent").grammar
     }
 
     /// The lanes fit's published anchors (λ, digest hex, corpus size).
     pub fn lanes_fit(&self) -> (f64, String, usize) {
-        (
-            self.lanes.fit.lambda,
-            self.lanes.fit.digest.to_hex().to_string(),
-            self.lanes.fit.n_options,
-        )
+        let fit = &self.lanes.as_ref().expect("lanes head absent").fit;
+        (fit.lambda, fit.digest.to_hex().to_string(), fit.n_options)
     }
 
     /// The flappy v3 fit's published anchors (λ, digest hex, corpus size).
     pub fn flappy_fit(&self) -> (f64, String, usize) {
-        (
-            self.flappy.fit.lambda,
-            self.flappy.fit.digest.to_hex().to_string(),
-            self.flappy.fit.n_options,
-        )
+        let fit = &self.flappy.as_ref().expect("flappy head absent").fit;
+        (fit.lambda, fit.digest.to_hex().to_string(), fit.n_options)
     }
 
     /// The lanes head's pinned question (for the tests' request builders).
     pub fn lanes_question(&self) -> &str {
-        &self.lanes.fit.question
+        &self.lanes.as_ref().expect("lanes head absent").fit.question
     }
 
     /// The flappy head's pinned question (for the tests' request builders).
     pub fn flappy_question(&self) -> &str {
-        &self.flappy.fit.question
+        &self.flappy.as_ref().expect("flappy head absent").fit.question
     }
 
     /// The flappy v3 grammars, for the round-trip tests
     /// (option grammar, state grammar).
     pub fn flappy_grammars(&self) -> (&Grammar, &Grammar) {
-        (&self.flappy.option_grammar, &self.flappy.state_grammar)
+        let flappy = self.flappy.as_ref().expect("flappy head absent");
+        (&flappy.option_grammar, &flappy.state_grammar)
     }
 
     /// The lanes grammar, for the round-trip tests.
     pub fn lanes_grammar(&self) -> &Grammar {
-        &self.lanes.grammar
+        &self.lanes.as_ref().expect("lanes head absent").grammar
     }
 
     /// Score one tetris spot sentence (the tests' seam).
     pub fn score(&self, sentence: &str) -> Option<f64> {
-        self.tetris.score(sentence)
+        self.tetris.as_ref()?.score(sentence)
     }
 
     /// Score one lanes turn from its joined state (the tests' seam).
     pub fn score_lanes(&self, joined: &str) -> Option<[f64; 3]> {
-        self.lanes.score_turn(joined)
+        self.lanes.as_ref()?.score_turn(joined)
     }
 
     /// Score one flappy (state, option) pair (the tests' seam).
     pub fn score_flappy(&self, state: &str, option: &str) -> Option<f64> {
-        self.flappy.score_pair(state, option)
+        self.flappy.as_ref()?.score_pair(state, option)
     }
 
     /// Decode a sentence to its fill vector (the round-trip tests' seam —
@@ -1129,7 +1205,7 @@ impl GameHeads {
         m.fills[..m.n_slots].to_vec()
     }
 
-    /// Answer a `/decide` request when it matches one of the three game
+    /// Answer a `/decide` request when it matches one of the PRESENT game
     /// heads' pinned protocol shapes; `None` otherwise (fall through —
     /// the cosine engine abstains off-corpus as before). The prompts are
     /// pairwise distinct, so at most one shape can match.
@@ -1143,8 +1219,9 @@ impl GameHeads {
         };
         // Tetris: the state IS the spot sentence; every question shares
         // its p (the site sends one question per option).
-        if all_noul_with(&self.tetris.fit.question)
-            && let Some(p) = self.tetris.score(&req.state)
+        if let Some(tetris) = &self.tetris
+            && all_noul_with(&tetris.fit.question)
+            && let Some(p) = tetris.score(&req.state)
         {
             let ps = vec![p; req.questions.len()];
             return Some(head_response(
@@ -1155,9 +1232,10 @@ impl GameHeads {
         }
         // Lanes: the joined-state protocol — three lane sentences, one per
         // line, exactly three questions; answer i is lane i's P(safe).
-        if req.questions.len() == 3
-            && all_noul_with(&self.lanes.fit.question)
-            && let Some(ps) = self.lanes.score_turn(&req.state)
+        if let Some(lanes) = &self.lanes
+            && req.questions.len() == 3
+            && all_noul_with(&lanes.fit.question)
+            && let Some(ps) = lanes.score_turn(&req.state)
         {
             return Some(head_response(
                 req,
@@ -1168,10 +1246,11 @@ impl GameHeads {
         // Flappy: the (state, option) pair — exactly two lines, exactly
         // one question; the answer is that option's P(clean).
         let lines: Vec<&str> = req.state.lines().collect();
-        if req.questions.len() == 1
-            && all_noul_with(&self.flappy.fit.question)
+        if let Some(flappy) = &self.flappy
+            && req.questions.len() == 1
+            && all_noul_with(&flappy.fit.question)
             && lines.len() == 2
-            && let Some(p) = self.flappy.score_pair(lines[0], lines[1])
+            && let Some(p) = flappy.score_pair(lines[0], lines[1])
         {
             return Some(head_response(
                 req,
@@ -1180,5 +1259,398 @@ impl GameHeads {
             ));
         }
         None
+    }
+}
+
+// ── the PUBLIC-RELEASE vessel lane (instinct Proposal 001 T4) ─────────
+// Heads are signed artifacts, not compiled bytes (A1: vessels never
+// committed, never compiled in). The MINT path (the `reflex mint-heads`
+// subcommand + the tests) fits from the fixture files, encodes the
+// canonical head payload below, and signs it through reflexer-vessel's
+// public writer. The SERVE path lazy-loads the vessels from
+// RIIR_REFLEX_HEADS_DIR: open → strict ed25519 + blake3 → install the
+// head WHOLE — the fit happened at mint time; nothing here re-fits.
+#[cfg(feature = "vessel_public_read")]
+pub mod head_vessels {
+    use super::*;
+    use reflexer_vessel::{self as vessel, PinTable, VerifiedVessel};
+    use std::path::Path;
+
+    fn hex32(b: &[u8; 32]) -> String {
+        let mut s = String::with_capacity(64);
+        for byte in b {
+            use std::fmt::Write as _;
+            let _ = write!(s, "{byte:02x}");
+        }
+        s
+    }
+
+    /// The canonical head-payload magic + version (a HEAD payload, not
+    /// the vessel wrapper — the vessel's own format version is v1).
+    pub const HEAD_PAYLOAD_MAGIC: [u8; 4] = *b"RFXH";
+    pub const HEAD_PAYLOAD_VERSION: u32 = 1;
+
+    /// Every way a head vessel refuses to install. The vessel-layer
+    /// errors pass through verbatim; the payload-layer refusals are this
+    /// module's own fail-closed taxonomy.
+    #[derive(Debug, Clone, PartialEq, Eq)]
+    pub enum HeadVesselError {
+        Vessel(vessel::VesselError),
+        BadPayload(String),
+    }
+
+    impl std::fmt::Display for HeadVesselError {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            match self {
+                Self::Vessel(e) => write!(f, "vessel refused: {e}"),
+                Self::BadPayload(why) => write!(f, "head payload refused: {why}"),
+            }
+        }
+    }
+
+    impl std::error::Error for HeadVesselError {}
+
+    /// The canonical head payload — the fitted head, serialized. Layout
+    /// (all integers LE, all floats f64 LE; EXACT length, no padding):
+    ///
+    /// ```text
+    /// 0   4   magic   b"RFXH"
+    /// 4   4   version u32    (= 1)
+    /// 8   4   F       u32    (standardized feature width)
+    /// 12  4   D       u32    (design width = F + 1)
+    /// 16  8   lambda  f64
+    /// 24  8   n_opts  u64
+    /// 32  4   qlen    u32
+    /// 36  qlen    question UTF-8 bytes
+    /// ..  F*8 mean
+    /// ..  F*8 inv_std
+    /// ..  D*8 weights
+    /// ```
+    /// The digest is NOT serialized — it is recomputed from the weights
+    /// on load through [`super::head_digest_weights`], the same bytes the
+    /// fit-side digest hashes, and pinned against the published anchors.
+    pub fn encode_head_payload<const F: usize, const D: usize>(
+        head: &FittedGameHeadFields<'_, F, D>,
+    ) -> Vec<u8> {
+        let q = head.question.as_bytes();
+        assert!(q.len() <= u32::MAX as usize, "question too long");
+        let mut out = Vec::with_capacity(36 + q.len() + 16 * F + 8 * D);
+        out.extend_from_slice(&HEAD_PAYLOAD_MAGIC);
+        out.extend_from_slice(&HEAD_PAYLOAD_VERSION.to_le_bytes());
+        out.extend_from_slice(&(F as u32).to_le_bytes());
+        out.extend_from_slice(&(D as u32).to_le_bytes());
+        out.extend_from_slice(&head.lambda.to_le_bytes());
+        out.extend_from_slice(&(head.n_options as u64).to_le_bytes());
+        out.extend_from_slice(&(q.len() as u32).to_le_bytes());
+        out.extend_from_slice(q);
+        for v in &head.stdizer.mean {
+            out.extend_from_slice(&v.to_le_bytes());
+        }
+        for v in &head.stdizer.inv_std {
+            out.extend_from_slice(&v.to_le_bytes());
+        }
+        for w in head.weights {
+            out.extend_from_slice(&w.to_le_bytes());
+        }
+        out
+    }
+
+    fn rd_u32(b: &[u8], at: usize) -> Result<u32, HeadVesselError> {
+        b.get(at..at + 4)
+            .map(|s| u32::from_le_bytes(s.try_into().expect("len")))
+            .ok_or_else(|| HeadVesselError::BadPayload("truncated payload header".into()))
+    }
+
+    fn rd_f64s(b: &[u8], at: usize, n: usize) -> Result<(Vec<f64>, usize), HeadVesselError> {
+        let end = at + n * 8;
+        if b.len() < end {
+            return Err(HeadVesselError::BadPayload("truncated payload body".into()));
+        }
+        let mut out = Vec::with_capacity(n);
+        for i in 0..n {
+            let s: [u8; 8] = b[at + i * 8..at + (i + 1) * 8].try_into().expect("len");
+            out.push(f64::from_le_bytes(s));
+        }
+        Ok((out, end))
+    }
+
+    /// Decode + FULLY validate a head payload against the expected widths.
+    /// Every field is checked; the length must be EXACT (no trailing
+    /// bytes) — an unverified or malformed payload never reaches a head.
+    pub fn decode_head_payload<const F: usize, const D: usize>(
+        payload: &[u8],
+    ) -> Result<(String, f64, usize, Standardizer<F>, [f64; D]), HeadVesselError> {
+        if payload.len() < 36 || payload[0..4] != HEAD_PAYLOAD_MAGIC {
+            return Err(HeadVesselError::BadPayload("not a head payload (magic)".into()));
+        }
+        if rd_u32(payload, 4)? != HEAD_PAYLOAD_VERSION {
+            return Err(HeadVesselError::BadPayload(format!(
+                "unknown head payload version {}",
+                rd_u32(payload, 4)?
+            )));
+        }
+        let f = rd_u32(payload, 8)? as usize;
+        let d = rd_u32(payload, 12)? as usize;
+        if f != F || d != D {
+            return Err(HeadVesselError::BadPayload(format!(
+                "head payload widths F={f} D={d} do not match this lane (F={F} D={D})"
+            )));
+        }
+        let lambda = f64::from_le_bytes(
+            payload[16..24]
+                .try_into()
+                .map_err(|_| HeadVesselError::BadPayload("truncated".into()))?,
+        );
+        let n_options = u64::from_le_bytes(
+            payload[24..32]
+                .try_into()
+                .map_err(|_| HeadVesselError::BadPayload("truncated".into()))?,
+        ) as usize;
+        let qlen = rd_u32(payload, 32)? as usize;
+        let mut at = 36 + qlen;
+        if payload.len() < at {
+            return Err(HeadVesselError::BadPayload("question overruns payload".into()));
+        }
+        let question = String::from_utf8(payload[36..at].to_vec())
+            .map_err(|_| HeadVesselError::BadPayload("question is not UTF-8".into()))?;
+        let (mean, next) = rd_f64s(payload, at, F)?;
+        at = next;
+        let (inv_std, next) = rd_f64s(payload, at, F)?;
+        at = next;
+        let (weights_vec, next) = rd_f64s(payload, at, D)?;
+        at = next;
+        if at != payload.len() {
+            return Err(HeadVesselError::BadPayload(format!(
+                "payload has {} trailing bytes",
+                payload.len() - at
+            )));
+        }
+        let mut mean_arr = [0.0; F];
+        mean_arr.copy_from_slice(&mean);
+        let mut inv_std_arr = [0.0; F];
+        inv_std_arr.copy_from_slice(&inv_std);
+        let mut weights = [0.0; D];
+        weights.copy_from_slice(&weights_vec);
+        if !lambda.is_finite() {
+            return Err(HeadVesselError::BadPayload("lambda is not finite".into()));
+        }
+        Ok((question, lambda, n_options, Standardizer { mean: mean_arr, inv_std: inv_std_arr }, weights))
+    }
+
+    /// The mint-side shape: one fitted head's fields, borrowable for
+    /// encode. (A constructor over the private `FittedGameHead` — the
+    /// heads stay private to the module; minting reads them through this.)
+    pub struct FittedGameHeadFields<'a, const F: usize, const D: usize> {
+        pub question: &'a str,
+        pub lambda: f64,
+        pub n_options: usize,
+        pub stdizer: &'a Standardizer<F>,
+        pub weights: &'a [f64; D],
+    }
+
+    /// Mint ONE head vessel (the `reflex mint-heads` core, callable from
+    /// the tests): fit fields → canonical payload → reflexer's public
+    /// writer. Returns the vessel bytes + the commitment (the pin).
+    pub fn mint_head_vessel<const F: usize, const D: usize>(
+        key: &vessel::ed25519_dalek::SigningKey,
+        key_id: u32,
+        artifact_version: u64,
+        fields: FittedGameHeadFields<'_, F, D>,
+    ) -> Result<vessel::writer::MintedVessel, vessel::VesselError> {
+        let payload = encode_head_payload(&fields);
+        vessel::writer::sign_public(key, key_id, artifact_version, [0u8; 32], &payload)
+    }
+
+    /// One minted head's report row (the pin the mint prints and the
+    /// release notes record).
+    #[derive(Debug, Clone, PartialEq, serde::Serialize)]
+    pub struct MintedHead {
+        pub name: &'static str,
+        pub file: &'static str,
+        pub commitment_hex: String,
+        pub head_digest_hex: String,
+        pub lambda: f64,
+        pub n_options: usize,
+    }
+
+    /// Mint ALL THREE heads: read the fixture files from `fixtures_dir`,
+    /// verify each against its published BLAKE3 pin (a drifted fixture is
+    /// refused BEFORE any fitting — the mint never bakes unverified data
+    /// into an artifact), fit by the published recipes, sign through the
+    /// format repo's public writer, and write `<out_dir>/{tetris,lanes,
+    /// flappy}.vessel`. Deterministic: the same fixtures + key + version
+    /// produce byte-identical vessels, so re-running a mint refreshes
+    /// nothing and moves no pin.
+    pub fn mint_all(
+        fixtures_dir: &Path,
+        out_dir: &Path,
+        key: &vessel::ed25519_dalek::SigningKey,
+        key_id: u32,
+        artifact_version: u64,
+    ) -> Result<Vec<MintedHead>, String> {
+        let read_fixture = |name: &str, pin: &str| -> Result<String, String> {
+            let p = fixtures_dir.join(name);
+            let bytes = std::fs::read(&p)
+                .map_err(|e| format!("fixture {}: {e} (pass --fixtures <assets/game_heads>)", p.display()))?;
+            let got = blake3::hash(&bytes).to_hex().to_string();
+            if got != pin {
+                return Err(format!(
+                    "fixture {} BLAKE3 {} != pinned {} — refusing to mint from drifted data",
+                    p.display(),
+                    got,
+                    pin
+                ));
+            }
+            String::from_utf8(bytes).map_err(|_| format!("fixture {}: not UTF-8", p.display()))
+        };
+        let tetris_text = read_fixture(super::TETRIS_FIXTURE_FILE, super::TETRIS_FIXTURE_BLAKE3)?;
+        let lanes_text = read_fixture(super::LANES_FIXTURE_FILE, super::LANES_FIXTURE_BLAKE3)?;
+        let flappy_text = read_fixture(super::FLAPPY_FIXTURE_FILE, super::FLAPPY_V3_FIXTURE_BLAKE3)?;
+
+        let heads = GameHeads::build(&tetris_text, &lanes_text, &flappy_text);
+
+        std::fs::create_dir_all(out_dir)
+            .map_err(|e| format!("create {}: {e}", out_dir.display()))?;
+
+        let mut report = Vec::with_capacity(3);
+
+        // Tetris
+        let t = heads.tetris.as_ref().expect("build fits all three");
+        let minted = mint_head_vessel(
+            key,
+            key_id,
+            artifact_version,
+            FittedGameHeadFields {
+                question: &t.fit.question,
+                lambda: t.fit.lambda,
+                n_options: t.fit.n_options,
+                stdizer: &t.fit.stdizer,
+                weights: &t.fit.weights,
+            },
+        )
+        .map_err(|e| format!("tetris mint refused: {e}"))?;
+        report.push(MintedHead {
+            name: "tetris",
+            file: HEAD_VESSEL_FILES[0],
+            commitment_hex: hex32(&minted.commitment),
+            head_digest_hex: t.fit.digest.to_hex().to_string(),
+            lambda: t.fit.lambda,
+            n_options: t.fit.n_options,
+        });
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[0]), &minted.bytes)
+            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[0]).display()))?;
+
+        // Lanes
+        let l = heads.lanes.as_ref().expect("build fits all three");
+        let minted = mint_head_vessel(
+            key,
+            key_id,
+            artifact_version,
+            FittedGameHeadFields {
+                question: &l.fit.question,
+                lambda: l.fit.lambda,
+                n_options: l.fit.n_options,
+                stdizer: &l.fit.stdizer,
+                weights: &l.fit.weights,
+            },
+        )
+        .map_err(|e| format!("lanes mint refused: {e}"))?;
+        report.push(MintedHead {
+            name: "lanes",
+            file: HEAD_VESSEL_FILES[1],
+            commitment_hex: hex32(&minted.commitment),
+            head_digest_hex: l.fit.digest.to_hex().to_string(),
+            lambda: l.fit.lambda,
+            n_options: l.fit.n_options,
+        });
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[1]), &minted.bytes)
+            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[1]).display()))?;
+
+        // Flappy
+        let f = heads.flappy.as_ref().expect("build fits all three");
+        let minted = mint_head_vessel(
+            key,
+            key_id,
+            artifact_version,
+            FittedGameHeadFields {
+                question: &f.fit.question,
+                lambda: f.fit.lambda,
+                n_options: f.fit.n_options,
+                stdizer: &f.fit.stdizer,
+                weights: &f.fit.weights,
+            },
+        )
+        .map_err(|e| format!("flappy mint refused: {e}"))?;
+        report.push(MintedHead {
+            name: "flappy",
+            file: HEAD_VESSEL_FILES[2],
+            commitment_hex: hex32(&minted.commitment),
+            head_digest_hex: f.fit.digest.to_hex().to_string(),
+            lambda: f.fit.lambda,
+            n_options: f.fit.n_options,
+        });
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[2]), &minted.bytes)
+            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[2]).display()))?;
+
+        Ok(report)
+    }
+
+    fn decode_head_fitted<const F: usize, const D: usize>(
+        verified: &VerifiedVessel,
+    ) -> Result<FittedGameHead<F, D>, HeadVesselError> {
+        let (question, lambda, n_options, stdizer, weights) = decode_head_payload::<F, D>(verified.payload())?;
+        Ok(FittedGameHead {
+            weights,
+            stdizer,
+            question,
+            lambda,
+            digest: head_digest_weights(&weights),
+            n_options,
+        })
+    }
+
+    impl GameHeads {
+        /// Load the head vessels from `dir` (the `RIIR_REFLEX_HEADS_DIR`
+        /// shape): `tetris.vessel` / `lanes.vessel` / `flappy.vessel`. A
+        /// MISSING file leaves that lane absent (the boot says so, loud);
+        /// a PRESENT file that fails verify/parse is a HARD error — a
+        /// vessel that asked to be a head and failed must never be
+        /// papered over. Every installed head carries the exact weights
+        /// the mint signed: nothing is re-fitted.
+        pub fn from_vessel_dir(dir: &Path, pins: &PinTable) -> Result<Self, HeadVesselError> {
+            let load = |name: &str| -> Result<Option<VerifiedVessel>, HeadVesselError> {
+                let p = dir.join(name);
+                if !p.exists() {
+                    return Ok(None);
+                }
+                vessel::open(&p, pins)
+                    .map(Some)
+                    .map_err(HeadVesselError::Vessel)
+            };
+            let tetris = load(HEAD_VESSEL_FILES[0])?;
+            let lanes = load(HEAD_VESSEL_FILES[1])?;
+            let flappy = load(HEAD_VESSEL_FILES[2])?;
+            Ok(Self {
+                tetris: tetris
+                    .as_ref()
+                    .map(decode_head_fitted::<TETRIS_DECODED_F, TETRIS_D>)
+                    .transpose()?
+                    .map(|fit| TetrisHead { grammar: tetris_spot(), fit }),
+                lanes: lanes
+                    .as_ref()
+                    .map(decode_head_fitted::<LANES_DECODED_F, LANES_D>)
+                    .transpose()?
+                    .map(|fit| LanesHead { grammar: lanes_option(), fit }),
+                flappy: flappy
+                    .as_ref()
+                    .map(decode_head_fitted::<FLAPPY_V3_DECODED_F, FLAPPY_V3_D>)
+                    .transpose()?
+                    .map(|fit| FlappyHead {
+                        option_grammar: flappy_option_v3(),
+                        state_grammar: flappy_state(),
+                        fit,
+                    }),
+            })
+        }
     }
 }

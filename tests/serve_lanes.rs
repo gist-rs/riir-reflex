@@ -8,10 +8,26 @@
 //! G5-parity-pinned elsewhere; no test here needs weights).
 #![cfg(feature = "modelless")]
 
+use riir_reflex::game_heads::GameHeads;
 use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_with};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::TcpStream;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+
+const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl");
+const LANES_FIXTURE: &str = include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl");
+const FLAPPY_FIXTURE: &str = include_str!("../assets/game_heads/flappy_oracle_laya_en_v3.jsonl");
+
+/// The lane edge's explicit-heads seam is exercised with the REAL fitted
+/// heads (fit once, share across the suite): the paired raw-lane test pins
+/// the head-first default on the fixture spot question, which an absent
+/// heads lane cannot serve.
+fn fitted_heads() -> Arc<GameHeads> {
+    static HEADS: OnceLock<Arc<GameHeads>> = OnceLock::new();
+    Arc::clone(HEADS.get_or_init(|| {
+        Arc::new(GameHeads::build(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE))
+    }))
+}
 
 fn spawn_lanes(laya: LayaLane) -> String {
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
@@ -19,7 +35,13 @@ fn spawn_lanes(laya: LayaLane) -> String {
     let eng = Arc::new(Mutex::new(demo_engine()));
     let laya = Arc::new(Mutex::new(laya));
     std::thread::spawn(move || {
-        let _ = serve_listener_with(listener, eng, laya, vec![]);
+        let _ = serve_listener_with(
+            listener,
+            eng,
+            laya,
+            vec![],
+            fitted_heads(),
+        );
     });
     addr
 }
