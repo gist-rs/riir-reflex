@@ -73,4 +73,11 @@ serving posture) pays NOTHING — the fit is skipped entirely.
 
 - `/tmp/t7_full_final/results.json` + this file's copy of the moved rows
 - `examples/nb_ridge_probe.rs` — the differential probe (kept; measurement-only)
-- Site republish: the typed + emotion rows move; every other row identical
+- Cross-host: 4090-windows re-ran the full protocol at `de67f50` (datasets
+  974/974 sha256-verified against the M3 manifest; `REFLEX_BENCH_HOST=4090-windows`
+  — the unset label reads "unknown", the Issue-033 class again): **14/14
+  modelless rows identical to the M3** (typed 0.4655 and emotion 0.8475 on
+  both hosts; the 4090's own re-run also reproduced itself exactly).
+- Site: republished + deployed — the typed + emotion rows move on BOTH
+  hosts; every other row unchanged. The publish gate's cross-host drift
+  tripwire refused the one-host state first (working as designed).

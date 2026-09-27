@@ -7,6 +7,38 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 038 T7(a)+(b) LANDED — the two biggest modelless gaps closed
+  (Plan 004, Bench 057, commits `0abb222` T7b + `de67f50` T7a); the issue
+  stays OPEN for T5/T4′/T7(c)/(d).** The option-conditioned count tables
+  (`option_cond`, promoted default-on) key one contrastive table per
+  (question id, gold option) from TRAIN gold events — the typed suite's
+  state-side signal the domain-level tables can never arm on (k ≠ N on
+  every question shape there): typed_decisions **0.33 → 0.4655** (+13.5 pt,
+  cal-selected oc@2). The NBSVM closed-form ridge readout (`nb_ridge`,
+  promoted default-on) — binary-presence features over the same hashed
+  lexicon scaled by the per-class NB log-count ratios, one one-vs-rest
+  `ridge_solve_direct_f32` per class — emotion **0.7375 → 0.8475** (+11.0
+  pt, cal-selected ridge@2, calibrated ECE 0.0 vs conformal floor 0.204).
+  Every other suite byte-identical (G3), p99 ≤ 50 µs and `solve_into`
+  alloc-free with both levers armed (G2/G4), det ✓. The cross-host
+  bit-identity claim was RE-PROVEN at the new posture before the site
+  publish (the publish gate refused the one-host state, exactly as
+  designed): 4090-windows re-ran the full protocol (datasets 974/974
+  sha256-verified, `REFLEX_BENCH_HOST=4090-windows` — the unset label
+  read "unknown", the Issue-033 class again) — **14/14 modelless rows
+  identical to the M3 to full precision**, and the 4090's own re-run
+  reproduced its numbers exactly. Site republished (typed + emotion move
+  on both hosts; every other row unchanged). Measured lessons recorded in
+  the module + bench: an unsorted `binary_search` vec silently misses
+  (hits=1/33, 0.29 vs the numpy replica's 0.8925 — the probe's Python dict
+  cannot have this bug class); the probe's `tot[lab]` was a Python
+  missing-key read (0), not a total — the validated arithmetic has NO
+  per-class totals and "fixing" it breaks the denominator (loud non-finite
+  refusal fired); and `/n_tokens` is the NB convention, not the ridge's —
+  damped margins are O(0.1) and do not grow with tokens, so the blend
+  divides by a fit-time self-calibrated temperature (mean per-doc class
+  spread, strided 512-doc sample) instead.
+
 - **Issue 019 CLOSED — the CLM T4 T-Rex re-run under OUR protocol (Bench
   059, `.benchmarks/057_clm_trex_4090/`, this commit); issue file removed
   (noise-reduction) with all seven tasks done.** Upstream had force-pushed
