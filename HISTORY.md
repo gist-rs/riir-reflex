@@ -7,6 +7,30 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-27
 
+- **Issue 038 T5 steps 2+ LANDED — the joint blend-genome lane
+  (`--genome-select`, Plan 005 / Bench 064).** `{route, head, nb(+α,+view),
+  oc, ridge}` as one genome line, coordinate descent on the cal slice with
+  build-once-fitted + `DecisionEngine::set_blend_scales` (fail-closed
+  `ScaleNotFitted`; a coordinate eval is one sel-slice scoring pass, not a
+  rebuild), acceptance-vs-seed bar `--genome-accept-margin` defaulting to
+  the house 0.05, test read once at the walk end. Round 1 (house bar): ALL
+  HELD and every held row reproduced the published state byte-exactly (G3
+  proven end to end); the walks still surfaced +3.0..+4.0 cal interactions
+  the greedy ladders could not reach (ridge@16 included). Round 2
+  (pre-registered refinement bar 0.03): **banking77 0.8260 → 0.8620**
+  (ridge@1 + head off) and **sst5 0.3967 → 0.4017** (ridge@8) ADOPTED, both
+  G1-passing; **massive REJECTED on G1** (+5.33 accuracy with ECE .2383 vs
+  floor .1361 — the UQ-bearing law binding: an accuracy gain that breaks
+  the calibration floor is a failed gate); **emotion REJECTED** (the walk's
+  nb-off posture read 0.35 on test vs published 0.885 — the house bar would
+  have refused it; hypothesis on record: the ridge fit overfits its own
+  pool distribution, the count tables generalize). RRF DECLINED on measured
+  rationale. Site republish deferred to the post-041 whole re-run
+  (`publish_bench` has no G1 filter). Two protocol costs disclosed: the
+  0.03 refinement round spends 4 more test reads than the house bar, and
+  its one catastrophe is the price of the 3 wins — the bar value is now a
+  measured trade-off, not a convention.
+
 - **Issue 042 T3 DECIDED (a) — fixed escalation-worthiness margin 0.16, the
   recommended cascade posture (acceptance re-run
   `.benchmarks/063_cascade_worthiness_margin016/`, 10/10 PASS).** Why (a)

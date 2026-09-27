@@ -472,6 +472,15 @@ pub enum EngineError {
     /// law).
     #[cfg(feature = "nb_ridge")]
     RidgeNeedsCorpora,
+    /// [`DecisionEngine::set_blend_scales`] (issue 038 T5 genome lane) was
+    /// handed a positive scale whose fitted tables this build never
+    /// produced — the same fail-closed never-silently-fires law as the
+    /// build-time gates: the search builds once with every lever fitted,
+    /// so a positive scale over absent tables can only be a caller bug.
+    ScaleNotFitted {
+        /// which blend scale ("head" / "nb" / "oc" / "ridge")
+        scale: &'static str,
+    },
 }
 
 impl std::fmt::Display for EngineError {
@@ -505,6 +514,11 @@ impl std::fmt::Display for EngineError {
             Self::RidgeNeedsCorpora => write!(
                 f,
                 "ridge_scale > 0 needs document corpora: use build_specs (the fit reads the docs)"
+            ),
+            Self::ScaleNotFitted { scale } => write!(
+                f,
+                "{scale}_scale > 0 needs the fitted tables this build never produced — \
+                 build once with the lever armed (a positive placeholder scale), then move scales"
             ),
         }
     }
@@ -751,6 +765,57 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         events: &[crate::option_cond::OcEvent],
     ) -> Result<Self, EngineError> {
         Self::build_specs_impl(specs, cfg, events)
+    }
+
+    /// Overwrite the scoring-time blend scales in place (issue 038 T5
+    /// genome lane): a coordinate move between sel-slice evals without an
+    /// engine rebuild. The search builds ONCE with every lever's tables
+    /// FITTED (positive placeholder scales force the fits), so any scale
+    /// the genome walks is scoreable here. Fail-closed: a positive scale
+    /// whose fitted tables are absent refuses ([`EngineError::ScaleNotFitted`])
+    /// — never a silent no-op; scale 0 is always legal (each blend term is
+    /// constant-or-zero there, argmax-neutral by construction).
+    pub fn set_blend_scales(
+        &mut self,
+        route_scale: f32,
+        head_scale: f32,
+        nb_scale: f32,
+        oc_scale: f32,
+        ridge_scale: f32,
+    ) -> Result<(), EngineError> {
+        if head_scale > 0.0 && self.heads.is_none() {
+            return Err(EngineError::ScaleNotFitted { scale: "head" });
+        }
+        #[cfg(feature = "nb_scope")]
+        if nb_scale > 0.0 && self.nb.is_none() {
+            return Err(EngineError::ScaleNotFitted { scale: "nb" });
+        }
+        #[cfg(not(feature = "nb_scope"))]
+        if nb_scale > 0.0 {
+            return Err(EngineError::ScaleNotFitted { scale: "nb" });
+        }
+        #[cfg(feature = "option_cond")]
+        if oc_scale > 0.0 && self.oc.is_none() {
+            return Err(EngineError::ScaleNotFitted { scale: "oc" });
+        }
+        #[cfg(not(feature = "option_cond"))]
+        if oc_scale > 0.0 {
+            return Err(EngineError::ScaleNotFitted { scale: "oc" });
+        }
+        #[cfg(feature = "nb_ridge")]
+        if ridge_scale > 0.0 && self.ridge.is_none() {
+            return Err(EngineError::ScaleNotFitted { scale: "ridge" });
+        }
+        #[cfg(not(feature = "nb_ridge"))]
+        if ridge_scale > 0.0 {
+            return Err(EngineError::ScaleNotFitted { scale: "ridge" });
+        }
+        self.cfg.route_scale = route_scale;
+        self.cfg.head_scale = head_scale;
+        self.cfg.nb_scale = nb_scale;
+        self.cfg.oc_scale = oc_scale;
+        self.cfg.ridge_scale = ridge_scale;
+        Ok(())
     }
 
     /// The shared build tail of the spec constructors.
@@ -1855,6 +1920,72 @@ mod tests {
             bits(&b.probs),
             "noul must be head-free at every head_scale (issue 030)"
         );
+    }
+
+    /// Issue 038 T5: the genome lane's fitted-universe law — an engine
+    /// built fully-fitted then moved to all-zero blend scales must make
+    /// the SAME picks as a never-fitted build (a scale of 0 leaves each
+    /// blend term constant-or-zero, argmax-neutral), and the setter
+    /// refuses a positive scale over absent tables (the fail-closed law).
+    #[cfg(feature = "nb_scope")]
+    #[test]
+    fn set_blend_scales_zero_is_neutral_and_unfitted_refuses() {
+        let choice = DecisionRequest {
+            state: "the customer wants their invoice refunded".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                vec![
+                    "billing".to_string(),
+                    "deploy".to_string(),
+                    "weather".to_string(),
+                ],
+                None,
+            )],
+        };
+        let pick_of = |e: &mut DecisionEngine<3, EMBED_DIM>| {
+            let mut sc = Scratch::new();
+            e.solve_into(&choice, &mut sc).unwrap();
+            sc.slots[0].pick
+        };
+        let mut plain: DecisionEngine<3, EMBED_DIM> =
+            DecisionEngine::build_specs(three_topic_specs(), EngineConfig::default()).unwrap();
+        let plain_pick = pick_of(&mut plain);
+        // Fail-closed: positive scales over tables this build never fitted.
+        assert!(matches!(
+            plain.set_blend_scales(8.0, 0.0, 4.0, 0.0, 0.0),
+            Err(EngineError::ScaleNotFitted { scale: "nb" })
+        ));
+        assert!(matches!(
+            plain.set_blend_scales(8.0, 1.0, 0.0, 0.0, 0.0),
+            Err(EngineError::ScaleNotFitted { scale: "head" })
+        ));
+        assert!(matches!(
+            plain.set_blend_scales(8.0, 0.0, 0.0, 1.0, 0.0),
+            Err(EngineError::ScaleNotFitted { scale: "oc" })
+        ));
+        assert!(matches!(
+            plain.set_blend_scales(8.0, 0.0, 0.0, 0.0, 1.0),
+            Err(EngineError::ScaleNotFitted { scale: "ridge" })
+        ));
+        // The fitted universe: every lever armed once (placeholder scales),
+        // then moved to all-zero — the picks must equal the never-fitted
+        // build's (scale 0 is argmax-neutral per blend term).
+        let mut fitted: DecisionEngine<3, EMBED_DIM> = DecisionEngine::build_specs(
+            three_topic_specs(),
+            EngineConfig {
+                head_scale: 1.0,
+                nb_scale: 4.0,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        fitted.set_blend_scales(8.0, 1.0, 4.0, 0.0, 0.0).unwrap();
+        let armed_pick = pick_of(&mut fitted);
+        fitted.set_blend_scales(8.0, 0.0, 0.0, 0.0, 0.0).unwrap();
+        let zero_pick = pick_of(&mut fitted);
+        assert_eq!(zero_pick, plain_pick, "fitted-but-zero == never-fitted");
+        let _ = armed_pick; // armed posture may or may not move this toy pick
     }
 
     /// Issue 038: nb off is byte-identical, nb on moves a choice, noul is

@@ -66,6 +66,7 @@ use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 /// Issue 038: the count-table lever's selection + the separate transductive column.
 mod nb_lane;
+mod genome_lane;
 #[cfg(feature = "option_cond")]
 mod oc_lane;
 #[cfg(feature = "nb_ridge")]
@@ -593,6 +594,11 @@ pub struct LaneResult {
     /// `--ridge-select`). None = no selection ran.
     #[cfg(feature = "nb_ridge")]
     pub ridge_selection: Option<ridge_lane::RidgeSelection>,
+    /// The cal-selected JOINT blend genome (issue 038 T5,
+    /// `--genome-select`): the composed posture's scale coordinates
+    /// refined together on the same selection slice. None = no genome
+    /// selection ran (flag off / ineligible suite).
+    pub genome_selection: Option<genome_lane::GenomeSelection>,
     /// The TRANSDUCTIVE column (issue 038): a different protocol, published
     /// beside `hard.accuracy`, never inside it. None unless the count
     /// tables are armed on this row.
@@ -1679,6 +1685,16 @@ struct ModellessInput<'a> {
     /// Cal-slice ridge-readout selection (issue 038 T7a, `--ridge-select`).
     #[cfg_attr(not(feature = "nb_ridge"), allow(dead_code))]
     ridge_select: bool,
+    /// Cal-slice JOINT blend-genome selection (issue 038 T5,
+    /// `--genome-select`): refines the composed greedy posture's scale
+    /// coordinates together on the same selection slice.
+    #[cfg_attr(not(feature = "nb_scope"), allow(dead_code))]
+    genome_select: bool,
+    /// The genome walk's acceptance-vs-seed bar (fraction, 0.05 = the
+    /// house arming bar). `<= 0` resolves to the house bar (a 0 margin
+    /// would accept any +1-question wiggle — never a default).
+    #[cfg_attr(not(feature = "nb_scope"), allow(dead_code))]
+    genome_accept_margin: f64,
     /// The cap's base source when no cal-slice selection ran
     /// ("registry" or "--corpus-cap override").
     cap_source_base: &'static str,
@@ -2120,6 +2136,7 @@ struct FittedPosture {
     oc_selected: Option<oc_lane::OcSelection>,
     #[cfg(feature = "nb_ridge")]
     ridge_selected: Option<ridge_lane::RidgeSelection>,
+    genome_selected: Option<genome_lane::GenomeSelection>,
     default_cfg: EngineConfig,
     score_threshold: f32,
     distance_threshold: f32,
@@ -2256,6 +2273,52 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     }
     #[cfg(not(feature = "nb_ridge"))]
     let _ = inp.ridge_select;
+    // ── Joint blend-genome selection (issue 038 T5): the LAST posture
+    // axis — it seeds from the composed greedy posture above and refines
+    // the scale coordinates TOGETHER on the same selection slice, closing
+    // the greedy-order interaction gap the one-at-a-time ladders leave.
+    // The walk end must clear the seed by the promotion bar or the
+    // posture is HELD (default_cfg untouched → byte-identical final
+    // build). Runs BEFORE the fused-gate fit so the fitted thresholds
+    // reflect whatever posture the genome settled on.
+    #[cfg(feature = "nb_scope")]
+    let genome_selected = if inp.genome_select
+        && spec.synthetic.is_none()
+        && spec.corpus_cap_per_label != usize::MAX
+    {
+        let g = genome_lane::build_genome_selection::<N>(
+            inp,
+            effective_cap,
+            &default_cfg,
+            if inp.genome_accept_margin > 0.0 {
+                inp.genome_accept_margin
+            } else {
+                HEAD_SELECT_MARGIN
+            },
+            #[cfg(feature = "option_cond")]
+            |pool| oc_events_for(inp.pool_rows, pool),
+            #[cfg(not(feature = "option_cond"))]
+            (),
+        )?;
+        default_cfg.route_scale = g.selected.route_scale;
+        default_cfg.head_scale = g.selected.head_scale;
+        default_cfg.nb_scale = g.selected.nb_scale;
+        default_cfg.nb_alpha = nb_lane::alpha_of(g.selected.nb_alpha);
+        default_cfg.nb_view = nb_lane::view_of(g.selected.nb_view);
+        #[cfg(feature = "option_cond")]
+        {
+            default_cfg.oc_scale = g.selected.oc_scale;
+        }
+        #[cfg(feature = "nb_ridge")]
+        {
+            default_cfg.ridge_scale = g.selected.ridge_scale;
+        }
+        Some(g)
+    } else {
+        None
+    };
+    #[cfg(not(feature = "nb_scope"))]
+    let genome_selected: Option<genome_lane::GenomeSelection> = None;
     // The full-pool events (corpus pool = the complement of the cal front),
     // needed by EVERY build made at the selected posture (the threshold
     // probe here, the three run_modelless builds, the readout report and
@@ -2377,6 +2440,7 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         oc_selected,
         #[cfg(feature = "nb_ridge")]
         ridge_selected,
+        genome_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
@@ -2407,6 +2471,7 @@ fn run_modelless<const N: usize>(
         oc_selected,
         #[cfg(feature = "nb_ridge")]
         ridge_selected,
+        genome_selected,
         default_cfg,
         score_threshold,
         distance_threshold,
@@ -2775,6 +2840,7 @@ fn run_modelless<const N: usize>(
         oc_selection: oc_selected,
         #[cfg(feature = "nb_ridge")]
         ridge_selection: ridge_selected,
+        genome_selection: genome_selected,
         transductive,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
         pair_head_ab: if inp.pair_head_ab {
@@ -3310,6 +3376,7 @@ fn assemble_laya_lane_result(
         oc_selection: None,
         #[cfg(feature = "nb_ridge")]
         ridge_selection: None,
+        genome_selection: None, // the laya lanes run no joint selection
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
         pair_head_ab: None,
@@ -4443,6 +4510,11 @@ pub mod seat {
         pub oc_select: bool,
         #[cfg(feature = "nb_ridge")]
         pub ridge_select: bool,
+        /// Joint blend-genome selection (issue 038 T5). Needs `nb_scope`
+        /// the same way — silent no-op at the seat level, loud at the CLI.
+        pub genome_select: bool,
+        /// The genome acceptance bar; `<= 0` = the house arming bar.
+        pub genome_accept_margin: f64,
         pub cal_select_caps: Vec<usize>,
     }
 
@@ -4461,6 +4533,7 @@ pub mod seat {
         pub oc_selection: Option<super::oc_lane::OcSelection>,
         #[cfg(feature = "nb_ridge")]
         pub ridge_selection: Option<super::ridge_lane::RidgeSelection>,
+        pub genome_selection: Option<genome_lane::GenomeSelection>,
         pub cap_candidates: Option<Vec<CapCandidate>>,
     }
 
@@ -4498,6 +4571,12 @@ pub mod seat {
             ridge_select: knobs.ridge_select,
             #[cfg(not(feature = "nb_ridge"))]
             ridge_select: false,
+            genome_select: knobs.genome_select,
+            genome_accept_margin: if knobs.genome_accept_margin > 0.0 {
+                knobs.genome_accept_margin
+            } else {
+                HEAD_SELECT_MARGIN
+            },
             cap_source_base: "registry",
             cal_select_caps: &knobs.cal_select_caps,
             pool_rows: &s.pool_rows,
@@ -4521,6 +4600,7 @@ pub mod seat {
             oc_selection: fp.oc_selected,
             #[cfg(feature = "nb_ridge")]
             ridge_selection: fp.ridge_selected,
+            genome_selection: fp.genome_selected,
             cap_candidates: fp.selection.map(|c| c.rows),
         })
     }
@@ -4754,6 +4834,21 @@ pub struct RunOptions {
     /// (a λ ladder multiplies the O(k³)-per-class fit cost). Needs the
     /// `nb_ridge` feature (a loud error without it). Default off.
     pub ridge_select: bool,
+    /// Cal-slice JOINT blend-genome selection (issue 038 T5;
+    /// `--genome-select`): seeds from the composed greedy posture (cap →
+    /// head → nb → oc → ridge) and refines the scoring-time scale
+    /// coordinates `{route, head, nb(+α,+view), oc, ridge}` TOGETHER on
+    /// the stratified selection slice — coordinate descent, moves gated
+    /// by a noise-floor margin, the walk end gated by the same 5 pt
+    /// promotion bar as the per-lever lanes; test read once at the walk
+    /// end. Needs the `nb_scope` feature (a loud error without it).
+    /// Default off.
+    pub genome_select: bool,
+    /// The genome walk's acceptance-vs-seed bar (issue 038 T5;
+    /// `--genome-accept-margin`). `<= 0` resolves to the house arming bar
+    /// (a 0 margin would accept any +1-question wiggle — never a default).
+    /// Default 0.05.
+    pub genome_accept_margin: f64,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -4801,6 +4896,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         return Err(
             "--ridge-select needs the nb_ridge feature (issue 038 T7a): rebuild with \
              --features nb_ridge"
+                .to_string(),
+        );
+    }
+    if opts.genome_select && !cfg!(feature = "nb_scope") {
+        return Err(
+            "--genome-select needs the nb_scope feature (issue 038 T5): rebuild with \
+             --features nb_scope"
                 .to_string(),
         );
     }
@@ -4957,6 +5059,8 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 nb_select: opts.nb_select,
                 oc_select: opts.oc_select,
                 ridge_select: opts.ridge_select,
+                genome_select: opts.genome_select,
+                genome_accept_margin: opts.genome_accept_margin,
                 leak_flags: leak_flags_ref,
                 cascade_worthiness: opts.cascade_worthiness,
             };
@@ -5753,6 +5857,58 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 ));
             }
             s.push('\n');
+        }
+        // The blend-genome disclosure (issue 038 T5): the joint walk over
+        // the composed posture's scale coordinates, printed apart from the
+        // headline row like the selections above it.
+        if let Some(m) = &suite.modelless
+            && let Some(gs) = &m.genome_selection
+        {
+            let pt = |p: &genome_lane::GenomePoint| {
+                #[cfg(feature = "nb_scope")]
+                let nb = format!(" nb {} α {} view {}", p.nb_scale, p.nb_alpha, p.nb_view);
+                #[cfg(not(feature = "nb_scope"))]
+                let nb = String::new();
+                #[cfg(feature = "option_cond")]
+                let oc = format!(" oc {}", p.oc_scale);
+                #[cfg(not(feature = "option_cond"))]
+                let oc = String::new();
+                #[cfg(feature = "nb_ridge")]
+                let ridge = format!(" ridge {}", p.ridge_scale);
+                #[cfg(not(feature = "nb_ridge"))]
+                let ridge = String::new();
+                format!(
+                    "route {} head {}{}{}{} (cal {})",
+                    p.route_scale,
+                    p.head_scale,
+                    nb,
+                    oc,
+                    ridge,
+                    fmt4(p.cal_acc)
+                )
+            };
+            s.push_str(&format!(
+                "**blend genome:** {} — {} ({} pass(es), promotion bar +5 pt over the seed)
+
+",
+                pt(&gs.selected),
+                if gs.held { "HELD — the composed posture stands" } else { "ACCEPTED" },
+                gs.passes
+            ));
+            if !gs.moves.is_empty() {
+                s.push_str("| pass | coordinate | from | to | cal acc |\n|---|---|---|---|---|\n");
+                for mv in &gs.moves {
+                    s.push_str(&format!(
+                        "| {} | {} | {} | {} | {} |\n",
+                        mv.pass,
+                        mv.coord,
+                        mv.from,
+                        mv.to,
+                        fmt4(mv.cal_acc)
+                    ));
+                }
+                s.push('\n');
+            }
         }
         if let Some(m) = &suite.modelless
             && let Some(t) = &m.transductive

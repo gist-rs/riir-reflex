@@ -223,6 +223,8 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
         nb_select: false,
         oc_select: false,
         ridge_select: false,
+        genome_select: false,
+        genome_accept_margin: 0.0,
         cap_source_base: "registry",
         cal_select_caps: &[],
         pool_rows: &prepared.pool_rows,

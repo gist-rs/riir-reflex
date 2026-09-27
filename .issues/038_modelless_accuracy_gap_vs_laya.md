@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. T7(a)+(b) LANDED 2026-09-27 (Plan 004: option-conditioned tables + NBSVM ridge, both promoted default-on — typed +13.5 pt, emotion +11 pt). T5 step 1 LANDED `6199e5e` (selection ladders extended upward; round-2 re-selection lifted emotion to **0.885** ridge@8 — modelless now ≥ laya best on **5/9** dataset suites, with the ladder-maxed round-1 postures on typed/sst5/xnli HELD by the slice). Open here: T5 steps 2+ (joint genome, RRF), T7(c) BM25 kNN, T7(d) Hebbian xnli; the ag_news volume lever moved to `.issues/041`. T4′ cascade lane LANDED 2026-09-27 (Bench 061, `337974d`): the lane + measurement are done; the gate verdict at the shipped fused gate is NEGATIVE (cascade < modelless on 5/8 dataset suites — the fused gate's test-side abstain is 90–99% at the armed postures vs the cal ρ=30% target; follow-up lever filed as issue 042; the lane stays opt-in as the instrument).
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. T7(a)+(b) LANDED 2026-09-27 (Plan 004: option-conditioned tables + NBSVM ridge, both promoted default-on — typed +13.5 pt, emotion +11 pt). T5 step 1 LANDED `6199e5e` (selection ladders extended upward; round-2 re-selection lifted emotion to **0.885** ridge@8). **T5 steps 2+ LANDED 2026-09-27** (Plan 005 / Bench 064: the joint blend-genome lane `--genome-select` — build-once-fitted + `set_blend_scales`, coordinate descent over `{route, head, nb(+α,+view), oc, ridge}` on the cal slice, acceptance-vs-seed bar `--genome-accept-margin` default the house 0.05). Verdict: **banking77 0.8260 → 0.8620** (ridge@1 + head off, +3.60, G1 pass) and **sst5 0.3967 → 0.4017** (ridge@8, +0.50, G1 pass) ADOPTED; massive +5.33 REJECTED (G1 FAIL — ECE .2383 vs floor .1361, the accuracy gain broke calibration); emotion REJECTED (0.35 — the walk's nb-off posture collapsed on test; the house bar would have refused it); RRF DECLINED (the blend terms share a σ scale — additive wins there by riir-rag's own RRF doc; emotion's failure is posture overfitting, not scale incomparability). Site republish deferred to the post-041 whole re-run (`publish_bench` has no G1 filter — a wholesale publish would carry the rejected massive row). With banking77 0.862 the modelless lane extends its lead; the scoreboard reads modelless ≥ laya best on 5/9 dataset suites with banking77's margin now +36.2. Open here: T7(c) BM25 kNN, T7(d) Hebbian xnli (T7(d) reopens NOW that T5 landed); the ag_news volume lever is `.issues/041`. T4′ cascade lane LANDED 2026-09-27 (Bench 061, `337974d`): the lane + measurement are done; the gate verdict at the shipped fused gate is NEGATIVE (cascade < modelless on 5/8 dataset suites — the fused gate's test-side abstain is 90–99% at the armed postures vs the ρ=30% cal target; follow-up lever filed as issue 042; the lane stays opt-in as the instrument).
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -138,11 +138,18 @@ tried.
       freeze/thaw, but it is no longer the "0.5 ms, no model" lane. Publish it as a
       **separate named lane** (e.g. `reflex · frozen-encoder`), never under `modelless`.
       A laya-encoder variant would be "laya's encoder + our head", so label it as such.
-- [ ] **T5 — reflexer-style self-evolve over the score blend (the part of Tetris that
-      transfers).** Treat `{drafter, route, head, nb}` weights plus the smoothing α as a
-      genome line, and hill-`climb` on the **cal/validation slice only**, accepting only
-      above a fixed margin. Optionally fuse the rankers with RRF (`riir-rag/src/rrf.rs`
-      shape). Read test once, at the end.
+- [x] **T5 — reflexer-style self-evolve over the score blend (the part of Tetris that
+      transfers).** LANDED (Plan 005 / Bench 064, 2026-09-27): the joint genome lane
+      `--genome-select` — `{route, head, nb(+α,+view), oc, ridge}` as one genome line,
+      coordinate descent on the cal slice (build-once-fitted + `set_blend_scales`, a
+      coordinate eval is one scoring pass), acceptance-vs-seed bar
+      `--genome-accept-margin` (default the house 0.05), test read once at the walk
+      end. banking77 +3.60 and sst5 +0.50 ADOPTED (both G1-passing); massive +5.33
+      REJECTED on G1; emotion REJECTED on accuracy; RRF DECLINED (see Bench 064).
+      Original spec, kept for the record: treat `{drafter, route, head, nb}` weights
+      plus the smoothing α as a genome line, and hill-`climb` on the **cal/validation
+      slice only**, accepting only above a fixed margin. Optionally fuse the rankers
+      with RRF (`riir-rag/src/rrf.rs` shape). Read test once, at the end.
 - [x] **T6 — GOAT gate** — run for T1/T3 at Bench 051: G1 PASS all suites, G2 p99 43 µs, G3 unarmed suites byte-identical, G4 0 allocs armed → PROMOTED (`nb_scope` default-on). Re-run per new lever. Promote a lever to default only if (G1) accuracy was selected
       on cal and read on test once and beats the current default by ≥ 5 pt on a suite
       without regressing any other suite beyond noise; (G2) p50 stays sub-ms class
@@ -168,9 +175,11 @@ tried.
       decline — G3 byte-identical). Probed first (scripts/issue038_t7_probe*.py):
       banking77 +1.2 (under the 5 pt bar), sst5/xnli WORSE (shipped NB/pair
       views win), ag_news/massive flat — none armed. (c) BM25 kNN vote and
-      (d) the Hebbian bilinear xnli map remain UNTRIED (deferred — the two
-      landed levers took the two biggest modelless gaps; reopen when the
-      blend genome (T5) lands). The suspected "T-pass / looped transformer /
+      (d) the Hebbian bilinear xnli map remain UNTRIED — the T5 genome
+      (Bench 064) landed 2026-09-27, so (d)'s reopen condition is MET
+      (the genome walk held xnli at every coordinate, so the suspected
+      residual is representational, not blend-weight — (d) is the probe
+      for that); (c) rides the same probe-first discipline. The suspected "T-pass / looped transformer /
       shallow reasoning" items were checked and all need a model (LT2
       `forward_looped` is a throughput GOAT only; "shallow reasoning" is a
       positioning phrase whose shipped form is a kNN + operator tokenizer).

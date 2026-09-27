@@ -6,6 +6,9 @@
 //!                                      [--skip-laya] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--head-scale F] [--head-select]
+//!                                      [--nb-select] [--oc-select]
+//!                                      [--ridge-select] [--genome-select]
+//!                                      [--genome-accept-margin F]
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                                      [--clm] [--gliner] [--agentjev] [--paw]
 //!                                      [--paw-local] [--cascade]
@@ -140,6 +143,8 @@ fn harness_main() {
         nb_select: false,
         oc_select: false,
         ridge_select: false,
+        genome_select: false,
+        genome_accept_margin: 0.05,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -194,6 +199,14 @@ fn harness_main() {
             "--nb-select" => opts.nb_select = true,
             "--oc-select" => opts.oc_select = true,
             "--ridge-select" => opts.ridge_select = true,
+            "--genome-select" => opts.genome_select = true,
+            "--genome-accept-margin" => {
+                i += 1;
+                opts.genome_accept_margin = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--genome-accept-margin needs a fraction (e.g. 0.03)"));
+            }
             "--e0" => e0 = true,
             "--distill" => distill = true,
             #[cfg(feature = "laya-riir")]
