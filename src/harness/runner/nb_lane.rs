@@ -64,7 +64,7 @@ pub const TRANSDUCTIVE_PROTOCOL: &str = "TRANSDUCTIVE — unlabeled TEST text jo
      comparable to the headline acc";
 
 #[cfg(feature = "nb_scope")]
-const NB_SCALE_LADDER: [f32; 3] = [1.0, 4.0, 16.0];
+const NB_SCALE_LADDER: [f32; 5] = [1.0, 4.0, 16.0, 32.0, 64.0];
 #[cfg(feature = "nb_scope")]
 const NB_ALPHA_LADDER: [(NbAlpha, &str); 2] = [
     (NbAlpha::ObservedLaplace, "observed-laplace"),

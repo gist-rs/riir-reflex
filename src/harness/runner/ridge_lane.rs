@@ -34,7 +34,7 @@ pub struct RidgeSelection {
 /// O(k³)-per-class fit). 2.0 lets the discriminative rows dominate the
 /// σ-drafter term; the probe's pure-argmax read bounds the regime.
 #[cfg(feature = "nb_ridge")]
-pub(super) const RIDGE_SCALE_LADDER: [f32; 3] = [0.5, 1.0, 2.0];
+pub(super) const RIDGE_SCALE_LADDER: [f32; 5] = [0.5, 1.0, 2.0, 4.0, 8.0];
 
 /// The fixed λ (the probe's selection; changing it is a NEW probe first —
 /// a λ ladder would multiply the fit cost by its length).

@@ -35,7 +35,7 @@ pub struct OcSelection {
 /// sigmoid-term regime the nb ladder spans — 0.25 (a nudge beside the
 /// drafter term) to 2.0 (the tables dominate).
 #[cfg(feature = "option_cond")]
-pub(super) const OC_SCALE_LADDER: [f32; 4] = [0.25, 0.5, 1.0, 2.0];
+pub(super) const OC_SCALE_LADDER: [f32; 6] = [0.25, 0.5, 1.0, 2.0, 4.0, 8.0];
 
 /// Cal-side selection of the option-conditioned scale at the
 /// already-selected cap, head scale and nb posture. `events_for_pool`

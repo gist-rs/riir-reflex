@@ -1048,7 +1048,7 @@ fn cases_digest(name: &str, cases: &[crate::harness::suites::SuiteCase]) -> Stri
     fn fold(h: &mut u64, bytes: &[u8]) {
         for &b in bytes {
             *h ^= u64::from(b);
-            *h = h.wrapping_mul(0x100_0000_1b3);
+            *h = h.wrapping_mul(0x0010_0000_01b3);
         }
     }
     let mut h: u64 = 0xcbf2_9ce4_8422_2325;
@@ -1201,6 +1201,10 @@ pub struct RunMeta {
     #[cfg(feature = "option_cond")]
     #[serde(skip_serializing_if = "String::is_empty")]
     pub oc_posture: String,
+    /// Issue 038 T7a ridge-readout posture (when `--ridge-select` ran).
+    #[cfg(feature = "nb_ridge")]
+    #[serde(skip_serializing_if = "String::is_empty")]
+    pub ridge_posture: String,
     pub divergences: Vec<String>,
 }
 
@@ -5176,7 +5180,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         },
         nb_posture: if opts.nb_select {
             format!(
-                "ON — cal-selected per suite (scale 0/1/4/16 × α observed-laplace/fixed-1, \
+                "ON — cal-selected per suite (scale 0/1/4/16/32/64 × α observed-laplace/fixed-1, \
                  promotion bar +5 pt over off on the stratified slice; + noul polarity per \
                  domain on noul suites; + bag/pair view on multi-field states; count tables from \
                  TRAIN rows only, uncapped). Transductive column: {TRANSDUCTIVE_PROTOCOL}"
@@ -5186,10 +5190,19 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         },
         #[cfg(feature = "option_cond")]
         oc_posture: if opts.oc_select {
-            "ON — cal-selected per suite (scale 0/0.25/0.5/1/2, promotion bar +5 pt over off \
+            "ON — cal-selected per suite (scale 0/0.25/0.5/1/2/4/8, promotion bar +5 pt over off \
              on the stratified slice; one contrastive table per (question id, gold option) \
              from the TRAIN rows, events filtered to the corpus pool; every question kind \
              armed — typed_decisions is the target suite)"
+                .to_string()
+        } else {
+            String::new()
+        },
+        #[cfg(feature = "nb_ridge")]
+        ridge_posture: if opts.ridge_select {
+            "ON — cal-selected per suite (scale 0/0.5/1/2/4/8 × λ 10 fixed, promotion bar \
+             +5 pt over off on the stratified slice; NBSVM closed-form ridge, k=2048, \
+             per-class NB log-count ratios, fit-time self-calibrated margin temperature)"
                 .to_string()
         } else {
             String::new()
@@ -5382,6 +5395,10 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     ));
     s.push_str(&format!("- label heads: {}\n", out.meta.head_posture));
     s.push_str(&format!("- count tables (issue 038): {}\n", out.meta.nb_posture));
+    #[cfg(feature = "option_cond")]
+    s.push_str(&format!("- option-conditioned tables (issue 038 T7b): {}\n", out.meta.oc_posture));
+    #[cfg(feature = "nb_ridge")]
+    s.push_str(&format!("- NBSVM ridge readout (issue 038 T7a): {}\n", out.meta.ridge_posture));
     s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- sampling: {}\n- readout: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
