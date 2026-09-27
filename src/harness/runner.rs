@@ -115,6 +115,10 @@ pub const MASSIVE_OPTION_SEED: u64 = 0x0603_2026_0922;
 
 struct SuiteSpec {
     name: &'static str,
+    /// The suite's data home on disk (defaults to `name`; the Issue-047
+    /// validation suite shares `xnli_en`'s dir, whose manifest digests
+    /// stay keyed there).
+    dataset_dir: &'static str,
     /// Test-row eval cap (0 = all rows on disk).
     test_cap: usize,
     /// Calibration-slice cap (train rows reused as cases; 0 = none).
@@ -147,6 +151,7 @@ struct SuiteSpec {
 const SUITES: &[SuiteSpec] = &[
     SuiteSpec {
         name: "typed_decisions",
+        dataset_dir: "typed_decisions",
         test_cap: 0, // all 400 — no sampling (protocols §3.1)
         cal_cap: 100,
         corpus_cap_per_label: 48,
@@ -158,6 +163,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "ag_news",
+        dataset_dir: "ag_news",
         test_cap: 400,
         cal_cap: 200,
         corpus_cap_per_label: 64,
@@ -169,6 +175,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "emotion",
+        dataset_dir: "emotion",
         test_cap: 400,
         cal_cap: 200,
         corpus_cap_per_label: 64,
@@ -180,6 +187,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "sst5",
+        dataset_dir: "sst5",
         test_cap: 600,
         cal_cap: 200,
         corpus_cap_per_label: 64,
@@ -191,6 +199,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "prompt_injections",
+        dataset_dir: "prompt_injections",
         test_cap: 0, // all 116
         cal_cap: 100,
         corpus_cap_per_label: 64,
@@ -202,6 +211,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "xnli_en",
+        dataset_dir: "xnli_en",
         test_cap: 300,
         cal_cap: 200,
         corpus_cap_per_label: 64,
@@ -217,6 +227,7 @@ const SUITES: &[SuiteSpec] = &[
     // runs; the spent 300-item test split is never loaded (eval_split).
     SuiteSpec {
         name: "xnli_en_val",
+        dataset_dir: "xnli_en",
         test_cap: 0, // all validation rows — no sampling
         cal_cap: 200,
         corpus_cap_per_label: 64,
@@ -228,6 +239,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "massive_intent_en",
+        dataset_dir: "massive_intent_en",
         test_cap: 300,
         cal_cap: 200,
         corpus_cap_per_label: 48,
@@ -239,6 +251,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "banking77",
+        dataset_dir: "banking77",
         test_cap: 500,
         cal_cap: 200,
         corpus_cap_per_label: 40,
@@ -250,6 +263,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "code_fixtures",
+        dataset_dir: "code_fixtures",
         test_cap: 0,
         cal_cap: 0, // generated with its own gold-programmatic cal slice
         corpus_cap_per_label: usize::MAX, // the builder fixes its own corpus
@@ -264,6 +278,7 @@ const SUITES: &[SuiteSpec] = &[
     // default since Issue 045 lifted cache_reuse's LLM-only carve-out.
     SuiteSpec {
         name: "harness_visibility",
+        dataset_dir: "harness_visibility",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -275,6 +290,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "harness_permissions",
+        dataset_dir: "harness_permissions",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -286,6 +302,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "harness_tool_fit",
+        dataset_dir: "harness_tool_fit",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -297,6 +314,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "harness_routing",
+        dataset_dir: "harness_routing",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -308,6 +326,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "harness_sensitivity",
+        dataset_dir: "harness_sensitivity",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -319,6 +338,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     SuiteSpec {
         name: "harness_cache_reuse",
+        dataset_dir: "harness_cache_reuse",
         test_cap: 0,
         cal_cap: 0,
         corpus_cap_per_label: usize::MAX,
@@ -517,7 +537,7 @@ pub fn load_suite_envelope(
              nothing to store"
         ));
     }
-    let suite_dir = datasets_dir.join(spec.name);
+    let suite_dir = datasets_dir.join(spec.dataset_dir);
     let eval = load_rows(&suite_dir, spec.eval_split)?;
     let train = load_rows(&suite_dir, "train").map_err(|e| format!("suite {}: {e}", spec.name))?;
     Ok(serde_json::json!({
@@ -4702,7 +4722,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         });
     }
 
-    let suite_dir = dir.join(spec.name);
+    let suite_dir = dir.join(spec.dataset_dir);
     let eval_rows = load_rows(&suite_dir, spec.eval_split)?;
     // Issue 039 T2: the test sample is a label-STRATIFIED round-robin over
     // the whole split, not the first-N prefix — on label-sorted mirrors the
