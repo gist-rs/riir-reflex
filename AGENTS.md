@@ -216,6 +216,17 @@ AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
 PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
   cargo run --release --bin harness -- --paw-local --skip-laya
 
+# The cascade lane (Issue 038 T4′ / Bench 061, `--cascade`, needs `laya-riir`,
+# mutually exclusive with --skip-laya): the modelless answers stand; the
+# calibrated fused gate's abstains escalate to each served riir-laya
+# checkpoint. Publishes accuracy AND the escalation rate per suite (the rate
+# is the latency claim). Verdict at the shipped gate: NEGATIVE (issue 042 —
+# the gate's cal→test abstain transfer breaks at the armed postures); the
+# lane stays opt-in as the instrument that gate fix re-measures with.
+LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -- \
+  --datasets-dir .raw/datasets_t20k --cascade --nb-select --oc-select --ridge-select \
+  --out .benchmarks/061_cascade_lane
+
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
 # coremltools subprocess (scripts/cua_s1_lane.py, their preprocessing.py

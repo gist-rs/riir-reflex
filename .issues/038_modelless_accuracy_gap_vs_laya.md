@@ -1,6 +1,6 @@
 # Issue 038 — modelless accuracy gap vs laya: the scorer is the ceiling, not the corpus
 
-**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. T7(a)+(b) LANDED 2026-09-27 (Plan 004: option-conditioned tables + NBSVM ridge, both promoted default-on — typed +13.5 pt, emotion +11 pt). T5 step 1 LANDED `6199e5e` (selection ladders extended upward; round-2 re-selection lifted emotion to **0.885** ridge@8 — modelless now ≥ laya best on **5/9** dataset suites, with the ladder-maxed round-1 postures on typed/sst5/xnli HELD by the slice). Open here: T5 steps 2+ (joint genome, RRF), T4′ cascade lane, T7(c) BM25 kNN, T7(d) Hebbian xnli; the ag_news volume lever moved to `.issues/041`.
+**Status:** OPEN — T1/T1b/T2/T3/T6 DONE (Bench 051; `d66ef21` `0d8eaa0` `32aee61` `1fa8823` `754eca0`; published reflex-site `9b8223d`). At the fair full pull, modelless ≥ laya on 4/8 dataset suites (emotion, sst5, massive, banking77). T4 REVISED: the model-based/hybrid lane goes to private `riir-instinct` (riir-ai Proposal 047, riir-train Issue 576); T4′ cascade becomes that repo's hybrid. T7(a)+(b) LANDED 2026-09-27 (Plan 004: option-conditioned tables + NBSVM ridge, both promoted default-on — typed +13.5 pt, emotion +11 pt). T5 step 1 LANDED `6199e5e` (selection ladders extended upward; round-2 re-selection lifted emotion to **0.885** ridge@8 — modelless now ≥ laya best on **5/9** dataset suites, with the ladder-maxed round-1 postures on typed/sst5/xnli HELD by the slice). Open here: T5 steps 2+ (joint genome, RRF), T7(c) BM25 kNN, T7(d) Hebbian xnli; the ag_news volume lever moved to `.issues/041`. T4′ cascade lane LANDED 2026-09-27 (Bench 061, `337974d`): the lane + measurement are done; the gate verdict at the shipped fused gate is NEGATIVE (cascade < modelless on 5/8 dataset suites — the fused gate's test-side abstain is 90–99% at the armed postures vs the cal ρ=30% target; follow-up lever filed as issue 042; the lane stays opt-in as the instrument).
 
 ## Finding (Bench 045, M3, fold-promoted default)
 
@@ -115,9 +115,19 @@ tried.
       2B+ params, bigger and slower than laya's 421M (Bonsai ~50 s/chunk on CPU,
       Bench 583), giving up the latency axis modelless wins on; (c) both put
       neural weights inside the lane the site sells as "no neural weights".
-- [ ] **T4′ — cascade lane "Reflex · cascade" (opt-in, its own named lane):**
-      modelless answers first; questions where the EXISTING fused abstain gate
-      fires escalate to the laya lane. No training, no new model. Publish
+- [x] **T4′ — cascade lane "Reflex · cascade" (opt-in, its own named lane):**
+      LANDED as the harness measurement lane (Bench 061, `337974d`): `--cascade`
+      composes the modelless answers with each served riir-laya checkpoint over
+      the calibrated fused gate's abstains; publishes accuracy AND the
+      escalation rate per suite (the rate is the latency claim). Verdict at the
+      shipped gate: **NEGATIVE** — accuracy ≥ modelless fails on 5/8 dataset
+      suites (emotion −28.3, banking77 −14.0); the mechanism is the fused gate's
+      cal→test abstain transfer (90–99% test-side at the armed postures vs the
+      ρ=30% cal target), filed as issue 042. G3 proven (1,712 non-timing fields
+      byte-identical with the flag off). The lane stays opt-in — it is the
+      instrument the gate fix re-measures with. Original spec, kept for the
+      record: modelless answers first; questions where the EXISTING fused abstain
+      gate fires escalate to the laya lane. No training, no new model. Publish
       accuracy AND escalation rate per suite (the rate is the latency claim).
       Gate: accuracy ≥ modelless on every suite and within noise of laya on
       xnli/typed, with escalation < 100% on the topical suites. Runs after T7.
