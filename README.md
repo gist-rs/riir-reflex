@@ -210,13 +210,18 @@ authority is the decision-level G5-ANE gate (76/76 top-1, near-ties listed
 never hidden), not the Metal lane's 1e-3 p-drift bar — the device is
 ALWAYS disclosed in the reason, never silently substituted.
 
-### The fitted game heads (Tetris + lanes + flappy, default-on)
+### The game heads (Tetris + lanes + flappy, default-on)
 
 The modelless lane answers Plan 607's three game questions from the
-**decoded corpus-fitted heads** — boot-fitted from verbatim BLAKE3-pinned
-copies of the katgpt-rs oracle fixtures (each head's published fit is
-asserted in `tests/game_heads_serve.rs` — no serving from an unmeasured
-fit):
+**decoded corpus-fitted heads**. SINCE THE VESSEL EXTRACTION (instinct
+Proposal 001 T4, develop) the fit runs at MINT time — `reflex mint-heads`
+through the format repo's public writer — and the serve path loads the
+signed PUBLIC-RELEASE vessels (see the game-lanes section above; each
+head's published fit is asserted in `tests/game_heads_serve.rs` and the
+vessel round trip is pinned byte-identical in `tests/game_heads_vessels.rs`
+— no serving from an unmeasured fit). ⚠ Ships with the NEXT release: the
+current archives (≤ v0.2.3) boot-fit from verbatim BLAKE3-pinned fixture
+copies and carry no `mint-heads` subcommand.
 
 | head | published fit | request shape |
 |---|---|---|

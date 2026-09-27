@@ -77,6 +77,29 @@ lives in `.issues/` and `.plans/`, never here.
   build_stamp suite 3/3 at default AND `--no-default-features`; clippy
   `-D warnings` green at both.
 
+- **instinct Proposal 001 T7's REFLEX half LANDED (`e66588c`) + the
+  proposal's T3/T4/T7 rows checked (`instinct 599633d`).** The T4 landing
+  (`9901a52`, 2026-09-27) shipped code + 9 gates but no living docs — the
+  laws deferral is now paid: AGENTS.md gains the Head vessels section (A1
+  capability — `vessel_public_read` ONLY, the HOSTED reader has no
+  selectable path in any feature combination, verified by grep; A8 no
+  runtime minting — fit at mint time, serve loads + verifies; A10 moat —
+  the demo heads are public BY DESIGN, no GAME-IP content in
+  PUBLIC-RELEASE vessels) + the pins-first-wildcard trust anchoring + the
+  riir-reflexer sibling row; README gains the game-lanes serve posture
+  (`RIIR_REFLEX_HEADS_DIR` + `RIIR_REFLEX_HEADS_PUBKEY` + `reflex
+  mint-heads`) and the fitted-heads section is superseded to the
+  mint-time-fit posture with the ships-next-release caveat (≤ v0.2.3
+  archives boot-fit from fixtures, no mint-heads); `.docs/01_orientation/sibling_layout.md`
+  (the full dependency law) un-staled — the laya lane's 2026-09-24 move
+  to riir-infer (Issue 008 T4) and the reflexer-vessel dep join the
+  diagram + the law, verified against Cargo.toml (optional dep,
+  default-on) and BOUNDARY.md (the dep row landed there with T4,
+  `.issues/051`). docs_shape_gate PASS. The instinct proposal's T3 row
+  also closed: the reader-capability axis landed in all three repos
+  (reflexer P3.1 both readers; instinct P4 the opt-in hosted reader;
+  reflex `vessel_public_read` only).
+
 ## 2026-09-27
 
 - **Issue 048 CLOSED — T5 discharged: the combined-posture LCB leg is a
