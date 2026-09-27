@@ -57,7 +57,8 @@ use crate::harness::pair_heads::{
 };
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
-    build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
+    build_massive_intent_en, build_prompt_injections, build_sst5, build_thai_sib200,
+    build_thai_wisesight, build_typed_decisions,
     build_xnli_en, stratified_selection_slices, stratified_split, train_docs,
 };
 use crate::pyjson::serialize_state;
@@ -234,6 +235,34 @@ const SUITES: &[SuiteSpec] = &[
         eval_split: "validation",
         named_only: true,
         build: build_xnli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    // Plan 003 T3.2 — the Thai probe lanes (opt-in via `--suites thai_*`,
+    // G-ISO-2: never a default-run member; G-ISO-1/3/4 untouched — the
+    // suites add zero runtime-code surface, the builders are pure harness
+    // code reachable only from the `harness` bin).
+    SuiteSpec {
+        name: "thai_wisesight",
+        dataset_dir: "thai_wisesight",
+        test_cap: 400,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: true,
+        build: build_thai_wisesight,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "thai_sib200",
+        dataset_dir: "thai_sib200",
+        test_cap: 0, // all 204 rows — the whole-set probe
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: true,
+        build: build_thai_sib200,
         synthetic: None,
         modelless_lane: true,
     },
@@ -4797,6 +4826,10 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         "sst5" => (0..5).map(|i| i.to_string()).collect(),
         "xnli_en" | "xnli_en_val" => (0..3).map(|i| i.to_string()).collect(),
         "prompt_injections" => (0..2).map(|i| i.to_string()).collect(),
+        // Plan 003: wisesight's int ClassLabel (train docs carry ints, like
+        // emotion); sib200's string categories ride the default branch below
+        // (train docs and option keys are the same strings).
+        "thai_wisesight" => (0..4).map(|i| i.to_string()).collect(),
         "typed_decisions" => {
             // The workflow names from the TEST case ids (id =
             // "<workflow>:<row_idx>"), sorted for a stable domain order.
@@ -4815,7 +4848,10 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     // exactly as numerous as the option keys (pick index ↔ domain index).
     // Noul-only suites present no option keys — exempt (their classes ride
     // the train-doc labels).
-    if matches!(spec.name, "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val") {
+    if matches!(
+        spec.name,
+        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight"
+    ) {
         assert_eq!(
             labels.len(),
             option_key_union.len(),
@@ -4832,6 +4868,18 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             77,
             "banking77: the TEST suite presents {} option keys (need all 77 — \
              fetch the full test split for the option universe)",
+            option_key_union.len()
+        );
+    }
+    // Plan 003: the whole 204-row Thai test split must present the full
+    // 7-topic universe — a partial fetch would bind empty corpora to the
+    // missing domains (the banking77 guard, one suite over).
+    if spec.name == "thai_sib200" {
+        assert_eq!(
+            option_key_union.len(),
+            7,
+            "thai_sib200: the TEST suite presents {} option keys (need all 7 — \
+             fetch the full test split)",
             option_key_union.len()
         );
     }
@@ -5592,6 +5640,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 4 => dispatch!(4),
                 5 => dispatch!(5),
                 6 => dispatch!(6),
+                7 => dispatch!(7), // Plan 003: thai_sib200 (the first 7-domain suite)
                 8 => dispatch!(8),
                 59 => dispatch!(59),
                 77 => dispatch!(77),

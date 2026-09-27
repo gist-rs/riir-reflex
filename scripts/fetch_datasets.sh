@@ -341,6 +341,14 @@ main() {
         log "[probe] prompt_injections /size"
         probe_size prompt_injections "deepset%2Fprompt-injections"
     fi
+    if want_suite thai_wisesight; then
+        log "[probe] thai_wisesight /splits"
+        probe_splits thai_wisesight "pythainlp%2Fwisesight_sentiment"
+    fi
+    if want_suite thai_sib200; then
+        log "[probe] thai_sib200 /splits"
+        probe_splits thai_sib200 "Davlan%2Fsib200"
+    fi
 
     # 1. typed_decisions — test: ALL rows; train: first 800 if the probe
     #    shows a train split for config all.
@@ -421,6 +429,27 @@ main() {
         # suite dir and read ONCE by `--nli-m1 --suites xnli_en_val`.
         log "[suite] xnli_en config=en split=validation cap=all (issue 047 confirmation surface)"
         fetch_suite xnli_en "facebook%2Fxnli" en validation all
+    fi
+
+    # 9. thai_wisesight — Plan 003 T3.1: the OpenThai board's WEAKEST
+    #    published set (51.6 / ECE 0.353 — chosen for honesty, not
+    #    cherry-picking). 4-class sentiment choice; the ClassLabel order
+    #    pos/neu/neg/q is verified at fetch and pinned in
+    #    dataset_manifest.md (the ag_news VERIFY-AT-PORT law).
+    if want_suite thai_wisesight; then
+        log "[suite] thai_wisesight pythainlp/wisesight_sentiment config=wisesight_sentiment split=test cap=400"
+        fetch_suite thai_wisesight "pythainlp%2Fwisesight_sentiment" wisesight_sentiment test 400
+        log "[suite] thai_wisesight config=wisesight_sentiment split=train cap=$TRAIN_CAP"
+        fetch_suite thai_wisesight "pythainlp%2Fwisesight_sentiment" wisesight_sentiment train "$TRAIN_CAP"
+    fi
+
+    # 10. thai_sib200 — Plan 003 T3.1: the SIB-200 Thai topical probe
+    #     (7-way topic), test + train fetched WHOLE (204 / 701 rows).
+    if want_suite thai_sib200; then
+        log "[suite] thai_sib200 Davlan/sib200 config=tha_Thai split=test cap=all (204 rows whole-set)"
+        fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai test all
+        log "[suite] thai_sib200 config=tha_Thai split=train cap=all (701 rows whole-set)"
+        fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai train all
     fi
 
     log ""

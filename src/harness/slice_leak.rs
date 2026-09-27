@@ -457,7 +457,7 @@ pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> 
     let s = &case.state;
     match suite {
         "ag_news" => s.get("article")?.as_str().map(str::to_string),
-        "emotion" | "sst5" | "prompt_injections" => {
+        "emotion" | "sst5" | "prompt_injections" | "thai_wisesight" | "thai_sib200" => {
             s.get("text")?.as_str().map(str::to_string)
         }
         "banking77" => s.get("message")?.as_str().map(str::to_string),

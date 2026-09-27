@@ -56,3 +56,37 @@ the gate to keep the pin green).
 
 Non-contamination gates G-ISO-1..4 hold: no runtime code changed, no suite
 list change, fixtures untouched, no new packages.
+
+## The probe suites (Plan 003 T3.1/T3.2 — opt-in dataset lanes)
+
+Two Thai probe suites joined the harness as **named-only** registry members
+(G-ISO-2: they run ONLY under `--suites thai_*`, never a default-run
+member; no serve-path or runtime-code surface — pure harness builders):
+
+| suite | dataset | shape | options |
+|---|---|---|---|
+| `thai_wisesight` | `pythainlp/wisesight_sentiment` (config `wisesight_sentiment`) | 4-class sentiment choice; test cap 400 / train 4000 | fixed ClassLabel order `[pos, neu, neg, q]` |
+| `thai_sib200` | `Davlan/sib200` (config `tha_Thai`) | 7-way topic choice; test + train whole-set (204 / 701) | sorted unique `category` strings (banking77 law) |
+
+Data provenance, digests, and label distributions:
+`.docs/02_protocols/dataset_manifest.md` §9–§10 (fetched 2026-09-28 via
+`SUITES=thai_wisesight,thai_sib200 scripts/fetch_datasets.sh`). wisesight
+is the OpenThai board's WEAKEST published set (51.6 / ECE 0.353) — chosen
+for honesty, not cherry-picking.
+
+**First modelless readings on the new suites (smoke, 2026-09-28, M3 · AC ·
+release; NOT the T3.3 board — the openthai and laya-multilingual columns
+need their servers/weights in a board run):**
+`thai_wisesight` acc 0.1225 (chance 0.25) · `thai_sib200` acc 0.1422
+(chance ≈ 0.143). Both consistent with the empty-bag law above: a pure-Thai
+state embeds to the zero vector → the distance gate abstains → forced
+accuracy sits at/below chance. The lane answers at parity-with-chance
+exactly as the Phase-1 pin predicts; real Thai capability on the modelless
+side stays behind Plan 003 T4.2 (segment → space-join → the EXISTING
+embedder), deferred with its trigger. Determinism: two runs byte-identical
+ex-meta (only the volatile wall-clock latency fields differ).
+
+Board status: T2.6 (EN cross-check) and T3.3 (the full Thai board:
+openthai vs laya-multilingual vs modelless) wait on THEIR service live
+(`uvicorn openthai_systemone.server:app` + the HF weights env) — the code
+lane is landed and stub-verified (T2.1–T2.5).

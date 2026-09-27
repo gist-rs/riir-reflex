@@ -323,6 +323,85 @@ total 392702).
 | `train-038.json` | 100 | `d3f468237708ba8a5629b43869c8e32df42b49ba6f080d39da2882e2f556f9b8` | 26502 |
 | `train-039.json` | 100 | `b733f76daa727016d9506cbf8dc3c715e94e581693679d030b044f1219092f39` | 24447 |
 
+### 9. thai_wisesight — `pythainlp/wisesight_sentiment` (config `wisesight_sentiment`) — Plan 003 T3.1
+
+The OpenThai board's WEAKEST published set (51.6 / ECE 0.353 — chosen for
+honesty, not cherry-picking). 4-class Thai sentiment choice.
+`test` capped at 400 (dataset total 2671); `train` capped at 4000 (dataset
+total 21628). NOTE: the config name is `wisesight_sentiment` (the
+`pythainlp/wisesight-sentiment` hyphenated spelling is gated — /splits 401).
+Label distribution over the fetched slices: test 400 → 73 pos / 218 neu /
+102 neg / 7 q; train 4000 → 699 / 2198 / 1014 / 89.
+
+| `splits.json` | — | `cd5347a2713e75e97755174d0a9d5dd787c18c377d6e018e2567ef2901a66ced` | 314 |
+| `test-000.json` | 100 | `6b73b14964b85de0efcf7fd6e58199412d28fc1ff27508ff13e7686c90899d9a` | 31172 |
+| `test-001.json` | 100 | `d290bd876a20a7c7c317557c25097bd238bfcde81c3b70153c9b6a505932c695` | 35896 |
+| `test-002.json` | 100 | `c7472e63aab52d546b35673bed0a227dbbe82d5f97a21347001aff12481c372b` | 29741 |
+| `test-003.json` | 100 | `3a8e09f3503135dcf3a04203a340e3d442f8b567ace0568ddd1588d3755d870b` | 36331 |
+| `train-000.json` | 100 | `fdd70d3209abdefe552a247eaa7eed5c3953437e8706103e0a8531daeed5369d` | 30848 |
+| `train-001.json` | 100 | `b1c54e05ef36c83297fb3bef578f8bfd379b3024680e0e9bf89888563f1c6e69` | 33066 |
+| `train-002.json` | 100 | `84fa72a31b2fa1aa9ae7a207edc3f36161b216c2152059c7d35ad386e9e959e9` | 37864 |
+| `train-003.json` | 100 | `25c1e971576e88a4bb335ff3a74123e51c04360266c3a4958eb8df0e68c80cba` | 41726 |
+| `train-004.json` | 100 | `c10790d7f9f7ae97a549bf5028094aeec37fc0ac60f2086c7ad2211c47b762ae` | 34055 |
+| `train-005.json` | 100 | `a2458e3962a59171666cccfb0247207bdedd21c7011d8b3230902e7dbd1dddf2` | 29920 |
+| `train-006.json` | 100 | `94366aa2f8b8fdb8a9b66dbf05efdb52730a4260e6741c7dcd4dc4701cb2b94d` | 28804 |
+| `train-007.json` | 100 | `db20f6da07395bdee011c7da7780d06f4c5f589bea4e91ae91f929e5c73a3f21` | 31408 |
+| `train-008.json` | 100 | `95e3645bef94299087ea72cc0eb73d213468fb666a681c048dc935820da9c979` | 33279 |
+| `train-009.json` | 100 | `2240e7248a9c11bb2f5d32ea7d3389f257383b37dda01c98a9fb9ca49f854bf9` | 29243 |
+| `train-010.json` | 100 | `6d5ba23b0b19645f1ce7ebcbcc77bbf7df6e2498ff60b11ac3fd79c1bdc10bb9` | 32562 |
+| `train-011.json` | 100 | `e2722ed32797c6de1c8980c8036c1eca9d227dcdc0f8342fc4c43df73e377ee2` | 24336 |
+| `train-012.json` | 100 | `4c43659b4e61c337cb7374414ec9dc6af6eafe485c33e1cbf220312d0f0050d0` | 27130 |
+| `train-013.json` | 100 | `07d367dac7df9529885f8954b8eebadc8984af26dbb1e6e2a50899538e9dfbc8` | 26740 |
+| `train-014.json` | 100 | `17035f3c4da510d2d17c68e20b46bf65c396c5be5255c4a0a84576823af8624b` | 29371 |
+| `train-015.json` | 100 | `e891b3eb8b37832514b258aec5b16c60feaaa9829698ac8b66ed33eaa3ce3801` | 27241 |
+| `train-016.json` | 100 | `051d211cdf94a0487753a90d3772dab8002303d0d316b1e0129de7812f0fb095` | 28876 |
+| `train-017.json` | 100 | `8e93c0a3bc3410261d28fe89f7735febb1aaaf7860385b9a4b78734c32376ebf` | 36757 |
+| `train-018.json` | 100 | `fef431d34dd4379be5a86b92ad2ba58dfe9703a3f8550fd24e9e8cf55b46e45e` | 33633 |
+| `train-019.json` | 100 | `634fa661bcde0d618cd7b947dee880bad5a577b22af2f4279d47618ec7ed3cdc` | 33132 |
+| `train-020.json` | 100 | `908b37e3bb8cb6396a9de8b1ad29be6586984093e0d07c1acdd1e26228aab591` | 27486 |
+| `train-021.json` | 100 | `53dbb78a7401c1804fcf679b3ab84bf6106655b61dbba10edeea59d60f5c08a5` | 35299 |
+| `train-022.json` | 100 | `215c6245cb28ea3733e5dd940898bd45ce6b4a2469b6edabb50e600ecf3f3e4f` | 26704 |
+| `train-023.json` | 100 | `c5fb7be9b707cf8f73e5d39958edff3530abcf296b76fcf856de2b789e5eef37` | 30000 |
+| `train-024.json` | 100 | `120dcd51b08c188afcf1cdade8b51818f7ce6e3c8d215696051a97522c9e7282` | 29433 |
+| `train-025.json` | 100 | `3cb18748a40850288743f5e20fb1460283aa17d88a04245d88ad2ed289a5d094` | 28268 |
+| `train-026.json` | 100 | `ae6ec5bbf1363c7365f5239a2635304e5008bf3c0ff1813b6512cd5c8bff079a` | 29761 |
+| `train-027.json` | 100 | `354b41c175ce4cab7afc8fdced0100fc5f8289a9a32ea495e58f46f2946eae87` | 28113 |
+| `train-028.json` | 100 | `e780ae48a971c7034f42c3ee90d865576fdb4f3d4e70031a9af41650fac72061` | 32057 |
+| `train-029.json` | 100 | `508ca06c2ff472189ab7506c7a2d3a212f0df562537e54b04836afc93ed9a99e` | 25384 |
+| `train-030.json` | 100 | `84d132f486bb92e5ee454fa61f43d4d5914c163f16389b645235ee48f5fb6bdb` | 32678 |
+| `train-031.json` | 100 | `ab21d4449144a56eb8a1f640624e9669ec33692d50f89bf72761f85a1f8ecb28` | 32398 |
+| `train-032.json` | 100 | `44391e80f6ba99cd442c1f04c5a55789904e823b9e2e26db3efbe93ea6392aab` | 33230 |
+| `train-033.json` | 100 | `5c8fe3149f0499b6185ad92aa5660c72d5a368d2c3ef1d41a9de66306670e9d1` | 37144 |
+| `train-034.json` | 100 | `6ad2e15d0002207f2c0f4d85b9938536d3839de652d5f437fda150ba68b94cb8` | 30977 |
+| `train-035.json` | 100 | `caaef1d6e20fc800737fc5056b2608722092e2b1dbd2b7ac3867062b33c30e6b` | 25391 |
+| `train-036.json` | 100 | `5a1ab047c6995d27ed76b3580e834801bf517abdbcaad73d9d261bec3a742598` | 33911 |
+| `train-037.json` | 100 | `be46f8e3546a7444e8f45f5342399c4da1c74b273455331c3fede6f7c677af1b` | 34188 |
+| `train-038.json` | 100 | `f0839fa78fcb8747475088d1c328b921f03de3f54bcae92f4916d881985d6ad9` | 30107 |
+| `train-039.json` | 100 | `41c2a66e9f710056f53265d047ceece8cf56bff4cbd7a330e7e4224f3c412216` | 27172 |
+
+### 10. thai_sib200 — `Davlan/sib200` (config `tha_Thai`) — Plan 003 T3.1
+
+The SIB-200 Thai topical probe: 7-way topic choice, `category` a plain
+STRING (no ClassLabel — the option universe derives from sorted unique
+categories, the banking77 law). `test` and `train` fetched WHOLE (204 / 701
+rows). Label distribution: test → 19 entertainment / 17 geography / 22
+health / 30 politics / 51 science·technology / 25 sports / 40 travel; train
+→ 65 / 58 / 77 / 102 / 176 / 85 / 138. NOTE: Davlan/sib200 carries 700+
+language configs; `tha_Thai` is the Thai one (verified via /splits).
+
+| `splits.json` | — | `cce2315aac3fdc32e88629f36a90fe78cc2317179eec351d4c3a655e117bf278` | 45670 |
+| `test-000.json` | 100 | `27fab133e4d4c2c5f7f2c9d85e4744c17a2265ac97e52bf5be0f451ebfe3baa6` | 45193 |
+| `test-001.json` | 100 | `78bb2eac9af22d9e5e409f6ccca7b5354e384883c12c8597ca66cbe0b9544e66` | 46042 |
+| `test-002.json` | 4 | `40c4ce4b674c2b128a466ad3451688b1fd40d214ac7f5b9fddf0874b27d2c503` | 2019 |
+| `train-000.json` | 100 | `57a69463aa8eb0af1fb7dad25180548434fac078734e6366f4908ebfd37b8354` | 44060 |
+| `train-001.json` | 100 | `21ab9999352d44f7eb75dd4dd8be470996a8713b163568722109b31f8082754b` | 47196 |
+| `train-002.json` | 100 | `8071464105156646617dc411ae7c3f3da4022bcdb3de217dbd5e9140234d18e6` | 45970 |
+| `train-003.json` | 100 | `6dec520a497d87c159c935489679ead3dc883864f7b1b1c2019c5dceac4b1ceb` | 46851 |
+| `train-004.json` | 100 | `b1ce11d7f1e217d9747d22e7b91c379e9a053ad167802d9e156d7a5903672c49` | 46991 |
+| `train-005.json` | 100 | `5692b4104f96149db54c2a552fbe2eda55ba602c526043eb2ed6c05c231a2533` | 43802 |
+| `train-006.json` | 100 | `d92d83feb172ddfe18b606eea21a807a01898d29c539eb4614db7a07a2069801` | 47607 |
+| `train-007.json` | 1 | `a1b947c11b1b2fc73e592ad67d051449a014f35b331c8e6cc7f31d4da17e6ab3` | 784 |
+
 ## ClassLabel orders (verified)
 
 Quote the exact `features` names arrays from the fetched JSON (first page
@@ -331,6 +410,8 @@ file, `.features[] | select(.type._type == "ClassLabel")`):
 - **ag_news** `label`: `["World", "Sports", "Business", "Sci/Tech"]`
 - **emotion** `label`: `["sadness", "joy", "love", "anger", "fear", "surprise"]`
 - **xnli_en** `label`: `["entailment", "neutral", "contradiction"]`
+- **thai_wisesight** `category`: `["pos", "neu", "neg", "q"]` (Plan 003;
+  the builder's fixed criteria order)
 
 Suites whose features carry NO ClassLabel (semantics verified another way):
 

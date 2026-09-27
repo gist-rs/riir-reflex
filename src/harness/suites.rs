@@ -644,6 +644,110 @@ pub fn build_xnli_en(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
+// ── Thai probe suites (Plan 003 T3.1/T3.2 — opt-in only, never a default-run
+// member: the G-ISO-2 non-contamination law, `named_only: true` in the
+// registry) ─────────────────────────────────────────────────────────────────
+
+/// Plan 003 T3.2 — `thai_wisesight` (pythainlp/wisesight_sentiment, config
+/// `wisesight_sentiment`): 4-class Thai sentiment choice. Fixed options in
+/// ClassLabel order [pos, neu, neg, q] — the fetch layer verifies
+/// `features.category.names` (the ag_news VERIFY-AT-PORT law; the verified
+/// order is pinned in dataset_manifest.md). Gold = the int `category`.
+#[must_use]
+pub fn build_thai_wisesight(rows_file: &Value, max_rows: usize) -> Suite {
+    const CRIT: [(&str, &str); 4] = [
+        ("pos", "positive sentiment"),
+        ("neu", "neutral statement"),
+        ("neg", "negative sentiment"),
+        ("q", "a question"),
+    ];
+    let keys: Vec<String> = CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
+    let descs: Vec<Option<String>> = CRIT
+        .iter()
+        .map(|(_, d)| Some((*d).to_string()))
+        .collect();
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(text), Some(label)) = (row_str(row, "texts"), row_i64(row, "category")) else {
+            continue;
+        };
+        cases.push(SuiteCase {
+            id: format!("thai_wisesight:{pos}"),
+            state: json!({ "text": text }),
+            questions: vec![choice_q(
+                "sentiment",
+                "What sentiment does `text` express?",
+                &keys,
+                Some(descs.clone()),
+            )],
+            gold: vec![GoldAnswer {
+                idx: label as usize,
+                soft: vec![0.0; 4],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "thai_wisesight",
+        cases,
+        option_counts_note: "4 fixed options in ClassLabel order [pos, neu, neg, q] — \
+                             fetch layer verifies features.category.names",
+    }
+}
+
+/// Plan 003 T3.2 — `thai_sib200` (Davlan/sib200, config `tha_Thai`): 7-way
+/// Thai topical choice. `category` arrives as a STRING (no ClassLabel), so
+/// the option universe derives from the data exactly like banking77:
+/// `sorted(unique(category))` over ALL rows on disk; gold = the key position.
+/// The engine's domains are the same string keys (the registry's default
+/// option-key-union branch), which the train docs' category strings bind to
+/// directly.
+#[must_use]
+pub fn build_thai_sib200(rows_file: &Value, max_rows: usize) -> Suite {
+    let all = rows_of(rows_file);
+    let mut labels: Vec<String> = Vec::new();
+    for row in &all {
+        if let Some(c) = row_str(row, "category")
+            && !labels.iter().any(|l| l == c)
+        {
+            labels.push(c.to_string());
+        }
+    }
+    labels.sort();
+    let descs: Vec<Option<String>> = vec![None; labels.len()];
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(text), Some(category)) = (row_str(row, "text"), row_str(row, "category")) else {
+            continue;
+        };
+        let idx = labels.iter().position(|l| l == category).unwrap_or_else(|| {
+            panic!("thai_sib200: row category {category:?} not in key set")
+        });
+        cases.push(SuiteCase {
+            id: format!("thai_sib200:{pos}"),
+            state: json!({ "text": text }),
+            questions: vec![choice_q(
+                "topic",
+                "Which topic does `text` belong to?",
+                &labels,
+                Some(descs.clone()),
+            )],
+            gold: vec![GoldAnswer {
+                idx,
+                soft: vec![0.0; labels.len()],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "thai_sib200",
+        cases,
+        option_counts_note: "topic options derived from sorted unique category strings \
+                             (SIB-200; the whole 204-row test split presents all 7)",
+    }
+}
+
 // ── typed-decisions (§3.1) ──────────────────────────────────────────────────
 
 /// A dataset column that arrives as a JSON string (or, tolerantly, already
@@ -903,6 +1007,10 @@ pub struct TrainDoc {
 pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
     match suite {
         "massive_intent_en" => row_str(row, "label_text").map(str::to_string),
+        // Plan 003 Thai probe suites: the label column is `category` on
+        // both — an int ClassLabel on wisesight, a plain string on sib200.
+        "thai_wisesight" => row_i64(row, "category").map(|l| l.to_string()),
+        "thai_sib200" => row_str(row, "category").map(str::to_string),
         "typed_decisions" => row_str(row, "workflow").map(str::to_string),
         // mteb/banking77 carries label_text (the option-key source — the
         // STRIPPED form, so the corpora bind to the engine's option-key
@@ -1097,8 +1205,11 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
 }
 
 /// Train rows per suite. Label/text rules:
-/// - `ag_news` / `emotion` / `sst5` / `banking77` / `prompt_injections`:
-///   label = `int(label).to_string()`, text = the `text` field;
+/// - `ag_news` / `emotion` / `sst5` / `banking77` / `prompt_injections` /
+///   `thai_sib200`:
+///   label = the per-suite [`train_row_label`] rule, text = the `text` field;
+/// - `thai_wisesight`: label = `int(category).to_string()`, text = the
+///   `texts` field (the dataset's own column spelling);
 /// - `massive_intent_en`: label = `label_text`, text = `text`;
 /// - `xnli_en`: label = `int(label).to_string()`, text = premise + "\n" +
 ///   hypothesis;
@@ -1111,12 +1222,22 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
 pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
     let rows = rows_of(train_rows_file);
     match suite {
-        "ag_news" | "emotion" | "sst5" | "prompt_injections" => rows
+        "ag_news" | "emotion" | "sst5" | "prompt_injections" | "thai_sib200" => rows
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {
                     label: train_row_label(suite, r)?,
                     text: row_str(r, "text")?.to_string(),
+                })
+            })
+            .collect(),
+        // wisesight's text column is `texts`, not `text` — its own arm.
+        "thai_wisesight" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: row_str(r, "texts")?.to_string(),
                 })
             })
             .collect(),
@@ -1393,5 +1514,91 @@ mod stratified_split_tests {
         ];
         let s = stratified_split(&envelope(rows), "massive_intent_en", 2);
         assert_eq!(front_texts(&s), ["a0", "p0"]);
+    }
+}
+
+#[cfg(test)]
+mod thai_builder_tests {
+    //! Plan 003 T3.2 — the Thai probe-suite builders.
+
+    use super::{build_thai_sib200, build_thai_wisesight, train_docs};
+
+    fn envelope(rows: Vec<serde_json::Value>) -> serde_json::Value {
+        let wrapped: Vec<serde_json::Value> = rows
+            .iter()
+            .enumerate()
+            .map(|(i, r)| serde_json::json!({ "row_idx": i, "row": r }))
+            .collect();
+        serde_json::json!({ "rows": wrapped })
+    }
+
+    /// The FETCHED ClassLabel order (dataset_manifest.md — verified at
+    /// fetch 2026-09-28): the builder's fixed criteria MUST match it.
+    #[test]
+    fn wisesight_fixed_options_match_the_classlabel_order() {
+        let env = envelope(vec![serde_json::json!({ "texts": "สวัสดี", "category": 0 })]);
+        let s = build_thai_wisesight(&env, 0);
+        let crit = s.cases[0].questions[0].criteria.as_object().unwrap();
+        let keys: Vec<&String> = crit.keys().collect();
+        assert_eq!(keys, ["pos", "neu", "neg", "q"]);
+    }
+
+    #[test]
+    fn wisesight_gold_is_the_int_category() {
+        let env = envelope(vec![
+            serde_json::json!({ "texts": "ดีมาก", "category": 0 }),
+            serde_json::json!({ "texts": "เฉยๆ", "category": 1 }),
+            serde_json::json!({ "texts": "แย่", "category": 2 }),
+            serde_json::json!({ "texts": "ช่วยหน่อย", "category": 3 }),
+        ]);
+        let s = build_thai_wisesight(&env, 0);
+        assert_eq!(s.cases.len(), 4);
+        assert_eq!(s.cases[0].state["text"], "ดีมาก");
+        assert_eq!(s.cases[3].gold[0].idx, 3);
+        // state carries the `texts` column under the standard `text` key.
+        assert_eq!(s.cases[0].id, "thai_wisesight:0");
+    }
+
+    #[test]
+    fn wisesight_train_docs_read_the_texts_column() {
+        let env = envelope(vec![
+            serde_json::json!({ "texts": "a", "category": 1 }),
+            serde_json::json!({ "texts": "b", "category": 2 }),
+        ]);
+        let docs = train_docs(&env, "thai_wisesight");
+        assert_eq!(docs.len(), 2);
+        assert_eq!((docs[0].label.as_str(), docs[0].text.as_str()), ("1", "a"));
+        assert_eq!((docs[1].label.as_str(), docs[1].text.as_str()), ("2", "b"));
+    }
+
+    #[test]
+    fn sib200_option_universe_is_sorted_unique_categories() {
+        // Rows out of sorted order on purpose: the universe must come out
+        // sorted regardless of first-appearance order.
+        let env = envelope(vec![
+            serde_json::json!({ "index_id": 1, "category": "travel", "text": "t1" }),
+            serde_json::json!({ "index_id": 2, "category": "health", "text": "t2" }),
+            serde_json::json!({ "index_id": 3, "category": "travel", "text": "t3" }),
+        ]);
+        let s = build_thai_sib200(&env, 0);
+        let crit = s.cases[0].questions[0].criteria.as_object().unwrap();
+        let keys: Vec<&String> = crit.keys().collect();
+        assert_eq!(keys, ["health", "travel"]);
+        // gold = the key position of the row's own category.
+        assert_eq!(s.cases[0].gold[0].idx, 1); // travel
+        assert_eq!(s.cases[1].gold[0].idx, 0); // health
+        assert_eq!(s.cases[0].id, "thai_sib200:0");
+    }
+
+    #[test]
+    fn sib200_train_docs_carry_the_category_string() {
+        let env = envelope(vec![
+            serde_json::json!({ "index_id": 1, "category": "politics", "text": "x" }),
+            serde_json::json!({ "index_id": 2, "category": "sports", "text": "y" }),
+        ]);
+        let docs = train_docs(&env, "thai_sib200");
+        assert_eq!(docs.len(), 2);
+        assert_eq!(docs[0].label, "politics");
+        assert_eq!(docs[1].label, "sports");
     }
 }
