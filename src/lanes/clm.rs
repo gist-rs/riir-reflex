@@ -998,7 +998,7 @@ mod tests {
 
     #[test]
     fn lane_refuses_a_non_200_loudly() {
-        use std::io::BufRead;
+        use std::io::{BufRead, Read};
         let listener = std::net::TcpListener::bind(("127.0.0.1", 0)).expect("bind");
         let port = listener.local_addr().unwrap().port();
         std::thread::spawn(move || {
@@ -1006,15 +1006,28 @@ mod tests {
             // Drain the request BEFORE responding: closing with unread
             // request bytes in flight sends a TCP RST that kills the
             // client's read (os error 54) instead of delivering the 422.
+            // HEADERS alone are not enough — the JSON body sits in the
+            // receive queue behind the blank line, and an RST discards the
+            // buffered 422 before the client reads it (the flake this test
+            // shipped with). Drain Content-Length bytes like the 200 test.
             let mut reader = std::io::BufReader::new(&stream);
             let mut line = String::new();
+            let mut content_length = 0usize;
             loop {
                 line.clear();
                 reader.read_line(&mut line).expect("read");
-                if line.trim_end().is_empty() {
+                let line = line.trim_end();
+                if line.is_empty() {
                     break;
                 }
+                if let Some((k, v)) = line.split_once(':') {
+                    if k.eq_ignore_ascii_case("content-length") {
+                        content_length = v.trim().parse().unwrap_or(0);
+                    }
+                }
             }
+            let mut body = vec![0u8; content_length];
+            reader.read_exact(&mut body).expect("body");
             let mut stream = stream;
             stream
                 .write_all(
