@@ -144,7 +144,7 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 # ⚠ REFLEX_BENCH_HOST is REQUIRED on this box: `uname -n` does not resolve
 # in the runner's probe there, so an unset label REFUSES at row birth
 # (exit 2 naming the env — the phantom-host sentinel, runner-side since
-# d262941; the publisher refuses it at load too, 74b49e4). Bench 082's
+# ca72dee; the publisher refuses it at load too, 74b49e4). Bench 082's
 # results.json had to be relabeled by hand before the refusal existed
 # (the merge key is the host name):
 
