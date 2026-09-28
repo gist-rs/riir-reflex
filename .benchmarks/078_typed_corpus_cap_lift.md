@@ -70,3 +70,6 @@ consumes this repo's `run()`).
   same republish (their Bench 015 already records both postures).
 - Consumers of the old 800-row bytes: none found (no test pins the
   corpus digests; the manifest is the record).
+**Cross-host (Bench 079):** the row re-measured on the 4090 at the same commit reads
+0.5725 / F1 0.5429 / ECE 0.0993 — identical to four decimals; the site typed row
+can cite both hosts.
