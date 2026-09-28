@@ -8,7 +8,7 @@ lives in `.issues/` and `.plans/`, never here.
 ## 2026-09-28
 
 - **The `openthai — not run` lane-update: all 17 suites measured on the 4090
-  (Bench 083).** The bench page showed `openthai — not run` on 13 of 17 suites —
+  (Bench 084).** The bench page showed `openthai — not run` on 13 of 17 suites —
   the Issue-025 class verbatim (the lane is opt-in `--openthai`, default off, and
   every published run since Bench 074 left it off; no issue owned it, none filed:
   documented default posture, not a defect). Server re-provisioned from scratch on
@@ -23,13 +23,13 @@ lives in `.issues/` and `.plans/`, never here.
   0.4675 (−0.8 pt). Determinism pin green ×17; 15 default suites + the 2 Thai probe
   suites (`--suites thai_wisesight,thai_sib200` — the default population excludes
   them, which is why 074 ran them separately). Records:
-  `.benchmarks/083_openthai_lane_update_4090.md` (+ `/thai/`); plan 003 addendum.
+  `.benchmarks/084_openthai_lane_update_4090.md` (+ `/thai/`); plan 003 addendum.
   **Site publish deliberately NOT executed this session** (concurrent-lane handoff:
   reflex-site `data/bench.json` is a collision surface) — the exact steps, the
   `PUBLISH_BENCH_LANES=openthai` filter law (our stale modelless control cells MUST
   NOT overwrite published postures), the shikuwa→4090-win host alias (env unset;
   the Issue-033 PAW precedent), and the server restart command are recorded in the
-  083 doc's §Publish. Server stopped after the runs (unattended GPU processes are
+  084 doc's §Publish. Server stopped after the runs (unattended GPU processes are
   the sibling-gate exclusivity hazard); restart ~1 min from the cached weights.
 
 - **Issue 047 CLOSED measured-negative — the xnli M1 reopen executed
