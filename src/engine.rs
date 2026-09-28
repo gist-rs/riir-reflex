@@ -1398,6 +1398,20 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         self.nb.as_ref()
     }
 
+    /// The option-conditioned tables (issue 038 T7b), when armed — the
+    /// seat for the riir-instinct issue-005 hybrid's OPTION-space margin:
+    /// one [`crate::option_cond::OptionCond`] table per (question id,
+    /// option key), so a suite whose presented options are state-field
+    /// values (typed_decisions) gets a per-option margin the domain
+    /// tables' [`Self::nb_scope`] margin can never produce there. The
+    /// [`Self::nb_scope`] accessor's exact sibling; read-only, frozen at
+    /// build time.
+    #[cfg(feature = "option_cond")]
+    #[must_use]
+    pub fn oc(&self) -> Option<&crate::option_cond::OptionCond> {
+        self.oc.as_ref()
+    }
+
     fn routing_reason(&self, sc: &Scratch<D>) -> String {
         let mut counts = [0usize; N];
         for d in &sc.domains {

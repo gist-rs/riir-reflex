@@ -65,6 +65,10 @@ pub struct OptionCond {
     /// `(key, table)` sorted by key — binary-search lookup, deterministic
     /// order by construction.
     index: Vec<(u64, ContrastiveScoreTable)>,
+    /// Every token any event doc carried (fit-time union) — the evidence
+    /// bitmap behind [`Self::seen_count`], the exact [`crate::nb_scope::NbScope`]
+    /// resolution. Frozen at fit time.
+    seen: Vec<u64>,
 }
 
 impl OptionCond {
@@ -147,13 +151,26 @@ impl OptionCond {
             }
         }
         index.sort_unstable_by_key(|(k, _)| *k);
-        Self { index }
+        Self { index, seen }
     }
 
     /// Table count (distinct fitted keys).
     #[must_use]
     pub fn len(&self) -> usize {
         self.index.len()
+    }
+
+    /// How many of `tokens`' events any fitted event doc saw — the
+    /// evidence count `n` of the riir-instinct issue-005 hybrid gate
+    /// (`g = σ((n − n_min)/τ_n)`), the exact [`crate::nb_scope::NbScope::seen_count`
+    /// resolution over this family's own event stream. Counts events,
+    /// duplicates included. Zero-alloc.
+    #[must_use]
+    pub fn seen_count(&self, tokens: &[u32]) -> usize {
+        tokens
+            .iter()
+            .filter(|&&w| self.seen[w as usize / 64] & (1u64 << (w as usize % 64)) != 0)
+            .count()
     }
 
     /// True when nothing was fitted.
