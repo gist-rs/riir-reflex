@@ -190,11 +190,12 @@ fn harness_main() {
     let mut save_corpus: Vec<String> = Vec::new();
     let mut e0 = false;
     let mut distill = false;
-    // Consumed only by the laya-riir-gated --distill block below; the
-    // default-features build would carry them as dead stores (clippy -D).
-    #[cfg(feature = "laya-riir")]
+    // The distill mode's knobs (Plan 426 T1: the mode is no longer
+    // laya-only — the openthai teacher runs on a default-features build,
+    // so the parsing is ungated; the LAYA teacher still refuses without
+    // the feature, loud).
+    let mut distill_teacher = "laya".to_string();
     let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
-    #[cfg(feature = "laya-riir")]
     let mut distill_limit = 0usize;
     let mut i = 0;
     while i < args.len() {
@@ -259,7 +260,13 @@ fn harness_main() {
             }
             "--e0" => e0 = true,
             "--distill" => distill = true,
-            #[cfg(feature = "laya-riir")]
+            "--distill-teacher" => {
+                i += 1;
+                distill_teacher = args
+                    .get(i)
+                    .cloned()
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai)"));
+            }
             "--distill-out" => {
                 i += 1;
                 distill_out = args
@@ -267,21 +274,12 @@ fn harness_main() {
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--distill-out needs a path"));
             }
-            #[cfg(not(feature = "laya-riir"))]
-            "--distill-out" => {
-                i += 1; // value skipped; --distill itself refuses below
-            }
-            #[cfg(feature = "laya-riir")]
             "--limit" => {
                 i += 1;
                 distill_limit = args
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--limit needs a number (0 = the whole split)"));
-            }
-            #[cfg(not(feature = "laya-riir"))]
-            "--limit" => {
-                i += 1; // value skipped; --distill itself refuses below
             }
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
@@ -422,16 +420,36 @@ fn harness_main() {
     // student in ../riir-train. Early-exit like --e0: no eval lane, no test
     // row. Needs `laya-riir` (the lane); a missing feature is a loud refusal
     // naming the rebuild (the build-stamp law).
-    #[cfg(feature = "laya-riir")]
     if distill {
+        // Plan 426 T1: the openthai teacher is a plain lane (no feature);
+        // the laya teacher keeps its loud feature refusal (the same
+        // message, unchanged behavior for the existing posture).
+        if distill_teacher == "laya" && !cfg!(feature = "laya-riir") {
+            die(
+                "--distill-teacher laya needs the `laya-riir` feature — rebuild: cargo build \
+                 --release --features laya-riir-metal --bin harness (macOS; elsewhere: \
+                 laya-riir)",
+            );
+        }
+        #[cfg(feature = "laya-riir")]
+        let run = runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher);
+        #[cfg(not(feature = "laya-riir"))]
+        let run = if distill_teacher == "openthai" {
+            runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher)
+        } else {
+            // Unreachable — the laya posture died above; kept for the
+            // compiler's feature-less arm.
+            unreachable!("laya without the feature refused above")
+        };
         println!(
-            "harness --distill: datasets {} · suites {:?} · limit {} · out {}",
+            "harness --distill: teacher {} · datasets {} · suites {:?} · limit {} · out {}",
+            distill_teacher,
             opts.datasets_dir.display(),
             opts.suites,
             distill_limit,
             distill_out.display()
         );
-        let out = match runner::run_distill(&opts, &distill_out, distill_limit) {
+        let out = match run {
             Ok(r) => r,
             Err(e) => die(&e),
         };
@@ -460,13 +478,6 @@ fn harness_main() {
             md_path.display()
         );
         return;
-    }
-    #[cfg(not(feature = "laya-riir"))]
-    if distill {
-        die(
-            "--distill needs the `laya-riir` feature — rebuild: cargo build --release \
-             --features laya-riir-metal --bin harness (macOS; elsewhere: laya-riir)",
-        );
     }
 
     // The clm flag is an EXPLICIT lane request — a compile-time-missing

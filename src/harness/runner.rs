@@ -100,9 +100,7 @@ mod e0;
 #[cfg(feature = "nb_scope")]
 pub use e0::{render_e0_markdown, run_e0, E0Meta, E0Output, E0Suite, E0ViewStats};
 
-#[cfg(feature = "laya-riir")]
 mod distill;
-#[cfg(feature = "laya-riir")]
 pub use distill::{render_distill_markdown, run_distill, DistillMeta, DistillOutput, DistillSuite};
 
 /// Where the fetch layer leaves the row files.

@@ -1,7 +1,19 @@
-//! riir-train Issue 576 T3 — the Arm-B TEACHER pass: laya class
-//! probabilities over the TRAIN rows of the six Arm-A suites, dumped as
-//! frozen data for the distillation student (`../riir-train`
-//! `instinct_specialist::load_teacher_dump` / `train_arm_b`).
+//! riir-train Issue 576 T3 — the Arm-B TEACHER pass, generalized by
+//! riir-train Plan 426 T1: class probabilities over the TRAIN rows of the
+//! six Arm-A suites from a SELECTED teacher (`--distill-teacher`, default
+//! `laya`), dumped as frozen data for the distillation student
+//! (`../riir-train` `instinct_specialist::load_teacher_dump` /
+//! `train_arm_b`).
+//!
+//! Teachers:
+//!
+//! * `laya` (default) — the G5-proven `RiirAgent::system_one` lane
+//!   (feature `laya-riir`); needs the checkpoints locally.
+//! * `openthai` — the OpenThai comparison lane (`src/lanes/openthai`, the
+//!   Bench 074 wire; their `openthai_systemone` service over loopback
+//!   HTTP). No feature needed; the loud refusal without their server is
+//!   the agentjev law. The strongest measured massive teacher (0.9200,
+//!   Bench 074/075) — Plan 426's V2-qualified distill source.
 //!
 //! Early-exit mode (`harness --distill`), like `--e0`: no eval lane runs,
 //! no test row is touched. Per suite:
@@ -33,9 +45,9 @@
 use std::path::Path;
 
 use super::{
-    case_questions, git_sha, hostname, iso8601_utc, laya_checkpoints_for, load_laya_agent,
-    load_rows, percentile_us, RunOptions, SuiteSpec, SUITES,
+    case_questions, git_sha, iso8601_utc, load_rows, percentile_us, RunOptions, SuiteSpec, SUITES,
 };
+use crate::harness::runner::hostname_refusing_unknown;
 use crate::harness::suites::{stratified_split, train_docs};
 
 pub const TEACHER_MAGIC: &[u8; 4] = b"RIDT";
@@ -76,6 +88,193 @@ impl KeyMap {
     }
 }
 
+/// The selected distill teacher (Plan 426 T1's seam): everything the
+/// per-row loop needs, constructed once per run. The forward returns
+/// LABEL-KEYED probabilities — exactly what [`map_targets`] consumes —
+/// plus the row's wall milliseconds.
+enum TeacherForward {
+    /// The G5-proven local lane (feature `laya-riir`). The keyed
+    /// probabilities come straight off the answer.
+    #[cfg(feature = "laya-riir")]
+    Laya {
+        agent: crate::laya::riir::RiirAgent,
+        provenance: &'static str,
+    },
+    /// The OpenThai loopback service (the Bench 074 wire, ungated). The
+    /// keyed probabilities are built from their positional answer over
+    /// the question's presented keys.
+    Openthai { lane: crate::lanes::openthai::OpenThaiLane, provenance: String },
+}
+
+impl TeacherForward {
+    /// The teacher's name — the header/record provenance token.
+    fn name(&self) -> &'static str {
+        match self {
+            #[cfg(feature = "laya-riir")]
+            Self::Laya { .. } => "laya",
+            Self::Openthai { .. } => "openthai",
+        }
+    }
+
+    /// Checkpoint (laya) or model id (openthai) — the record's
+    /// `checkpoint` field, the teacher-side provenance.
+    fn provenance(&self) -> &str {
+        match self {
+            #[cfg(feature = "laya-riir")]
+            Self::Laya { provenance, .. } => provenance,
+            Self::Openthai { provenance, .. } => provenance,
+        }
+    }
+
+    /// One discarded forward before the loop, so the latency stat is not
+    /// cold-skewed (laya's pipeline-compile pre-ramp; openthai's server
+    /// cold path) — and, for openthai, the final proof their server is
+    /// actually answering plus the model-id provenance capture (the
+    /// agentjev law: refuse loud, never half-run).
+    fn warmup(&mut self, case: &super::SuiteCase) -> Result<(), String> {
+        match self {
+            #[cfg(feature = "laya-riir")]
+            Self::Laya { agent, .. } => {
+                agent
+                    .system_one(&case.state, &case_questions(case))
+                    .map(|_| ())
+                    .map_err(|e| format!("laya warmup: {e}"))
+            }
+            Self::Openthai { lane, provenance } => {
+                lane.health()?;
+                let raw = lane
+                    .decide_raw(case)
+                    .map_err(|e| format!("openthai warmup: {e}"))?;
+                let parsed: serde_json::Value = serde_json::from_str(&raw)
+                    .map_err(|e| format!("openthai warmup parse: {e}"))?;
+                *provenance = format!("openthai:{}", crate::lanes::openthai::OpenThaiLane::model_of(&parsed));
+                Ok(())
+            }
+        }
+    }
+
+    /// One row's keyed probabilities + wall ms. The FIRST question's
+    /// answer (the distill join is one gold per row — the single-question
+    /// contract the T3 suites speak).
+    fn forward(&self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
+        match self {
+            #[cfg(feature = "laya-riir")]
+            Self::Laya { agent, .. } => {
+                let questions = case_questions(case);
+                let t0 = std::time::Instant::now();
+                let answers = agent
+                    .system_one(&case.state, &questions)
+                    .map_err(|e| format!("laya forward ({}): {e}", case.id))?;
+                let ms = t0.elapsed().as_millis() as u64;
+                let a = answers
+                    .first()
+                    .ok_or_else(|| format!("{}: no answer for its single question", case.id))?;
+                Ok((a.probabilities.clone(), ms))
+            }
+            Self::Openthai { lane, .. } => {
+                let (outcome, client_ms) = lane
+                    .decide(case)
+                    .map_err(|e| format!("openthai forward ({}): {e}", case.id))?;
+                let (probs, _pick, _conf) = outcome.answers.first().ok_or_else(|| {
+                    format!("{}: no answer for its single question", case.id)
+                })?;
+                let q = case.questions.first().ok_or_else(|| {
+                    format!("{}: no questions for its single gold", case.id)
+                })?;
+                let keyed = openthai_keyed_probs(q, probs)
+                    .map_err(|e| format!("{}: {e}", case.id))?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+        }
+    }
+}
+
+/// Build the label-keyed probability vector one openthai answer speaks,
+/// over the question's PRESENTED keys in presentation order (the same
+/// iteration [`crate::lanes::openthai::map_answers`] reads positionally):
+/// choice → the criteria object's keys; score → the level indices
+/// ("0".."k-1", the FixedInt mapping's own spelling); noul → their
+/// p(yes) reads as [p_no, p_yes] over the pair, keyed "0"/"1" (the gold
+/// idx space). The keys are exactly what [`map_targets`] matches on:
+/// Name suites match them to the student labels, FixedInt suites ignore
+/// the key string and read the position.
+fn openthai_keyed_probs(
+    q: &crate::harness::suites::SuiteQuestion,
+    probs: &[f64],
+) -> Result<Vec<(String, f64)>, String> {
+    use crate::harness::suites::QKind;
+    let keys: Vec<String> = match q.kind {
+        QKind::Noul => (0..2).map(|i| i.to_string()).collect(),
+        QKind::Score => {
+            let n = q.criteria.as_array().map_or(0, Vec::len);
+            (0..n).map(|i| i.to_string()).collect()
+        }
+        QKind::Choice => q
+            .criteria
+            .as_object()
+            .map(|m| m.keys().cloned().collect())
+            .ok_or_else(|| "choice criteria must be an object".to_string())?,
+    };
+    if keys.len() != probs.len() {
+        return Err(format!(
+            "their answer carries {} probabilities vs {} presented keys — wire drift",
+            probs.len(),
+            keys.len()
+        ));
+    }
+    Ok(keys.into_iter().zip(probs.iter().copied()).collect())
+}
+
+/// Construct the selected teacher for one distill run (Plan 426 T1).
+/// `laya` needs the checkpoints + the `laya-riir` feature; `openthai`
+/// health-checks their loopback service here — a server that is down is
+/// a LOUD refusal naming the env (the agentjev law), never a half-run.
+fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherForward, String> {
+    match name {
+        "openthai" => {
+            let lane = crate::lanes::openthai::OpenThaiLane::default();
+            lane.health()?;
+            Ok(TeacherForward::Openthai {
+                lane,
+                // Filled by the warmup's decide (the model id is read
+                // off their response — the lane's own law).
+                provenance: "openthai:?".to_string(),
+            })
+        }
+        "laya" => {
+            #[cfg(feature = "laya-riir")]
+            {
+                let ckpt = super::laya_checkpoints_for(spec.name)
+                    .first()
+                    .copied()
+                    .ok_or_else(|| format!("{}: no laya checkpoint", spec.name))?;
+                let ck = match ckpt {
+                    "english" => crate::laya::config::Checkpoint::English,
+                    "multilingual" => crate::laya::config::Checkpoint::Multilingual,
+                    "typed" => crate::laya::config::Checkpoint::TypedDecisions,
+                    other => return Err(format!("unknown checkpoint {other}")),
+                };
+                let agent = super::load_laya_agent(ckpt, ck)?;
+                Ok(TeacherForward::Laya { agent, provenance: ckpt })
+            }
+            #[cfg(not(feature = "laya-riir"))]
+            {
+                let _ = spec;
+                Err(
+                    "--distill-teacher laya needs the `laya-riir` feature — rebuild: cargo \
+                     build --release --features laya-riir --bin harness (macOS: \
+                     laya-riir-metal)"
+                        .to_string(),
+                )
+            }
+        }
+        other => Err(format!(
+            "unknown --distill-teacher {other:?} (the seam knows 'laya' and 'openthai')"
+        )),
+    }
+}
+
 fn t3_skip_reason(suite: &str) -> &'static str {
     match suite {
         "typed_decisions" => {
@@ -94,7 +293,9 @@ fn t3_skip_reason(suite: &str) -> &'static str {
 #[derive(Debug, serde::Serialize)]
 pub struct DistillSuite {
     pub name: String,
-    pub checkpoint: &'static str,
+    /// The teacher-side provenance: the laya checkpoint name, or the
+    /// openthai model id read off their live response (Plan 426 T1).
+    pub checkpoint: String,
     pub n_rows: usize,
     pub n_classes: usize,
     /// Teacher argmax vs gold over the train rows — a DATA-QUALITY sanity
@@ -196,16 +397,15 @@ fn map_targets(
     }
 }
 
-/// Distill one suite's train rows through the laya lane.
+/// Distill one suite's train rows through the selected teacher
+/// (Plan 426 T1: `--distill-teacher`, default laya — the 576 T3 posture).
 fn distill_suite(
     spec: &SuiteSpec,
     dir: &Path,
     out_dir: &Path,
     limit: usize,
-    device: &str,
+    teacher_name: &str,
 ) -> Result<DistillSuite, String> {
-    use crate::laya::config::Checkpoint;
-
     let t_start = std::time::Instant::now();
     let suite_dir = dir.join(spec.name);
     let train_rows = load_rows(&suite_dir, "train")?;
@@ -239,22 +439,12 @@ fn distill_suite(
 
     let keymap = KeyMap::for_suite(spec.name)
         .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?;
-    let ckpt = laya_checkpoints_for(spec.name)
-        .first()
-        .copied()
-        .ok_or_else(|| format!("{}: no laya checkpoint", spec.name))?;
-    let ck = match ckpt {
-        "english" => Checkpoint::English,
-        "multilingual" => Checkpoint::Multilingual,
-        "typed" => Checkpoint::TypedDecisions,
-        other => return Err(format!("unknown checkpoint {other}")),
-    };
-    let agent = load_laya_agent(ckpt, ck)?;
+    let mut teacher = construct_teacher(teacher_name, spec)?;
 
     let header = serde_json::json!({
         "suite": spec.name,
-        "checkpoint": ckpt,
-        "device": device,
+        "teacher": teacher.name(),
+        "checkpoint": teacher.provenance(),
         "git_sha": git_sha(),
         "datasets_dir": dir.display().to_string(),
         "row_rule": "student rows = reflex train_docs over the sorted train-*.json pages; \
@@ -273,33 +463,32 @@ fn distill_suite(
     out_bytes.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
     out_bytes.extend_from_slice(&header_bytes);
 
-    // One discarded warmup forward: compiles the Metal pipelines so the
-    // per-row latency stat is not cold-skewed (the run_laya_checkpoint
-    // pre-ramp law, in the data-pass posture).
+    // One discarded warmup forward: compiles the laya Metal pipelines /
+    // warms their server's cold path so the per-row latency stat is not
+    // cold-skewed (the run_laya_checkpoint pre-ramp law, in the data-pass
+    // posture). For openthai this is also the model-id capture + the
+    // final loud proof their server answers.
     if let Some(case) = built.cases.first() {
-        agent
-            .system_one(&case.state, &case_questions(case))
-            .map_err(|e| format!("laya warmup ({ckpt}): {e}"))?;
-        eprintln!("  [distill {}] warmup done ({ckpt})", spec.name);
+        teacher.warmup(case)?;
+        eprintln!(
+            "  [distill {}] warmup done ({}/{})",
+            spec.name,
+            teacher.name(),
+            teacher.provenance()
+        );
     }
 
     let mut durs_ms: Vec<u64> = Vec::with_capacity(docs.len());
     let mut hits = 0usize;
     for (doc, case) in docs.iter().zip(built.cases.iter()) {
-        let questions = case_questions(case);
         let t0 = std::time::Instant::now();
-        let answers = agent
-            .system_one(&case.state, &questions)
-            .map_err(|e| format!("laya forward ({}): {e}", case.id))?;
-        durs_ms.push(t0.elapsed().as_millis() as u64);
-        let a = answers
-            .first()
-            .ok_or_else(|| format!("{}: no answer for its single question", case.id))?;
+        let (probabilities, ms) = teacher.forward(case)?;
+        durs_ms.push(if ms > 0 { ms } else { t0.elapsed().as_millis() as u64 });
         let (gold_c, pick_c, q) = map_targets(
             keymap,
             &doc.label,
             case.gold[0].idx,
-            &a.probabilities,
+            &probabilities,
             &classes,
         )
         .map_err(|e| format!("{}: {e}", case.id))?;
@@ -344,7 +533,7 @@ fn distill_suite(
     );
     Ok(DistillSuite {
         name: spec.name.to_string(),
-        checkpoint: ckpt,
+        checkpoint: teacher.provenance().to_string(),
         n_rows: docs.len(),
         n_classes,
         teacher_accuracy,
@@ -364,8 +553,9 @@ pub fn run_distill(
     opts: &RunOptions,
     out_dir: &Path,
     limit: usize,
+    teacher_name: &str,
 ) -> Result<DistillOutput, String> {
-    let device = std::env::var("LAYA_DEVICE").unwrap_or_else(|_| "default".into());
+    let device_env = std::env::var("LAYA_DEVICE").unwrap_or_else(|_| "default".into());
     let mut suites = Vec::new();
     let mut skipped = Vec::new();
     for spec in SUITES {
@@ -380,7 +570,7 @@ pub fn run_distill(
             skipped.push(format!("{}: {}", spec.name, t3_skip_reason(spec.name)));
             continue;
         }
-        match distill_suite(spec, &opts.datasets_dir, out_dir, limit, &device) {
+        match distill_suite(spec, &opts.datasets_dir, out_dir, limit, teacher_name) {
             Ok(s) => suites.push(s),
             Err(e) => skipped.push(format!("{}: {e}", spec.name)),
         }
@@ -397,7 +587,7 @@ pub fn run_distill(
             date_utc: iso8601_utc(),
             git_sha: git_sha().unwrap_or_else(|| "unknown".into()),
             host: hostname_refusing_unknown(),
-            device,
+            device: format!("teacher={teacher_name}; laya_device={device_env}"),
             datasets_dir: opts.datasets_dir.display().to_string(),
             limit,
             row_rule: "train rows only (the no-cheat law, riir-reflex Issue 038); the test \
@@ -412,7 +602,7 @@ pub fn run_distill(
 #[must_use]
 pub fn render_distill_markdown(out: &DistillOutput) -> String {
     let mut s = String::new();
-    s.push_str("# Distill teacher pass — laya probabilities over train rows (riir-train Issue 576 T3)\n\n");
+    s.push_str("# Distill teacher pass — teacher probabilities over train rows (riir-train Issue 576 T3 / Plan 426 T1)\n\n");
     s.push_str(&format!(
         "- date {} · sha {} · host {} · device {}\n- datasets {} · limit {}\n- rows: {}\n",
         out.meta.date_utc,
@@ -516,5 +706,55 @@ mod tests {
         assert_eq!(argmax_lowest_pos(&p), 0);
         let p2 = probs(&[("a", 0.1), ("b", 0.4), ("c", 0.4)]);
         assert_eq!(argmax_lowest_pos(&p2), 1);
+    }
+
+    // ── Plan 426 T1: the openthai keying seam ─────────────────────────
+
+    fn choice_question(criteria: serde_json::Value) -> crate::harness::suites::SuiteQuestion {
+        crate::harness::suites::SuiteQuestion {
+            qid: "q".into(),
+            kind: crate::harness::suites::QKind::Choice,
+            instructions: String::new(),
+            criteria,
+        }
+    }
+
+    #[test]
+    fn openthai_keying_reads_the_criteria_key_order() {
+        let q = choice_question(serde_json::json!({"b_key": 1, "a_key": 2, "c_key": 3}));
+        let keyed = openthai_keyed_probs(&q, &[0.2, 0.7, 0.1]).expect("keyed");
+        let keys: Vec<&str> = keyed.iter().map(|(k, _)| k.as_str()).collect();
+        assert_eq!(keys, vec!["b_key", "a_key", "c_key"], "the criteria object's own key order (the same iteration map_answers reads)");
+        assert_eq!(keyed[1].1, 0.7);
+    }
+
+    #[test]
+    fn openthai_keying_scores_and_noul_speak_the_fixed_int_spelling() {
+        let mut q = choice_question(serde_json::json!(["l0", "l1", "l2"]));
+        q.kind = crate::harness::suites::QKind::Score;
+        let keyed = openthai_keyed_probs(&q, &[0.1, 0.6, 0.3]).expect("keyed");
+        assert_eq!(
+            keyed.iter().map(|(k, _)| k.as_str()).collect::<Vec<_>>(),
+            vec!["0", "1", "2"],
+            "the level-index spelling map_targets' FixedInt arm reads"
+        );
+        q.kind = crate::harness::suites::QKind::Noul;
+        q.criteria = serde_json::Value::Null;
+        let keyed = openthai_keyed_probs(&q, &[0.9, 0.1]).expect("keyed");
+        assert_eq!(
+            keyed.iter().map(|(k, v)| (k.as_str(), *v)).collect::<Vec<_>>(),
+            vec![("0", 0.9), ("1", 0.1)],
+            "their p(yes) arrives as [p_no, p_yes] — the gold idx space"
+        );
+    }
+
+    #[test]
+    fn openthai_keying_refuses_width_drift() {
+        let q = choice_question(serde_json::json!({"a": 1, "b": 2}));
+        assert!(openthai_keyed_probs(&q, &[0.5, 0.3, 0.2]).is_err());
+        // A choice question without an object has no keys to speak.
+        let mut bad = choice_question(serde_json::json!(["x"]));
+        bad.kind = crate::harness::suites::QKind::Choice;
+        assert!(openthai_keyed_probs(&bad, &[1.0]).is_err());
     }
 }
