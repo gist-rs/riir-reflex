@@ -62,15 +62,23 @@ lives in `.issues/` and `.plans/`, never here.
   seat path), seat 5/5, clippy clean at default + selective. The 12 eval
   fixtures + gold are byte-unchanged (non-goal law, gate-pinned). G1
   power statement in the bench record: n=12 → Wilson [0.646, 0.985],
-  published with wide bars, no accuracy claim. Owed: the reflex-site
-  publish half (045 T3, the reflex-site session); the instinct arena can
-  now seat the family (its Bench-011 refusal is gone upstream). Pre
-  existing on the side: `tests/build_stamp.rs`
-  `incomplete_build_prints_stale_naming_the_gap_and_rebuild` fails at
-  `--no-default-features` on clean HEAD too (`missing()` returns
-  `["laya-riir", "modelless"]` vs the pinned `["laya-riir"]` — the pin
-  assumes a default-features-minus-laya build); FIXED same day (see the
-  09-28 build-stamp pin row below).
+  published with wide bars, no accuracy claim. **CLOSED 2026-09-28 —
+  both halves landed** (`2d3ce6a` reflex docs; reflex-site `d046a67` +
+  CF `620f7323`): the modelless row publishes 0.9167 (p50 0.009 ms,
+  verdict QUOTABLE, source_run sha 1615642) via the lane-scoped
+  `PUBLISH_BENCH_LANES=modelless` publish (the doc's by-product laya
+  slot dropped by the issue-033 law); km_vs_laya pairing resolves
+  same-sample (both digests `fnv1a64-7340afff…`) — 29 proven pairs,
+  pairing gate green, page smoke PASS. The arena TL;DR's not-run row
+  reads the modelless answer now; the instinct arena can seat the
+  family (its Bench-011 refusal is gone upstream). En route the site
+  publisher gained the openthai lane class + the suite-join path (the
+  Bench 074 Thai board, same publish session) and the page smoke's
+  stale blanket gliner-not-run check was retyped data-aware — it had
+  been red-by-data since the harness families joined, hidden by the
+  wrapper's CWD-relative playwright probe (also fixed). Issue file
+  removed this commit; full life: `git log --follow --
+  .issues/045_answer_harness_cache_reuse_modelless.md`.
 
 - **Issue 050 CLOSED — `nb_ridge` honestly declares its `option_cond` read
   (`a6e04c3`).** The feature table's `nb_ridge = ["nb_scope"]` contradicted
