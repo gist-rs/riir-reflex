@@ -5,6 +5,29 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 lives in `.issues/` and `.plans/`, never here.
 
+## 2026-09-29
+
+- **The 084 publish arc completed + the 426-T5 corpus-synthesis lane
+  landed (serving riir-train plan 426).** The 084 row's deliberate
+  non-publish (concurrent-lane handoff) resolved: the site cells landed
+  via reflex-site (`1999b38` the 4090 fill + `1e893ae` the clean re-read
+  + `6484273` the m3 fill; CF `2303b558`), Benches 085 (M3 clean re-read:
+  the 1.63 s massive cell REPRODUCES at 1.71 s — contamination refuted,
+  all four m3 openthai cells quotable from preflight-passed runs) and 086
+  (M3 lane fill: openthai 17/17 quotable on BOTH hosts; the option-count
+  scaling law measured as a full curve, 1.2× at 3 options → 17.2× at
+  banking77's 77; 9/13 accuracy cells byte-exact vs the 4090 board).
+  Same day `8426cef` landed the coverage-directed corpus-synthesis lane
+  (`--synth-corpus` / report-only `--synth-plan` / the V5 `--corpus-ab`
+  gate) over sealed corpus artifact v2 (SYNT magic + blake3 sidecar;
+  tampered/unsealed artifacts refuse at load) with the openthai agreement
+  veto — cross-frame span transplantation + per-intent E0 rumor weighting
+  + integer-scaled allocation with per-label caps; 14 new tests; T4's
+  dump + the veto+A/B arms auto-queue on the riir-train side (plan 426
+  T4 in-flight there, M3 venue). Both lanes now documented in AGENTS.md
+  Build Commands (openthai was never in the list — the 084 HISTORY row
+  was its only doc home).
+
 ## 2026-09-28
 
 - **The `openthai — not run` lane-update: all 17 suites measured on the 4090

@@ -371,6 +371,32 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -
 scripts/bench_preflight.sh
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal \
   --example cua_s1_forms_arena -- --lanes coreml,modelless,laya --n-laya 2437
+
+# The openthai comparison lane (Bench 074 lineage; `--openthai`, opt-in —
+# default off, which is how the Bench-084 `openthai — not run` board state
+# arose: a lane nobody owns renders as not-run). THEIR OpenThai-SystemOne
+# teacher over a loopback FastAPI subprocess; fp32 numerics pinned to the
+# board via OPENTHAI_SYSTEMONE_DTYPE (their client default is bf16).
+# Benches 084 (4090, 17/17) → 085 (M3 clean re-read — the 1.63 s massive
+# cell was never contamination, refuted) → 086 (M3 lane fill; every m3
+# cell now quotable; the option-count scaling law 1.2×→17.2× measured as
+# a full curve); site cells landed reflex-site `1999b38`+`6484273`.
+OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
+  cargo run --release --bin harness -- --openthai --skip-laya
+
+# The corpus-synthesis lane (riir-train plan 426 T5, `8426cef`):
+# coverage-directed synthesis over the train pool — cross-frame span
+# transplantation + per-intent E0 rumor weighting + integer-scaled
+# allocation with per-label caps + the openthai agreement VETO (forward
+# failure aborts loud) — sealed corpus artifact v2 (SYNT magic + blake3
+# sidecar; the loader refuses tampered/unsealed artifacts).
+# --synth-plan is REPORT-ONLY (allocation preview, no artifact written);
+# --synth-corpus writes the artifact; --corpus-ab is the V5 gate
+# (gold-only vs +synth over ONE frozen test read, paired LB95 + the
+# per-label flip table + latency both arms; the arm-A 0.7800 aliveness
+# anchor). Exclusive early-exit modes — never run beside a bench.
+cargo run --release --bin harness -- --synth-plan --help
+cargo run --release --bin harness -- --corpus-ab --help
 ```
 
 - Default features = `["modelless"]` (the engine IS the product — the
