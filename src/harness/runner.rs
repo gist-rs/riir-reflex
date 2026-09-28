@@ -7175,15 +7175,16 @@ fn hostname() -> String {
     host_label(env_override.as_deref(), uname.as_deref())
 }
 
-/// Issue 033 — the runner-side host-label REFUSAL. A row whose host would
-/// be `unknown` is a phantom-host row: the bench-site merge keys rows by
-/// host, and `publish_bench.py` refuses `unknown` at load (the 082
-/// relabel class), so the row could never publish — the failure belongs
-/// HERE, at row birth, naming the exact remedy. The 4090 measured case:
-/// `uname -n` does not resolve in the probe there, so an unset label used
-/// to land as `unknown` and needed a hand relabel. Only the harness
-/// META path calls this — the pure `host_label` law (precedence + the
-/// blank-guard) is unchanged and stays unit-pinned.
+/// Bench 082 — the runner-side host-label REFUSAL. A row whose host
+/// would be `unknown` is a phantom-host row: the bench-site merge keys
+/// rows by host, and `publish_bench.py` refuses `unknown` at load (the
+/// relabel incident — reflex-site `74b49e4`), so the row could never
+/// publish — the failure belongs HERE, at row birth, naming the exact
+/// remedy. The 4090 measured case: `uname -n` does not resolve in the
+/// probe there, so an unset label used to land as `unknown` and needed
+/// a hand relabel. Only the harness META path calls this — the pure
+/// `host_label` law (precedence + the blank-guard) is unchanged and
+/// stays unit-pinned.
 fn hostname_refusing_unknown() -> String {
     let label = hostname();
     if label == PHANTOM_HOST_SENTINEL {
@@ -7198,9 +7199,9 @@ fn hostname_refusing_unknown() -> String {
     label
 }
 
-/// Issue 033 — the degenerate host label. One home, keyed on by BOTH the
-/// runner-side refusal below and the reflex-site publisher's load gate;
-/// the sentinel test pins the two layers together.
+/// Bench 082 — the degenerate host label. One home, keyed on by BOTH
+/// the runner-side refusal below and the reflex-site publisher's load
+/// gate; the sentinel test pins the two layers together.
 pub(crate) const PHANTOM_HOST_SENTINEL: &str = "unknown";
 
 /// Resolve the run's host label (Issue 018 T5). `REFLEX_BENCH_HOST`
@@ -7223,11 +7224,11 @@ fn host_label(env_override: Option<&str>, uname: Option<&str>) -> String {
 mod host_label_tests {
     //! Issue 018 T5 — the host-label override law. Pure over its inputs so
     //! the precedence (override > uname > "unknown") and the blank-guard
-    //! are pinned without touching process env. Issue 033 adds the runner
-    //! refusal one layer up (`hostname_refusing_unknown`): the meta paths
-    //! exit 2 on the `"unknown"` fallthrough instead of minting a
-    //! phantom-host row — this module pins the string that refusal keys on
-    //! so the two layers cannot drift apart silently.
+    //! are pinned without touching process env. Bench 082 adds the
+    //! runner refusal one layer up (`hostname_refusing_unknown`): the
+    //! meta paths exit 2 on the `"unknown"` fallthrough instead of
+    //! minting a phantom-host row — this module pins the string that
+    //! refusal keys on so the two layers cannot drift apart silently.
 
     use super::host_label;
 
@@ -7248,10 +7249,10 @@ mod host_label_tests {
         assert_eq!(host_label(None, Some("  ")), "unknown");
     }
 
-    /// Issue 033 — `"unknown"` is the exact sentinel the meta-path refusal
-    /// (and the reflex-site publisher) keys on. A rename here without the
-    /// matching edits would silently re-open the phantom-host class; this
-    /// arm fails loud first.
+    /// Bench 082 — `"unknown"` is the exact sentinel the meta-path
+    /// refusal (and the reflex-site publisher) keys on. A rename here
+    /// without the matching edits would silently re-open the
+    /// phantom-host class; this arm fails loud first.
     #[test]
     fn unknown_is_the_phantom_host_sentinel_both_layers_key_on() {
         const SENTINEL: &str = "unknown";
