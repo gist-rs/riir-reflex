@@ -9,10 +9,33 @@
 
 use crate::{embed::EMBED_DIM, engine::DecisionEngine, game_heads::GameHeads};
 use katgpt_core::decision_wire::{DecisionRequest, DecisionResponse};
+use serde::Deserialize;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
+
+/// The serve-edge request envelope: the shared `DecisionRequest` wire plus
+/// the OPTIONAL `sidecar` field (riir-instinct Issue 009 T5's widened-wire
+/// design — the raw afterstate a hybrid lane may carry beside the unchanged
+/// 5-class text). THIS lane never consumes it: the tetris hybrid lane owns
+/// the sidecar's schema and its consumption; reflex parses-and-ignores so a
+/// sender can attach the sidecar to any `/decide` request while the
+/// modelless answers, fixtures, and pins stay byte-identical. The field is
+/// deliberately `Value`-permissive (no shape validation here): the consumer
+/// validates its own contract, and a shape this lane does not know must not
+/// break an answer it does not affect.
+#[derive(Debug, Deserialize)]
+struct ServeRequest {
+    #[serde(flatten)]
+    request: DecisionRequest,
+    /// Parsed-and-ignored ON PURPOSE — this lane never consumes it (the
+    /// consuming lane owns both); serde's read during deserialize is the
+    /// only "use" the field has here.
+    #[allow(dead_code)]
+    #[serde(default)]
+    sidecar: Option<serde_json::Value>,
+}
 
 /// Default bind: loopback, port 7331.
 pub const DEFAULT_BIND: &str = "127.0.0.1:7331";
@@ -939,7 +962,7 @@ fn handle_conn<const N: usize, const D: usize>(
             }
             let mut body = vec![0u8; req.content_length];
             reader.read_exact(&mut body)?;
-            let parsed: Result<DecisionRequest, _> = serde_json::from_slice(&body);
+            let parsed: Result<ServeRequest, _> = serde_json::from_slice(&body);
             if let Some(other) = &req.lane
                 && !matches!(other.as_str(), "modelless" | "laya" | "laya-ane" | "raw")
             {
@@ -954,7 +977,13 @@ fn handle_conn<const N: usize, const D: usize>(
                 return Ok(());
             }
             match parsed {
-                Ok(parsed_req) => {
+                Ok(parsed) => {
+                    // Parsed-and-ignored: the widened-wire sidecar never
+                    // reaches a lane below (riir-instinct Issue 009 T5).
+                    let ServeRequest {
+                        request: parsed_req,
+                        sidecar: _,
+                    } = parsed;
                     let laya_route = match req.lane.as_deref() {
                         Some("laya") => Some(LayaRoute::Auto),
                         Some("laya-ane") => Some(LayaRoute::AneExplicit),

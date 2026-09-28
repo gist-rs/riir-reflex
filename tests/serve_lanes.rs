@@ -188,6 +188,17 @@ fn spot_body(state: &str, prompt: &str) -> String {
     )
 }
 
+/// `spot_body` plus a raw-JSON `sidecar` member (the widened wire,
+/// riir-instinct Issue 009 T5) — the sender's shape.
+fn spot_body_sidecar(state: &str, prompt: &str, sidecar_json: &str) -> String {
+    format!(
+        r#"{{"state":{},"questions":[{{"id":"q0","kind":"noul","prompt":{},"options":[]}}],"sidecar":{}}}"#,
+        serde_json::to_string(state).unwrap(),
+        serde_json::to_string(prompt).unwrap(),
+        sidecar_json
+    )
+}
+
 /// The paired smoke, BOTH directions on the request where the lanes
 /// actually diverge: the fixture spot question is answered head-first by
 /// default and answered by the raw cosine engine (an abstain off the demo
@@ -217,6 +228,77 @@ fn raw_lane_skips_the_head_and_the_default_serves_it() {
         resp.contains("\"outcome\":null"),
         "the raw engine abstains off its demo corpus: {resp}"
     );
+}
+
+// ── the widened wire's sidecar (riir-instinct Issue 009 T5) ─────────
+
+/// The sidecar is parsed-and-ignored on THIS lane: a tetris spot question
+/// answered WITH the raw-afterstate sidecar must return BYTE-IDENTICAL
+/// response bytes to the same question without it (the modelless lane,
+/// fixtures, and pins stay byte-identical — the T5 design law), and the
+/// sidecar never echoes back in the response.
+#[test]
+fn sidecar_rides_along_and_the_answer_is_byte_identical() {
+    let addr = spawn_lanes(LayaLane::Off);
+    let sentence = first_fixture_sentence();
+    let prompt = "Does the stack look clean?";
+    let sidecar = r#"{"grid":[[0,0,0,0,4,4,0,0,0,0],[0,0,0,0,4,4,0,0,0,0]],"piece":3,"bag":[1,6]}"#;
+
+    let without = post_body(&addr, &spot_body(&sentence, prompt), None);
+    let with = post_body(&addr, &spot_body_sidecar(&sentence, prompt, sidecar), None);
+    assert!(with.starts_with("HTTP/1.1 200"), "got: {with}");
+    assert!(without.starts_with("HTTP/1.1 200"), "got: {without}");
+
+    let with_body = with.split("\r\n\r\n").nth(1).unwrap_or_default();
+    let without_body = without.split("\r\n\r\n").nth(1).unwrap_or_default();
+    assert_eq!(with_body, without_body, "sidecar must not move the answer");
+    assert!(
+        !with_body.contains("sidecar"),
+        "the sidecar must never echo back: {with_body}"
+    );
+}
+
+/// Permissive by contract: THIS lane does not consume the sidecar, so it
+/// does not shape-validate it either — any JSON value (object, array,
+/// string, null) parses and answers identically. Shape validation belongs
+/// to the consuming lane; a shape reflex does not know must not break an
+/// answer it does not affect.
+#[test]
+fn sidecar_is_permissive_any_json_value_parses_and_answers() {
+    let addr = spawn_lanes(LayaLane::Off);
+    let sentence = first_fixture_sentence();
+    let prompt = "Does the stack look clean?";
+
+    let baseline = post_body(&addr, &spot_body(&sentence, prompt), None);
+    let baseline_body = baseline.split("\r\n\r\n").nth(1).unwrap_or_default();
+    for sidecar in [
+        r#"[]"#,
+        r#""opaque""#,
+        r#"null"#,
+        r#"{"unknown_schema_version":99}"#,
+    ] {
+        let resp = post_body(&addr, &spot_body_sidecar(&sentence, prompt, sidecar), None);
+        assert!(resp.starts_with("HTTP/1.1 200"), "sidecar {sidecar}: {resp}");
+        let body = resp.split("\r\n\r\n").nth(1).unwrap_or_default();
+        assert_eq!(
+            body, baseline_body,
+            "sidecar {sidecar} must not move the answer"
+        );
+    }
+}
+
+/// The widened wire must not weaken the envelope: a MALFORMED body (here,
+/// a broken JSON tail) still 400s exactly as before — the sidecar field is
+/// additive, never a parse relaxation.
+#[test]
+fn malformed_body_still_400s_with_the_sidecar_field_present() {
+    let addr = spawn_lanes(LayaLane::Off);
+    let sentence = first_fixture_sentence();
+    let valid = spot_body_sidecar(&sentence, "Does the stack look clean?", r#"{"grid":[[0,0]]}"#);
+    // drop the final `}` — a truncated body is malformed JSON
+    let broken = &valid[..valid.len() - 1];
+    let resp = post_body(&addr, broken, None);
+    assert!(resp.starts_with("HTTP/1.1 400"), "got: {resp}");
 }
 
 /// A flappy and a lanes question are foreign prompts the head refuses

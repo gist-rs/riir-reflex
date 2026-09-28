@@ -236,6 +236,16 @@ sequence rides in the `state` field one per line. This is what makes the
 arena's three modelless boards play out of the box against a local engine
 (issue 011 closed; the wasm in-tab heads play even with no engine).
 
+**The optional `sidecar` field (the widened wire).** A `/decide` request
+may carry one extra member, `sidecar` (any JSON value) — riir-instinct
+Issue 009 T5's design: a hybrid lane can carry the raw afterstate (grid
+rows + piece + bag remainder) beside the unchanged sentence wire. THIS
+lane parses-and-ignores it — answers, fixtures, and pins are byte-
+identical with or without (pinned in `tests/serve_lanes.rs`); the
+sidecar's schema and consumption are owned by the consuming lane. The
+field is additive: unknown members were always tolerated, `sidecar` makes
+the extension named, and a malformed BODY still fails exactly as before.
+
 Release builds on this box (manual, Plan-105 posture; non-host triples
 route through cargo-zigbuild):
 
