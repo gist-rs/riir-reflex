@@ -142,10 +142,11 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 # p50 vs the M3 Metal row's 431 ms:
 # REFLEX_BENCH_HOST=4090-windows LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --bin harness -- --out .benchmarks/<bench>_tables
 # ⚠ REFLEX_BENCH_HOST is REQUIRED on this box: `uname -n` does not resolve
-# in the runner's probe there, so an unset label lands as `unknown` —
-# Bench 082's results.json had to be relabeled by hand (the merge key is
-# the host name; a publish of `unknown` would mint a phantom host, now
-# refused by the site publisher at load — reflex-site `74b49e4`).
+# in the runner's probe there, so an unset label REFUSES at row birth
+# (exit 2 naming the env — the phantom-host sentinel, runner-side since
+# d262941; the publisher refuses it at load too, 74b49e4). Bench 082's
+# results.json had to be relabeled by hand before the refusal existed
+# (the merge key is the host name):
 
 # The katgpt-rs Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
 scripts/fetch_datasets.sh
