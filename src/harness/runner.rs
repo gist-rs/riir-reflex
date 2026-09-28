@@ -109,6 +109,15 @@ pub use ensemble::{
     EnsembleGateSuite,
 };
 
+mod synth;
+pub use synth::{
+    load_synth_corpus, render_synth_markdown, run_synth_corpus, run_synth_plan, SynthArtifactMeta,
+    SynthOptions, SynthOutput,
+};
+
+mod corpus_ab;
+pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
+
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
 

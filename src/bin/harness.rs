@@ -199,6 +199,17 @@ fn harness_main() {
     let mut ensemble_out = std::path::PathBuf::from(".raw/ensemble_gate");
     let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
     let mut distill_limit = 0usize;
+    // Plan 426 T5: the synth + corpus-AB modes (exclusive early-exit like
+    // --e0/--distill).
+    let mut synth_corpus = false;
+    let mut synth_plan = false;
+    let mut corpus_ab: Option<std::path::PathBuf> = None;
+    let mut synth_out = std::path::PathBuf::from(".raw/corpus_synth");
+    let mut synth_teacher = "openthai".to_string();
+    let mut synth_max = 2048usize;
+    let mut synth_per_label = 128usize;
+    let mut synth_span = 4usize;
+    let mut synth_extra_cap = 128usize;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -283,6 +294,62 @@ fn harness_main() {
                     .get(i)
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--distill-out needs a path"));
+            }
+            "--synth-corpus" => synth_corpus = true,
+            "--synth-plan" => synth_plan = true,
+            "--synth-teacher" => {
+                i += 1;
+                synth_teacher = args
+                    .get(i)
+                    .cloned()
+                    .unwrap_or_else(|| die("--synth-teacher needs a name (laya | openthai)"));
+            }
+            "--synth-max" => {
+                i += 1;
+                synth_max = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&v| v > 0)
+                    .unwrap_or_else(|| die("--synth-max needs a number > 0"));
+            }
+            "--synth-per-label" => {
+                i += 1;
+                synth_per_label = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&v| v > 0)
+                    .unwrap_or_else(|| die("--synth-per-label needs a number > 0"));
+            }
+            "--synth-span" => {
+                i += 1;
+                synth_span = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&v| v > 0)
+                    .unwrap_or_else(|| die("--synth-span needs a number > 0 (tokens)"));
+            }
+            "--synth-out" => {
+                i += 1;
+                synth_out = args
+                    .get(i)
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| die("--synth-out needs a path"));
+            }
+            "--synth-extra-cap" => {
+                i += 1;
+                synth_extra_cap = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .filter(|&v| v > 0)
+                    .unwrap_or_else(|| die("--synth-extra-cap needs a number > 0"));
+            }
+            "--corpus-ab" => {
+                i += 1;
+                corpus_ab = Some(
+                    args.get(i)
+                        .map(std::path::PathBuf::from)
+                        .unwrap_or_else(|| die("--corpus-ab needs the synth artifact path")),
+                );
             }
             "--limit" => {
                 i += 1;
@@ -423,6 +490,29 @@ fn harness_main() {
     if e0 && distill {
         die("--e0 and --distill are both exclusive early-exit modes — pass one");
     }
+    {
+        // The exclusive early-exit modes (one per run — the e0/distill law
+        // generalized as the family grew).
+        let modes: [(&str, bool); 6] = [
+            ("--e0", e0),
+            ("--distill", distill),
+            ("--ensemble-gate", ensemble_gate),
+            ("--synth-corpus", synth_corpus),
+            ("--synth-plan", synth_plan),
+            ("--corpus-ab", corpus_ab.is_some()),
+        ];
+        let active: Vec<&str> = modes
+            .iter()
+            .filter(|(_, on)| *on)
+            .map(|(n, _)| *n)
+            .collect();
+        if active.len() > 1 {
+            die(&format!(
+                "{} are all exclusive early-exit modes — pass one",
+                active.join(" + ")
+            ));
+        }
+    }
 
     // riir-train Issue 576 T3: the Arm-B TEACHER pass — laya probabilities
     // over the train rows of the six Arm-A suites, dumped as frozen data
@@ -526,6 +616,111 @@ fn harness_main() {
             "harness --ensemble-gate: DONE — {} suite(s), {} absence(s); wrote {} + {}",
             out.suites.len(),
             out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    if synth_corpus || synth_plan {
+        // Plan 426 T5 — the coverage-directed corpus synthesis lane.
+        let laya_teacher = synth_teacher == "laya";
+        if laya_teacher && !cfg!(feature = "laya-riir") {
+            die(
+                "--synth-teacher laya needs the `laya-riir` feature — rebuild: cargo build \
+                 --release --features laya-riir-metal --bin harness (macOS; elsewhere: \
+                 laya-riir)",
+            );
+        }
+        let sopts = runner::SynthOptions {
+            teacher: synth_teacher.clone(),
+            max_accepted: synth_max,
+            max_per_label: synth_per_label,
+            max_span_len: synth_span,
+            out_dir: synth_out.clone(),
+        };
+        if synth_plan {
+            println!(
+                "harness --synth-plan: teacher {} · datasets {} · suites {:?}",
+                synth_teacher,
+                opts.datasets_dir.display(),
+                opts.suites
+            );
+            let md = match runner::run_synth_plan(&opts, &sopts) {
+                Ok(m) => m,
+                Err(e) => die(&e),
+            };
+            print!("{md}");
+            println!("harness --synth-plan: DONE — nothing written (report-only)");
+            return;
+        }
+        println!(
+            "harness --synth-corpus: teacher {} · max {} / {} per label · span ≤ {} · out {}",
+            synth_teacher,
+            synth_max,
+            synth_per_label,
+            synth_span,
+            synth_out.display()
+        );
+        let out = match runner::run_synth_corpus(&opts, &sopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&synth_out) {
+            die(&format!("create {}: {e}", synth_out.display()));
+        }
+        let json_path = synth_out.join("synth_report.json");
+        let md_path = synth_out.join("SYNTH.md");
+        let json = serde_json::to_string_pretty(&out).expect("synth serialize");
+        let md = runner::render_synth_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --synth-corpus: absence: {e}");
+        }
+        println!(
+            "harness --synth-corpus: DONE — {} suite(s), {} absence(s); wrote {} + {}",
+            out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    if let Some(ab_path) = corpus_ab.clone() {
+        // Plan 426 T5 — the V5 gate: gold-only vs +synth over ONE frozen
+        // test read (paired LB95 + the aliveness anchor).
+        println!(
+            "harness --corpus-ab: artifact {} · datasets {} · extra-cap {}",
+            ab_path.display(),
+            opts.datasets_dir.display(),
+            synth_extra_cap
+        );
+        let out = match runner::run_corpus_ab(&opts, &ab_path, synth_extra_cap) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&synth_out) {
+            die(&format!("create {}: {e}", synth_out.display()));
+        }
+        let json_path = synth_out.join("corpus_ab.json");
+        let md_path = synth_out.join("CORPUS_AB.md");
+        let json = serde_json::to_string_pretty(&out).expect("corpus-ab serialize");
+        let md = runner::render_corpus_ab_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --corpus-ab: DONE — {} suite(s); wrote {} + {}",
+            out.suites.len(),
             json_path.display(),
             md_path.display()
         );

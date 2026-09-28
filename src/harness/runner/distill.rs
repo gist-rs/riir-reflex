@@ -97,10 +97,12 @@ impl KeyMap {
 /// by different code paths.
 pub(crate) enum TeacherForward {
     /// The G5-proven local lane (feature `laya-riir`). The keyed
-    /// probabilities come straight off the answer.
+    /// probabilities come straight off the answer. Boxed: RiirAgent is
+    /// orders of magnitude larger than the openthai variant's lane handle
+    /// (the large_enum_variant law).
     #[cfg(feature = "laya-riir")]
     Laya {
-        agent: crate::laya::riir::RiirAgent,
+        agent: Box<crate::laya::riir::RiirAgent>,
         provenance: &'static str,
     },
     /// The OpenThai loopback service (the Bench 074 wire, ungated). The
@@ -258,7 +260,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
                     "typed" => crate::laya::config::Checkpoint::TypedDecisions,
                     other => return Err(format!("unknown checkpoint {other}")),
                 };
-                let agent = super::load_laya_agent(ckpt, ck)?;
+                let agent = Box::new(super::load_laya_agent(ckpt, ck)?);
                 Ok(TeacherForward::Laya { agent, provenance: ckpt })
             }
             #[cfg(not(feature = "laya-riir"))]
@@ -332,8 +334,10 @@ pub struct DistillOutput {
 }
 
 /// Argmax over presented (key, prob) pairs, ties to the LOWEST position
-/// (the engine argmax law).
-fn argmax_lowest_pos(probabilities: &[(String, f64)]) -> usize {
+/// (the engine argmax law). `pub(crate)`: the synth lane's veto (Plan 426
+/// T5) accepts a candidate iff the teacher's argmax key equals the gold
+/// label — the same tie law.
+pub(crate) fn argmax_lowest_pos(probabilities: &[(String, f64)]) -> usize {
     let mut best = 0usize;
     for (i, (_, p)) in probabilities.iter().enumerate().skip(1) {
         if *p > probabilities[best].1 {

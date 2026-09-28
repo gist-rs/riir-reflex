@@ -34,8 +34,10 @@ use crate::nb_scope::{NbAlpha, NbScope, NbView, view_tokens_into};
 
 /// States per suite measured on the selection slice; `n < 4` is the rumor
 /// class (Proposal 013's gate floor); > 50% rumor on a view writes H2 off
-/// for that view (riir-instinct `.issues/005` §E0).
-const RUMOR_N: usize = 4;
+/// for that view (riir-instinct `.issues/005` §E0). `pub(crate)`: the
+/// synth lane's per-intent weighting (Plan 426 T5/N2) reads the SAME
+/// rumor threshold — one evidence-floor home.
+pub(crate) const RUMOR_N: usize = 4;
 const RUMOR_CEILING: f64 = 0.5;
 
 /// One view's evidence-density stats over the suite's selection slice.

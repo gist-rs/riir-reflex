@@ -170,7 +170,9 @@ fn fuse_rank(
 
 /// The paired LB95 of (x − y) over 0/1 correctness vectors — the normal
 /// approximation (the same form the arena's T2 gate reports).
-fn paired_lb95(x: &[bool], y: &[bool]) -> f64 {
+/// `pub(crate)`: the corpus A/B lane (Plan 426 T5's V5 gate) reads the
+/// synth-minus-gold delta with the SAME statistic — one paired-LB95 home.
+pub(crate) fn paired_lb95(x: &[bool], y: &[bool]) -> f64 {
     let n = x.len();
     if n < 2 {
         return 0.0;
