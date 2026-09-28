@@ -130,6 +130,11 @@ cargo test --release --features laya-riir --lib --test laya_riir_parity   # the 
 # Latency probe (the one lane; the agent labels the posture):
 cargo run --release --features laya-riir --example laya_fixture_timing -- riir english 3
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_fixture_timing -- riir english 3
+# CUDA posture (the 4090 box; weights synced there — Bench 081): the G5
+# gate + timing at LAYA_DEVICE=cuda, all three checkpoints green, typed
+# 13.8 ms row p50 (≈2× the M3 Metal row; frozen-citation caveat there):
+# LAYA_DEVICE=cuda cargo test --release --features laya-riir-cuda --test laya_riir_parity
+# LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --example laya_fixture_timing -- riir typed 5
 
 # The katgpt-rs Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
 scripts/fetch_datasets.sh
