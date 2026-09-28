@@ -75,4 +75,10 @@ M3 tables in `001_phase1_tables/` are untouched).
 - The 4090's reflex sits at `97c2b1f` (Bench 081's bundle sync).
 - Run identity from the tables header: `97c2b1f` on `unknown`
   (2026-09-28T07:13:04Z, UTC — the Windows host name does not resolve
-  in the runner's probe; the box is the 4090).
+  in the runner's probe; the box is the 4090). **Relabeled 09-28**:
+  `meta.host` `unknown` → `4090-windows` (one line, the runner's own
+  `REFLEX_BENCH_HOST` value per the issue-033 label law — the run
+  missed the env; measured bytes untouched). The site publisher now
+  REFUSES an `unknown` host so this class cannot mint a phantom host
+  row silently; `REFLEX_BENCH_HOST=4090-windows` is REQUIRED on this
+  box (`uname -n` unresolvable).

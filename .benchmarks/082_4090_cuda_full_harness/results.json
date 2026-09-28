@@ -2,7 +2,7 @@
   "meta": {
     "date_utc": "2026-09-28T07:13:04Z",
     "git_sha": "97c2b1f",
-    "host": "unknown",
+    "host": "4090-windows",
     "profile": "release",
     "laya_feature": true,
     "laya_max_questions": 0,
