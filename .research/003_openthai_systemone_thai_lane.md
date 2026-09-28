@@ -74,6 +74,7 @@ Thai between spaces = one giant "word" to `embed.rs`; FNV-hashed deterministical
 - The arena gains its **first Thai board** (wisesight + SIB-200 Thai + MASSIVE-th probes) with EN boards byte-identical — honest-comparison moat, the reflex lane.
 - The `--openthai` lane also measures **EN** on suites we already fetch (`massive_intent_en`, `xnli_en`) → a fifth column on existing boards, free.
 - GDN-decision-head pattern: second external datum (after AgentJev's Qwen3-0.6B… which was dense; OpenThai's Qwen3.5 GDN hybrid is the first GDN one) → feeds the riir-train deferred row.
+- riir-train Plan 426 (filed 2026-09-28): the EN fusion lane consumes this lane as a DISTILL teacher (massive 0.9200 measured, Bench 074 — the strongest recorded teacher on our boards; the 0.7341 laya teacher it replaces is Bench 609's). The Thai decision-head recipe below stays owner-gated and unchanged; its teacher choice should re-read this note's board numbers at reopen time.
 
 ## riir-train deferral (justified, recipe recorded)
 
