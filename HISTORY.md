@@ -1960,3 +1960,38 @@ already closed with records only in git history.
   always-on `modelless.confusion` readout + `harness --pair-head-ab`
   (both firing gates, gold-in-pair split, n_counted disclosure;
   deterministic byte-reproduced). Full guard PASS incl. G5 parity.
+- **Issue 052 — typed_decisions TRAIN pull un-capped: 400 of 1200 rows
+  were never fetched; modelless row 0.4655 → 0.5725 measured at the
+  published posture; issue RESOLVED + removed** (2026-09-28; fix + record
+  `0e8896d`, reflex re-measure Bench 078, cross-checked with the instinct
+  lane's Bench 015 A0' read — same number, same corpus bytes). The birth
+  cap in `scripts/fetch_datasets.sh` (typed train 800) had stopped inside
+  the security_incidents train block (offsets 900–1199) plus invoice rows
+  200–299, so the corpus guard self-doc'd security_incidents at every
+  published run (the ⛔ fallback line in every table since Bench 001).
+  The lift: cap 800 → 1200, resume-fetch brought exactly pages
+  train-008…011; pages 000–007 + test + splits byte-verified unchanged
+  (`cmp`) against both the pre-extension envelope and the instinct lane's
+  verified copy — the **test split is untouched**, so the claim stays on
+  the same 400 cases / 2000 questions. New page digests + the full-pull
+  aggregate row joined the dataset manifest; the stale "typed caps
+  already cover the train split" note was rewritten. Measured at the
+  published posture (registry defaults; nb/oc/ridge cal-selected; heads
+  off; genome off): acc 0.5725, macro F1 0.5429, per-kind choice/noul/
+  score 0.5483/0.7300/0.4725 (from 0.4383/0.6200/0.3700 — every kind up),
+  G1 PASS (calibrated readout ECE 0.0114 beats the conformal floor
+  0.1818), the security_incidents fallback line GONE, latency QUOTABLE
+  (m3, AC/high-power, load ~3.6–4.8, p50 0.815 ms). ⛔ CORRECTED premise:
+  the issue draft claimed the cal front is a positional first-N cut and
+  therefore unchanged — false for this harness since Issue 039 T2 (the
+  cal slice is the STRATIFIED round-robin front over the WHOLE split);
+  the wider pool re-derives it (oc cal-selected oc@4 where the capped
+  pool selected oc@2), so the row publishes only at its own re-measured
+  posture — which is what Bench 078 is. Downstream: README typed row
+  0.5725 + footnote ³⁵; the reflex-site typed row republishes from these
+  tables (site lane), and instinct's site-parity re-pin rides the same
+  republish (their Bench 015 already records both postures). laya·typed
+  0.7445 unaffected by construction (frozen checkpoint scored on the
+  byte-identical test split; the corpus feeds only the modelless drafter
+  + cal selects). Consumers of the 800-row bytes: none found (no test
+  pins the corpus digests).

@@ -350,14 +350,19 @@ main() {
         probe_splits thai_sib200 "Davlan%2Fsib200"
     fi
 
-    # 1. typed_decisions — test: ALL rows; train: first 800 if the probe
-    #    shows a train split for config all.
+    # 1. typed_decisions — test: ALL rows; train: ALL 1200 rows (Issue 052:
+    #    the birth cap 800 stopped inside the security_incidents train block
+    #    (offsets 900–1199) + 100 invoice rows; the extended pool measures
+    #    A0' 0.5725 vs the capped A0 0.4655 at the published posture, Bench
+    #    078. The cal slice is the STRATIFIED round-robin front over the whole
+    #    split (Issue 039 T2) — it re-derives on the wider pool; the test
+    #    split is untouched and the published row is re-measured).
     if want_suite typed_decisions; then
         log "[suite] typed_decisions LocalLLaMA/typed-decisions config=all split=test cap=all"
         fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all test all
         if splits_have typed_decisions all train; then
-            log "[suite] typed_decisions config=all split=train cap=800 (train present per probe)"
-            fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all train 800
+            log "[suite] typed_decisions config=all split=train cap=1200 (train present per probe)"
+            fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all train 1200
         else
             log "[suite] typed_decisions config=all split=train SKIPPED (no train split for config all, or probe missing)"
         fi

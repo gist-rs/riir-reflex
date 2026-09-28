@@ -289,7 +289,7 @@ pull), banking77 0.7700 → 0.8620):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
-| typed_decisions | 2000 | 0.4655 ³ | **0.7445** (`typed`) | 0.5 ms | 1312 ms |
+| typed_decisions | 2000 | 0.5725 ³⁵ | **0.7445** (`typed`) | 0.8 ms | 1312 ms |
 | ag_news | 400 | 0.8825 ³ | **0.9500** | 0.2 ms | 116 ms |
 | emotion | 400 | **0.8850** ³ | 0.5925 | 0.1 ms | 66 ms |
 | sst5 | 600 | **0.4017** ³ | 0.3717 | 0.1 ms | 88 ms |
@@ -298,6 +298,19 @@ pull), banking77 0.7700 → 0.8620):
 | massive_intent_en | 300 | **0.7800** ³ | 0.7500 | 0.1 ms | 159 ms |
 | banking77 | 500 | **0.8620** ³ | 0.4980 | 0.3 ms | 249 ms |
 | code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
+
+³⁵ Issue 052 (Bench 078): typed_decisions' TRAIN pull was birth-capped at
+800 of the dataset's 1200 rows — the whole security_incidents train block
+(offsets 900–1199) plus invoice rows 200–299 sat behind it and the corpus
+guard self-doc'd security_incidents at every run. The cap is lifted
+(fetch_datasets.sh train 800 → 1200; pages 000–007 byte-verified
+unchanged), and the typed row reads 0.4655 → **0.5725** at the same
+published protocol (test split byte-identical; oc cal-select re-selected
+oc@4 on the wider pool; G1 PASS, calibrated ECE 0.0114 beats the
+conformal floor 0.1818). Laya-typed 0.7445 unchanged — the laya lane
+is a frozen trained checkpoint scored on the (byte-identical) test split;
+the harness train corpus feeds only the modelless drafter + cal selects.
+`.benchmarks/078_typed_corpus_cap_lift/` is the record.
 
 ³ Issue 038 (Bench 051 → 057 → 064): the count-table lane (`nb_scope`, default-on
 feature; the arena protocol adds `--nb-select`). One-vs-rest naive-Bayes
@@ -313,7 +326,8 @@ ag_news 0.5100 → 0.8825, emotion 0.2825 → 0.8850 (ridge@8), sst5
 0.2167 → 0.4017 (genome, Bench 064), xnli 0.3467 → 0.5233 (sentence-pair
 view), massive 0.7367 → 0.7800, banking77 0.5940 → 0.8620 (genome),
 typed_decisions 0.3190 → 0.4655 (option-conditioned oc@2, Bench 057,
-default-on), prompt_injections 0.4828 → 0.7672 (noul polarity ON — see ¹
+default-on; **0.5725 at the Issue-052 corpus-cap lift — oc@4**, Bench 078),
+prompt_injections 0.4828 → 0.7672 (noul polarity ON — see ¹
 and Issue 043). G2/G4 PASS with the tables armed. G1: at the full pull the
 baseline itself fails on the wide-label suites; the tables flip ag_news to
 PASS; the adopted genome rows PASS their floors (Bench 064) and the

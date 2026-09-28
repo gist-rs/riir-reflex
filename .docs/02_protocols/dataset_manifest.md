@@ -14,7 +14,7 @@ on 2026-09-22 into `.raw/datasets/<suite>/<split>-<NNN>.json` — one file per
 - **Rows column:** number of rows in that page file. `—` marks a probe file
   (no `rows` array).
 - **Caps:** per the fetch list — `test` splits generally capped (400/600/500/
-  300/1000), `train` splits capped at 4000 (typed_decisions train 800);
+  300/1000), `train` splits capped at 4000 (typed_decisions train 1200);
   `cap=all` suites page until the API returns fewer than 100 rows.
 
 ## Suites
@@ -24,7 +24,13 @@ on 2026-09-22 into `.raw/datasets/<suite>/<split>-<NNN>.json` — one file per
 Config `all` verified via the `/splits` probe (the other configs are the four
 single-workflow views: `agent_trace_observability`, `customer_service`,
 `invoice_processing`, `security_incidents`). `test` fetched to exhaustion:
-400/400 rows. `train` capped at 800 (dataset total 1200).
+400/400 rows. `train` fetched to 1200 (dataset total 1200). Issue 052 lifted the
+birth cap 800, which had stopped inside the security_incidents train
+block (offsets 900-1199) plus invoice rows 200-299; pages 000-007
+byte-verified unchanged by the extension. (The cal slice is the STRATIFIED
+round-robin front over the whole train split — Issue 039 T2 — so it
+re-derives on the wider pool; the test split is untouched. Accuracy is
+published only at a re-measured posture: Bench 078.)
 
 | `splits.json` | — | `0565a08d42c3114d801a36392c6e7e32a36f65ccd89abde0b5caeee539bafa78` | 882 |
 | `test-000.json` | 100 | `0672487ad56a1bcd094cad13a2e3d36c1cb619afdb6f63439b0442f824377a4f` | 403387 |
@@ -39,6 +45,10 @@ single-workflow views: `agent_trace_observability`, `customer_service`,
 | `train-005.json` | 100 | `a3d6594001822fd171ec764d1fe01b1de715fa20e55887f9b94989fbb344d6de` | 520708 |
 | `train-006.json` | 100 | `038d24a4157c2cf721cc29607c5add0a08d515b4c2af147a3dd97c9a469a13b3` | 435017 |
 | `train-007.json` | 100 | `59cbf5cdda4cfd702126c335508e63f7222a2d2ae23a0452c4ac68b23c8fcd80` | 435916 |
+| `train-008.json` | 100 | `d67bf2341f19e64b7b2ef08debccab86e0df0fb55b4676e80757df63cd9c3463` | 434805 |
+| `train-009.json` | 100 | `10ffa982aa43194277b68dc481be170d9601dd32af2d754a8a4d92c3166249d4` | 439632 |
+| `train-010.json` | 100 | `6e58806819a9c7e1bbba6367c52d498756964906dd00885422ec8bbf538652ac` | 439213 |
+| `train-011.json` | 100 | `f5186ace26d830299087895851c86fce2ad4789a57ec960d9a5e6d03fd542118` | 438253 |
 
 ### 2. ag_news — `fancyzhx/ag_news` (config `default`)
 
@@ -619,9 +629,14 @@ that suite (re-derive with `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`
 | banking77 | 100 | 9993 (all) | `f511dac4c61bb8d9cac376c3ed9cbeb4a7d53099b01ab652e1972361dd6ee848` |
 | massive_intent_en | 116 | 11514 (all) | `9a6844027f1b1aef2bdf827e8bfd186d7c2ae251f7f8482ce5c12185e1b360c3` |
 | xnli_en | 200 | 20000 (of 392702) | `5804bb68e1bd16af0288cc9698ae08ac54718c414aca88993b5b30914d922a38` |
+| typed_decisions | 12 | 1200 (all; Issue 052 lift) | `83ea62fb0b240f66e959850c625d4337176ef068dd03d6c3d862e2f4d947d88a` |
 
-typed_decisions and prompt_injections are unchanged (their caps already
-cover their train splits: 800 of 1200 by design, and 546 of 546).
+prompt_injections is unchanged (its cap already covers the train split:
+546 of 546). typed_decisions was lifted to the full train split by
+Issue 052 (Bench 078, 2026-09-28): TRAIN cap 800 → 1200 — the 800-row cap
+had stopped inside the security_incidents train block (offsets 900–1199)
+plus invoice rows 200–299. Pages 000–007 byte-verified unchanged; the four
+new pages ride the typed section above. Aggregate digest recomputed:
 
 ## ag_news full-pull measurement dir (issue 041 / Bench 065 — NOT a column)
 
