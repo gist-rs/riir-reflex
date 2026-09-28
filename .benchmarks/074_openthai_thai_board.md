@@ -1,7 +1,6 @@
 # Bench 074 — the OpenThai board: T2.6 EN cross-check + T3.3 Thai probe lanes (Plan 003)
 
-**Status:** COMPLETE 2026-09-28 — T2.6 + T3.3 measured; T3.4 (site republish)
-belongs to the reflex-site session. Plan 003's record filename guessed `041`;
+**Status:** COMPLETE 2026-09-28 — T2.6 + T3.3 measured; T3.4 site republish LANDED (reflex-site `0da9d80`, CF `0dbb1d32`; verdicts line below). Plan 003's record filename guessed `041`;
 the number was taken — this is `074` (numbering discipline: never recycle).
 
 **Lane (the agentjev/clm family law): their stack serves, our Rust measures.**
@@ -101,5 +100,4 @@ Laya observed-repeat check ✓ (reported, not claimed).
   abstains by the pinned law. Plan 003 stays research-sake: no engine work
   re-opens on these numbers (T4.2's trigger — an owner product call for
   Thai-capable modelless decisions — did not fire).
-- T3.4 (site republish): reflex-site session's half, same standing as 045
-  T3's publish.
+- T3.4 (site republish): **LANDED 2026-09-28** — reflex-site `0da9d80` (openthai lane class + suite joins in the publisher; thai rows + xnli/massive openthai cells published accuracy-only per the Issue-021 wall), deployed CF `0dbb1d32`; site live-verified (17 suites, thai rows served, pages 200).
