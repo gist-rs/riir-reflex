@@ -6338,10 +6338,10 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.git_sha, out.meta.host, out.meta.date_utc, out.meta.profile, out.meta.laya_feature
     ));
     if out.meta.laya_feature {
-        s.push_str(
-            "- laya posture: PRE-MOVE BASELINE — `src/laya` is scheduled to move to the \
-             riir-infer repo (008 T4); the laya columns pin the pre-move tree at the sha above\n",
-        );
+        // The 008 T4 move landed (2026-09-24, `src/laya` → the riir-infer
+        // repo's `riir-infer-laya` crate): the PRE-MOVE-BASELINE caveat is
+        // retired — the sha above now pins the post-move tree, whose laya
+        // substrate is a path dep versioned in the substrate repo.
         if out.meta.laya_max_questions > 0 {
             s.push_str(&format!(
                 "- laya cap: {} questions per checkpoint — PARTIAL run; the laya `n` columns \
