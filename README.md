@@ -419,6 +419,22 @@ specialists abstain at all), the conformal-floor calibration gate (G1), and
 lane (specialist proposes, modelless gates/abstains), so the category's accuracy
 races and reflex's guarantees compose instead of compete.
 
+**Addendum (2026-09-28, Benches 072 + 074):** the suite set grew to 17 and
+the comparison-lane family grew by one. `harness_cache_reuse` now answers
+MODELLESS (Issue 045: **0.9167** vs the published laya 0.5000, p50 0.009 ms
+— n=12, Wilson [0.646, 0.985], no accuracy claim; the LLM-only carve-out is
+reversed on its own issue's premises) and the **OpenThai-SystemOne**
+comparison lane joined (their stack serves, our Rust measures — Plan 003,
+research-sake): xnli_en **0.8967** vs their card 89.0, massive_intent_en
+**0.9200** vs 88.3, and on the Thai probe suites the specialist leads
+(thai_wisesight **0.4750** vs laya-multilingual 0.4075 vs modelless
+0.1225-at-chance by the pinned empty-bag law; thai_sib200 **0.8382** vs
+0.7843 vs 0.1422) at ~11× the latency — latency cells published
+accuracy-only, the run's own box check having judged the start state unfit
+(the Issue-021 wall). Full board + provenance:
+[`074_openthai_thai_board.md`](.benchmarks/074_openthai_thai_board.md);
+the live surface renders all of it: <https://reflex.gist.rs/bench/>.
+
 **Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the narrow-BK64 + xwide pass `a51ea42`):**
 
 | checkpoint | python torch MPS (row p50) | rust candle Metal (row p50) | rust riir Metal (row p50, candle-free) |
