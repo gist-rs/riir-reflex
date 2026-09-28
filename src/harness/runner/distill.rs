@@ -396,7 +396,7 @@ pub fn run_distill(
         meta: DistillMeta {
             date_utc: iso8601_utc(),
             git_sha: git_sha().unwrap_or_else(|| "unknown".into()),
-            host: hostname(),
+            host: hostname_refusing_unknown(),
             device,
             datasets_dir: opts.datasets_dir.display().to_string(),
             limit,

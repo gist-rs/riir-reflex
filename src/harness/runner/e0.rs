@@ -337,7 +337,7 @@ pub fn run_e0(opts: &RunOptions) -> Result<E0Output, String> {
         meta: E0Meta {
             date_utc: iso8601_utc(),
             git_sha: git_sha().unwrap_or_else(|| "unknown".to_string()),
-            host: hostname(),
+            host: hostname_refusing_unknown(),
             datasets_dir: opts.datasets_dir.display().to_string(),
             corpus_rule: "tables fit on the DEPLOYED corpus: the full registry pool \
                           (train minus the stratified cal front), NB docs uncapped per \
