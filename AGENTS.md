@@ -135,6 +135,11 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 # 13.8 ms row p50 (≈2× the M3 Metal row; frozen-citation caveat there):
 # LAYA_DEVICE=cuda cargo test --release --features laya-riir-cuda --test laya_riir_parity
 # LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --example laya_fixture_timing -- riir typed 5
+# Full harness at the CUDA posture (Bench 082 — datasets synced via scp -r
+# per-dir; tar extraction silently skips dirs on the box): 15/15 PASSED,
+# typed acc byte-identical cross-host (0.7445) at 164 ms p50 vs the M3
+# Metal row's 431 ms:
+# LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --bin harness -- --out .benchmarks/<bench>_tables
 
 # The katgpt-rs Plan 603 T1.5 harness (datasets first: scripts/fetch_datasets.sh):
 scripts/fetch_datasets.sh
