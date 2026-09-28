@@ -1,10 +1,16 @@
 # Bench 084 — the OpenThai lane-update: all 17 suites filled on the 4090 (the Issue-025 lane-update shape)
 
 **Status:** MEASURED 2026-09-28 — complete on this box (15 default suites + the 2 Thai
-probe suites, det green ×17). **NOT yet published to reflex-site** — the publish is the
-next subtask (steps recorded in §Publish, deliberately not executed this session:
-concurrent-agent handoff, the reflex-site `data/bench.json` write is another lane's
-collision surface).
+probe suites, det green ×17). **PUBLISHED 2026-09-28 (M3-side, the §Publish steps
+executed in order):** reflex-site `data/bench.json` `1999b38` (pushed) + CF deploy
+`2303b558` — 13 new openthai cells under the existing `4090-win` host container
+(shikuwa aliased per the Issue-033 law), the 4 prior suites keep their m3-max-metal
+row-level cells with the 4090 cells added beside; 34 stale modelless/laya extra slots
+dropped loudly by `PUBLISH_BENCH_LANES=openthai`; latency stamped UNJUDGED (Windows
+host, disclosed in lane_sources). Gates: publisher self-test 52/52, chart smoke,
+pairing gate (0 unacknowledged), mirror parity, bench-page smoke PASSED (21 openthai
+table rows; openthai absent from the not-run list), home smoke PASS. Live-verified:
+17/17 suites carry openthai cells on reflex.gist.rs.
 
 ## Why this run exists
 
@@ -93,7 +99,7 @@ moot: the publish filters it (next section).
 - `084_openthai_lane_update_4090/thai/TABLES.md` + `results.json` — the 2 Thai probe
   suites (39 s, ended 21:02 +0700)
 
-## Publish — the next subtask (NOT executed; recorded for the handoff)
+## Publish — EXECUTED (M3 side, 2026-09-28; kept for the re-run recipe)
 
 reflex-site is 1 commit ahead of this box's last known state and its
 `data/bench.json` is a concurrent-agent collision surface — this session stops before
@@ -106,11 +112,17 @@ that write. The steps, in order:
    with `PUBLISH_BENCH_LANES="openthai"` (extras only — drops our stale modelless
    control cells loudly, the Issue-033 law; primary is the existing bench.json, the
    Issue-034 safe default) — verify the shikuwa→4090-win alias landed the rows under
-   the existing host container.
+   the existing host container. **✅ Done — 34 stale slots dropped, alias landed
+   (13 cells under `4090-win`, 4 suites keep their m3 row-level cells), latency
+   UNJUDGED disclosed.**
 3. `py -3.10 ../reflex-site/scripts/test_publish_bench.py` (52/52 at this writing) +
-   the bench-page smoke.
+   the bench-page smoke. **✅ Done — 52/52, chart smoke PASS, pairing gate 0
+   unacknowledged, mirror parity, bench-page smoke PASSED (21 openthai rows), home
+   smoke PASS.**
 4. Data commit + push (deploy is the manual/M3-side wrangler handoff — no CF creds on
-   this box, the 018 T6 precedent).
+   this box, the 018 T6 precedent). **✅ Done — reflex-site `1999b38` pushed;
+   `npx wrangler deploy` from the M3 shipped `/data/bench.json` (CF version
+   `2303b558`); live-verified 17/17 suites on reflex.gist.rs.**
 
 Server lifecycle: the uvicorn process was STOPPED after the runs (unattended GPU
 processes are the exclusivity hazard for sibling gate runs). Restart for any
