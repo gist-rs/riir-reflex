@@ -135,10 +135,11 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 # 13.8 ms row p50 (≈2× the M3 Metal row; frozen-citation caveat there):
 # LAYA_DEVICE=cuda cargo test --release --features laya-riir-cuda --test laya_riir_parity
 # LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --example laya_fixture_timing -- riir typed 5
-# Full harness at the CUDA posture (Bench 082 — datasets synced via scp -r
-# per-dir; tar extraction silently skips dirs on the box): 15/15 PASSED,
-# typed acc byte-identical cross-host (0.7445) at 164 ms p50 vs the M3
-# Metal row's 431 ms:
+# Full harness at the CUDA posture (Bench 082 — datasets synced via
+# COPYFILE_DISABLE=1 tar + plain tar -xf; an AppleDouble-carrying tar
+# doubles every file with ._-junk on the box — see the 082 provenance):
+# 15/15 PASSED, typed acc byte-identical cross-host (0.7445) at 164 ms
+# p50 vs the M3 Metal row's 431 ms:
 # REFLEX_BENCH_HOST=4090-windows LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --bin harness -- --out .benchmarks/<bench>_tables
 # ⚠ REFLEX_BENCH_HOST is REQUIRED on this box: `uname -n` does not resolve
 # in the runner's probe there, so an unset label lands as `unknown` —

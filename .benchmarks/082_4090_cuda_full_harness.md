@@ -66,12 +66,29 @@ M3 tables in `001_phase1_tables/` are untouched).
 ## Provenance
 
 - `.raw/datasets` sync to the 4090: 8 of 11 dirs were already there
-  (a 09-26 session); `tar -xf` on bsdtar 3.8.8/exFAT silently skipped
-  the remaining three dirs (`_reference`, `thai_sib200`,
-  `thai_wisesight`) with a 0-byte error file and an empty-then-error
-  exit-code trail — NOT diagnosed to root cause. **`scp -r` per-dir
-  works** (14/12/45 files verified byte-count-identical) and is the
-  recorded path for small dataset syncs to this box.
+  (a 09-26 session); `tar -xf` on bsdtar 3.8.8/exFAT appeared to
+  silently skip the remaining three dirs (`_reference`, `thai_sib200`,
+  `thai_wisesight`) — **ROOT-CAUSED 09-28, and the skip reading was
+  wrong**: extraction never skips. A macOS tar created WITHOUT
+  `COPYFILE_DISABLE=1` carries every member's xattrs as AppleDouble
+  payloads inside PAX extended headers, which are invisible to
+  `tar -tf` (member lists are identical) but are materialized by
+  Windows libarchive as literal `._<file>` sidecars plus `.__<dir>`
+  entries — measured: the three dirs (71 files) extracted with rc=0
+  and EMPTY stderr on BOTH exFAT and NTFS, but with 74 `._` junk
+  files beside them, so every naive file-count check reads double
+  (14 → 28) and the tree looks corrupted. The "0-byte error file"
+  was the empty stderr capture (reproduced byte-for-byte: all four
+  stderr redirects in the repro are 0 bytes); the "empty-then-error
+  exit-code trail" was rc=0 + empty stderr followed by the failed
+  verification. **The recorded sync recipe is `COPYFILE_DISABLE=1`
+  on the M3 tar side** — with it, plain `tar -xf` on the box extracts
+  71/71 files, SHA256 spot-checks byte-identical to the M3 sources,
+  rc=0, empty stderr, on both filesystems (scp -r per-dir remains the
+  verified fallback and is how the live dirs got there). The lone
+  `._datasets_t20k` straggler the original polluted tar left in
+  `.raw` was removed in the same pass (dataset dirs verified clean —
+  scp -r never carries `._` files).
 - The 4090's reflex sits at `97c2b1f` (Bench 081's bundle sync).
 - Run identity from the tables header: `97c2b1f` on `unknown`
   (2026-09-28T07:13:04Z, UTC — the Windows host name does not resolve
