@@ -195,6 +195,8 @@ fn harness_main() {
     // so the parsing is ungated; the LAYA teacher still refuses without
     // the feature, loud).
     let mut distill_teacher = "laya".to_string();
+    let mut ensemble_gate = false;
+    let mut ensemble_out = std::path::PathBuf::from(".raw/ensemble_gate");
     let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
     let mut distill_limit = 0usize;
     let mut i = 0;
@@ -260,6 +262,14 @@ fn harness_main() {
             }
             "--e0" => e0 = true,
             "--distill" => distill = true,
+            "--ensemble-gate" => ensemble_gate = true,
+            "--ensemble-out" => {
+                i += 1;
+                ensemble_out = args
+                    .get(i)
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| die("--ensemble-out needs a path"));
+            }
             "--distill-teacher" => {
                 i += 1;
                 distill_teacher = args
@@ -472,6 +482,48 @@ fn harness_main() {
         }
         println!(
             "harness --distill: PASSED — {} suite(s) dumped, {} absence(s); wrote {} + {}",
+            out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    if ensemble_gate {
+        // Plan 426 T2 — the V3 gate: openthai ⊕ laya over the frozen test
+        // slice, the pinned logit-mean primary + the rank alternate, the
+        // paired LB95 against each member and the best one. The teacher
+        // pair is FIXED here (the gate's question is about THESE two
+        // heterogenous families; a third member is T3's owner-gated lane).
+        println!(
+            "harness --ensemble-gate: teachers openthai ⊕ laya · datasets {} · suites {:?} · out {}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            ensemble_out.display()
+        );
+        let out = match runner::run_ensemble_gate(&opts, "openthai", "laya") {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&ensemble_out) {
+            die(&format!("create {}: {e}", ensemble_out.display()));
+        }
+        let json_path = ensemble_out.join("ensemble_gate.json");
+        let md_path = ensemble_out.join("ENSEMBLE_GATE.md");
+        let json = serde_json::to_string_pretty(&out).expect("ensemble serialize");
+        let md = runner::render_ensemble_gate_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --ensemble-gate: absence: {e}");
+        }
+        println!(
+            "harness --ensemble-gate: DONE — {} suite(s), {} absence(s); wrote {} + {}",
             out.suites.len(),
             out.skipped.len(),
             json_path.display(),

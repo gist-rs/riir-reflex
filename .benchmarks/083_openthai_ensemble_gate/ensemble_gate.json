@@ -1,0 +1,36 @@
+{
+  "meta": {
+    "date_utc": "2026-09-28T12:47:01Z",
+    "git_sha": "ccb371a",
+    "teacher_a": "openthai",
+    "teacher_b": "laya",
+    "fusion_primary": "logit-mean (pinned, V3)",
+    "fusion_alternate": "rank-fusion (recorded alternate)",
+    "datasets_dir": ".raw/datasets",
+    "row_rule": "the frozen TEST slice, read once for the pre-registered V3 arm; teachers answer through the T1 seam (one forward per family)"
+  },
+  "suites": [
+    {
+      "name": "massive_intent_en",
+      "n_rows": 300,
+      "n_classes_touched": 59,
+      "acc_a": 0.92,
+      "acc_b": 0.6933333333333334,
+      "acc_logit_mean": 0.82,
+      "acc_rank_fusion": 0.8266666666666667,
+      "logit_minus_a_lb95": -0.14086882515518667,
+      "logit_minus_b_lb95": 0.08675926287993309,
+      "rank_minus_a_lb95": -0.1333479096443996,
+      "rank_minus_b_lb95": 0.09160037825937821,
+      "logit_minus_best_lb95": -0.14086882515518667,
+      "rank_minus_best_lb95": -0.1333479096443996,
+      "both_wrong": 16,
+      "a_only_wrong": 8,
+      "b_only_wrong": 76,
+      "v3_pass": false,
+      "v3_note": "V3 FAIL — neither fusion beats the best member (openthai) at LB95 > 0; the distill falls back to single-teacher (the stronger member)",
+      "seconds": 544.223624625
+    }
+  ],
+  "skipped": []
+}

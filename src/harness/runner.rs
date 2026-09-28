@@ -103,6 +103,12 @@ pub use e0::{render_e0_markdown, run_e0, E0Meta, E0Output, E0Suite, E0ViewStats}
 mod distill;
 pub use distill::{render_distill_markdown, run_distill, DistillMeta, DistillOutput, DistillSuite};
 
+mod ensemble;
+pub use ensemble::{
+    render_ensemble_gate_markdown, run_ensemble_gate, EnsembleGateMeta, EnsembleGateOutput,
+    EnsembleGateSuite,
+};
+
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
 

@@ -44,9 +44,9 @@
 
 use std::path::Path;
 
-use super::{
-    case_questions, git_sha, iso8601_utc, load_rows, percentile_us, RunOptions, SuiteSpec, SUITES,
-};
+#[cfg(feature = "laya-riir")]
+use super::case_questions;
+use super::{git_sha, iso8601_utc, load_rows, percentile_us, RunOptions, SuiteSpec, SUITES};
 use crate::harness::runner::hostname_refusing_unknown;
 use crate::harness::suites::{stratified_split, train_docs};
 
@@ -91,8 +91,11 @@ impl KeyMap {
 /// The selected distill teacher (Plan 426 T1's seam): everything the
 /// per-row loop needs, constructed once per run. The forward returns
 /// LABEL-KEYED probabilities — exactly what [`map_targets`] consumes —
-/// plus the row's wall milliseconds.
-enum TeacherForward {
+/// plus the row's wall milliseconds. `pub(crate)`: the ensemble-gate
+/// lane (Plan 426 T2) runs BOTH teachers over one shared case set
+/// through this same seam — the fusion can never see teachers answered
+/// by different code paths.
+pub(crate) enum TeacherForward {
     /// The G5-proven local lane (feature `laya-riir`). The keyed
     /// probabilities come straight off the answer.
     #[cfg(feature = "laya-riir")]
@@ -108,7 +111,7 @@ enum TeacherForward {
 
 impl TeacherForward {
     /// The teacher's name — the header/record provenance token.
-    fn name(&self) -> &'static str {
+    pub(crate) fn name(&self) -> &'static str {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { .. } => "laya",
@@ -118,7 +121,7 @@ impl TeacherForward {
 
     /// Checkpoint (laya) or model id (openthai) — the record's
     /// `checkpoint` field, the teacher-side provenance.
-    fn provenance(&self) -> &str {
+    pub(crate) fn provenance(&self) -> &str {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { provenance, .. } => provenance,
@@ -131,7 +134,7 @@ impl TeacherForward {
     /// cold path) — and, for openthai, the final proof their server is
     /// actually answering plus the model-id provenance capture (the
     /// agentjev law: refuse loud, never half-run).
-    fn warmup(&mut self, case: &super::SuiteCase) -> Result<(), String> {
+    pub(crate) fn warmup(&mut self, case: &super::SuiteCase) -> Result<(), String> {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { agent, .. } => {
@@ -156,7 +159,7 @@ impl TeacherForward {
     /// One row's keyed probabilities + wall ms. The FIRST question's
     /// answer (the distill join is one gold per row — the single-question
     /// contract the T3 suites speak).
-    fn forward(&self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
+    pub(crate) fn forward(&self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { agent, .. } => {
@@ -199,7 +202,7 @@ impl TeacherForward {
 /// idx space). The keys are exactly what [`map_targets`] matches on:
 /// Name suites match them to the student labels, FixedInt suites ignore
 /// the key string and read the position.
-fn openthai_keyed_probs(
+pub(crate) fn openthai_keyed_probs(
     q: &crate::harness::suites::SuiteQuestion,
     probs: &[f64],
 ) -> Result<Vec<(String, f64)>, String> {
@@ -230,7 +233,7 @@ fn openthai_keyed_probs(
 /// `laya` needs the checkpoints + the `laya-riir` feature; `openthai`
 /// health-checks their loopback service here — a server that is down is
 /// a LOUD refusal naming the env (the agentjev law), never a half-run.
-fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherForward, String> {
+pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherForward, String> {
     match name {
         "openthai" => {
             let lane = crate::lanes::openthai::OpenThaiLane::default();
