@@ -1,6 +1,6 @@
 # Issue 056 — the calibrated readout confidence ranks WORSE than raw as a rejection key (up to −0.12 AUC; banking77 below random)
 
-**Status:** OPEN (owner gate pending) — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, and **repair direction 0 (`--gate-fit-calibrated`, Bench 093) landed at `2641477` — opt-in, default off; repairs 2 + 3 landed substrate-side in katgpt-rs Issue 909 (2026-09-30, closed — the audit verdict + the loss-argmin fallback + the saturation guard; the AUC regression confirmed fixed end-to-end). What remains here is the owner-gated promotion decision** (`--gate-fit-calibrated` default-on + the full 15-suite re-baseline at the repaired substrate).
+**Status:** OPEN (owner gate pending — SIMPLIFIED by Bench 094) — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, repair direction 0 (`--gate-fit-calibrated`, Bench 093) at `2641477`, and **repairs 2 + 3 substrate-side in katgpt-rs Issue 909 (closed, `74e9d192d`) + the full 15-suite re-baseline [Bench 094](../.benchmarks/094_substrate_repaired_rebaseline/README.md): the AUC regression is GONE 15/15 AND the gate abstain distortion collapsed at the DEFAULT posture (0.31–0.48 band, was 0.90–0.99) — the remaining owner decision is whether `--gate-fit-calibrated` is promoted as belt-and-suspenders scale coherence or stays opt-in; the substrate defect itself is fully repaired.**
 
 ## The finding
 
@@ -112,6 +112,14 @@ fitted temperature at the deployed posture:
 
 ## SEVERITY ELEVATION (2026-09-30, second pass): the deployed GATE is distorted, not just ranking consumers — and this IS the Issue-042 over-escalation class
 
+> **⚠ SUPERSEDED by the substrate repair + Bench 094 (same day):** the
+> table below records the DISTORTION against the stalled substrate fits.
+> With katgpt-rs Issue 909 landed, the honest constant maps place the
+> calibrated confs at sane levels and the deployed abstain collapsed to the
+> 0.31–0.48 band at the DEFAULT posture (see
+> [Bench 094](../.benchmarks/094_substrate_repaired_rebaseline/README.md)
+> Finding 2). The table stays as the defect record.
+
 The gate's score axis thresholds are fit on the **RAW** scale but applied
  to the **CALIBRATED** conf: the threshold-fit probe engine is built fresh
  (`default_cfg`) with an IDENTITY calibrator, so `score_obs` reads raw
@@ -210,14 +218,14 @@ HEAD** — the cal ranking key now equals the raw one wherever the fit was a
 stall, and remains the (sane) fit's own order elsewhere (massive: T=0.275
 unchanged, 300/300 distinct).
 
-**What remains (the owner gate):** the promotion decision —
-`--gate-fit-calibrated` default-on + the full 15-suite re-baseline at the
-repaired substrate (the composition evidence: with the fallback active the
-saturating fits become honest constants, and the threshold-scale coherence
-repair composes on top). The consumer-side ranking rule (repair 1, "rank on
-raw") is now MOOT at substrate HEAD — the calibrated key no longer
-degrades — but stays the conservative rule for any consumer pinned to an
-older substrate.
+**What remains (the owner gate — simplified by Bench 094):** Bench 094
+measured that the substrate repair ALONE restores honest gates at the
+default posture (the abstain distortion collapsed 0.90–0.99 → 0.31–0.48
+without the lever), so `--gate-fit-calibrated`'s promotion is now a
+belt-and-suspenders scale-coherence decision, not a defect repair. The
+consumer-side ranking rule (repair 1, "rank on raw") is MOOT at substrate
+HEAD — the calibrated key no longer degrades anywhere — but stays the
+conservative rule for any consumer pinned to an older substrate.
 
 ## Reproduce
 
