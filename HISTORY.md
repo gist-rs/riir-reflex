@@ -7,6 +7,30 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-30
 
+- **The 056 close-out's owed site republish LANDED — Benches 096+097: the
+  promoted gate posture serves on reflex.gist.rs (both hosts), and the
+  deploy resolved the 09-29 typed-H2 deploy-pending note in the same
+  push.** The 076+077 flow verbatim, replayed for the promotion: two
+  coordinated runs at `d4051c8` (096 m3 — preflight PASSED, load
+  3.92→4.16, quotable both spans; 097 4090-windows — UNJUDGED-standing,
+  sibling tree synced + dataset pools MD5-verified across boxes first),
+  canonical pool, nb/oc/ridge select, heads off. **Hard accuracy
+  bit-identical to every incumbent cell on all 15 suites both hosts**
+  (cross-host bit-identity re-proven, Issue 018 T7); the gate cells move
+  to the promoted posture (calibrated_abstain == the old fitted raw
+  target on every dataset suite; raw_abstain 1.0 by construction — the
+  documented 095 lever artifact); source stamps `d4051c8` on both host
+  rows. Timing carried per the Issue-032 law (both sides quotable →
+  incumbent wins). **En-route gap filed as Issue 057** (owner-gated): the
+  typed m3 p50 0.517 was carried from Bench 076 — measured on the pre-lift
+  800-row corpus, while the accuracy cells measure the 1200-row corpus
+  (quotable reads on the new pool: 0.764–0.815 ms); the corpus axis has
+  no LANE_CARRY escape (the population reset covers only the question
+  axis), so no lane-scoped publish can refresh it while the incumbent
+  stays quotable. Publish gates green end-to-end (self-test 52/52, chart
+  smoke, drift gate, pairing, mirror parity, bench-page smoke);
+  reflex-site `0ce46a8` + CF deploy `6f5496e3`, live-verified.
+
 - **Issue 056 CLOSED — the calibrated-confidence ranking regression: root-caused to a Platt-solver defect substrate-side (katgpt-rs Issues 909+910+911, three verdict rounds), and `--gate-fit-calibrated` PROMOTED to the default posture (verdict round 2 — the owner-delegated adjudication: "a units bug, not a matter of taste").** The full arc, one day: the 092 finding (cal key ranks worse than raw, 7/9 suites; banking77 below its own accuracy) → the mechanism probe (`788cf5b`: zero monotonicity violations, 1–3 distinct f32 values of 200–500 — f32 tie-collapse under a steep fit) → the severity elevation (`2fb2ae4`: thresholds fit on raw, applied to the saturated calibrated scale — Issue 042's 96.7% typed escalation root-caused) → reflex repair 0 (`2641477`, Bench 093) → **the substrate repairs**: the real cal windows dumped via `RIIR_DEBUG_CAL_WINDOW` + committed as katgpt-rs replay fixtures (replay reproduces the measured fits EXACTLY), the audit refuting the early-break-precision theory and finding Platt's undamped identity-init Newton stall (10.8×/23× above the achievable loss), the Lin–Lin–Weng 2007 solve landing (banking77's TRUE MLE recovered: w=8.674, T=0.115, loss 71.57 — the band carries real signal), the resolution-aware `w` floor + the zero-tolerance AUC guard (ties stopped at their source; distinct scores stay distinct in f32) → re-baselines Bench 094 (constant-map interim, framing corrected) + **095 (final: the AUC regression GONE 15/15 via real fits; the lever reproduces the raw gate's fitted target EXACTLY on every suite — percentile coherence)**. **The promotion**: `gate_fit_calibrated: true` at the harness CLI / the seat / the e0 lane (`--no-gate-fit-calibrated` restores the old posture); verified byte-for-byte — the promoted default reproduces the 095 lever cells on all 15 suites; gates green (lib 219/0, engine_gates 8/0, game_heads_serve 16/0, clippy `-D`). The katgpt-rs commits: `74e9d192d` (909) → `b0d80979d` (910) → `77eacda8f` (911). The old "−11.5pt selacc" cross-coverage framing is retired ("operating point shifted off the fitted target" — every posture sits on the same risk–coverage curve). File removed per the noise-reduction rule.
 
 - **Issue 056 repair direction 0 LANDED — `--gate-fit-calibrated` (Bench 093): the gate's score-axis threshold now fitable on the scale the gate applies.** The 056 severity-elevation finding (thresholds fit on the RAW scale via the identity-calibrator probe, applied to the SATURATED calibrated conf → 90–99% abstain on six suites / a disarmed score axis on banking77 — the root of Issue 042's 96.7% typed escalation) gets its reflex-side remedy: the lever observes the probe's own per-question (conf, correct) pairs — byte-identical to the deployed calibrator's `cal_pairs` in the default posture — into a `SigmoidGateCalibrator` at the engine's window config and maps the score observations through the fitted `apply` BEFORE the ρ=30 percentile. Measured (deployed posture, t20k): the six saturate-at-0 suites' calibrated abstain collapses 90.5–98.8% → 31.5–47.5% (the fake "sel-acc 1.0000 on 3–7% kept" cells become real readings — ag_news 0.9053 at 61% kept); banking77 unchanged (already disarmed — a saturated scale carries no information); massive (sane-fit control) unchanged within 0.3 pt with a real 0.2008 threshold; forced accuracy unchanged everywhere. **Opt-in, default off — promotion is owner-gated WITH the substrate saturation guard (repair 2, the remaining work in Issue 056): the two compose, and promoting the reflex lever alone would change the deployed abstain semantics on six published rows.** The seat pins all three gate levers off (the arena's published face unchanged by construction). Clippy `-D` clean both postures; lib 230/0 (feature) / 219/0 (default). Commits: the lever + Bench 093.
