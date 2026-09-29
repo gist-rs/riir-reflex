@@ -7,6 +7,31 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-29
 
+- **The PAW lane gained per-question-shape programs + its first
+  `code_fixtures` cell (Bench 087, 0.6250 ft-bs48).** Until this row the
+  PAW comparison lane was the one lane without a `code_fixtures` cell on
+  any host (openthai 084/086, gliner 037, agentjev 039 all carry one):
+  the suite serves TWO question kinds per case (`module` Choice +
+  `is_pub` Noul) on ONE input, and the lane's one-program-per-suite law
+  structurally refused the second shape (one program cannot answer two
+  questions on the same text — a ~50% accuracy ceiling wearing a
+  measurement). The extension (`src/lanes/paw.rs`): one program per
+  DISTINCT resolved spec — `{suite}.{qid}.txt` per question shape with
+  the qid in the cache key, the suite-wide `{suite}.txt` fallback
+  unchanged for the single-shape suites (byte-identical behavior AND the
+  historical key); partial coverage is a loud error naming the missing
+  file, never a partial row; multi-shape rows disclose every program
+  (ids/paths/digests comma-joined, compile wall summed). Pinned by three
+  new stub-server tests + the committed-spec drift guard extended to both
+  spec files. Cell (hosted-anonymous, `paw-ft-bs48-20260530`, accuracy
+  only — preflight REFUSED at load 13–16, siblings): **0.6250** (31/32
+  answered, det ✓, server p50 77 ms) — second on the suite behind gliner
+  (0.6667), above openthai (0.5938) and laya·en (0.5833); the one
+  refusal is the program answering a plausible-but-nonexistent module
+  name (`harness::families`), refused by the never-guess law. The
+  extension also makes paw × typed_decisions (a THREE-shape suite)
+  reachable for the first time.
+
 - **The 084 publish arc completed + the 426-T5 corpus-synthesis lane
   landed (serving riir-train plan 426).** The 084 row's deliberate
   non-publish (concurrent-lane handoff) resolved: the site cells landed

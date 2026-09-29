@@ -281,16 +281,20 @@ AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
 
 # The PAW comparison lane (Issue 033, `--paw` hosted / `--paw-local` local
 # runtime, no feature gate): ProgramAsWeights (ProgramAsWeights, MIT SDK, not
-# affiliated) — one program compiled per specced suite from
-# scripts/paw_specs/<suite>.txt (hosted, cached by (suite, compiler,
-# BLAKE3(spec)) in .raw/paw/programs.json), then answered hosted (curl
-# subprocess) or through their LOCAL llama.cpp runtime (`paw.function` over
-# the programasweights package as a Python subprocess — the gliner shape).
-# `--paw-local` NEVER compiles: the program id comes from the hosted lane's
-# cache, so local-vs-hosted isolates the runtime posture on identical
-# artifacts. Cells: benches 049 / 055+054 (ft tier, cross-box) /
+# affiliated) — one program compiled per specced QUESTION SHAPE from
+# scripts/paw_specs/<suite>.txt (single-shape suites) or
+# <suite>.<qid>.txt (multi-shape suites — code_fixtures' module + is_pub;
+# one program cannot answer two question kinds on one input; the per-shape
+# cache key gains the qid, the suite-wide key is unchanged) (hosted, cached
+# by (suite[, qid], compiler, BLAKE3(spec)) in .raw/paw/programs.json), then
+# answered hosted (curl subprocess) or through their LOCAL llama.cpp runtime
+# (`paw.function` over the programasweights package as a Python subprocess —
+# the gliner shape). `--paw-local` NEVER compiles: the program id comes from
+# the hosted lane's cache, so local-vs-hosted isolates the runtime posture on
+# identical artifacts. Cells: benches 049 / 055+054 (ft tier, cross-box) /
 # 056 (local, full-N stratified, det 4/4 — accuracy-neutral vs hosted,
-# determinism-positive).
+# determinism-positive) / 087 (code_fixtures via the per-shape extension,
+# 0.6250 ft-bs48 — the first multi-shape suite).
 # One-time local setup: uv venv .raw/paw-env + programasweights, then
 # scripts/paw_preload.py warms the 594 MB base + program bundles.
 PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
