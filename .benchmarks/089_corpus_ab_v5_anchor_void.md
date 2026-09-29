@@ -27,3 +27,17 @@ Arm A must build the SEAT posture — the per-suite cal-select levers (for massi
 ## Session wrap (the owner's stop order)
 
 This bench closes the session: T4 measured (V4 FAIL, instinct bench 023), T5 lane ran end-to-end (dump → veto → A/B) with the gate voided by its own anchor. The openthai server is DOWN (killed 10:02 after the veto completed — no further teacher forwards needed). No process of this session remains.
+
+## Addendum (2026-09-29, later same day): the fix LANDED and the re-run is MEASURED — V5 PASS
+
+The filed repair landed at `8f425d1` (arm A builds the SEAT posture through the
+same `fit_posture` prologue the seat and `run_modelless` use; both arms share
+ONE fitted posture; the oc-armed posture refuses loud). The re-run — clean HEAD
+`2e8a023`, fresh isolated-target `--features nb_scope` build, pre-checked
+against the plain lane (nb-select ladder picks scale 4 α observed-laplace;
+modelless hard 0.7800 exactly) — reads **arm A 0.7800 EXACTLY (instrument
+alive) → synth 0.8133, paired LB95 +0.0110 > 0: V5 PASS**, 11 synth-only wins
+vs 1 gold-only loss, V6 sub-ms holds (p50 115 µs), determinism true. Full
+record: [`.benchmarks/091_corpus_ab_v5_seat_rerun/BENCH.md`](091_corpus_ab_v5_seat_rerun/BENCH.md).
+This bench's verdict stays VOID by its own law — it is the instrument finding
++ the default-posture datum; the V5 answer lives in 091.

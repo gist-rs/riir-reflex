@@ -1,0 +1,94 @@
+{
+  "meta": {
+    "date_utc": "2026-09-29T07:21:54Z",
+    "git_sha": "2e8a023",
+    "datasets_dir": ".raw/datasets_t20k",
+    "corpus_cap_per_label": 48,
+    "synth_extra_cap": 128,
+    "read_rule": "one frozen test read; two engine builds differing ONLY in corpus content; forced-pick hard accuracy; paired LB95 (synth − gold) > 0 is the V5 gate; both arms reported (C3)"
+  },
+  "suites": [
+    {
+      "suite": "massive_intent_en",
+      "synth_artifact": ".raw/corpus_synth/massive_intent_en_synth.jsonl",
+      "synth_rows_total": 2048,
+      "synth_rows_in_scope": 2048,
+      "gold_corpus_docs": 11314,
+      "synth_corpus_docs": 13362,
+      "acc_gold": 0.78,
+      "acc_synth": 0.8133333333333334,
+      "delta_lb95": 0.010980465788501956,
+      "flips": [
+        {
+          "label": "audio_volume_other",
+          "gained": 3,
+          "lost": 0
+        },
+        {
+          "label": "audio_volume_mute",
+          "gained": 2,
+          "lost": 0
+        },
+        {
+          "label": "audio_volume_down",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "general_greet",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "iot_hue_lighton",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "lists_createoradd",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "music_likeness",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "qa_maths",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "news_query",
+          "gained": 0,
+          "lost": 1
+        }
+      ],
+      "b_only_cases": [
+        "massive_intent_en:7",
+        "massive_intent_en:12",
+        "massive_intent_en:85",
+        "massive_intent_en:120",
+        "massive_intent_en:143",
+        "massive_intent_en:176",
+        "massive_intent_en:223",
+        "massive_intent_en:233",
+        "massive_intent_en:256",
+        "massive_intent_en:257",
+        "massive_intent_en:283"
+      ],
+      "a_only_cases": [
+        "massive_intent_en:136"
+      ],
+      "lat_p50_gold_us": 115,
+      "lat_p99_gold_us": 137,
+      "lat_p50_synth_us": 112,
+      "lat_p99_synth_us": 195,
+      "determinism_ok": true,
+      "aliveness": "arm A reproduces the published 0.78 exactly (the seat \\\n                 posture, selected knobs + fitted gate) — the instrument is alive",
+      "verdict": "V5 PASS — synthesis lifts the modelless row (paired LB95 > 0)",
+      "seconds": 1.529935917
+    }
+  ]
+}
