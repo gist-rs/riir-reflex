@@ -96,6 +96,14 @@ pub mod nb_scope;
 #[cfg(feature = "option_cond")]
 pub mod option_cond;
 
+/// Issue 055 / Plan 008: the input-perturbation ensemble wrapper — seeded MC
+/// bagging over the deterministic engine, per-question answer histograms +
+/// the DRM decision rules (u_pair/u_bon rejection keys, LCB-λ ranking,
+/// sigmoid instability projection). Opt-in; default config disabled
+/// (byte-identical to the unarmed engine).
+#[cfg(feature = "mc_ensemble")]
+pub mod mc_ensemble;
+
 /// NBSVM-style closed-form ridge readout (issue 038 T7a): binary-presence
 /// features over the same hashed lexicon, per-class NB log-count-ratio
 /// scaling, one closed-form one-vs-rest ridge per class (katgpt-core

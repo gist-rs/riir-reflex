@@ -919,6 +919,30 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         req: &DecisionRequest,
         sc: &mut Scratch<D>,
     ) -> Result<(), EngineError> {
+        self.solve_sample_into(req, sc, None)
+    }
+
+    /// The single-sample core with an optional input-perturbation hook —
+    /// [`Self::solve_into`] is this with `perturb == None` (byte-identical
+    /// by construction: the hook is the only difference and `None` skips
+    /// it entirely).
+    ///
+    /// When `perturb` is `Some`, BOTH embeddings the pipeline consumes are
+    /// Bernoulli-bucket-dropped in place under the sample's derived seed
+    /// (the context embedding `sc.q` that drives `pick_domain` routing, and
+    /// the state-alone embedding that drives the route/head/count-table
+    /// terms) — the input-perturbation ensemble's per-sample form (reflex
+    /// Issue 055 / katgpt-core `perturbation_ensemble`). The byte-level
+    /// drafter delta is UNAFFECTED by embedding perturbation — a
+    /// drafter-only question has zero sample variance by construction, and
+    /// the honest readout is a degenerate histogram, never a silent reroute.
+    #[cfg_attr(not(feature = "mc_ensemble"), allow(unused_variables))]
+    pub(crate) fn solve_sample_into(
+        &mut self,
+        req: &DecisionRequest,
+        sc: &mut Scratch<D>,
+        perturb: Option<(u32, f32, u64)>,
+    ) -> Result<(), EngineError> {
         req.validate()?;
         sc.reset();
         // Stack-local routing directions (N×D floats, no allocation).
@@ -926,7 +950,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         for (o, e) in dirs.iter_mut().zip(self.experts.iter()) {
             *o = e.direction;
         }
-        for q in &req.questions {
+        for (qi, q) in req.questions.iter().enumerate() {
             // Context = state + prompt (+ criteria).
             sc.ctx.clear();
             sc.ctx.extend_from_slice(req.state.as_bytes());
@@ -937,6 +961,18 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 sc.ctx.extend_from_slice(c.as_bytes());
             }
             self.embedder.embed_into(&sc.ctx, &mut sc.q);
+            #[cfg(feature = "mc_ensemble")]
+            if let Some((sample, p_drop, seed)) = perturb {
+                let sseed = seed
+                    .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                    .wrapping_add((sample as u64) << 32)
+                    .wrapping_add(qi as u64);
+                let mut tmp = [0.0f32; D];
+                katgpt_core::perturbation_ensemble::bucket_dropout_into(
+                    &sc.q, &mut tmp, sseed, p_drop,
+                );
+                sc.q = tmp;
+            }
 
             // Route to the corpus expert.
             let di = pick_domain::<N, D>(&sc.q, &dirs);
@@ -1034,6 +1070,18 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             if route_active {
                 let mut q_state = [0.0f32; D];
                 self.embedder.embed_into(req.state.as_bytes(), &mut q_state);
+                #[cfg(feature = "mc_ensemble")]
+                if let Some((sample, p_drop, seed)) = perturb {
+                    let sseed = seed
+                        .wrapping_mul(0x9E37_79B9_7F4A_7C15)
+                        .wrapping_add((sample as u64) << 32)
+                        .wrapping_add(0x5DEE_CE66_D000_0000 ^ (qi as u64));
+                    let mut tmp = [0.0f32; D];
+                    katgpt_core::perturbation_ensemble::bucket_dropout_into(
+                        &q_state, &mut tmp, sseed, p_drop,
+                    );
+                    q_state = tmp;
+                }
                 for (rt, dir) in route_terms.iter_mut().zip(dirs.iter()) {
                     let mut dot = 0.0f32;
                     for (qv, dv) in q_state.iter().zip(dir.iter()) {

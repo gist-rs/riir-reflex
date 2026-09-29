@@ -172,6 +172,17 @@ corpus_db = ["dep:blake3"]
 # A REPORT, not a runtime primitive: opt-in, zero deps, native-only, never
 # in the release set. Its G1 oracle is `scripts/slice_leak_probe.py`.
 slice_leak = []
+# Issue 055 / Plan 008: the input-perturbation ensemble wrapper
+# (`src/mc_ensemble.rs`) — seeded MC bagging over the deterministic engine
+# (sample 0 = the unperturbed legacy bytes, the served answer; samples 1..n
+# = Bernoulli bucket-dropout re-runs via katgpt-core perturbation_ensemble),
+# accumulating per-question EnsembleHistograms + the DRM decision rules
+# (u_pair / u_bon rejection keys, LCB-λ ranking, sigmoid instability gate).
+# OPT-IN with a pre-registered null path: marginal lift ≈ 0 over the
+# two-signal fused gate at matched coverage ⇒ record the negative and stay
+# opt-in (the set_rerank / differential_anchor precedent). Default config
+# is McConfig::disabled() — byte-identical to the unarmed engine.
+mc_ensemble = ["modelless", "katgpt-core/perturbation_ensemble"]
 # Issue 019 T1: the CLM comparison lane (`src/lanes/clm.rs`) — the external
 # Apache-2.0 Contrastive-LM reference served over HTTP (`clm-serve` + vLLM
 # pooling), measured in the arena's comparison tables. NEVER a product
