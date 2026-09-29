@@ -865,6 +865,73 @@ pub(crate) fn percentiles_ms(durs_us: &[u64]) -> (f64, f64, usize) {
     (d[n / 2] as f64 / 1e3, d[idx99] as f64 / 1e3, n - idx99)
 }
 
+/// The per-shape spec resolution shared by the hosted and local lanes: one
+/// entry per DISTINCT question shape, plus the qid → shape-index map. The
+/// shape unit is the RESOLVED spec, not the qid — a suite-wide file answers
+/// every qid with one program; a per-qid file owns exactly its qid.
+pub(crate) struct ShapeResolution {
+    /// (path, spec text, per_q, label) in first-appearance order; the label
+    /// is the qid for per-qid shapes, `"suite-wide"` otherwise.
+    pub specs: Vec<(PathBuf, String, bool, String)>,
+    pub qid_shape: BTreeMap<String, usize>,
+}
+
+/// Resolve one spec per DISTINCT question shape (first-appearance order):
+/// the per-shape file wins over the suite-wide file. `Ok(None)` = the suite
+/// has no committed spec at all (an honest absence). Refuses partial
+/// coverage — a question shape with no spec while another shape has one
+/// would measure a different task on the unspecced half — and runs the
+/// option-naming drift guard over every served question.
+pub(crate) fn resolve_shapes(
+    dir: &Path,
+    suite_name: &str,
+    cases: &[SuiteCase],
+) -> Result<Option<ShapeResolution>, String> {
+    let mut specs: Vec<(PathBuf, String, bool, String)> = Vec::new();
+    let mut qid_shape: BTreeMap<String, usize> = BTreeMap::new();
+    for case in cases {
+        for q in &case.questions {
+            if qid_shape.contains_key(&q.qid) {
+                continue;
+            }
+            if let Some((path, spec, scope)) = load_spec_for(dir, suite_name, q)? {
+                let per_q = scope == SpecScope::Question;
+                let idx = specs
+                    .iter()
+                    .position(|(p, _, pq, _)| p == &path && *pq == per_q)
+                    .unwrap_or_else(|| {
+                        specs.push((
+                            path.clone(),
+                            spec,
+                            per_q,
+                            if per_q { q.qid.clone() } else { "suite-wide".to_string() },
+                        ));
+                        specs.len() - 1
+                    });
+                qid_shape.insert(q.qid.clone(), idx);
+            }
+        }
+    }
+    if specs.is_empty() {
+        return Ok(None);
+    }
+    for case in cases {
+        for q in &case.questions {
+            let Some(&idx) = qid_shape.get(&q.qid) else {
+                return Err(format!(
+                    "paw: no spec for question shape {:?} of suite {} (looked for {}.{}.txt \
+                     and {}.txt) while other shapes have one — partial coverage refused",
+                    q.qid, suite_name, suite_name, q.qid, suite_name
+                ));
+            };
+            let (_, spec, _, _) = &specs[idx];
+            check_spec_names_options(spec, q)
+                .map_err(|e| format!("{}: {e}", specs[idx].0.display()))?;
+        }
+    }
+    Ok(Some(ShapeResolution { specs, qid_shape }))
+}
+
 /// Run the lane over one suite. `Ok(None)` = the suite has no committed
 /// spec (an honest absence, printed by the caller). Compiles at most once
 /// per `(suite, question shape, compiler, spec)` across runs (the cache):
@@ -885,55 +952,11 @@ pub fn run_suite(
 ) -> Result<Option<PawLaneResult>, String> {
     let cfg = client.config();
     let cases = trimmed(&suite.cases, max_questions);
-    // Resolve one spec per DISTINCT question shape (first-appearance
-    // order): the per-shape file wins over the suite-wide file. The shape
-    // unit is the RESOLVED spec, not the qid — a suite-wide file answers
-    // every qid with one program; a per-qid file owns exactly its qid.
-    let mut shape_specs: Vec<(PathBuf, String, bool, String)> = Vec::new(); // (path, spec, per_q, label)
-    let mut qid_shape: BTreeMap<String, usize> = BTreeMap::new();
-    for case in cases {
-        for q in &case.questions {
-            if qid_shape.contains_key(&q.qid) {
-                continue;
-            }
-            if let Some((path, spec, scope)) = load_spec_for(&cfg.specs_dir, suite.name, q)? {
-                let per_q = scope == SpecScope::Question;
-                let idx = shape_specs
-                    .iter()
-                    .position(|(p, _, pq, _)| p == &path && *pq == per_q)
-                    .unwrap_or_else(|| {
-                        shape_specs.push((
-                            path.clone(),
-                            spec,
-                            per_q,
-                            if per_q { q.qid.clone() } else { "suite-wide".to_string() },
-                        ));
-                        shape_specs.len() - 1
-                    });
-                qid_shape.insert(q.qid.clone(), idx);
-            }
-        }
-    }
-    if shape_specs.is_empty() {
+    let Some(resolved) = resolve_shapes(&cfg.specs_dir, suite.name, cases)? else {
         return Ok(None);
-    }
-    // Every served question must be named by its shape's spec (the drift
-    // guard), and every shape must have one — a partial coverage would
-    // measure a different task on the unspecced half.
-    for case in cases {
-        for q in &case.questions {
-            let Some(&idx) = qid_shape.get(&q.qid) else {
-                return Err(format!(
-                    "paw: no spec for question shape {:?} of suite {} (looked for {}.{}.txt \
-                     and {}.txt) while other shapes have one — partial coverage refused",
-                    q.qid, suite.name, suite.name, q.qid, suite.name
-                ));
-            };
-            let (_, spec, _, _) = &shape_specs[idx];
-            check_spec_names_options(spec, q)
-                .map_err(|e| format!("{}: {e}", shape_specs[idx].0.display()))?;
-        }
-    }
+    };
+    let shape_specs = resolved.specs;
+    let qid_shape = resolved.qid_shape;
     let t_start = Instant::now();
     let mut cache = ProgramCache::load(&cfg.cache_file)?;
     // One program per shape (compile + cache in shape order).

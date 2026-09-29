@@ -37,7 +37,7 @@ use std::time::Instant;
 
 use serde_json::json;
 
-use super::paw::{self, PawConfig, PawLaneResult, ProgramCache};
+use super::paw::{self, CompiledProgram, PawConfig, PawLaneResult, ProgramCache};
 use crate::harness::suites::Suite;
 
 /// The venv interpreter that has `programasweights` installed (the
@@ -222,92 +222,80 @@ pub fn run_suite(
     suite: &Suite,
     max_questions: usize,
 ) -> Result<Option<PawLaneResult>, String> {
-    let Some((spec_path, spec)) = paw::load_spec(&cfg.specs_dir, suite.name)? else {
+    let cases = paw::trimmed(&suite.cases, max_questions);
+    // The hosted lane's per-shape resolution, shared verbatim: the per-qid
+    // spec wins over suite-wide; no spec at all is an honest absence;
+    // partial coverage is refused.
+    let Some(resolved) = paw::resolve_shapes(&cfg.specs_dir, suite.name, cases)? else {
         return Ok(None);
     };
-    let cases = paw::trimmed(&suite.cases, max_questions);
-    // Every served question must be named by the spec (the drift guard).
-    for case in cases {
-        for q in &case.questions {
-            paw::check_spec_names_options(&spec, q)
-                .map_err(|e| format!("{}: {e}", spec_path.display()))?;
-        }
-    }
+    let shape_specs = resolved.specs;
+    let qid_shape = resolved.qid_shape;
     let cache = ProgramCache::load(&cfg.cache_file)?;
-    // Compiler selection: `PAW_COMPILER` pins the exact key; unset, a suite
-    // with exactly ONE cached program uses it (printed loud — the row's
-    // `model` still stamps the program's own compiler_snapshot); ambiguity
-    // refuses, naming the choices. A silent default would measure a
-    // different tier than the caller meant.
-    let (key, chosen_compiler): (String, Option<String>) = match cfg.compiler.as_deref() {
-        Some(c) => (ProgramCache::key(suite.name, Some(c), &spec), Some(c.to_string())),
-        None => {
-            let prefix = format!("{}|", suite.name);
-            let matches: Vec<(String, String)> = cache
-                .entries
-                .keys()
-                .filter(|k| k.starts_with(&prefix))
-                .map(|k| {
-                    let compiler = k.split('|').nth(1).unwrap_or("server-default").to_string();
-                    (k.clone(), compiler)
-                })
-                .collect();
-            match matches.as_slice() {
-                [(k, c)] => (k.clone(), Some(c.clone())),
-                [] => {
-                    return Err(format!(
-                        "no cached program for {} in {} — the local lane never \
-                         compiles; run the hosted lane once (--paw) to create the \
-                         artifact, then re-run --paw-local",
-                        suite.name,
-                        cfg.cache_file.display()
-                    ))
-                }
-                many => {
-                    let comps: Vec<&str> =
-                        many.iter().map(|(_, c)| c.as_str()).collect();
-                    return Err(format!(
-                        "{} has {} cached programs ({}) — set PAW_COMPILER to pick one",
-                        suite.name,
-                        many.len(),
-                        comps.join(", ")
-                    ));
+    // One CACHED program per shape — the local lane never compiles.
+    // Compiler selection per shape: `PAW_COMPILER` pins the exact key;
+    // unset, a shape with exactly ONE cached program uses it (printed
+    // loud — the row's `model` still stamps the program's own
+    // compiler_snapshot); ambiguity refuses, naming the choices. A silent
+    // default would measure a different tier than the caller meant. The
+    // per-shape prefix keeps qid keys from reading as sibling compilers:
+    // a per-qid key is `suite|qid|compiler|hash` (4 segments), a
+    // suite-wide key is `suite|compiler|hash` (3).
+    let mut programs: Vec<CompiledProgram> = Vec::with_capacity(shape_specs.len());
+    for (_path, spec, per_q, label) in &shape_specs {
+        let key: String = if *per_q {
+            match cfg.compiler.as_deref() {
+                Some(c) => ProgramCache::key_for_qid(suite.name, label, Some(c), spec),
+                None => {
+                    let prefix = format!("{}|{}|", suite.name, label);
+                    auto_select(&cache, &prefix, 2, suite.name, label, &cfg.cache_file)?
                 }
             }
-        }
-    };
-    let program = cache.entries.get(&key).ok_or_else(|| {
-        format!(
-            "no cached program for {} (compiler {}) in {} — the local lane never \
-             compiles; run the hosted lane once (--paw) to create the artifact, \
-             then re-run --paw-local",
-            suite.name,
-            chosen_compiler.as_deref().unwrap_or("server-default"),
-            cfg.cache_file.display()
-        )
-    })?;
-    eprintln!(
-        "    [paw-local] program {} ({}; hosted compile {:.1}s) — same artifact \
-         the hosted posture measured{}",
-        program.program_id,
-        program.compiler_snapshot.as_deref().unwrap_or("server-default"),
-        program.compile_wall_s,
-        if cfg.compiler.is_none() {
-            " [PAW_COMPILER unset — the suite's only cached program]"
         } else {
-            ""
-        },
-    );
+            match cfg.compiler.as_deref() {
+                Some(c) => ProgramCache::key(suite.name, Some(c), spec),
+                None => {
+                    let prefix = format!("{}|", suite.name);
+                    auto_select(&cache, &prefix, 1, suite.name, label, &cfg.cache_file)?
+                }
+            }
+        };
+        let program = cache.entries.get(&key).ok_or_else(|| {
+            format!(
+                "no cached program for {} (shape {label}, compiler {}) in {} — the local \
+                 lane never compiles; run the hosted lane once (--paw) to create the \
+                 artifact, then re-run --paw-local",
+                suite.name,
+                cfg.compiler.as_deref().unwrap_or("server-default"),
+                cfg.cache_file.display()
+            )
+        })?;
+        eprintln!(
+            "    [paw-local] program {} (shape {label}; {}; hosted compile {:.1}s) — same \
+             artifact the hosted posture measured{}",
+            program.program_id,
+            program.compiler_snapshot.as_deref().unwrap_or("server-default"),
+            program.compile_wall_s,
+            if cfg.compiler.is_none() {
+                " [PAW_COMPILER unset — the shape's only cached program]"
+            } else {
+                ""
+            },
+        );
+        programs.push(program.clone());
+    }
 
     let t_start = Instant::now();
 
     // WARMUP (the hosted lane's cold-start law, one layer down): the first
-    // `paw.function(program_id)` may download the bundle + base — the
-    // preload script (scripts/paw_preload.py) usually absorbs that, and
-    // this warmup absorbs whatever is left, outside the measured loop.
-    session
-        .infer(&program.program_id, "warmup: discarded, not a measured case")
-        .map_err(|e| format!("paw-local warmup: {e}"))?;
+    // `paw.function(program_id)` per program may download the bundle + base
+    // — the preload script (scripts/paw_preload.py) usually absorbs that,
+    // and this warmup absorbs whatever is left, outside the measured loop.
+    for program in &programs {
+        session
+            .infer(&program.program_id, "warmup: discarded, not a measured case")
+            .map_err(|e| format!("paw-local warmup: {e}"))?;
+    }
 
     let mut outputs: Vec<Vec<String>> = Vec::with_capacity(cases.len());
     let mut durs_us: Vec<u64> = Vec::new();
@@ -316,13 +304,14 @@ pub fn run_suite(
     for (ci, case) in cases.iter().enumerate() {
         let input = paw::render_input(&case.state);
         let mut outs = Vec::with_capacity(case.questions.len());
-        // One PAW program answers one question shape per suite: every
-        // question of the case gets the same single-input call (the
-        // hosted lane's law, verbatim).
-        for _q in &case.questions {
+        // Each question is answered by ITS shape's program (the hosted
+        // lane's law, verbatim): the multi-shape suites get one compiled
+        // task per question kind, not one text parsed two ways.
+        for q in &case.questions {
+            let program_id = &programs[qid_shape[&q.qid]].program_id;
             let t0 = Instant::now();
             let out = session
-                .infer(&program.program_id, &input)
+                .infer(program_id, &input)
                 .map_err(|e| format!("paw-local infer (case {ci}): {e}"))?;
             durs_us.push(t0.elapsed().as_micros() as u64);
             if served < 10 {
@@ -330,7 +319,7 @@ pub fn run_suite(
                 // rerun is UNtimed — only first calls feed the latency
                 // columns, so the columns stay comparable across postures.
                 let again = session
-                    .infer(&program.program_id, &input)
+                    .infer(program_id, &input)
                     .map_err(|e| format!("paw-local determinism rerun (case {ci}): {e}"))?;
                 let ok = determinism_ok.get_or_insert(true);
                 *ok &= again == out;
@@ -343,22 +332,36 @@ pub fn run_suite(
 
     let t = paw::tally(cases, &outputs);
     let (p50, p99, support) = paw::percentiles_ms(&durs_us);
-    let model = program
-        .compiler_snapshot
-        .clone()
+    let model = programs
+        .iter()
+        .find_map(|p| p.compiler_snapshot.clone())
         .or_else(|| cfg.compiler.clone())
         .unwrap_or_else(|| "server-default".to_string());
+    // Multi-shape rows disclose every program: the ids / spec paths /
+    // digests join in shape order, the compile wall sums (the total
+    // hosted cost). The cache-hit flag is always true — a missing entry
+    // is the loud error above, never a compile.
     Ok(Some(PawLaneResult {
         lane: "paw-local",
         model,
         posture: "local-subprocess".to_string(),
-        program_id: program.program_id.clone(),
-        spec_file: spec_path.display().to_string(),
-        spec_blake3: blake3::hash(spec.as_bytes()).to_hex().to_string(),
-        // The row's posture already says the compile happened hosted; the
-        // flag records that this run consumed the cache (it always does).
+        program_id: programs
+            .iter()
+            .map(|p| p.program_id.clone())
+            .collect::<Vec<_>>()
+            .join(","),
+        spec_file: shape_specs
+            .iter()
+            .map(|(p, _, _, _)| p.display().to_string())
+            .collect::<Vec<_>>()
+            .join(","),
+        spec_blake3: shape_specs
+            .iter()
+            .map(|(_, s, _, _)| blake3::hash(s.as_bytes()).to_hex())
+            .collect::<Vec<_>>()
+            .join(","),
         compile_cache_hit: true,
-        compile_wall_s: program.compile_wall_s,
+        compile_wall_s: programs.iter().map(|p| p.compile_wall_s).sum(),
         n_cases: cases.len(),
         n_questions: t.n,
         n_answered: t.answered,
@@ -381,6 +384,54 @@ pub fn run_suite(
     }))
 }
 
+/// The unset-`PAW_COMPILER` auto-select, scoped to ONE shape: the keys
+/// under `prefix` whose segment at `compiler_seg` is the compiler name
+/// (a per-qid key is `suite|qid|compiler|hash` — segment 2; a suite-wide
+/// key is `suite|compiler|hash` — segment 1). Exactly one match uses it
+/// (the chosen compiler is returned for the loud line); none is the loud
+/// never-compiles remedy; more is an ambiguity refusal naming the choices.
+fn auto_select(
+    cache: &ProgramCache,
+    prefix: &str,
+    compiler_seg: usize,
+    suite_name: &str,
+    shape_label: &str,
+    cache_file: &Path,
+) -> Result<String, String> {
+    let matches: Vec<(String, String)> = cache
+        .entries
+        .keys()
+        .filter(|k| k.starts_with(prefix))
+        .filter(|k| k.split('|').count() == compiler_seg + 2)
+        .map(|k| {
+            let compiler = k
+                .split('|')
+                .nth(compiler_seg)
+                .unwrap_or("server-default")
+                .to_string();
+            (k.clone(), compiler)
+        })
+        .collect();
+    match matches.as_slice() {
+        [(k, _)] => Ok(k.clone()),
+        [] => Err(format!(
+            "no cached program for {suite_name} (shape {shape_label}) in {} — the local \
+             lane never compiles; run the hosted lane once (--paw) to create the \
+             artifact, then re-run --paw-local",
+            cache_file.display()
+        )),
+        many => {
+            let comps: Vec<&str> = many.iter().map(|(_, c)| c.as_str()).collect();
+            Err(format!(
+                "{suite_name} (shape {shape_label}) has {} cached programs ({}) — set \
+                 PAW_COMPILER to pick one",
+                many.len(),
+                comps.join(", ")
+            ))
+        }
+    }
+}
+
 /// Resolve the interpreter + script from the env (their defaults).
 #[must_use]
 pub fn resolve_invocation() -> (String, PathBuf) {
@@ -395,7 +446,8 @@ pub fn resolve_invocation() -> (String, PathBuf) {
 mod tests {
     use super::super::paw::CompiledProgram;
     use super::*;
-    use crate::harness::suites::build_sst5;
+    use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion, build_sst5};
+    use serde_json::json;
     use std::collections::BTreeMap;
     use std::sync::{Arc, Mutex};
 
@@ -651,5 +703,169 @@ mod tests {
         };
         let (mut session, _requests) = session_with(&[]);
         assert!(run_suite(&mut session, &cfg, &s, 0).unwrap().is_none());
+    }
+
+    #[test]
+    fn multi_shape_suite_dispatches_each_question_to_its_own_program() {
+        // The hosted lane's two_shape law, one layer down: per-qid specs,
+        // two cached programs, every question answered by ITS shape's
+        // program. The module answers map to gold (parsed); the is_pub
+        // answer is prose (refused, never guessed) — both shapes' paths
+        // exercised in one pass.
+        let pid = std::process::id();
+        let specs = scratch_dir().join(format!("multi_shape_specs_{pid}"));
+        std::fs::create_dir_all(&specs).unwrap();
+        let module_spec = "Pick a label:\nalpha\nbeta\n";
+        let is_pub_spec = "Pick a word:\nfalse\ntrue\n";
+        std::fs::write(specs.join("two_shape.module.txt"), module_spec).unwrap();
+        std::fs::write(specs.join("two_shape.is_pub.txt"), is_pub_spec).unwrap();
+
+        let suite = Suite {
+            name: "two_shape",
+            cases: vec![SuiteCase {
+                id: "c0".into(),
+                state: json!("fn sample() {}"),
+                questions: vec![
+                    SuiteQuestion {
+                        qid: "module".into(),
+                        kind: QKind::Choice,
+                        instructions: String::new(),
+                        criteria: json!({"alpha": null, "beta": null}),
+                    },
+                    SuiteQuestion {
+                        qid: "is_pub".into(),
+                        kind: QKind::Noul,
+                        instructions: String::new(),
+                        criteria: serde_json::Value::Null,
+                    },
+                ],
+                gold: vec![
+                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                ],
+            }],
+            option_counts_note: "",
+        };
+        let cache_file = scratch_dir().join(format!("programs_multi_{pid}.json"));
+        let cfg = PawConfig {
+            cache_file,
+            specs_dir: specs.clone(),
+            ..PawConfig::from_env()
+        };
+        let program = |id: &str, wall: f64| CompiledProgram {
+            program_id: id.to_string(),
+            compiler_snapshot: Some("tier-a".to_string()),
+            compile_wall_s: wall,
+            posture: "hosted-anonymous".to_string(),
+        };
+        let mut cache = ProgramCache { entries: BTreeMap::new() };
+        cache.entries.insert(
+            ProgramCache::key_for_qid(suite.name, "module", Some("tier-a"), module_spec),
+            program("pid-module", 10.0),
+        );
+        cache.entries.insert(
+            ProgramCache::key_for_qid(suite.name, "is_pub", Some("tier-a"), is_pub_spec),
+            program("pid-is_pub", 20.0),
+        );
+        cache.save(&cfg.cache_file).unwrap();
+
+        // 2 warmups (shape order: module, is_pub) + per question: measured
+        // + untimed rerun (1 case < 10, so the rerun doubles it).
+        let mut script = vec![
+            json!({ "output": "warm-module" }).to_string(),
+            json!({ "output": "warm-is_pub" }).to_string(),
+        ];
+        script.push(json!({ "output": "alpha" }).to_string()); // module: gold
+        script.push(json!({ "output": "alpha" }).to_string()); // rerun
+        script.push(json!({ "output": "I think so" }).to_string()); // is_pub: refusal
+        script.push(json!({ "output": "I think so" }).to_string()); // rerun
+        let (mut session, requests) = session_with(&script);
+
+        let r = run_suite(&mut session, &cfg, &suite, 0).unwrap().expect("row");
+        assert_eq!(r.program_id, "pid-module,pid-is_pub");
+        assert_eq!(r.model, "tier-a");
+        assert_eq!(
+            r.spec_file,
+            format!(
+                "{},{}",
+                specs.join("two_shape.module.txt").display(),
+                specs.join("two_shape.is_pub.txt").display()
+            )
+        );
+        assert_eq!(r.spec_blake3.split(',').count(), 2);
+        assert!(r.compile_cache_hit);
+        assert!((r.compile_wall_s - 30.0).abs() < 1e-9); // summed
+        assert_eq!((r.n_questions, r.n_answered, r.refusals), (2, 1, 1));
+        assert_eq!(r.accuracy, 0.5);
+        assert_eq!(r.determinism_ok, Some(true));
+
+        // Every request names ITS shape's program — the dispatch law.
+        let reqs = requests.lock().unwrap();
+        assert_eq!(reqs.len(), 6); // 2 warmups + 2 measured + 2 reruns
+        let ids: Vec<String> = reqs
+            .iter()
+            .map(|l| {
+                let v: serde_json::Value = serde_json::from_str(l).unwrap();
+                v["program_id"].as_str().unwrap().to_string()
+            })
+            .collect();
+        assert_eq!(
+            ids,
+            vec![
+                "pid-module".to_string(),
+                "pid-is_pub".to_string(), // warmups in shape order
+                "pid-module".to_string(),
+                "pid-module".to_string(), // q1 measured + its rerun
+                "pid-is_pub".to_string(),
+                "pid-is_pub".to_string(), // q2 measured + its rerun
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&specs);
+    }
+
+    #[test]
+    fn multi_shape_missing_one_shape_refuses_partial_coverage() {
+        // A suite-wide spec covers only SOME qids while per-qid specs own
+        // the rest: the unspecced shape is partial coverage, refused —
+        // never a partial row (the shared resolver's law).
+        let pid = std::process::id();
+        let specs = scratch_dir().join(format!("partial_specs_{pid}"));
+        std::fs::create_dir_all(&specs).unwrap();
+        std::fs::write(specs.join("two_shape.module.txt"), "Pick:\nalpha\nbeta\n").unwrap();
+        let suite = Suite {
+            name: "two_shape",
+            cases: vec![SuiteCase {
+                id: "c0".into(),
+                state: json!("fn sample() {}"),
+                questions: vec![
+                    SuiteQuestion {
+                        qid: "module".into(),
+                        kind: QKind::Choice,
+                        instructions: String::new(),
+                        criteria: json!({"alpha": null, "beta": null}),
+                    },
+                    SuiteQuestion {
+                        qid: "is_pub".into(),
+                        kind: QKind::Noul,
+                        instructions: String::new(),
+                        criteria: serde_json::Value::Null,
+                    },
+                ],
+                gold: vec![
+                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                ],
+            }],
+            option_counts_note: "",
+        };
+        let cfg = PawConfig {
+            cache_file: scratch_dir().join(format!("programs_partial_{pid}.json")),
+            specs_dir: specs,
+            ..PawConfig::from_env()
+        };
+        let (mut session, _requests) = session_with(&[]);
+        let err = run_suite(&mut session, &cfg, &suite, 0).unwrap_err();
+        assert!(err.contains("partial coverage refused"), "{err}");
+        assert!(err.contains("is_pub"), "{err}");
     }
 }

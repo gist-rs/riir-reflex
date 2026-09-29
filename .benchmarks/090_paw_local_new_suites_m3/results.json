@@ -1,0 +1,873 @@
+{
+  "meta": {
+    "date_utc": "2026-09-29T05:05:56Z",
+    "git_sha": "85d452d",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "on — the SAME compiled programs answered through their LOCAL llama.cpp runtime as a Python subprocess oracle (programasweights, not affiliated; PAW_LOCAL_PYTHON + PAW_LOCAL_SCRIPT), never compiling — the program id comes from the hosted lane's cache so the local-vs-hosted delta isolates the runtime posture on identical artifacts; greedy by construction, determinism re-verified per run (observed-repeat, first 10); latency = in-process round-trip (no network); same mapping law + refusal accounting as --paw; .issues/033",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 12.71,
+        "swap_used_mb": 404.06,
+        "latency_quotable": false,
+        "refusals": [
+          "load 12.71 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 14.99,
+        "swap_used_mb": 404.06,
+        "latency_quotable": false,
+        "refusals": [
+          "load 14.99 > 6 — a sibling job is on the box"
+        ]
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; all six modelless at default features since Issue 045 (cache_reuse's LLM-only carve-out REVERSED — Bench 072: modelless 0.9167 vs the frozen LLM-lane 0.5000)"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.3345,
+          "macro_f1": 0.2455793958818182,
+          "ece": 0.04876030212640762,
+          "brier": 0.6895237585614031,
+          "nll": 1.2300765582334825,
+          "aurc": 0.5428540456870272,
+          "mean_confidence": 0.3491663858294487,
+          "acc_at_50_coverage": 0.469,
+          "acc_at_80_coverage": 0.3925
+        },
+        "readout_ece": 0.06749999999999999,
+        "raw_abstain": {
+          "abstain_rate": 0.8005,
+          "selective_accuracy": 0.3182957393483709,
+          "selective_n": 399
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.9265,
+          "selective_accuracy": 0.3469387755102041,
+          "selective_n": 147
+        },
+        "readout_ece_raw": 0.3292865091860295,
+        "readout_ece_calibrated": 0.06749999999999999,
+        "floor_ece": 0.3577834331337324,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.17166666666666666,
+            "macro_f1": 0.11260779263121574,
+            "ece": 0.09271795839071272,
+            "brier": 0.7817652282881075,
+            "nll": 1.494538804911172,
+            "aurc": 0.7845380104698566,
+            "mean_confidence": 0.2643846250573794,
+            "acc_at_50_coverage": 0.22666666666666666,
+            "acc_at_80_coverage": 0.2
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.565,
+            "macro_f1": 0.551791545861227,
+            "ece": 0.05682319382826484,
+            "brier": 0.49847883401813664,
+            "nll": 0.6916259033173674,
+            "aurc": 0.4859296412602207,
+            "mean_confidence": 0.5081768061717351,
+            "acc_at_50_coverage": 0.52,
+            "acc_at_80_coverage": 0.5479166666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.28375,
+            "macro_f1": 0.22752925792666806,
+            "ece": 0.044232836142182354,
+            "brier": 0.7636263496738737,
+            "nll": 1.435567864412299,
+            "aurc": 0.6663015178417134,
+            "mean_confidence": 0.29349489115178584,
+            "acc_at_50_coverage": 0.355,
+            "acc_at_80_coverage": 0.33125
+          }
+        },
+        "soft_acc": 0.31688348879039485,
+        "brier_soft": 0.24297120190362995,
+        "score_mae": 0.7045954665789839,
+        "within_1": 0.7275,
+        "latency_p50_ms": 0.926,
+        "latency_p99_ms": 2.265,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.27,
+          "max_ms": 2.848,
+          "argmax_case": 153
+        },
+        "determinism_ok": true,
+        "seconds": 1.088731083,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.007054925,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.007054925,
+            "status": "fitted",
+            "targetAccuracy": 0.45714286,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.4,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "investigate",
+            "pred": "monitor",
+            "count": 74,
+            "share_of_errors": 0.0691588785046729
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 50,
+            "share_of_errors": 0.04672897196261682
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.04672897196261682
+          },
+          {
+            "gold": "None: everything reconciles.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 47,
+            "share_of_errors": 0.04392523364485981
+          },
+          {
+            "gold": "approve",
+            "pred": "manual_review",
+            "count": 45,
+            "share_of_errors": 0.04205607476635514
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "Mild frustration, but the relationship is intact.",
+            "count": 44,
+            "share_of_errors": 0.041121495327102804
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 42,
+            "share_of_errors": 0.03925233644859813
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 42,
+            "share_of_errors": 0.03925233644859813
+          },
+          {
+            "gold": "High: access to production, secrets or customer data.",
+            "pred": "Negligible: no access to anything sensitive.",
+            "count": 37,
+            "share_of_errors": 0.03457943925233645
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          },
+          {
+            "gold": "human_review",
+            "pred": "continue",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          }
+        ],
+        "pair_head_ab": null,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.35231216442584995
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.05982501843571665
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.35231216442584995
+            }
+          ]
+        }
+      },
+      "laya": {},
+      "paw_local": {
+        "lane": "paw-local",
+        "model": "paw-ft-bs48-20260530",
+        "posture": "local-subprocess",
+        "program_id": "73c963ebfd40a8d25288,f1d08b30f8c84c2fec6c,04a3b05698d9f7afc8cd,3f8d28006aa102c9df04,0189d0989f5222454bea,5c74a4fca552e2471669,0c366580689869c1f689,0522b1a4023281b00c19,c4bf7c8af208cf4374af,19114692867411036ed5,3466ab136a4aa4ae6bdf,84d32e31a96917d47a0b,eeecbb0dbfd3bba96bdb,d8564cd360417f43590c,492c5669e60b7b07a7db",
+        "spec_file": "scripts/paw_specs/typed_decisions.action.txt,scripts/paw_specs/typed_decisions.needs_review.txt,scripts/paw_specs/typed_decisions.outcome.txt,scripts/paw_specs/typed_decisions.risk.txt,scripts/paw_specs/typed_decisions.urgency.txt,scripts/paw_specs/typed_decisions.category.txt,scripts/paw_specs/typed_decisions.churn_risk.txt,scripts/paw_specs/typed_decisions.needs_human.txt,scripts/paw_specs/typed_decisions.discrepancy_severity.txt,scripts/paw_specs/typed_decisions.disposition.txt,scripts/paw_specs/typed_decisions.duplicate.txt,scripts/paw_specs/typed_decisions.matches_order.txt,scripts/paw_specs/typed_decisions.credential_compromise.txt,scripts/paw_specs/typed_decisions.severity.txt,scripts/paw_specs/typed_decisions.true_positive.txt",
+        "spec_blake3": "72055396b7348aa43c7fcc2f56d7617e9d6448defdcd1a37fe46680a29c3973c,c7a474c539477d43c9b1de0d464f695836ecf7744fd3021c64dbf166a482451b,b18771699ebb4d643ef2a95de0890fc3f735e090e58bda0afb4eee4115ee4cd5,8d5ae953d07c1ba75f325e3cee87eec54cccf4a3a2adb05221e287b7c6852a46,dadfd9808e4aa4edbcdcb1ca8445b5070ff132d48e5c6a1d0ce082a80b2e68ea,1e91ffffbd7ecc71492da3dc24f9552cd08d48e162ab1b7923b7cdf1ba42bf66,b3d2713c4a8bea1a38b46ed2c26188ac506c54712b06736daa90240516cad297,0ac1f08efb9a0e0c4bfe8d80cadf12b90221ad20ad3965d5e99685aff3f7c75b,6a6ed8cbcc154f47435e9258a84d560d8fd1292a51edc639be5218d3dcd84016,eb7abb02fb227a9ccd04136c7b46ac9ffd72553780da57e608ddd232cf92212d,bdcd453d1d3e321e39d3ab77685d1e0f00b959f0bdc9c1df59b031f90b91eaf6,175eb2d46596884958f2bafc6786a0945aa8982e08270b81dcb50e05471a9f19,b0edaed6fff9b21a2d8d94406acc82fb7b2d2fda05751eb62346f6e105ff1c61,2173eeb74a3af2ea95857ad6ad8d5963cdab904921d1d42abc96b9784bebe6d9,87c8f166174f846c75f6ec2170e031e3e34dff569e9edb99112c2ecd6da3ca06",
+        "compile_cache_hit": true,
+        "compile_wall_s": 2645.5270762899995,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "n_answered": 1998,
+        "refusals": 2,
+        "quote_stripped": 0,
+        "accuracy": 0.5955,
+        "answered_accuracy": 0.5960960960960962,
+        "refusal_rate": 0.001,
+        "score_mae_answered": 0.6386642800000001,
+        "within_1_answered": 0.79625,
+        "refusal_samples": [
+          "data",
+          "observe"
+        ],
+        "latency_p50_ms": 79.533,
+        "latency_p99_ms": 176.671,
+        "latency_tail_support": 21,
+        "server_latency_p50_ms": null,
+        "determinism_ok": true,
+        "seconds": 355.75413175
+      }
+    },
+    {
+      "name": "prompt_injections",
+      "n_cases": 116,
+      "n_questions": 116,
+      "cases_digest": "fnv1a64-5080803ec29f2423",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.4827586206896552,
+          "macro_f1": 0.32558139534883723,
+          "ece": 0.02279288141891872,
+          "brier": 0.500525170702045,
+          "nll": 0.6936723965468061,
+          "aurc": 0.39800187632632034,
+          "mean_confidence": 0.5055515021085739,
+          "acc_at_50_coverage": 0.5689655172413793,
+          "acc_at_80_coverage": 0.5978260869565217
+        },
+        "readout_ece": 0.01724094049683933,
+        "raw_abstain": {
+          "abstain_rate": 0.3879310344827586,
+          "selective_accuracy": 0.4507042253521127,
+          "selective_n": 71
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.3879310344827586,
+          "selective_accuracy": 0.4507042253521127,
+          "selective_n": 71
+        },
+        "readout_ece_raw": 0.4826689280312637,
+        "readout_ece_calibrated": 0.01724094049683933,
+        "floor_ece": 0.2491464663707746,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.095,
+        "latency_p99_ms": 0.133,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.107,
+          "max_ms": 0.157,
+          "argmax_case": 45
+        },
+        "determinism_ok": true,
+        "seconds": 0.043642709,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": 0.00008660555,
+        "distance_threshold": 0.46189553,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00008660555,
+            "status": "fitted",
+            "targetAccuracy": 0.5050505,
+            "support": {
+              "n": 100,
+              "nPass": 99,
+              "nAbstain": 1
+            }
+          },
+          "distance": {
+            "threshold": 0.46189553,
+            "status": "fitted",
+            "targetAccuracy": 0.5857143,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [],
+        "pair_head_ab": null,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.49991039812564847
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.005516927242279035
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.49991039812564847
+            }
+          ]
+        }
+      },
+      "laya": {},
+      "paw_local": {
+        "lane": "paw-local",
+        "model": "paw-ft-bs48-20260530",
+        "posture": "local-subprocess",
+        "program_id": "d9cfba100af1e46f97cd",
+        "spec_file": "scripts/paw_specs/prompt_injections.injection.txt",
+        "spec_blake3": "13ef1026c9cecf47fc9b17a084855d57125af8862018ab6892ceda48275bd51a",
+        "compile_cache_hit": true,
+        "compile_wall_s": 77.575057042,
+        "n_cases": 116,
+        "n_questions": 116,
+        "n_answered": 116,
+        "refusals": 0,
+        "quote_stripped": 0,
+        "accuracy": 0.6379310344827587,
+        "answered_accuracy": 0.6379310344827587,
+        "refusal_rate": 0.0,
+        "score_mae_answered": null,
+        "within_1_answered": null,
+        "refusal_samples": [],
+        "latency_p50_ms": 32.908,
+        "latency_p99_ms": 52.804,
+        "latency_tail_support": 2,
+        "server_latency_p50_ms": null,
+        "determinism_ok": true,
+        "seconds": 5.1120505
+      }
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-b136750e5af1d412",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.34,
+          "macro_f1": 0.20524722352398592,
+          "ece": 0.0055084086457888315,
+          "brier": 0.6676390279773547,
+          "nll": 1.099977760575335,
+          "aurc": 0.6936648678764618,
+          "mean_confidence": 0.34550840864578886,
+          "acc_at_50_coverage": 0.3466666666666667,
+          "acc_at_80_coverage": 0.3333333333333333
+        },
+        "readout_ece": 0.019899919331073768,
+        "raw_abstain": {
+          "abstain_rate": 0.5566666666666666,
+          "selective_accuracy": 0.3383458646616541,
+          "selective_n": 133
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.3233333333333333,
+          "selective_accuracy": 0.3448275862068966,
+          "selective_n": 203
+        },
+        "readout_ece_raw": 0.3394640296697617,
+        "readout_ece_calibrated": 0.019899919331073768,
+        "floor_ece": 0.313665008291874,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.126,
+        "latency_p99_ms": 0.165,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.149,
+          "max_ms": 0.228,
+          "argmax_case": 127
+        },
+        "determinism_ok": true,
+        "seconds": 0.163948958,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.00011360645,
+        "distance_threshold": 0.51104105,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.00011360645,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.51104105,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 95,
+            "share_of_errors": 0.4797979797979798
+          },
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 93,
+            "share_of_errors": 0.4696969696969697
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.025252525252525252
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.025252525252525252
+          }
+        ],
+        "pair_head_ab": null,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.31960380733013155
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.023821600973606083
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.31960380733013155
+            }
+          ]
+        }
+      },
+      "laya": {},
+      "paw_local": {
+        "lane": "paw-local",
+        "model": "paw-ft-bs48-20260530",
+        "posture": "local-subprocess",
+        "program_id": "1949b801cf9746028d56",
+        "spec_file": "scripts/paw_specs/xnli_en.relation.txt",
+        "spec_blake3": "ead96a846bbe50430b7d9c6c635c17ecea8c59a2bd43e36210e93e7574d17c31",
+        "compile_cache_hit": true,
+        "compile_wall_s": 120.965073917,
+        "n_cases": 300,
+        "n_questions": 300,
+        "n_answered": 300,
+        "refusals": 0,
+        "quote_stripped": 0,
+        "accuracy": 0.7133333333333334,
+        "answered_accuracy": 0.7133333333333334,
+        "refusal_rate": 0.0,
+        "score_mae_answered": null,
+        "within_1_answered": null,
+        "refusal_samples": [],
+        "latency_p50_ms": 50.398,
+        "latency_p99_ms": 71.0,
+        "latency_tail_support": 4,
+        "server_latency_p50_ms": null,
+        "determinism_ok": true,
+        "seconds": 15.523383792
+      }
+    },
+    {
+      "name": "massive_intent_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-49390c8b80475849",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.35333333333333333,
+          "macro_f1": 0.3495088463234952,
+          "ece": 0.28729193226744726,
+          "brier": 0.9366762977219213,
+          "nll": 2.8786367886662236,
+          "aurc": 0.4429771912839852,
+          "mean_confidence": 0.06604140106588602,
+          "acc_at_50_coverage": 0.5133333333333333,
+          "acc_at_80_coverage": 0.4083333333333333
+        },
+        "readout_ece": 0.6033333333333333,
+        "raw_abstain": {
+          "abstain_rate": 0.5033333333333333,
+          "selective_accuracy": 0.436241610738255,
+          "selective_n": 149
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.39,
+          "selective_accuracy": 0.3825136612021858,
+          "selective_n": 183
+        },
+        "readout_ece_raw": 0.28729193226744726,
+        "readout_ece_calibrated": 0.6033333333333333,
+        "floor_ece": 0.20149253731343283,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.126,
+        "latency_p99_ms": 0.224,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.129,
+          "max_ms": 1.064,
+          "argmax_case": 204
+        },
+        "determinism_ok": true,
+        "seconds": 0.170697833,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.06325524,
+        "distance_threshold": 0.6283059,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.06325524,
+            "status": "fitted",
+            "targetAccuracy": 0.62857145,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.6283059,
+            "status": "fitted",
+            "targetAccuracy": 0.5714286,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "iot_hue_lightoff",
+            "pred": "iot_wemo_off",
+            "count": 4,
+            "share_of_errors": 0.020618556701030927
+          },
+          {
+            "gold": "datetime_convert",
+            "pred": "datetime_query",
+            "count": 3,
+            "share_of_errors": 0.015463917525773196
+          },
+          {
+            "gold": "recommendation_movies",
+            "pred": "alarm_query",
+            "count": 3,
+            "share_of_errors": 0.015463917525773196
+          },
+          {
+            "gold": "audio_volume_up",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "calendar_query",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "calendar_set",
+            "pred": "news_query",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "email_query",
+            "pred": "news_query",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "lists_createoradd",
+            "pred": "music_likeness",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "lists_query",
+            "pred": "news_query",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "lists_query",
+            "pred": "takeaway_query",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "lists_remove",
+            "pred": "iot_wemo_off",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          },
+          {
+            "gold": "music_dislikeness",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.010309278350515464
+          }
+        ],
+        "pair_head_ab": null,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.4336010901443661
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.4336010901443661
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.49563741356134416
+            }
+          ]
+        },
+        "corpus_fallbacks": [
+          "email_querycontact",
+          "play_radio",
+          "social_post",
+          "email_addcontact",
+          "transport_taxi",
+          "lists_remove",
+          "qa_definition",
+          "cooking_recipe",
+          "email_query",
+          "calendar_set",
+          "recommendation_locations",
+          "social_query",
+          "lists_createoradd",
+          "recommendation_movies",
+          "qa_currency",
+          "play_audiobook",
+          "play_podcasts",
+          "qa_maths",
+          "calendar_remove",
+          "transport_query",
+          "qa_stock",
+          "play_game",
+          "transport_traffic",
+          "email_sendemail",
+          "recommendation_events",
+          "calendar_query",
+          "qa_factoid",
+          "transport_ticket",
+          "lists_query"
+        ]
+      },
+      "laya": {},
+      "paw_local": {
+        "lane": "paw-local",
+        "model": "paw-ft-bs48-20260530",
+        "posture": "local-subprocess",
+        "program_id": "1b5d4b654f60b508602c",
+        "spec_file": "scripts/paw_specs/massive_intent_en.intent.txt",
+        "spec_blake3": "10b2865efdaaeff8129e625e18a36b141e07fd7f5fea6407c759487c31096f17",
+        "compile_cache_hit": true,
+        "compile_wall_s": 88.633114917,
+        "n_cases": 300,
+        "n_questions": 300,
+        "n_answered": 182,
+        "refusals": 118,
+        "quote_stripped": 0,
+        "accuracy": 0.5133333333333333,
+        "answered_accuracy": 0.8461538461538461,
+        "refusal_rate": 0.3933333333333333,
+        "score_mae_answered": null,
+        "within_1_answered": null,
+        "refusal_samples": [
+          "qa_factoid",
+          "iot_hue_lightchange",
+          "iot_hue_sound",
+          "screen_query",
+          "iot_hue_lightdown",
+          "iot_hue_lightoff",
+          "iot_hub_power",
+          "toaster_query"
+        ],
+        "latency_p50_ms": 43.835,
+        "latency_p99_ms": 67.034,
+        "latency_tail_support": 4,
+        "server_latency_p50_ms": null,
+        "determinism_ok": true,
+        "seconds": 15.184130583
+      }
+    }
+  ]
+}

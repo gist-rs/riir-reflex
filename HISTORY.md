@@ -7,6 +7,38 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-29
 
+- **The paw-LOCAL posture twins for the new suites are MEASURED — bench 090
+  (the 088/089 handoff's last open lane task, closed same day).** The 056
+  verdict repeats on prompt_injections (0.6379 == hosted exactly), xnli_en
+  (0.7133 vs 0.7200), massive_intent_en (0.5133 vs 0.5100, refusals
+  118 vs 119) and typed_decisions (0.5955 vs 0.5925, score MAE 0.6387 /
+  within-1 0.7963 — both beat modelless locally too): deltas −0.7 to
+  +0.3 pt, refusal counts within 1, det ✓ ×4, and TWO full runs
+  byte-identical on every pick/acc/refusal/det field (`results_det_rerun.json`).
+  **The rule-had-not-generalised class, caught pre-cell:** the 087
+  per-shape spec extension landed in the HOSTED lane only — the local lane
+  still called the suite-wide-only `paw::load_spec`, so all four suites
+  came back honest-absent (no committed spec). Fixed at root cause:
+  `paw::resolve_shapes` is now the ONE per-shape resolver (per-qid wins
+  over suite-wide, drift guard, partial-coverage refusal) consumed by BOTH
+  lanes; the local lane dispatches each question to ITS shape's program
+  over per-shape cache keys (`key_for_qid`). New gates:
+  `multi_shape_suite_dispatches_each_question_to_its_own_program` (the
+  dispatch law over scripted channels) +
+  `multi_shape_missing_one_shape_refuses_partial_coverage`; 22/22 lane
+  tests, lib 219/0, clippy `-D` ×2. **M3 venv stood up** (`.raw/paw-env`,
+  programasweights 0.4.10 / llama-cpp-python 0.3.19): the install carries
+  a measured sccache trap (llama-cpp-python's setup picks sccache as its
+  compiler launcher and sccache 0.13.0 fails with "failed to zip up
+  compiler outputs" — mask it from PATH; documented in AGENTS.md); the 24
+  ft bundles pre-warmed (first-use downloads bimodal 6.5 s–765 s, ~2 h).
+  Wall: 6.5 min per full run (2716 q, four suites) vs the hosted 089's
+  81 min for typed alone. Board tier pinned
+  (`PAW_COMPILER=paw-ft-bs48-20260530` — mandatory: both tiers are cached
+  for the new suites). Accuracy-only posture (load 12.71→14.99,
+  latency_quotable: false). Record:
+  `.benchmarks/090_paw_local_new_suites_m3.md`.
+
 - **The PAW dataset board is COMPLETE — all four remaining suites measured
   (Benches 088 + 089, 18 new programs, both compiler tiers on 088).** The
   087 row's standing coverage note ("paw × typed / prompt / massive / xnli
@@ -36,7 +68,9 @@ lives in `.issues/` and `.plans/`, never here.
   above openthai 0.5345 / gliner 0.528. Accuracy-only posture throughout
   (preflight REFUSED at load 17.84; harness load 12.56–13.30 — the 049
   law). `harness_families` stays PAW-less by board symmetry; paw-local
-  twins for the new suites belong on the 4090 (the venv lives there).
+  twins for the new suites landed same-day as bench 090 (M3, above — the
+  "belongs on the 4090" note was superseded: the venv stands up on the M3
+  in minutes and the lane is box-agnostic).
   Records: `.benchmarks/088_paw_ft_pi_xnli_massive_m3.md` (canonical + the
   base-tier dir), `.benchmarks/089_paw_ft_typed_m3.md`; highwater 87→89.
 

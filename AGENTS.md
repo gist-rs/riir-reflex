@@ -302,12 +302,39 @@ AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
 # (typed_decisions — FIFTEEN per-qid programs, 2000 q, 0.5925 ft with 2
 # refusals; score MAE 0.6485 / within-1 0.7937 both beat modelless; the
 # DATASET BOARD IS COMPLETE — only the harness_families probes stay
-# PAW-less by board symmetry). Board tier = PAW_COMPILER=paw-ft-bs48-20260530
+# PAW-less by board symmetry) / 090 (paw-LOCAL posture twins for the four
+# new suites — the 056 verdict repeating: accuracy-neutral, deltas −0.7
+# to +0.3 pt, refusals within 1, det ✓ ×4 AND byte-identical ×2 full
+# runs; needed the per-shape resolution PORTED to the local lane, which
+# still called the suite-wide-only loader — the 087 rule-had-not-
+# generalised class, fixed at root cause in paw.rs::resolve_shapes, both
+# lanes consume it; wall 6.5 min vs the hosted 089's 81 min). Board tier = PAW_COMPILER=paw-ft-bs48-20260530
 # + PAW_COMPILE_ASYNC=1 (054 law; the env is NOT optional).
 # One-time local setup: uv venv .raw/paw-env + programasweights, then
 # scripts/paw_preload.py warms the 594 MB base + program bundles.
 PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
   cargo run --release --bin harness -- --paw-local --skip-laya
+
+# The PAW lanes' sccache trap (M3, measured 2026-09-29): llama-cpp-python's
+# setup uses sccache as its compiler launcher when it's on PATH, and
+# sccache 0.13.0 fails the build ("failed to zip up compiler outputs",
+# Cache errors on the Assembler). Mask it from the install:
+#   PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+#     uv pip install --python .raw/paw-env/bin/python programasweights==0.4.10
+
+# The paw-local (Posture B) lane (Issue 033; opt-in — the M3 venv was
+# stood up 2026-09-29 for bench 090; the 4090 venv predates it):
+#   uv venv .raw/paw-env
+#   PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin \
+#     uv pip install --python .raw/paw-env/bin/python programasweights==0.4.10
+#   .raw/paw-env/bin/python scripts/paw_preload.py   # base (594 MB, one-time) + bundles
+# PAW_LOCAL_PYTHON=.raw/paw-env/bin/python PAW_COMPILER=paw-ft-bs48-20260530 \
+#   target/release/harness --paw-local --skip-laya --suites <suites> --out <dir>
+# M3-measured interpreter-load profile (bench 090 warmup): cache-hit load
+# 0.4s/program; first-time bundle download 6.5s–765s (their hub, bimodal);
+# warm inference 0.0–0.3s. 24 ft programs warmed ≈ 2 × 60 min (the two
+# 12-min downloads dominate; run detached, it is resumable — every
+# completed program persists in their disk cache).
 
 # The cascade lane (Issue 038 T4′ / Bench 061, `--cascade`, needs `laya-riir`,
 # mutually exclusive with --skip-laya): the modelless answers stand; the
