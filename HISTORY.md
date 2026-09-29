@@ -7,6 +7,39 @@ lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-29
 
+- **The PAW dataset board is COMPLETE — all four remaining suites measured
+  (Benches 088 + 089, 18 new programs, both compiler tiers on 088).** The
+  087 row's standing coverage note ("paw × typed / prompt / massive / xnli
+  reachable but not run") is discharged. Specs for all 18 shapes frozen in
+  `9dc33da` BEFORE any cell (the 049 discipline, this time in a prior
+  commit): prompt_injections (noul), xnli_en (3-way choice),
+  massive_intent_en (59-token intent universe), typed_decisions (15 qids
+  across the 5 workflows — 4 Choice / 5 Score / 6 Noul; the Score specs
+  carry the exact level lines because those ARE the option_set keys the
+  never-guess parser matches verbatim). The committed-spec drift guard
+  pins every file + every option union. **Bench 088** (pi + xnli + massive,
+  716 q): the first run forgot `PAW_COMPILER` and served the BASE tier
+  (`paw-4b-qwen3-0.6b-20260407` — the anonymous default, 049's posture);
+  re-run under the board tier (`paw-ft-bs48-20260530` +
+  `PAW_COMPILE_ASYNC=1`, the 054 law) and BOTH kept — the 054 both-tiers
+  pattern on three more suites. ft 0.6379 / 0.7200 / 0.5100; base 0.6983 /
+  0.5833 / 0.0967; det ✓ all six; modelless drift pins byte-identical to
+  the published rows (0.4828 / 0.3400 / 0.3533). Findings: the tier flip
+  is suite-dependent (base wins pi by +6.0, ft wins xnli +13.7 and
+  massive +41.3); massive carries the sampled-presentation refusal class
+  (20-of-59 per row → wrong-unpresented picks are honest refusals:
+  119/300 ft, 238/300 base; samples show both `qa_factoid`-unpresented
+  and `iot_hue_sound`-hallucinated classes). **Bench 089** (typed, 2000 q,
+  ~81 min run): **0.5925** with 2/2000 refusals (score MAE 0.6485 /
+  within-1 0.7937 — BOTH beat the modelless lane's 0.7046 / 0.7275; the
+  verbatim-copy score levels held), board second behind agentjev 0.7715,
+  above openthai 0.5345 / gliner 0.528. Accuracy-only posture throughout
+  (preflight REFUSED at load 17.84; harness load 12.56–13.30 — the 049
+  law). `harness_families` stays PAW-less by board symmetry; paw-local
+  twins for the new suites belong on the 4090 (the venv lives there).
+  Records: `.benchmarks/088_paw_ft_pi_xnli_massive_m3.md` (canonical + the
+  base-tier dir), `.benchmarks/089_paw_ft_typed_m3.md`; highwater 87→89.
+
 - **The PAW lane gained per-question-shape programs + its first
   `code_fixtures` cell (Bench 087, 0.6250 ft-bs48).** Until this row the
   PAW comparison lane was the one lane without a `code_fixtures` cell on

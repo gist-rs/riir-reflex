@@ -294,7 +294,16 @@ AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
 # identical artifacts. Cells: benches 049 / 055+054 (ft tier, cross-box) /
 # 056 (local, full-N stratified, det 4/4 — accuracy-neutral vs hosted,
 # determinism-positive) / 087 (code_fixtures via the per-shape extension,
-# 0.6250 ft-bs48 — the first multi-shape suite).
+# 0.6250 ft-bs48 — the first multi-shape suite) / 088 (prompt_injections
+# + xnli_en + massive_intent_en — the single-shape board completion, BOTH
+# tiers: ft 0.6379 / 0.7200 / 0.5100 vs base 0.6983 / 0.5833 / 0.0967; the
+# base tier is what the UNSET PAW_COMPILER anonymous default serves — the
+# 088 record names the massive sampled-presentation refusal class) / 089
+# (typed_decisions — FIFTEEN per-qid programs, 2000 q, 0.5925 ft with 2
+# refusals; score MAE 0.6485 / within-1 0.7937 both beat modelless; the
+# DATASET BOARD IS COMPLETE — only the harness_families probes stay
+# PAW-less by board symmetry). Board tier = PAW_COMPILER=paw-ft-bs48-20260530
+# + PAW_COMPILE_ASYNC=1 (054 law; the env is NOT optional).
 # One-time local setup: uv venv .raw/paw-env + programasweights, then
 # scripts/paw_preload.py warms the 594 MB base + program bundles.
 PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
