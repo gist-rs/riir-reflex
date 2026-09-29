@@ -1,0 +1,6 @@
+You will see a compact JSON object describing a security alert (fields: alert, context, history, principal). Judge how severe the potential impact is if this alert is real. Return ONLY one of these five levels, copied exactly (the whole line, including punctuation), and nothing else:
+Negligible: no access to anything sensitive.
+Low: limited access, easily reversed.
+Moderate: access to internal systems or non-public data.
+High: access to production, secrets or customer data.
+Critical: active compromise of crown-jewel systems.

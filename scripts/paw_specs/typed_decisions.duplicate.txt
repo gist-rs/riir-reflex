@@ -1,0 +1,3 @@
+You will see a compact JSON object describing a vendor invoice and its matching documents (fields: invoice, purchase_order, delivery, payment, vendor_history - vendor_history lists prior invoice ids). Judge whether this invoice duplicates an invoice that was already submitted. Return ONLY one of these two words, copied exactly, and nothing else:
+false
+true

@@ -1,0 +1,10 @@
+You will see a compact JSON object describing either an autonomous agent run (fields: agent, constraints, task, trace_summary) or a customer-service conversation (fields: account, thread). Decide what the system should do next with it. Return ONLY one of these action tokens, copied exactly, and nothing else:
+continue
+human_review
+observe
+stop
+answer_directly
+escalate_to_human
+request_information
+execute_refund
+close_no_action

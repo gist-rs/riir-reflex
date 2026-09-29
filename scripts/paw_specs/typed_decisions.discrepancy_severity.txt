@@ -1,0 +1,5 @@
+You will see a compact JSON object describing a vendor invoice and its matching documents (fields: invoice, purchase_order, delivery, payment, vendor_history). Judge how material any discrepancy between the invoice, the purchase order and the recorded delivery is. Return ONLY one of these four levels, copied exactly (the whole line, including punctuation), and nothing else:
+None: everything reconciles.
+Trivial: rounding or a cosmetic difference.
+Moderate: a real difference worth confirming.
+Material: a large or unexplained difference.

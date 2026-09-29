@@ -1206,6 +1206,90 @@ mod tests {
             check_spec_names_options(&is_pub_spec, &is_pub_q)
                 .expect("is_pub spec names false/true");
         }
+        // Benches 088/089 (the remaining dataset suites): prompt_injections
+        // and xnli_en are fixed-shape single-question suites; massive's 59
+        // intent tokens are data-derived so the option LINE SET is pinned by
+        // count + spot checks; typed_decisions carries 15 per-qid shapes
+        // whose option unions these lines pin. The per-run
+        // check_spec_names_options against EVERY case's question is the
+        // run-time guard; these pins catch a file drifting or disappearing
+        // between runs (same standing as the banking77 spot checks above).
+        let read = |name: &str| -> String {
+            std::fs::read_to_string(dir.join(format!("{name}.txt")))
+                .unwrap_or_else(|e| panic!("{name} spec committed: {e}"))
+        };
+        fn lines(s: &str) -> Vec<&str> {
+            s.lines().map(str::trim).filter(|l| !l.is_empty()).collect()
+        }
+        // prompt_injections: the one noul shape.
+        let pi = read("prompt_injections.injection");
+        for w in ["false", "true"] {
+            assert!(lines(&pi).contains(&w), "prompt_injections spec missing {w}");
+        }
+        // xnli_en: the one choice shape, three ClassLabel keys.
+        let xnli = read("xnli_en.relation");
+        for w in ["entailment", "neutral", "contradiction"] {
+            assert!(lines(&xnli).contains(&w), "xnli spec missing {w}");
+        }
+        // massive_intent_en: 59 frozen intent tokens after the copy-exact
+        // instruction line.
+        let massive = read("massive_intent_en.intent");
+        let opts_start = massive
+            .lines()
+            .position(|l| l.contains("copied exactly, and nothing else:"))
+            .expect("massive spec instruction line");
+        let massive_opts: Vec<&str> = massive.lines().skip(opts_start + 1).map(str::trim).filter(|l| !l.is_empty()).collect();
+        assert_eq!(massive_opts.len(), 59, "massive intent token count");
+        for w in ["alarm_query", "qa_factoid", "weather_query"] {
+            assert!(massive_opts.contains(&w), "massive spec missing {w}");
+        }
+        // typed_decisions: all 15 shapes committed; noul files name
+        // false/true; choice files name every union token; score files
+        // carry the exact level lines (these are the option_set keys the
+        // parser matches verbatim).
+        for qid in [
+            "action", "category", "churn_risk", "credential_compromise",
+            "discrepancy_severity", "disposition", "duplicate", "matches_order",
+            "needs_human", "needs_review", "outcome", "risk", "severity",
+            "true_positive", "urgency",
+        ] {
+            let s = read(&format!("typed_decisions.{qid}"));
+            assert!(!s.trim().is_empty(), "typed spec {qid} empty");
+        }
+        for qid in [
+            "credential_compromise", "duplicate", "matches_order",
+            "needs_human", "needs_review", "true_positive",
+        ] {
+            let s = read(&format!("typed_decisions.{qid}"));
+            for w in ["false", "true"] {
+                assert!(lines(&s).contains(&w), "typed {qid} spec missing {w}");
+            }
+        }
+        let choice_unions: &[(&str, &[&str])] = &[
+            ("action", &["continue", "human_review", "observe", "stop", "answer_directly", "escalate_to_human", "request_information", "execute_refund", "close_no_action"]),
+            ("category", &["account", "billing", "delivery", "refund", "technical"]),
+            ("disposition", &["approve", "close_benign", "contain", "hold", "investigate", "manual_review", "monitor", "reject"]),
+            ("outcome", &["failure", "harmful", "partial", "success"]),
+        ];
+        for (qid, toks) in choice_unions {
+            let s = read(&format!("typed_decisions.{qid}"));
+            for w in *toks {
+                assert!(lines(&s).contains(w), "typed {qid} spec missing {w}");
+            }
+        }
+        let score_levels: &[(&str, &[&str])] = &[
+            ("churn_risk", &["No sign of dissatisfaction.", "Mild frustration, but the relationship is intact.", "Clearly unhappy; repeat problems or explicit complaints.", "Imminent: threatening to cancel, dispute or leave."]),
+            ("discrepancy_severity", &["None: everything reconciles.", "Trivial: rounding or a cosmetic difference.", "Moderate: a real difference worth confirming.", "Material: a large or unexplained difference."]),
+            ("risk", &["Benign: read-only or clearly safe actions.", "Low: routine writes within scope.", "Moderate: irreversible or out-of-scope actions.", "High: destructive, security-relevant, or policy-violating actions."]),
+            ("severity", &["Negligible: no access to anything sensitive.", "Low: limited access, easily reversed.", "Moderate: access to internal systems or non-public data.", "High: access to production, secrets or customer data.", "Critical: active compromise of crown-jewel systems."]),
+            ("urgency", &["No time pressure; can wait indefinitely.", "Routine; handle within the normal queue.", "Elevated; should be handled within the same week.", "Critical; requires action within the same day."]),
+        ];
+        for (qid, levels) in score_levels {
+            let s = read(&format!("typed_decisions.{qid}"));
+            for w in *levels {
+                assert!(lines(&s).contains(w), "typed {qid} spec missing level {w:?}");
+            }
+        }
     }
 
     #[test]

@@ -1,0 +1,9 @@
+You will see a compact JSON object describing either a security alert (fields: alert, context, history, principal) or a vendor invoice with its matching documents (fields: invoice, purchase_order, delivery, payment, vendor_history). Decide how it should be dispositioned. Return ONLY one of these disposition tokens, copied exactly, and nothing else:
+approve
+close_benign
+contain
+hold
+investigate
+manual_review
+monitor
+reject

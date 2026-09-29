@@ -1,0 +1,6 @@
+You will see a compact JSON object describing a customer-service conversation (fields: account, thread - the thread holds the message turns between the customer and the assistant). Decide what the conversation is primarily about. Return ONLY one of these category tokens, copied exactly, and nothing else:
+account
+billing
+delivery
+refund
+technical

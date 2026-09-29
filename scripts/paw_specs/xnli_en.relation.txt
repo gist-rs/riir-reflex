@@ -1,0 +1,9 @@
+You will see a compact JSON object with two string fields, "premise" and "hypothesis". Decide the logical relationship between the premise and the hypothesis. Return ONLY one of these three labels, copied exactly, and nothing else:
+entailment
+neutral
+contradiction
+
+Label meanings:
+entailment = the premise implies the hypothesis is true
+neutral = the premise neither implies nor contradicts the hypothesis
+contradiction = the premise implies the hypothesis is false

@@ -1,0 +1,5 @@
+You will see a compact JSON object describing a customer-service conversation (fields: account, thread). Judge how likely this customer is to stop doing business with us because of this interaction. Return ONLY one of these four levels, copied exactly (the whole line, including punctuation), and nothing else:
+No sign of dissatisfaction.
+Mild frustration, but the relationship is intact.
+Clearly unhappy; repeat problems or explicit complaints.
+Imminent: threatening to cancel, dispute or leave.

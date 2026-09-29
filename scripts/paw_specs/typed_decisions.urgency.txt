@@ -1,0 +1,5 @@
+You will see a compact JSON object describing one of four workflows: an autonomous agent run (fields: agent, constraints, task, trace_summary), a customer-service conversation (fields: account, thread), a vendor invoice with its matching documents (fields: invoice, purchase_order, delivery, payment, vendor_history), or a security alert (fields: alert, context, history, principal). Judge how time-sensitive the situation is - how quickly someone should act on it. Return ONLY one of these four urgency levels, copied exactly (the whole line, including punctuation), and nothing else:
+No time pressure; can wait indefinitely.
+Routine; handle within the normal queue.
+Elevated; should be handled within the same week.
+Critical; requires action within the same day.
