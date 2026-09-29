@@ -1859,6 +1859,12 @@ struct ModellessInput<'a> {
     /// gate's score axis (threshold 0.0) — abstain/escalation runs on the
     /// corpus-distance axis alone, at its fitted ρ=30% threshold.
     pub gate_distance_only: bool,
+    /// Issue 056 direction 0 (`--gate-fit-calibrated`): fit the score-axis
+    /// threshold on the CALIBRATED scale the deployed gate applies (the
+    /// probe's own per-question pairs reconstruct the deployed calibrator
+    /// exactly in the default posture). Default off — the byte-identical
+    /// pre-lever posture.
+    pub gate_fit_calibrated: bool,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -2703,11 +2709,27 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // the T2 migration stays byte-identical.
         let mut score_obs: Vec<GateObservation> = Vec::new();
         let mut distance_obs: Vec<GateObservation> = Vec::new();
+        // Issue 056 direction 0: per-question (readout conf, correct) pairs
+        // over the SAME fit slice the probe solves — in the default posture
+        // these are byte-identical to the deployed calibrator's `cal_pairs`
+        // (same build, same requests), so the lever below reconstructs the
+        // EXACT deployed fit.
+        let mut fit_pairs: Vec<(f32, bool)> = Vec::new();
         for (ci, case) in fit_cases.iter().enumerate() {
             let req = engine_request(case, &fit_state_strs[ci])?;
             probe
                 .solve_into(&req, &mut sc)
                 .map_err(|e| format!("cal probe ({}, case {ci}): {e}", case.id))?;
+            for (qi, slot) in sc.slots.iter().enumerate() {
+                let pick = match case.questions.get(qi).map(|q| q.kind) {
+                    // Engine internal noul order is [yes, no]; gold uses
+                    // the wire [no, yes] convention (eval_engine's flip).
+                    Some(QKind::Noul) => (1 - slot.pick) as usize,
+                    _ => slot.pick as usize,
+                };
+                let correct = case.gold.get(qi).is_some_and(|g| g.idx == pick);
+                fit_pairs.push((slot.confidence, correct));
+            }
             // The gate q survives only for the LAST question of a solve —
             // sample the last slot per case (n = #cal cases, enough for a
             // quantile at every suite's cal_cap).
@@ -2727,6 +2749,31 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
                     score: probe.gate(*dom).abstain_confidence(&sc.q),
                     correct,
                 });
+            }
+        }
+        // Issue 056 direction 0 (`--gate-fit-calibrated`): fit the score
+        // axis threshold on the CALIBRATED scale the deployed gate applies.
+        // The probe's own per-question pairs reconstruct the deployed
+        // calibrator exactly (same evidence window, same capacity /
+        // min-obs), so the ρ=30 percentile reads the same scale `solve`
+        // compares against — closing the fit-on-raw / apply-on-calibrated
+        // mismatch that calibration saturation turned into 90–99% abstain
+        // (saturate-at-0 suites) or a disarmed score axis (saturate-at-1,
+        // banking77). Honest limit: on a SATURATED fit the calibrated
+        // scale carries no information, so the threshold degenerates with
+        // it — this lever makes the gate HONEST, the substrate saturation
+        // guard (Issue 056 repair 2) restores the information.
+        if inp.gate_fit_calibrated {
+            let mut cal = katgpt_core::sigmoid_calibration::SigmoidGateCalibrator::new(
+                default_cfg.cal_capacity,
+                default_cfg.cal_min_obs,
+            );
+            for (c, ok) in &fit_pairs {
+                cal.observe(*c, *ok);
+            }
+            cal.refit();
+            for obs in &mut score_obs {
+                obs.score = cal.apply(obs.score);
             }
         }
         // The T1.6 arena posture through the engine surface (Issue 009
@@ -5109,6 +5156,9 @@ pub mod seat {
             // face is the T1.6 cal-slice fused fit, never a lever arm.
             gate_fit_selection: false,
             gate_distance_only: false,
+            // Issue 056 direction 0 stays OFF at the seat (the same
+            // shipped-posture law as the two levers above).
+            gate_fit_calibrated: false,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -5340,6 +5390,13 @@ pub struct RunOptions {
     /// test abstain at the armed postures while the distance axis held
     /// ~31–32% in every posture). Default off = the shipped fused gate.
     pub gate_distance_only: bool,
+    /// Issue 056 direction 0 (`--gate-fit-calibrated`): fit the score-axis
+    /// threshold on the CALIBRATED scale the deployed gate applies —
+    /// closing the fit-on-raw / apply-on-calibrated mismatch that
+    /// calibration saturation turned into 90–99% abstain (saturate-at-0)
+    /// or a disarmed score axis (saturate-at-1, banking77; Issue 056's
+    /// severity-elevation table). Default off = the shipped posture.
+    pub gate_fit_calibrated: bool,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -5725,6 +5782,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 cascade_worthiness: opts.cascade_worthiness,
                 gate_fit_selection: opts.gate_fit_selection,
                 gate_distance_only: opts.gate_distance_only,
+                gate_fit_calibrated: opts.gate_fit_calibrated,
             };
             macro_rules! dispatch {
                 ($n:literal) => {

@@ -1,6 +1,6 @@
 # Issue 056 — the calibrated readout confidence ranks WORSE than raw as a rejection key (up to −0.12 AUC; banking77 below random)
 
-**Status:** OPEN — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`
+**Status:** OPEN — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, and **repair direction 0 (`--gate-fit-calibrated`, Bench 093) landed — opt-in, default off; the substrate saturation guard (repair 2) is the remaining work**
 
 ## The finding
 
@@ -147,7 +147,14 @@ issue owns the root cause; the 042 levers are the palliative record.
    probe observes the cal pairs then reads calibrated confidences), or
    apply the raw conf at the gate and calibrate only the REPORTED
    confidence. Either closes the mismatch class without touching the
-   substrate.
+   substrate. **→ LANDED 2026-09-30 as `--gate-fit-calibrated` (Bench 093,
+   opt-in default-off):** the former form — the probe's own per-question
+   pairs reconstruct the deployed calibrator exactly; the six saturate-at-0
+   suites' calibrated abstain collapses 90.5–98.8% → 31.5–47.5% (honest
+   inert score axis), banking77 unchanged (was already disarmed), massive
+   (sane-fit control) unchanged within 0.3 pt, forced accuracy unchanged
+   everywhere. Promotion is owner-gated WITH the substrate guard (the two
+   repairs compose; this bench is the evidence).
 1. **Consumer-side (ranking): rank on the RAW readout conf** — unchanged
    from below.
 2. **Substrate-side saturation guard** (katgpt-rs `sigmoid_calibration`)

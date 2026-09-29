@@ -20,6 +20,7 @@
 //!                                      [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
+//!                                      [--gate-fit-calibrated]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -168,6 +169,7 @@ fn harness_main() {
         cascade_worthiness_lcb: None,
         gate_fit_selection: false,
         gate_distance_only: false,
+        gate_fit_calibrated: false,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -246,6 +248,7 @@ fn harness_main() {
             "--cascade-worthiness" => opts.cascade_worthiness = true,
             "--gate-fit-selection" => opts.gate_fit_selection = true,
             "--gate-distance-only" => opts.gate_distance_only = true,
+            "--gate-fit-calibrated" => opts.gate_fit_calibrated = true,
             "--cascade-worthiness-margin" => {
                 i += 1;
                 opts.cascade_worthiness_margin = args
