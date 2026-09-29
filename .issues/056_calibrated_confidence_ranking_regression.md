@@ -1,6 +1,6 @@
 # Issue 056 — the calibrated readout confidence ranks WORSE than raw as a rejection key (up to −0.12 AUC; banking77 below random)
 
-**Status:** OPEN — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30
+**Status:** OPEN — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`
 
 ## The finding
 

@@ -174,6 +174,9 @@ feature stays opt-in behind an exact-literal kill switch.
   it) — adaptive-N stays the recorded remedy. Issue 055 closed + removed
   (record in HISTORY); the default-posture run is disclosed unadjudicated
   (the pre-registration compares against the deployed gate).
+  **Landed at `460f5f1`** (the arm + the bench + Issue 056 + this plan,
+  one commit; verdict ping-pong round 1 REVISE applied in full, round 2
+  AGREE).
 
 ## Deferred / out of scope
 
