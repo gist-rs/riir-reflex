@@ -29,10 +29,12 @@ worse than a random ordering of the same answers.
 
 ## Why this matters (and what it does NOT mean)
 
-- The deployed fused gate consumes the calibrated conf **threshold-wise**
-  (abstain decisions at `score_threshold`) — a pointwise comparison, where
-  order does not apply. The abstain/selective-accuracy columns are NOT
-  implicated by this finding.
+- ⚠ **Superseded by the severity-elevation section below:** the first pass
+  held the gate's threshold-wise abstain decisions unaffected ("pointwise,
+  order-free") — the second pass REFUTED that: the thresholds are fit on
+  the raw scale and applied to the saturated calibrated scale, so the
+  deployed abstain IS distorted (90–99% on the saturate-at-0 suites,
+  score-axis disarm on banking77). See below.
 - Every **ranking** consumer inherits the degradation: any AURC-style
   readout keyed on the calibrated conf, escalation ordering, and Bench
   092's own baseline arm (the `--mc-ab` record's `auc_baseline_cal_conf` —
@@ -107,6 +109,52 @@ fitted temperature at the deployed posture:
    refuses the tie-collapse class.
 3. The Newton early-break audit (f64 re-solve comparison) before trusting
    any extreme (w, c).
+
+## SEVERITY ELEVATION (2026-09-30, second pass): the deployed GATE is distorted, not just ranking consumers — and this IS the Issue-042 over-escalation class
+
+The gate's score axis thresholds are fit on the **RAW** scale but applied
+ to the **CALIBRATED** conf: the threshold-fit probe engine is built fresh
+ (`default_cfg`) with an IDENTITY calibrator, so `score_obs` reads raw
+ confidences (`runner.rs` gate-fit block, `slot.confidence` of the probe);
+at test time `solve` computes `conf = calibrator.apply(raw)` and compares
+ THAT against the fitted threshold. Under near-identity calibration the
+ mismatch is benign; under saturation it is catastrophic, in both
+directions:
+
+| suite | cal abstain (deployed) | raw abstain | distortion |
+|---|---|---|---|
+| sst5 | **0.9883** | 0.5317 | saturate-at-0 → abstain ~everything |
+| emotion | **0.9725** | 0.4625 | same |
+| typed_decisions | **0.9670** | 0.6020 | same — **the 96.7% that IS Issue 042's recorded typed escalation figure** |
+| ag_news | **0.9300** | 0.4900 | same (sel-acc 1.0 on 7% kept — looks perfect while refusing 93% of traffic) |
+| xnli_en | **0.9333** | 0.5333 | same |
+| prompt_injections | 0.9052 | 0.6810 | same |
+| banking77 | **0.3220** | 0.4680 | saturate-at-1.0 → score axis DISARMED (the residual abstain is the distance axis alone) |
+| massive_intent_en | 0.3100 | 0.3133 | sane fit — the control |
+
+**The unification:** Issue 042's cascade work measured "the shipped fused
+posture's typed 96.7% escalation fails this window" and built levers
+around it (gate-fit-selection, distance-only) — treating the symptom
+(over-abstention) without the root cause (calibration saturation + the
+fit-scale/apply-scale mismatch). The distance-only lever "worked"
+mechanically because it ZEROED the mis-matched score axis entirely. This
+issue owns the root cause; the 042 levers are the palliative record.
+
+**Repair directions now include (in deliberation order):**
+0. **Fit-scale/apply-scale coherence (reflex-side, before any substrate
+   change):** the gate-fit probe must observe on the SAME scale the gate
+   applies — either fit the threshold on the CALIBRATED probe confs (the
+   probe observes the cal pairs then reads calibrated confidences), or
+   apply the raw conf at the gate and calibrate only the REPORTED
+   confidence. Either closes the mismatch class without touching the
+   substrate.
+1. **Consumer-side (ranking): rank on the RAW readout conf** — unchanged
+   from below.
+2. **Substrate-side saturation guard** (katgpt-rs `sigmoid_calibration`)
+   — unchanged from below; note it fixes the saturation but NOT the
+   scale-mismatch by itself (an unsaturated but non-identity calibration
+   still shifts the threshold's meaning).
+3. The Newton early-break audit — unchanged.
 
 ## Reproduce
 
