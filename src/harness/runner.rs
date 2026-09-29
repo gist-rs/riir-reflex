@@ -1859,11 +1859,14 @@ struct ModellessInput<'a> {
     /// gate's score axis (threshold 0.0) — abstain/escalation runs on the
     /// corpus-distance axis alone, at its fitted ρ=30% threshold.
     pub gate_distance_only: bool,
-    /// Issue 056 direction 0 (`--gate-fit-calibrated`): fit the score-axis
-    /// threshold on the CALIBRATED scale the deployed gate applies (the
-    /// probe's own per-question pairs reconstruct the deployed calibrator
-    /// exactly in the default posture). Default off — the byte-identical
-    /// pre-lever posture.
+    /// Issue 056 direction 0 — PROMOTED default-on 2026-09-30 (verdict
+    /// round 2): fit the score-axis threshold on the CALIBRATED scale the
+    /// deployed gate applies (the probe's own per-question pairs reconstruct
+    /// the deployed calibrator exactly). The fit-on-raw / apply-on-calibrated
+    /// mismatch was a units bug — at a monotone fit the percentile-coherent
+    /// threshold reproduces the raw gate's fitted target exactly, so it can
+    /// never lose to the pre-calibration baseline. `--no-gate-fit-calibrated`
+    /// restores the old posture for measurement.
     pub gate_fit_calibrated: bool,
 }
 
@@ -5163,13 +5166,15 @@ pub mod seat {
         let inp = ModellessInput {
             spec,
             cascade_worthiness: false,
-            // The seat keeps the shipped posture: the arena's published
-            // face is the T1.6 cal-slice fused fit, never a lever arm.
+            // The seat keeps the shipped posture for the LEVERS (the arena's
+            // published face is the T1.6 cal-slice fused fit, never a lever
+            // arm) — but the Issue-056 scale-coherence fit stopped being a
+            // lever at its 2026-09-30 promotion (verdict round 2: the
+            // fit-on-raw / apply-on-calibrated mismatch is a units bug). The
+            // seat carries the fix like every other deployed surface.
             gate_fit_selection: false,
             gate_distance_only: false,
-            // Issue 056 direction 0 stays OFF at the seat (the same
-            // shipped-posture law as the two levers above).
-            gate_fit_calibrated: false,
+            gate_fit_calibrated: true,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -5401,12 +5406,14 @@ pub struct RunOptions {
     /// test abstain at the armed postures while the distance axis held
     /// ~31–32% in every posture). Default off = the shipped fused gate.
     pub gate_distance_only: bool,
-    /// Issue 056 direction 0 (`--gate-fit-calibrated`): fit the score-axis
-    /// threshold on the CALIBRATED scale the deployed gate applies —
-    /// closing the fit-on-raw / apply-on-calibrated mismatch that
-    /// calibration saturation turned into 90–99% abstain (saturate-at-0)
-    /// or a disarmed score axis (saturate-at-1, banking77; Issue 056's
-    /// severity-elevation table). Default off = the shipped posture.
+    /// Issue 056 direction 0 — PROMOTED default-on 2026-09-30 (verdict
+    /// round 2, the units-bug adjudication): fit the score-axis threshold on
+    /// the CALIBRATED scale the deployed gate applies — closing the
+    /// fit-on-raw / apply-on-calibrated mismatch that saturation turned into
+    /// 90–99% abstention or a disarmed score axis. At a monotone fit the
+    /// percentile-coherent threshold reproduces the raw gate's fitted target
+    /// exactly (Bench 095). `--no-gate-fit-calibrated` restores the old
+    /// posture.
     pub gate_fit_calibrated: bool,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).

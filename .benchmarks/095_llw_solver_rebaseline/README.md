@@ -1,6 +1,6 @@
 # Bench 095 — the LLW-solver re-baseline: the true MLEs restore real temperatures, the AUC regression stays fixed 15/15, and the `--gate-fit-calibrated` lever question is LIVE again (percentile coherence ≡ the raw gate's decisions)
 
-**Status:** RECORD (2026-09-30) — the final evidence for the Issue-056 owner gate; **corrects Bench 094's "simplified owner gate" framing** (that framing depended on the constant-map outcome the LLW solver superseded).
+**Status:** RECORD (2026-09-30; PROMOTION LANDED same-day — see the tail) — the final evidence for the Issue-056 owner gate; **corrects Bench 094's "simplified owner gate" framing** (that framing depended on the constant-map outcome the LLW solver superseded).
 **Issue:** [056](../../.issues/056_calibrated_confidence_ranking_regression.md); substrate: katgpt-rs Issues 909 + 910 (closed; commits `74e9d192d` → `b0d80979d`)
 **Supersedes:** nothing in 094's Finding 1 (the AUC fix holds); **replaces** 094's Finding 2 posture table + its "belt-and-suspenders" conclusion.
 
@@ -46,29 +46,35 @@ The three-way comparison (selective accuracy @ abstain rate):
 **The lever's calibrated gate reproduces the raw gate's decisions EXACTLY**
 (same selective accuracy and coverage to the digit on every suite — expected
 at a monotone fit: a percentile threshold on a monotone map selects the same
-abstain set) while reporting CALIBRATED confidences. The default posture's
-raw-fit threshold applied to the sharp calibrated confs is an ACCIDENTAL
-coverage shift: less abstention, and −11.5 pt selacc on prompt_injections,
-−8.7 on xnli, −6.6 on banking77, −5.4 on emotion, −4.6 on ag_news — with
-typed (+0.4 pt at lower abstention) and massive (parity) the two cells where
-the accident helps. (The lever run's `raw_abstain` column reads 1.0 by
-construction — the lever refits BOTH lanes' thresholds on the calibrated
-scale, and the raw lane's identity-calibrated confs then sit below it; the
-raw-lane baseline to read is the DEFAULT run's raw gate, which is what the
-table above uses.)
+abstain set) while reporting CALIBRATED confidences. Because the cal key is
+monotone in raw, **every posture sits on the SAME risk–coverage curve** —
+the two columns below are different OPERATING POINTS on it, not wins or
+losses: the default posture's raw-fit threshold lands the gate at an
+unintended point (e.g. prompt_injections abstaining 0.39 instead of the
+fitted 0.68 — the fitted target is the percentile the T1.6 posture chose).
+The old framing "−11.5pt selacc" read across coverage and is retired; the
+honest statement is **"operating point shifted off the fitted target"**.
+typed_decisions (+0.4 at lower abstention) and massive (parity) are likewise
+just different points on the same curve, not the default being better.
+(The lever run's `raw_abstain` column reads 1.0 by construction — the lever
+refits BOTH lanes' thresholds on the calibrated scale, and the raw lane's
+identity-calibrated confs then sit below it; the raw-lane baseline to read
+is the DEFAULT run's raw gate, which is what the table above uses.)
 
-## The owner decision (reframed, live)
+## The owner decision — RESOLVED 2026-09-30 (verdict round 2): PROMOTED
 
-- **Lever default-on** = percentile coherence: the deployed gate abstains on
-  exactly the set the threshold-fit meant, with calibrated conf readout;
-  decisions ≡ today's raw gate everywhere.
-- **Lever opt-in (today)** = the accidental posture: materially less
-  abstention, worse selacc on 5 of 8 dataset suites, marginally better on
-  typed_decisions.
+The round-2 verdict (the owner-delegated Claude adjudication):
 
-Bench 094's "belt-and-suspenders, not a defect repair" framing was an
-artifact of the constant-map interim — the sharp fits restore the exact
-scale-mismatch class the lever was built for. No promotion made here.
+> "this is a units bug, not a matter of taste… The lever reproduces the
+> raw gate's fitted target on every suite, to the digit. So it can never
+> lose to the pre-calibration baseline, which clears the GOAT promotion
+> bar."
+
+**`--gate-fit-calibrated` is the DEFAULT posture** (harness CLI, the seat,
+the e0 lane); `--no-gate-fit-calibrated` restores the old posture for
+measurement. Verified: the promoted default (no flag) reproduces this
+bench's lever cells **byte-for-byte** on all 15 suites. Gates re-run green
+(lib 219/0, engine_gates 8/0, game_heads_serve 16/0). Issue 056 closed.
 
 ## Reproduce
 

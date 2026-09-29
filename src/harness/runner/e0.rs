@@ -212,10 +212,13 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
     let inp = ModellessInput {
         spec,
         cascade_worthiness: false,
-        // E0 is a report-only early-exit lane — no gate levers.
+        // E0 is a report-only early-exit lane — no gate levers. The
+        // calibrated scale-coherence fit is not a lever anymore (Issue
+        // 056 promotion, 2026-09-30): it is the deployed default the
+        // report reads alongside.
         gate_fit_selection: false,
         gate_distance_only: false,
-        gate_fit_calibrated: false,
+        gate_fit_calibrated: true,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,

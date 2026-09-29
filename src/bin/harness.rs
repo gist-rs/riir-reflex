@@ -20,7 +20,7 @@
 //!                                      [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
-//!                                      [--gate-fit-calibrated]
+//!                                      [--no-gate-fit-calibrated]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -169,7 +169,14 @@ fn harness_main() {
         cascade_worthiness_lcb: None,
         gate_fit_selection: false,
         gate_distance_only: false,
-        gate_fit_calibrated: false,
+        // Issue 056 direction 0 — PROMOTED default-on 2026-09-30 (verdict
+        // round 2, the units-bug adjudication): the gate-fit probe observes
+        // on the SAME scale the deployed gate applies. At a monotone fit the
+        // percentile-coherent threshold reproduces the raw gate's fitted
+        // target exactly, so this can never lose to the pre-calibration
+        // baseline. `--no-gate-fit-calibrated` restores the old
+        // fit-on-raw/apply-on-calibrated posture for measurement.
+        gate_fit_calibrated: true,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -249,6 +256,7 @@ fn harness_main() {
             "--gate-fit-selection" => opts.gate_fit_selection = true,
             "--gate-distance-only" => opts.gate_distance_only = true,
             "--gate-fit-calibrated" => opts.gate_fit_calibrated = true,
+            "--no-gate-fit-calibrated" => opts.gate_fit_calibrated = false,
             "--cascade-worthiness-margin" => {
                 i += 1;
                 opts.cascade_worthiness_margin = args
