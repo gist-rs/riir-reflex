@@ -2950,6 +2950,17 @@ fn run_modelless<const N: usize>(
             });
         }
     }
+    // Issue 056 repair 2/3 instrument: dump the EXACT cal-window pairs the
+    // deployed calibrator fit on (the `RIIR_DEBUG_CAL_RANK` precedent —
+    // stderr, opt-in, never a metric). These are the bytes the katgpt-rs
+    // saturation-guard fixtures replay (reflex Issue 056 → katgpt-rs
+    // Issue 909): same pairs → same FIFO window → same fitted params.
+    if std::env::var_os("RIIR_DEBUG_CAL_WINDOW").is_some() {
+        eprintln!("[cal-window] {} n={}", spec.name, cal_pairs.len());
+        for p in &cal_pairs {
+            eprintln!("[cal-window] {:e} {}", p.conf, u8::from(p.correct));
+        }
+    }
 
     // RAW eval over the test cases (uncalibrated readout + raw abstain).
     let (raw_eval, lat) = eval_engine(&mut raw_engine, &suite.cases, state_strs, true)?;

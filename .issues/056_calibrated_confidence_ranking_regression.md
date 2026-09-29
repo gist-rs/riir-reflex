@@ -1,6 +1,6 @@
 # Issue 056 — the calibrated readout confidence ranks WORSE than raw as a rejection key (up to −0.12 AUC; banking77 below random)
 
-**Status:** OPEN — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, and **repair direction 0 (`--gate-fit-calibrated`, Bench 093) landed — opt-in, default off; the substrate saturation guard (repair 2) is the remaining work**
+**Status:** OPEN (owner gate pending) — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, and **repair direction 0 (`--gate-fit-calibrated`, Bench 093) landed at `2641477` — opt-in, default off; repairs 2 + 3 landed substrate-side in katgpt-rs Issue 909 (2026-09-30, closed — the audit verdict + the loss-argmin fallback + the saturation guard; the AUC regression confirmed fixed end-to-end). What remains here is the owner-gated promotion decision** (`--gate-fit-calibrated` default-on + the full 15-suite re-baseline at the repaired substrate).
 
 ## The finding
 
@@ -163,6 +163,62 @@ issue owns the root cause; the 042 levers are the palliative record.
    still shifts the threshold's meaning).
 3. The Newton early-break audit — unchanged.
 
+## SUBSTRATE REPAIRS LANDED (2026-09-30, katgpt-rs Issue 909 — closed; HISTORY.md there): the audit verdict, the fallback, the guard, and the end-to-end fix
+
+The two substrate repairs landed in katgpt-rs `sigmoid_calibration`, with
+the REAL production cal windows (banking77 / xnli_en / massive_intent_en,
+200 pairs each — dumped via the new `RIIR_DEBUG_CAL_WINDOW` env instrument
+in `runner.rs`, same posture) committed as replay fixtures. The replay
+reproduces the measured fits EXACTLY (w=1.2337 ↔ T=0.811; w=556468 ↔
+T≈1.8e-6; w=3.6342 ↔ T=0.275).
+
+**The audit verdict refuted the recorded early-break theory.** An f64
+mirror of the production solve stalls at the SAME extreme point with the
+SAME loss (gap 0.0000 on all three windows) — not an f32-precision defect.
+The true mechanism: on a narrow-z window the FIRST Newton Hessian is
+near-singular (det ≈ (Σr)²·var z), the first step lands the iterate in a
+saturated corner where every `r = p(1−p)` collapses, and the loop breaks
+at a point **10.8×** (banking77: loss 1051.02 vs 97.29) and **23×**
+(xnli_en: 3151.38 vs 135.35) above a constant-at-base-rate map. The
+extreme (w, c) values were never the smoothed MLE — a degenerate-init
+stall.
+
+**The landed repairs** (both in `refit`, off-hot-path, deterministic):
+1. `fit_window` — the refit is the loss-argmin over {Newton-from-identity,
+   near-constant base-rate `(W_MIN, c*)`, identity}. Sane windows keep the
+   Newton result verbatim (massive: bit-identical, T=0.275); degenerate
+   windows get the loss-optimal constant-at-base-rate map (T = 1/W_MIN =
+   1000 — the calibrated conf lands at the window's base rate: ECE-honest,
+   ranking-preserving).
+2. `window_keeps_resolution` — a fit whose mapped window collapses below
+   0.5× the raw window's distinct f32 values is refused to identity (the
+   output-side analogue of `W_MIN`): monotone in the reals, tied in the
+   floats breaks G3's ranking promise; the guard enforces it in f32
+   arithmetic.
+
+**End-to-end confirmation** (reflex rebuilt against the repaired
+substrate, the deployed posture, same command as below):
+
+| suite | T (was → now) | auc_cal (was → now) | auc_raw | verdict |
+|---|---|---|---|---|
+| banking77 | 0.811 → **1000** (constant 0.81) | 0.8125 → **0.93500** | 0.93496 | **regression GONE** (the 3.5e-5 residual = one pair-unit of the engine's pre-existing f64→f32 conf cast) |
+| xnli_en | 1.8e-6 → **1000** (constant 0.59) | 0.6161 → **0.69271** | 0.69271 | **regression GONE** (exactly equal) |
+
+Forced accuracy unchanged on both (the calibrator never touches picks).
+**Bench 092's `auc_baseline_cal_conf` columns are superseded at substrate
+HEAD** — the cal ranking key now equals the raw one wherever the fit was a
+stall, and remains the (sane) fit's own order elsewhere (massive: T=0.275
+unchanged, 300/300 distinct).
+
+**What remains (the owner gate):** the promotion decision —
+`--gate-fit-calibrated` default-on + the full 15-suite re-baseline at the
+repaired substrate (the composition evidence: with the fallback active the
+saturating fits become honest constants, and the threshold-scale coherence
+repair composes on top). The consumer-side ranking rule (repair 1, "rank on
+raw") is now MOOT at substrate HEAD — the calibrated key no longer
+degrades — but stays the conservative rule for any consumer pinned to an
+older substrate.
+
 ## Reproduce
 
 ```sh
@@ -177,6 +233,13 @@ RIIR_DEBUG_CAL_RANK=1 cargo run --release --features mc_ensemble --bin harness -
   --skip-laya --mc-ab --datasets-dir .raw/datasets_t20k \
   --head-select --nb-select --oc-select --ridge-select --suites banking77 --out /tmp/cal_probe
 # [cal-rank] lines: one per question (raw, cal) + the calibration header
+
+# The EXACT cal-window pairs the deployed calibrator fit on (the katgpt-rs
+# Issue-909 fixture source — same pairs → same FIFO window → same params):
+RIIR_DEBUG_CAL_WINDOW=1 cargo run --release --bin harness -- \
+  --skip-laya --datasets-dir .raw/datasets_t20k \
+  --head-select --nb-select --oc-select --ridge-select --suites banking77 --out /tmp/cal_window
+# [cal-window] lines: header (suite + n) then one `conf correct` pair per line
 ```
 
 ## References
