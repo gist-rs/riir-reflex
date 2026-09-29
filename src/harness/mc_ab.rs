@@ -406,7 +406,25 @@ pub fn mc_ab_pass<const N: usize>(
     cfg: &McAbConfig,
 ) -> Result<McAbRecord, String> {
     // 1. Flatten the test rows from the runner's evals (shared picks + the
-    //    two confidence surfaces).
+    //    two confidence surfaces). Under `RIIR_DEBUG_CAL_RANK=1`, also dump
+    //    the per-question (raw, calibrated) pair list for the Issue-056
+    //    monotonicity investigation (the `RIIR_DEBUG_RIDGE` debug-line
+    //    precedent — stderr, opt-in, never a metric).
+    if std::env::var_os("RIIR_DEBUG_CAL_RANK").is_some() {
+        let cal = engine.calibration();
+        eprintln!("[cal-rank] {} calibration {} T={}", suite.name, cal.method, cal.temperature);
+        for (ci, case) in suite.cases.iter().enumerate() {
+            for (qi, _q) in case.questions.iter().enumerate() {
+                eprintln!(
+                    "[cal-rank] {} {} {} {}",
+                    suite.name,
+                    case.id,
+                    baseline.confs_raw[ci][qi],
+                    baseline.confs_calibrated[ci][qi]
+                );
+            }
+        }
+    }
     let mut test_rows = Vec::new();
     for (ci, case) in suite.cases.iter().enumerate() {
         for (qi, q) in case.questions.iter().enumerate() {
@@ -809,7 +827,7 @@ mod tests {
     fn noul_mean_pick_is_not_the_inverted_legacy_pick() {
         use crate::embed::{Embedder, EMBED_DIM};
         use crate::harness::suites::{GoldAnswer, SuiteQuestion};
-        use serde_json::{json, Value};
+        use serde_json::Value;
 
         let experts = vec![
             crate::engine::DomainExpert::new(
