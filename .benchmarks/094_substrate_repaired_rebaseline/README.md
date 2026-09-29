@@ -1,6 +1,6 @@
 # Bench 094 — the substrate-repaired re-baseline: the Issue-056 calibrated-key regression is GONE on all 15 suites, and the gate abstain distortion collapsed WITHOUT the lever
 
-**Status:** RECORD (2026-09-30) — evidence for the Issue-056 owner gate; no promotion made here.
+**Status:** RECORD (2026-09-30) — **SUPERSEDED same-day by [Bench 095](../095_llw_solver_rebaseline/README.md) in its Finding-2 posture table and owner-gate framing** (the constant-map fits below were the three-candidate-fallback interim; the LLW solver's true MLEs restore real temperatures and with them the scale-mismatch class the lever was built for — 094's "belt-and-suspenders" conclusion no longer holds). Finding 1 (the AUC fix, 15/15) stands unchanged. Evidence for the Issue-056 owner gate at its interim state; no promotion made here.
 **Issue:** [056](../../.issues/056_calibrated_confidence_ranking_regression.md) (repairs 2+3 landed substrate-side: katgpt-rs Issue 909, closed, `74e9d192d`)
 **Supersedes:** Bench 092's `auc_baseline_cal_conf` columns + Issue 056's severity-elevation abstain table (both recorded against the STALLED substrate fits).
 

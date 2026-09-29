@@ -1,6 +1,6 @@
 # Issue 056 — the calibrated readout confidence ranks WORSE than raw as a rejection key (up to −0.12 AUC; banking77 below random)
 
-**Status:** OPEN (owner gate pending — SIMPLIFIED by Bench 094) — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; landed with the measuring arm at `460f5f1`, the discriminating evidence at `788cf5b`, the severity elevation at `2fb2ae4`, repair direction 0 (`--gate-fit-calibrated`, Bench 093) at `2641477`, and **repairs 2 + 3 substrate-side in katgpt-rs Issue 909 (closed, `74e9d192d`) + the full 15-suite re-baseline [Bench 094](../.benchmarks/094_substrate_repaired_rebaseline/README.md): the AUC regression is GONE 15/15 AND the gate abstain distortion collapsed at the DEFAULT posture (0.31–0.48 band, was 0.90–0.99) — the remaining owner decision is whether `--gate-fit-calibrated` is promoted as belt-and-suspenders scale coherence or stays opt-in; the substrate defect itself is fully repaired.**
+**Status:** OPEN (owner gate pending — LIVE, reframed by Bench 095) — filed from Bench 092 (`--mc-ab`'s baseline columns), 2026-09-30; the full arc: measuring arm `460f5f1` → discriminating evidence `788cf5b` → severity elevation `2fb2ae4` → repair 0 (`--gate-fit-calibrated`, Bench 093) `2641477` → substrate repairs in katgpt-rs Issues 909 (`74e9d192d`) + **910 (`b0d80979d` — the verdict round-1 REVISE landed: the LLW solver reaches the TRUE MLEs, the guard is AUC-based)** → re-baselines Bench 094 (constant-map interim, its owner-gate framing CORRECTED) + **Bench 095 (final: AUC fixed 15/15 via real fits; the lever = percentile coherence, decisions ≡ raw gate, vs the accidental default posture −11.5pt selacc on prompt)**. **The remaining owner decision: `--gate-fit-calibrated` default-on (coherence) vs opt-in (the accidental posture, better only on typed/massive).**
 
 ## The finding
 
@@ -226,6 +226,35 @@ belt-and-suspenders scale-coherence decision, not a defect repair. The
 consumer-side ranking rule (repair 1, "rank on raw") is MOOT at substrate
 HEAD — the calibrated key no longer degrades anywhere — but stays the
 conservative rule for any consumer pinned to an older substrate.
+
+## FINAL EVIDENCE (Bench 095, 2026-09-30 — katgpt-rs Issue 910's LLW solver): real fits, the lever question LIVE
+
+The Issue-909 verdict round 1 (REVISE) found the three-candidate fallback
+was shipping the constant FLOOR where the true MLE sits 26% lower
+(banking77's band carries real signal — raw window AUC 0.85, true MLE
+w=8.674/T=0.115/loss 71.57 vs the floor's 97.29). katgpt-rs Issue 910
+landed the Lin–Lin–Weng 2007 solve (base-rate start + Armijo
+backtracking — Platt's undamped step was the root cause all along) and
+rebuilt the guard as AUC-based with a one-SE tolerance. At that substrate
+([Bench 095](../.benchmarks/095_llw_solver_rebaseline/README.md)):
+
+- The AUC regression stays fixed **15/15** — now via REAL fits
+  (banking77 T≈0.115, xnli T≈4.80; massive unchanged at 0.275).
+- The lever (`--gate-fit-calibrated`) at a monotone fit reproduces the
+  RAW gate's decisions EXACTLY (same selacc/coverage to the digit on
+  every suite) with calibrated conf readout — percentile coherence.
+- The default posture (raw-fit threshold on sharp calibrated confs) is
+  an ACCIDENTAL coverage shift: −11.5pt selacc on prompt_injections,
+  −8.7 xnli, −6.6 banking77, −5.4 emotion, −4.6 ag_news; better only on
+  typed (+0.4) and massive (parity).
+- **Bench 094's "simplified owner gate" framing is CORRECTED** — it was
+  an artifact of the constant-map interim (the constant maps made the
+  scales trivially coherent; the sharp fits restore the mismatch class
+  the lever was built for).
+
+The owner decision: lever default-on (coherence — the gate means what
+the threshold-fit meant, decisions ≡ today's raw gate) vs opt-in (the
+accidental posture, favorable only on typed_decisions/massive).
 
 ## Reproduce
 
