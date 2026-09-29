@@ -11,6 +11,10 @@
 //!                                      [--genome-accept-margin F]
 //!                                      [--pair-head-ab] [--nli-feature-ab]
 //!                                      [--nli-m1]
+//!                                      [--mc-ab] [--mc-samples N]
+//!                                      [--mc-p-drop P] [--mc-lambda L]
+//!                                      (mc_* need --features mc_ensemble; absent
+//!                                       build → the flags refuse as unknown)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--paw]
 //!                                      [--paw-local] [--cascade]
@@ -176,6 +180,14 @@ fn harness_main() {
         pair_head_ab: false,
         nli_feature_ab: false,
         nli_m1: false,
+        #[cfg(feature = "mc_ensemble")]
+        mc_ab: false,
+        #[cfg(feature = "mc_ensemble")]
+        mc_samples: 0,
+        #[cfg(feature = "mc_ensemble")]
+        mc_p_drop: None,
+        #[cfg(feature = "mc_ensemble")]
+        mc_lambda: None,
         head_scale: 0.0,
         head_select: false,
         nb_select: false,
@@ -252,6 +264,40 @@ fn harness_main() {
             "--pair-head-ab" => opts.pair_head_ab = true,
             "--nli-feature-ab" => opts.nli_feature_ab = true,
             "--nli-m1" => opts.nli_m1 = true,
+            #[cfg(feature = "mc_ensemble")]
+            "--mc-ab" => opts.mc_ab = true,
+            #[cfg(feature = "mc_ensemble")]
+            "--mc-samples" => {
+                i += 1;
+                opts.mc_samples = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--mc-samples needs a number (0 = default 8)"));
+            }
+            #[cfg(feature = "mc_ensemble")]
+            "--mc-p-drop" => {
+                i += 1;
+                let p: f32 = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--mc-p-drop needs a fraction in (0, 0.5]"));
+                if !(p > 0.0 && p <= 0.5) {
+                    die("--mc-p-drop must lie in (0, 0.5]");
+                }
+                opts.mc_p_drop = Some(p);
+            }
+            #[cfg(feature = "mc_ensemble")]
+            "--mc-lambda" => {
+                i += 1;
+                let l: f32 = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--mc-lambda needs a number >= 0"));
+                if l < 0.0 {
+                    die("--mc-lambda must be >= 0");
+                }
+                opts.mc_lambda = Some(l);
+            }
             "--head-scale" => {
                 i += 1;
                 opts.head_scale = args

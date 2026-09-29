@@ -709,6 +709,15 @@ pub struct LaneResult {
     /// lanes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub nli_m1: Option<nli_m1::M1Result>,
+    /// Issue 055 / Plan 008 T5 (`--mc-ab`): the seeded-MC distributional-layer
+    /// A/B record — rejection ranking (u_pair vs the fused-gate confidence
+    /// at matched coverage) + the histogram's decision rules (majority /
+    /// mean / LCB-λ), knobs selected cal-side. Report-only: the served pick
+    /// stays the legacy pipeline's. None = the arm did not run (flag off /
+    /// the laya lanes / the feature compiled out).
+    #[cfg(feature = "mc_ensemble")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mc_ab: Option<super::mc_ab::McAbRecord>,
     /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
     /// the same forced-row walk `hard` reads, restricted to the unflagged
     /// cases. None = feature off / suite out of scope / every row flagged
@@ -1829,6 +1838,11 @@ struct ModellessInput<'a> {
     /// (`--nli-m1`; pre-registered by .plans/006_nli_m1_reopen.md — the
     /// pass itself loud-skips any suite but `xnli_en_val`, R1's guard).
     nli_m1: bool,
+    /// Issue 055 / Plan 008 T5: run the `--mc-ab` distributional-layer A/B
+    /// (report-only; the seeded-MC wrapper over the fitted engine). None =
+    /// the arm is off.
+    #[cfg(feature = "mc_ensemble")]
+    pub mc_ab: Option<&'a super::mc_ab::McAbConfig>,
     /// Issue 024 T3: one leak flag per eval case (true = the case has an
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
@@ -3206,6 +3220,24 @@ fn run_modelless<const N: usize>(
         } else {
             None
         },
+        #[cfg(feature = "mc_ensemble")]
+        mc_ab: if let Some(mcc) = inp.mc_ab {
+            Some(super::mc_ab::mc_ab_pass(
+                &mut fitted,
+                suite,
+                state_strs,
+                &cal_cases,
+                cal_state_strs,
+                super::mc_ab::McBaseline {
+                    confs_calibrated: &cal_eval_test.confs,
+                    confs_raw: &raw_eval.confs,
+                    picks: &raw_eval.picks,
+                },
+                mcc,
+            )?)
+        } else {
+            None
+        },
     },
         modelless_questions,
     ))
@@ -3729,6 +3761,8 @@ fn assemble_laya_lane_result(
         pair_head_ab: None,
         nli_feature_ab: None,
         nli_m1: None,
+        #[cfg(feature = "mc_ensemble")]
+        mc_ab: None,
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
     }
@@ -5106,6 +5140,8 @@ pub mod seat {
             pair_head_ab: false,
             nli_feature_ab: false,
             nli_m1: false,
+            #[cfg(feature = "mc_ensemble")]
+            mc_ab: None,
             leak_flags: None,
         };
         let fp = super::fit_posture_inner::<N>(&inp)?;
@@ -5375,6 +5411,27 @@ pub struct RunOptions {
     /// everything else, so the spent test split is structurally
     /// unreachable). Default off.
     pub nli_m1: bool,
+    /// Issue 055 / Plan 008 T5 (`--mc-ab`; needs the `mc_ensemble` feature —
+    /// without it the flag refuses as unknown, loud): run the seeded-MC
+    /// distributional-layer A/B on every modelless suite — rejection
+    /// ranking (u_pair vs the fused-gate confidence at matched coverage) +
+    /// the histogram's decision rules (majority / mean / LCB-λ), knobs
+    /// selected cal-side. Report-only; the test split is read once. Default
+    /// off.
+    #[cfg(feature = "mc_ensemble")]
+    pub mc_ab: bool,
+    /// `--mc-samples N` — total MC samples per case INCLUDING the
+    /// unperturbed legacy run (default 8 = the G2 gate's N; 0 → default).
+    #[cfg(feature = "mc_ensemble")]
+    pub mc_samples: usize,
+    /// `--mc-p-drop P` — pin the dropout probability, skipping the cal-side
+    /// sweep (the selection table then carries the pinned row only). Must
+    /// lie in (0, 0.5].
+    #[cfg(feature = "mc_ensemble")]
+    pub mc_p_drop: Option<f32>,
+    /// `--mc-lambda L` — pin the LCB λ, skipping the cal-side λ sweep. ≥ 0.
+    #[cfg(feature = "mc_ensemble")]
+    pub mc_lambda: Option<f32>,
     /// Fitted per-label head blend scale for the modelless lane (issue 030
     /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
     /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
@@ -5503,6 +5560,25 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .to_string(),
         );
     }
+    // Issue 055 / Plan 008 T5: the `--mc-ab` arm's tuning, built once per
+    // run. A pinned knob is a single-row grid (the selection table then
+    // carries the pinned row only — the test read stays one).
+    #[cfg(feature = "mc_ensemble")]
+    let mc_cfg = super::mc_ab::McAbConfig {
+        n_samples: if opts.mc_samples == 0 {
+            super::mc_ab::DEFAULT_MC_SAMPLES
+        } else {
+            opts.mc_samples
+        },
+        p_grid: opts.mc_p_drop.map_or_else(
+            || super::mc_ab::DEFAULT_P_GRID.to_vec(),
+            |p| vec![p],
+        ),
+        lambda_grid: opts.mc_lambda.map_or_else(
+            || super::mc_ab::DEFAULT_LAMBDA_GRID.to_vec(),
+            |l| vec![l],
+        ),
+    };
     let mut results: Vec<SuiteResult> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
     let laya_feature = cfg!(feature = "laya-riir");
@@ -5636,6 +5712,8 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 pair_head_ab: opts.pair_head_ab,
                 nli_feature_ab: opts.nli_feature_ab,
                 nli_m1: opts.nli_m1,
+                #[cfg(feature = "mc_ensemble")]
+                mc_ab: opts.mc_ab.then_some(&mc_cfg),
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,

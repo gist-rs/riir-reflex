@@ -236,6 +236,8 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
         pair_head_ab: false,
         nli_feature_ab: false,
         nli_m1: false,
+        #[cfg(feature = "mc_ensemble")]
+        mc_ab: None,
         leak_flags: None,
     };
     // The states: the stratified selection slice (the shared cal-side

@@ -1,6 +1,6 @@
 # Plan 008: Distributional Decision Layer — Seeded MC Bagging over the Deterministic Engine (Issue 055)
 
-**Status:** IN PROGRESS — T1–T4 LANDED (katgpt-rs `8f5291c14` + `3e986fe58`, reflex `aee6404`); T5–T7 DEFERRED to the next session (resume note below)
+**Status:** COMPLETE — T1–T7 (T5–T7 landed 2026-09-30: the `--mc-ab` arm + Bench 092 + the verdict ping-pong; **the null path FIRED — the feature stays opt-in**, one per-suite carve-out recorded)
 **Issue:** [055](../.issues/055_distributional_decision_layer.md) (filed from the DRM distill, riir-train Research 462 / Plan 429; arXiv:2609.33803)
 **Bench:** `.benchmarks/092_distributional_layer_poc/` (allocated)
 **Source paper:** arXiv:2609.33803 "Diffusion Reward Models" (thunlp) — the decision-layer findings only (U_pair/U_BoN rejection +2.81 avg @70% coverage; LCB_λ=0.4 ranking beats mean-only BoN; sample-count reward-axis scaling).
@@ -141,25 +141,39 @@ feature stays opt-in behind an exact-literal kill switch.
   floor) + FULL suite green (219 lib + 8 engine_gates + 16 frozen-pick
   game_heads — the refactor's byte-identity proof) + clippy `-D` clean at
   both postures. Landed `aee6404`.
-- [ ] **T5** reflex harness: `--mc-ab` arm — per-suite A/B rankers (baseline
+- [x] **T5** reflex harness: `--mc-ab` arm — per-suite A/B rankers (baseline
   fused-gate confidence desc vs u_pair desc) over the SAME eval loop,
   coverage–accuracy curves at matched coverage + LCB-vs-mean ranking delta
   + paired-vs-fused-gate; the 15-suite PoC run (Bench 092).
-  **RESUME NOTE:** follow the pair_head_ab pattern end-to-end — pass fn
-  (`pair_head_ab_pass` at runner.rs:867), typed arm struct in the result
-  (~:700), flags field (~:5360 `pub pair_head_ab: bool` + :5636 parse +
-  :5106 defaults + :3729 None-init), dispatch (~:3147), table render +
-  out-dir write. The arm calls `mc_ensemble::solve_mc_into` per test case
-  over the engine built by `build_engine_with` (runner.rs:1436), collecting
-  per-question (gold, computed pick, confidence, u_pair, u_bon) → the
-  coverage–accuracy curve pair. Datasets on-box: `.raw/datasets_t20k`
-  (the frozen Bench-005 pool — the arena default) + `.raw/datasets`.
-  Box-state: quote `scripts/bench_preflight.sh` PROVENANCE for any latency
-  row; correctness/coverage rows are load-insensitive.
-- [ ] **T6** Adjudication: Pareto verdict per the null path; docs (HISTORY
-  row, issue update); promotion decision (default: stays opt-in).
-- [ ] **T7** Verdict ping-pong (research skill §5 discipline) before the
-  closing commit.
+  LANDED 2026-09-30 as `src/harness/mc_ab.rs` (7 unit tests incl. the N=1
+  point-mass index-space pin) + the flag family (`--mc-ab`, `--mc-samples`,
+  `--mc-p-drop`, `--mc-lambda`; feature-gated — an absent build refuses the
+  flags as unknown). **Bench 092 ran at the DEPLOYED seat posture**
+  (head+nb+oc+ridge select) over the frozen Bench-005 pool — the first
+  default-posture run was the wiring smoke + the complement-signature
+  catch (see below). Founding defect fixed in-run: the mean-score rule
+  missed the noul engine→gold flip (`prompt_injections` mean-pick =
+  exactly 1 − legacy — the complement signature); pinned by the N=1
+  point-mass equality test. Determinism verified at the harness level
+  (two independent banking77 runs → byte-identical records excl. latency).
+- [x] **T6** Adjudication: **the pre-registered null path FIRED (stronger
+  than first recorded)** — u_pair loses to the RAW readout confidence 8/8
+  (mean −0.091 AUC) and to the deployed calibrated key 7/8 (mean −0.041)
+  over the n ≥ 100 dataset suites; LCB null everywhere ⇒ the negative
+  recorded (Bench 092 + HISTORY 2026-09-30), the feature stays opt-in
+  (kill switch + default-off knob). **The first draft's banking77 carve-out
+  was WITHDRAWN on the verdict round-1 review** — the raw key beats the MC
+  layer there too (0.9350 vs 0.8945); the win was against a degraded
+  baseline. The REAL finding the PoC's baseline columns exposed is spun
+  off as **Issue 056**: the calibrated readout confidence ranks strictly
+  worse than raw as a rejection key on 7/9 suites (up to −0.122 AUC;
+  banking77 below random) — a monotone calibrator cannot reorder at all.
+  G2: latency PROVISIONAL (load-disclosed, preflight REFUSED at 12.95–
+  19.95); the heavy-suite breach at N=8 is STRUCTURAL (banking77
+  8 × 0.338 ms = 2.7 ms; load would need ~2.7× base inflation to change
+  it) — adaptive-N stays the recorded remedy. Issue 055 closed + removed
+  (record in HISTORY); the default-posture run is disclosed unadjudicated
+  (the pre-registration compares against the deployed gate).
 
 ## Deferred / out of scope
 

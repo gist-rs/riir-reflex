@@ -13,6 +13,10 @@ pub mod code_frozen;
 pub mod families;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
+// Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm
+// (report-only; rides the wrapper's feature).
+#[cfg(feature = "mc_ensemble")]
+pub mod mc_ab;
 pub mod metrics;
 pub mod pair_heads;
 // Near-duplicate leak report (Issue 024): opt-in, zero-dep, native-only.
