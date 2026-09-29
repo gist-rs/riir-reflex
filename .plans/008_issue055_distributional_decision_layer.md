@@ -1,6 +1,6 @@
 # Plan 008: Distributional Decision Layer — Seeded MC Bagging over the Deterministic Engine (Issue 055)
 
-**Status:** IN PROGRESS — T1 substrate-first DONE, T2–T7 pending
+**Status:** IN PROGRESS — T1–T4 LANDED (katgpt-rs `8f5291c14` + `3e986fe58`, reflex `aee6404`); T5–T7 DEFERRED to the next session (resume note below)
 **Issue:** [055](../.issues/055_distributional_decision_layer.md) (filed from the DRM distill, riir-train Research 462 / Plan 429; arXiv:2609.33803)
 **Bench:** `.benchmarks/092_distributional_layer_poc/` (allocated)
 **Source paper:** arXiv:2609.33803 "Diffusion Reward Models" (thunlp) — the decision-layer findings only (U_pair/U_BoN rejection +2.81 avg @70% coverage; LCB_λ=0.4 ranking beats mean-only BoN; sample-count reward-axis scaling).
@@ -127,21 +127,35 @@ feature stays opt-in behind an exact-literal kill switch.
 ## Tasks
 
 - [x] **T1** Substrate-first Mode 1 gate (this record).
-- [ ] **T2** katgpt-core: `diversity::temp::blake3_uniform_fill` + the
-  `WelfordVariance` move (`src/welford.rs` ungated; karc/regime_gate re-export;
-  existing karc tests/benches compile unchanged) + `perturbation_ensemble`
+- [x] **T2** katgpt-core: ~~diversity::temp::blake3_uniform_fill~~ **amended in-fixup**: the helper moved INTO the module (`diversity` sits behind `temp_loss_fingerprint`, absent from narrow-feature consumers — the feature stays `[]`-clean) + the `WelfordVariance` move (`src/welford.rs` ungated; karc/regime_gate re-export; karc tests green under the move) + `perturbation_ensemble`
   feature + `src/perturbation_ensemble.rs` (bucket_dropout_into,
   EnsembleHistogram, u_pair/u_bon/lcb_score, instability_gate) + unit tests
-  (definition fixtures, p=0 bit-identity, seed determinism, non-collapse,
-  re-normalization unit law, poison control).
-- [ ] **T3** katgpt-rs repo duties in the same commit: README feature table
-  row + `.docs/09_feature_catalog` opt-in entry (count_features gate) +
-  numbering (none needed — no new plan/bench there; the arc is reflex-owned).
-- [ ] **T4** reflex: `mc_ensemble` feature + `src/mc_ensemble.rs` wrapper +
-  engine seam (solve-with-perturbed-query; unarmed byte-identity) + kill
-  switch + unit gates (G1 three-part, non-collapse floor, G4 alloc canary).
-- [ ] **T5** reflex harness: U-stat columns + coverage–accuracy + LCB-vs-mean
-  + paired-vs-fused-gate at matched coverage; the 15-suite PoC run (Bench 092).
+  (11 green). Landed `8f5291c14` + fixup `3e986fe58`.
+- [x] **T3** katgpt-rs repo duties: README/examples counts 663→664,
+  `.docs/09_feature_catalog` opt-in entry, count_features ✓, docs_gate
+  35/35.
+- [x] **T4** reflex: `mc_ensemble` feature + `src/mc_ensemble.rs` wrapper +
+  engine seam (`solve_sample_into` extraction — solve_into delegates with
+  `None`, byte-identical by construction; hooks at BOTH embed sites with
+  domain-separated seeds) + 4 gates green (G1 parts 1–3 + non-collapse
+  floor) + FULL suite green (219 lib + 8 engine_gates + 16 frozen-pick
+  game_heads — the refactor's byte-identity proof) + clippy `-D` clean at
+  both postures. Landed `aee6404`.
+- [ ] **T5** reflex harness: `--mc-ab` arm — per-suite A/B rankers (baseline
+  fused-gate confidence desc vs u_pair desc) over the SAME eval loop,
+  coverage–accuracy curves at matched coverage + LCB-vs-mean ranking delta
+  + paired-vs-fused-gate; the 15-suite PoC run (Bench 092).
+  **RESUME NOTE:** follow the pair_head_ab pattern end-to-end — pass fn
+  (`pair_head_ab_pass` at runner.rs:867), typed arm struct in the result
+  (~:700), flags field (~:5360 `pub pair_head_ab: bool` + :5636 parse +
+  :5106 defaults + :3729 None-init), dispatch (~:3147), table render +
+  out-dir write. The arm calls `mc_ensemble::solve_mc_into` per test case
+  over the engine built by `build_engine_with` (runner.rs:1436), collecting
+  per-question (gold, computed pick, confidence, u_pair, u_bon) → the
+  coverage–accuracy curve pair. Datasets on-box: `.raw/datasets_t20k`
+  (the frozen Bench-005 pool — the arena default) + `.raw/datasets`.
+  Box-state: quote `scripts/bench_preflight.sh` PROVENANCE for any latency
+  row; correctness/coverage rows are load-insensitive.
 - [ ] **T6** Adjudication: Pareto verdict per the null path; docs (HISTORY
   row, issue update); promotion decision (default: stays opt-in).
 - [ ] **T7** Verdict ping-pong (research skill §5 discipline) before the
