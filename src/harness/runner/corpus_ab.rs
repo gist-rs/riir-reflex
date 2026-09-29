@@ -29,11 +29,11 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
-    build_engine, ensemble::paired_lb95, eval_engine, git_sha, iso8601_utc, percentile_us,
-    prepare, RunOptions, SuiteSpec, SUITES,
+    ensemble::paired_lb95, eval_engine, git_sha, iso8601_utc, percentile_us, prepare, seat,
+    RunOptions, SuiteSpec, SUITES,
 };
 use crate::embed::EMBED_DIM;
-use crate::engine::{DecisionEngine, EngineConfig, ExpertSpec};
+use crate::engine::{DecisionEngine, ExpertSpec};
 use crate::harness::suites::{QKind, SuiteCase, TrainDoc};
 use super::synth::load_synth_corpus;
 
@@ -121,18 +121,23 @@ fn gold_label_of_case(case: &SuiteCase) -> String {
 /// The A/B's per-label spec builder: gold docs first (up to `cap`), then
 /// the label's synth docs (up to `extra_cap`) — the self-doc fallback law
 /// mirrors `specs_from_pool` (a label with neither gold nor synth docs
-/// falls back to its own label text, disclosed).
+/// falls back to its own label text, disclosed). When the seat posture
+/// arms the count tables (`nb_sets`), each spec carries them — arm A's
+/// tables read the uncapped pool ([`nb_doc_sets`]); arm B's read the same
+/// pool PLUS the synth docs (the corpus extension, tables included).
+#[allow(clippy::too_many_arguments)]
 fn arm_specs(
     train: &[TrainDoc],
     extra: &[TrainDoc],
     labels: &[String],
     cap: usize,
     extra_cap: usize,
+    nb_sets: Option<&[Vec<String>]>,
 ) -> (Vec<ExpertSpec>, Vec<String>, usize) {
     let mut specs = Vec::with_capacity(labels.len());
     let mut fallback_labels = Vec::new();
     let mut extra_used = 0usize;
-    for label in labels {
+    for (idx, label) in labels.iter().enumerate() {
         let mut docs: Vec<String> = train
             .iter()
             .filter(|d| d.label == *label)
@@ -147,7 +152,15 @@ fn arm_specs(
             fallback_labels.push(label.clone());
             docs.push(label.clone());
         }
-        specs.push(ExpertSpec::new(label.as_str(), &docs));
+        #[allow(unused_mut)]
+        let mut spec = ExpertSpec::new(label.as_str(), &docs);
+        #[cfg(feature = "nb_scope")]
+        if let Some(sets) = nb_sets {
+            spec = spec.with_nb_docs(sets[idx].clone());
+        }
+        #[cfg(not(feature = "nb_scope"))]
+        let _ = (idx, &nb_sets);
+        specs.push(spec);
     }
     (specs, fallback_labels, extra_used)
 }
@@ -192,7 +205,7 @@ pub fn run_corpus_ab(
 
     macro_rules! dispatch {
         ($n:literal) => {
-            corpus_ab_suite::<$n>(spec, &prepared, &in_scope, docs.len(), synth_path, extra_cap)
+            corpus_ab_suite::<$n>(spec, &prepared, &in_scope, docs.len(), synth_path, extra_cap, opts)
         };
     }
     let suite_row = match n_labels {
@@ -234,15 +247,50 @@ fn corpus_ab_suite<const N: usize>(
     synth_rows_total: usize,
     synth_path: &Path,
     extra_cap: usize,
+    opts: &RunOptions,
 ) -> Result<CorpusAbSuite, String> {
     let t_start = std::time::Instant::now();
     let labels = &prepared.labels;
     let cap = spec.corpus_cap_per_label;
-    let cfg = EngineConfig::default();
 
-    // Arm A: the published posture (gold pool at the registry cap).
+    // The seat posture (the anchor-void fix, 61d4a94d's filed repair): arm A
+    // is the DEPLOYED build — the same `fit_posture` prologue the seat and
+    // `run_modelless` use, selected knobs included (massive: nb_scale 4.0 +
+    // the fitted fused-gate thresholds) — never `EngineConfig::default()`.
+    // The default posture measured gold 0.6100 against the published 0.7800
+    // anchor and voided the lane's own A/B (bench 089). Both arms share ONE
+    // fitted posture: the A/B varies ONLY the corpus content.
+    let seat = seat::prepare_seat(spec.name, &opts.datasets_dir)?;
+    let posture = seat::fit_posture::<N>(
+        spec.name,
+        &seat,
+        &seat::PostureKnobs {
+            head_select: opts.head_select,
+            nb_select: opts.nb_select,
+            #[cfg(feature = "option_cond")]
+            oc_select: opts.oc_select,
+            #[cfg(feature = "nb_ridge")]
+            ridge_select: opts.ridge_select,
+            genome_select: opts.genome_select,
+            genome_accept_margin: opts.genome_accept_margin,
+            cal_select_caps: opts.cal_select_caps.clone(),
+        },
+    )?;
+    if posture.cfg.oc_scale > 0.0 {
+        return Err(format!(
+            "corpus-ab {}: the seat posture arms the option-conditioned tables — the \\
+             +synth corpus arm cannot carry them; the lane refuses rather than mis-build",
+            spec.name
+        ));
+    }
+    let cfg = posture.cfg.clone();
+    let effective_cap = posture.effective_cap;
+    let _ = cap;
+
+    // Arm A: the seat build at the fitted posture (gold pool, the selected
+    // cap) — the deployed engine, byte-equal to run()'s.
     let (mut eng_a, fb_a) =
-        build_engine::<N>(spec.name, &prepared.train, labels, cap, cfg.clone())?;
+        seat::build_seat_engine::<N>(spec.name, &seat, effective_cap, cfg.clone())?;
     if !fb_a.is_empty() {
         eprintln!(
             "  [corpus-ab {}] gold arm: {} label(s) with NO pool docs → self-doc fallback",
@@ -250,9 +298,23 @@ fn corpus_ab_suite<const N: usize>(
             fb_a.len()
         );
     }
-    // Arm B: +synth beyond the gold cap.
-    let (specs_b, fb_b, extra_used) =
-        arm_specs(&prepared.train, synth_docs, labels, cap, extra_cap);
+    // Arm B: the SAME posture, corpus = gold cap + synth beyond it — the
+    // retrieval specs AND the count tables (arm A's tables read the
+    // uncapped pool; arm B's read that pool plus the synth docs — the
+    // corpus extension is the only difference between the arms).
+    #[cfg(feature = "nb_scope")]
+    let nb_sets_b = (cfg.nb_scale > 0.0)
+        .then(|| super::nb_doc_sets(&prepared.train, labels, synth_docs));
+    #[cfg(not(feature = "nb_scope"))]
+    let nb_sets_b: Option<Vec<Vec<String>>> = None;
+    let (specs_b, fb_b, extra_used) = arm_specs(
+        &prepared.train,
+        synth_docs,
+        labels,
+        effective_cap,
+        extra_cap,
+        nb_sets_b.as_deref(),
+    );
     let mut eng_b = DecisionEngine::<N, EMBED_DIM>::build_specs(specs_b, cfg)
         .map_err(|e| format!("engine build ({} +synth): {e}", spec.name))?;
     if !fb_b.is_empty() {
@@ -303,8 +365,8 @@ fn corpus_ab_suite<const N: usize>(
     let aliveness = if spec.name == "massive_intent_en" {
         if (acc_a - PUBLISHED_MASSIVE_A0).abs() <= 1e-6 {
             format!(
-                "arm A reproduces the published {PUBLISHED_MASSIVE_A0} exactly — the \
-                 instrument is alive"
+                "arm A reproduces the published {PUBLISHED_MASSIVE_A0} exactly (the seat \\
+                 posture, selected knobs + fitted gate) — the instrument is alive"
             )
         } else {
             format!(
@@ -447,7 +509,7 @@ mod tests {
             td("L9", "synth z9"),
         ];
         let labels = vec!["L1".to_string(), "L2".to_string()];
-        let (specs, fb, used) = arm_specs(&train, &extra, &labels, 2, 2);
+        let (specs, fb, used) = arm_specs(&train, &extra, &labels, 2, 2, None);
         assert_eq!(specs.len(), 2);
         assert_eq!(used, 2, "L1 takes 2 of its 3 extras (extra cap); L2/L9 take none");
         // Inspect the built specs through the public name field.
@@ -460,7 +522,7 @@ mod tests {
     fn arm_specs_fallback_law_matches_specs_from_pool() {
         let train = vec![td("L1", "gold a1")];
         let labels = vec!["L1".to_string(), "L_empty".to_string()];
-        let (specs, fb, _used) = arm_specs(&train, &[], &labels, 48, 128);
+        let (specs, fb, _used) = arm_specs(&train, &[], &labels, 48, 128, None);
         assert_eq!(fb, vec!["L_empty".to_string()], "the empty label discloses");
         assert_eq!(specs.len(), 2);
     }
