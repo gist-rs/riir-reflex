@@ -1,6 +1,6 @@
 # Issue 054 — openjev lane candidate (Open-Jev-27B-v1.1, hardware-gated) + the prefix-state handoff serving lead
 
-**Status:** OPEN — lane candidate BLOCKED on GPU memory (re-arm recorded); prefix-state handoff lead UNASSIGNED (riir-infer-laya owning session's call)
+**Status:** OPEN — Part 1 lane candidate BLOCKED on GPU memory (re-arm recorded); Part 2 prefix-state handoff lead REFUTED 2026-09-30 (measured — the laya encoder is ModernBERT, bidirectional, NOT GDN; verdict + probe below)
 
 Filed from the open-jev-fast distill (riir-clippy Research 221 / Plan 185 / queue Batch 189, 2026-09-29). Source pins: `lyuyiqi/open-jev-fast @ c52b8bb9` (MIT) + upstream `Zefan-Cai/Open-Jev @ 3308a15` (MIT, wire schema verified this session).
 
@@ -18,13 +18,17 @@ Filed from the open-jev-fast distill (riir-clippy Research 221 / Plan 185 / queu
 
 **Non-goals:** no change to the agentjev lane (their 0.6B stack serves a different model; open-jev-fast cannot serve it); no claim on JevBench accuracy here — our typed_decisions split is the measuring stick (the source's 197/231 is their benchmark, different pool).
 
-## Part 2 — the prefix-state handoff serving lead (UNBLOCKED, latency, accuracy-neutral)
+## Part 2 — the prefix-state handoff serving lead (REFUTED 2026-09-30, measured)
 
-reflex's `agentjev` lane already batches every question of a case into ONE request precisely because the case state is shared (their several-decisions-at-once pattern). OUR laya lane re-encodes the shared case state once PER QUESTION on `typed_decisions` (5-question cases → ~5× redundant prefix encoding over the lane's HTTP round trips).
+**Verdict: the open-jev-fast `fla_mode="state"` handoff does not transfer to the laya lane.** The as-filed premise ("laya is GDN-family, riir-infer `deltanet` substrate") was wrong about the architecture: the laya checkpoints are **ModernBERT-large / mmBERT-base** (`encoder_config.json`) — a bidirectional encoder. The op stream has **no causal mask anywhere** (`attention_forward_default`; the only mask is the symmetric sliding-window band `|q − k| ≤ window`, and the config's own doc names the reference's "bidirectional overlay"), and the `deltanet` substrate serves the ternary Bonsai/GDN lane, unrelated to laya. GDN's causal delta-rule recurrence is exactly what makes the upstream handoff lossless — a final prefix state IS the continuation input; ModernBERT has no per-position state a suffix could resume from. Three structural grounds:
 
-open-jev-fast's `fla_mode="state"` path (fastmodel.py / server.py `EntryState`) computes the shared prefix once and hands its **final GDN recurrent state** to each candidate — EXACT, not approximate (the linear-attention recurrence is sequential; unlike the suffix-replay class, no reconstruction error). laya is GDN-family (riir-infer `deltanet` substrate), so the same handoff shape applies to `riir-infer-laya` serving: encode the case state prefix once, feed its final state + per-question suffixes.
+1. **Bidirectional coupling.** A shared state span's hidden rows are functions of the per-question head span; encoding the state once and reusing it across a case's questions changes the math at the first full-attention layer (layers 0, 3, 6, … — `global_attn_every_n_layers = 3`).
+2. **Per-question positions.** `build_sequence` renders `[CLS] {t} question: {ins} [SEP] [MASK] opt… [SEP] {state} [SEP]` — the state sits AFTER the per-question head span, at a different RoPE offset in every question's sequence (head lengths differ). A single shared encode cannot reproduce the positional geometry at all.
+3. **Per-question truncation.** The state is truncated to `room = max_len − ids.len() − 1`, which varies per question — the "shared prefix" is not guaranteed identical tokens across questions.
 
-**Value:** typed_decisions lane latency (comparison-cell cost, not accuracy — G5 parity and the published accuracy rows are unaffected). NOT urgent: lanes are measurement surfaces, not production serving. Owner of the work: the riir-infer-laya substrate session (reflex consumes). Reference: `open-jev-fast @ c52b8bb9` `src/fastmodel.py::forward_tree` + `src/server.py::EntryState`.
+**Measured** (`riir-infer` `crates/riir-infer-laya/tests/prefix_state_coupling.rs`, CPU posture, release + debug agree, 2026-09-30): two distinct choice questions against ONE shared case state on the real **typed** checkpoint — the shared state span (**283 of 317/318 tokens: the state is ~89% of each sequence, so the as-filed ~5× prize was real**) drifts **5.1e2** between the two forwards — five-plus orders above the **1e-5** CPU GEMM reduction-order budget the packed-equivalence gate prices. Synthetic-geometry arm: **2.7e0** over a 16-row shared prefix, with a bit-identical determinism control (the drift is attention coupling, not numerics). The probe is **two-sided**: a reading at or below the budget FAILS the test, so an architecture change that ever makes the span independent re-opens this record mechanically instead of silently.
+
+**Consequence:** no exact prefix-state win exists for the laya lane; the packed per-question pass (reflex issue 020 T5) remains the exact floor for case serving. The lead's SHAPE stays valid where the serving model is causal (GDN/KV-cache decoders — the league lane); a re-filing should target that surface, not laya. Not urgent stands: lanes are measurement surfaces, not production serving.
 
 ## References
 
