@@ -46,6 +46,22 @@
 use serde_json::Value;
 use std::collections::HashSet;
 
+/// One pinned known-dirty slice state (see [`SliceFacts::KNOWN_DIRTY`]).
+/// Membership is the exact `(test, cal, pool)` digest triple — the same
+/// digests results.json publishes, so a pin is checkable against any run
+/// record without re-running anything.
+#[derive(Debug, Clone)]
+pub struct KnownDirtySlice {
+    pub suite: &'static str,
+    pub test_digest: &'static str,
+    pub cal_digest: &'static str,
+    pub pool_digest: &'static str,
+    /// Why this dirty state is accepted, and the condition that removes
+    /// the pin. Never optional: a pin without its removal condition is a
+    /// loophole wearing a pin.
+    pub reason: &'static str,
+}
+
 /// One suite's slice facts + audit verdict (results.json, additive;
 /// `violations` empty = the hard assertions held).
 #[derive(Debug, Clone, serde::Serialize)]
@@ -74,8 +90,15 @@ pub struct SliceFacts {
     /// the per-lane fallback guard names the self-doc consequence).
     pub missing_pool_labels: Vec<String>,
     /// Hard violations, each naming the slices and the overlapping row
-    /// count. Empty = clean. The runner refuses the suite when non-empty.
+    /// count. Empty = clean. The runner refuses the suite when non-empty
+    /// UNLESS the exact state matches a [`SliceFacts::KNOWN_DIRTY`] pin
+    /// (then `acknowledged` is true and the run proceeds, loudly).
     pub violations: Vec<String>,
+    /// True when the run proceeded under a known-dirty pin (the loud
+    /// acknowledgement path). Always false on clean runs — skipped in the
+    /// serialization so clean records stay byte-identical to their past.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub acknowledged: bool,
 }
 
 impl SliceFacts {
@@ -84,6 +107,49 @@ impl SliceFacts {
     #[must_use]
     pub fn is_clean(&self) -> bool {
         self.violations.is_empty()
+    }
+
+    /// The verdict's route 1 (Issue 058): a KNOWN-DIRTY slice pin — the
+    /// exact `(suite, test, cal, pool)` digest triple of a frozen pool
+    /// whose published records were measured on its dirty bytes. The pin
+    /// is MEMBERSHIP in both directions: only that exact dirty state is
+    /// accepted (same triple = same bytes, so it cannot admit a different
+    /// defect), and the moment anyone repairs or re-pulls the pool the
+    /// triple moves, the pin stops matching, and the refusal returns —
+    /// the pin must be deleted in the same change that fixes the data.
+    pub const KNOWN_DIRTY: &[KnownDirtySlice] = &[KnownDirtySlice {
+        suite: "sst5",
+        test_digest: "fnv1a64-67fe9666fa0c3a6f",
+        cal_digest: "fnv1a64-d210e7c6707c3d40",
+        pool_digest: "fnv1a64-cf933108b9825392",
+        // The frozen `.raw/datasets_t20k` pull — the basis of every
+        // published t20k-era row (reflex Benches 052+; the instinct
+        // arena's frozen re-baseline). Aggregate blake3 over the dir is
+        // pinned in .docs/02_protocols/dataset_manifest.md (ebfb0317…,
+        // 8544 rows); these are the audit's own RAW slice digests of that
+        // exact state. Removal condition: the t20k sst5 pool is re-pulled
+        // de-duplicated under an owner re-baseline (the reflex-site
+        // published numbers question rides along), never before.
+        reason: "frozen t20k pool (manifest ebfb0317…, 8544 rows) carries \
+                 the mirror's exact duplicates: 1 cross-split + 2 train-internal \
+                 (published rows were measured on these bytes; dedupe is an \
+                 owner re-baseline, instinct .issues/013 pickup)",
+    }];
+
+    /// Matches a known-dirty pin: violations present AND the exact digest
+    /// triple of a pinned row (the row's `suite` must match too — the
+    /// digests are suite-scoped, this is belt and braces).
+    #[must_use]
+    pub fn known_dirty_acknowledgement(&self, suite: &str) -> Option<&'static KnownDirtySlice> {
+        if self.violations.is_empty() {
+            return None;
+        }
+        Self::KNOWN_DIRTY.iter().find(|p| {
+            p.suite == suite
+                && p.test_digest == self.test_digest
+                && p.cal_digest == self.cal_digest
+                && p.pool_digest == self.pool_digest
+        })
     }
 
     /// The one-line TABLES/stdout record: counts, digests, and any
@@ -259,6 +325,7 @@ pub fn audit(
         missing_cal_labels: missing_cal,
         missing_pool_labels: missing_pool,
         violations,
+        acknowledged: false,
     }
 }
 
@@ -460,6 +527,55 @@ mod tests {
         let e = envelope(&[row("a", "x")]);
         assert_eq!(envelope_rows(&e).len(), 1);
         assert_eq!(envelope_rows(&Value::Null).len(), 0);
+    }
+
+    #[test]
+    fn known_dirty_pin_accepts_only_its_exact_triple() {
+        // A dirty slice whose triple matches the pin → acknowledged.
+        let test = envelope(&[row("a", "shared"), row("b", "t2")]);
+        let cal = envelope(&[row("a", "shared"), row("b", "c2")]);
+        let pool = envelope(&[row("a", "shared"), row("b", "p2")]);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        assert!(!f.is_clean());
+        assert!(f.known_dirty_acknowledgement("s").is_none()); // not pinned
+        assert_eq!(f.acknowledged, false);
+
+        // A clean slice never consults the pin table.
+        let clean_test = envelope(&[row("a", "t1"), row("b", "t2")]);
+        let clean_cal = envelope(&[row("a", "c1"), row("b", "c2")]);
+        let clean_pool = envelope(&[row("a", "p1"), row("b", "p2")]);
+        let fc = audit_envelopes(
+            SliceFacts::KNOWN_DIRTY[0].suite,
+            &labels(),
+            &clean_test,
+            &clean_cal,
+            &clean_pool,
+            2,
+            &label_of,
+        );
+        assert!(fc.is_clean());
+        assert!(fc.known_dirty_acknowledgement(SliceFacts::KNOWN_DIRTY[0].suite).is_none());
+    }
+
+    #[test]
+    fn every_known_dirty_pin_is_well_formed() {
+        // Membership discipline: every pin names a real suite, carries
+        // complete digest triples, and its reason states the removal
+        // condition. A pin missing any of these is a loophole wearing a
+        // pin (the reviewer's stale-acknowledgement property: a repair
+        // moves the triple, the pin goes inert, and this table is where
+        // the removal is performed).
+        for p in SliceFacts::KNOWN_DIRTY {
+            assert!(!p.suite.is_empty());
+            assert!(p.test_digest.starts_with("fnv1a64-"));
+            assert!(p.cal_digest.starts_with("fnv1a64-"));
+            assert!(p.pool_digest.starts_with("fnv1a64-"));
+            assert!(p.reason.contains("removal") || p.reason.contains("re-baseline") || p.reason.contains("owner"),
+                "pin for {} must state its removal condition", p.suite);
+            // Pins are unique per suite (one accepted dirty state each).
+            let dups = SliceFacts::KNOWN_DIRTY.iter().filter(|q| q.suite == p.suite).count();
+            assert_eq!(dups, 1, "duplicate pins for suite {}", p.suite);
+        }
     }
 
     #[test]

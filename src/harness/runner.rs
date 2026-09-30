@@ -5209,7 +5209,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     // on any overlap or an unrepresentative test sample; the slice digests
     // ride into results.json either way so a board diff can see "same
     // pool?" mechanically (the axis the 076 publish sailed through on).
-    let slices = super::slice_guard::audit_envelopes(
+    let mut slices = super::slice_guard::audit_envelopes(
         spec.name,
         &labels,
         &eval_split.front,
@@ -5219,11 +5219,31 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         &|row| train_row_label(spec.name, row),
     );
     if !slices.is_clean() {
-        return Err(format!(
-            "suite {}: slice-integrity refusal — {}",
-            spec.name,
-            slices.violations.join("; ")
-        ));
+        // Issue 058 (verdict route 1): a frozen pool whose published
+        // records were measured on its dirty bytes is accepted UNDER ITS
+        // EXACT membership pin — same triple = same bytes, so the pin can
+        // never admit a different defect; a repair or re-pull moves the
+        // triple and the refusal returns until the pin is deleted in the
+        // same change. The acceptance is loud at the run site and recorded
+        // in results.json (`acknowledged`).
+        match slices.known_dirty_acknowledgement(spec.name) {
+            Some(pin) => {
+                eprintln!(
+                    "    ⛔ KNOWN-DIRTY SLICE (pinned) — proceeding under acknowledgement:\n    {}\n    pin reason: {}",
+                    slices.summary_line(),
+                    pin.reason
+                );
+                slices.acknowledged = true;
+            }
+            None => {
+                return Err(format!(
+                    "suite {}: slice-integrity refusal — {}; slice state: {}",
+                    spec.name,
+                    slices.violations.join("; "),
+                    slices.summary_line()
+                ));
+            }
+        }
     }
 
     Ok(Prepared {
