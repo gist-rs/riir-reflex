@@ -4166,8 +4166,11 @@ fn laya_gpu_preramp_enabled() -> bool {
 }
 
 /// The wire form of one suite case's questions, shared by the timed loop
-/// and the pre-ramp warmup (identical construction, one home).
-fn case_questions(case: &SuiteCase) -> Vec<(String, Value)> {
+/// and the pre-ramp warmup (identical construction, one home). `pub` for
+/// ONE external consumer: riir-instinct's arena encoder arm (instinct
+/// issue 014 C1) renders the identical question wire for its encode —
+/// the law stays at this one home rather than a law copy that can drift.
+pub fn case_questions(case: &SuiteCase) -> Vec<(String, Value)> {
     let mut questions: Vec<(String, Value)> = Vec::with_capacity(case.questions.len());
     for q in &case.questions {
         let mut def = serde_json::Map::new();
