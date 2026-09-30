@@ -1429,6 +1429,26 @@ fn nb_doc_sets(train: &[TrainDoc], labels: &[String], extra_nb: &[TrainDoc]) -> 
         .collect()
 }
 
+/// The seat-side [`nb_doc_sets`] wrapper: `None` when the config does not
+/// arm the count tables OR the `nb_scope` feature is compiled out (the
+/// seat's extended build must compile at every feature posture).
+#[allow(unused_variables)]
+fn nb_sets_for(
+    nb_scale: f64,
+    train: &[TrainDoc],
+    labels: &[String],
+    extra: &[TrainDoc],
+) -> Option<Vec<Vec<String>>> {
+    #[cfg(feature = "nb_scope")]
+    {
+        (nb_scale > 0.0).then(|| nb_doc_sets(train, labels, extra))
+    }
+    #[cfg(not(feature = "nb_scope"))]
+    {
+        None
+    }
+}
+
 /// [`build_engine`] plus issue 038's count-table corpus: when the config
 /// arms `nb_scale`, each label's tables read EVERY pool doc of that label
 /// (uncapped — table scoring cost is independent of how many docs built
@@ -1499,6 +1519,59 @@ fn specs_from_pool(
         specs.push(spec);
     }
     (specs, fallback_labels)
+}
+
+/// Per-label specs for a CORPUS-EXTENDED build (Plan 426 T5's synth law,
+/// extracted from corpus_ab's arm B so the seat serves the same
+/// construction it measured): the gold pool capped, then `extra` beyond
+/// the cap per label (gold first, synth after — the drafter corpus order
+/// the V5 read measured); the count-table sets read train ∪ extra
+/// uncapped ([`nb_doc_sets`]). A label starved of BOTH falls back to its
+/// own label text (the Issue-039 disclosure). Returns (specs, fallback
+/// labels, extra docs actually used).
+pub(crate) fn specs_corpus_extended(
+    train: &[TrainDoc],
+    extra: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+    extra_cap: usize,
+    nb_sets: Option<&[Vec<String>]>,
+) -> (Vec<ExpertSpec>, Vec<String>, usize) {
+    let mut specs: Vec<ExpertSpec> = Vec::with_capacity(labels.len());
+    let mut fallback_labels = Vec::new();
+    let mut extra_used = 0usize;
+    for (idx, label) in labels.iter().enumerate() {
+        #[cfg(not(feature = "nb_scope"))]
+        let _ = idx;
+        let mut docs: Vec<String> = train
+            .iter()
+            .filter(|d| d.label == *label)
+            .map(|d| d.text.clone())
+            .take(cap_per_label)
+            .collect();
+        for d in extra
+            .iter()
+            .filter(|d| d.label == *label)
+            .take(extra_cap)
+        {
+            docs.push(d.text.clone());
+            extra_used += 1;
+        }
+        if docs.is_empty() {
+            fallback_labels.push(label.clone());
+            docs.push(label.clone());
+        }
+        #[allow(unused_mut)]
+        let mut spec = ExpertSpec::new(label.as_str(), &docs);
+        #[cfg(feature = "nb_scope")]
+        if let Some(sets) = nb_sets {
+            spec = spec.with_nb_docs(sets[idx].clone());
+        }
+        #[cfg(not(feature = "nb_scope"))]
+        let _ = &mut spec;
+        specs.push(spec);
+    }
+    (specs, fallback_labels, extra_used)
 }
 
 /// [`build_engine_with`] plus the option-conditioned events (issue 038
@@ -5067,6 +5140,29 @@ pub mod seat {
         /// authored fixtures with programmatic gold, and its published row
         /// must disclose the posture (never render as a dataset row).
         pub synthetic: bool,
+        /// The seated synth corpus (Plan 426 T5's V5-PASS lever, seated at
+        /// Plan 426 T6): blake3-verified at [`prepare_seat_with_synth`],
+        /// in-universe filtered, applied at [`build_seat_engine`] BUILD time
+        /// — the posture ([`fit_posture`]) stays gold-pool-fit, so the
+        /// corpus is the only difference from the plain seat (the V5
+        /// construction). `None` = byte-identical to the pre-overlay seat.
+        pub synth: Option<SynthSeatCorpus>,
+    }
+
+    /// A verified synth corpus seated on a suite: the sidecar-checked rows
+    /// (integrity lives in [`load_synth_corpus`]), in-universe filtered
+    /// (out-of-universe rows are dropped COUNTED, never silent), plus the
+    /// provenance a served receipt must disclose.
+    pub struct SynthSeatCorpus {
+        pub docs: Vec<TrainDoc>,
+        pub extra_cap: usize,
+        /// The artifact path + its sidecar-verified BLAKE3 — the corpus
+        /// identity (Issue 057's axis): a seat whose corpus differs must be
+        /// able to SAY so.
+        pub path: String,
+        pub digest_hex: String,
+        pub rows_total: usize,
+        pub rows_dropped: usize,
     }
 
     /// Prepare a suite by name. The six MODELESS harness families +
@@ -5104,7 +5200,52 @@ pub mod seat {
             labels: p.labels,
             pool_rows: p.pool_rows,
             synthetic,
+            synth: None,
         })
+    }
+
+    /// [`prepare_seat`] with the suite's synth corpus seated (Plan 426
+    /// T6's serve posture): the artifact is blake3-verified + its suite
+    /// header checked against the seat's name (a mismatch is a loud
+    /// refusal — a corpus is never silently swapped across suites), and
+    /// rows outside the engine's label universe are dropped COUNTED.
+    pub fn prepare_seat_with_synth(
+        name: &str,
+        dir: &Path,
+        synth_path: &Path,
+        extra_cap: usize,
+    ) -> Result<Seat, String> {
+        let mut seat = prepare_seat(name, dir)?;
+        let (meta, docs, digest_hex) = load_synth_corpus(synth_path)?;
+        if meta.suite != name {
+            return Err(format!(
+                "synth corpus {} carries suite {:?}, not {name:?} — refusing the \\\n                 cross-suite seat",
+                synth_path.display(),
+                meta.suite
+            ));
+        }
+        let rows_total = docs.len();
+        let docs: Vec<TrainDoc> = docs
+            .into_iter()
+            .filter(|d| seat.labels.iter().any(|l| l == &d.label))
+            .collect();
+        let rows_dropped = rows_total - docs.len();
+        if rows_dropped > 0 {
+            eprintln!(
+                "  [seat-synth {name}] {} synth row(s) outside the engine's {}-label \\\n                 universe — dropped (counted, never silent)",
+                rows_dropped,
+                seat.labels.len()
+            );
+        }
+        seat.synth = Some(SynthSeatCorpus {
+            docs,
+            extra_cap,
+            path: synth_path.display().to_string(),
+            digest_hex,
+            rows_total,
+            rows_dropped,
+        });
+        Ok(seat)
     }
 
     /// Posture-selection knobs (the deployed registry posture: selections
@@ -5235,6 +5376,14 @@ pub mod seat {
     /// Build the suite's engine at a seat posture (the caller owns the
     /// config; [`fit_posture`] produced it). Returns the engine + the
     /// self-doc fallback labels (the Issue-039 disclosure).
+    ///
+    /// A seated synth corpus ([`Self::prepare_seat_with_synth`]) extends
+    /// the build — gold cap first, synth beyond it, in BOTH the drafter
+    /// corpus and the count tables (the V5 arm-B construction, one body
+    /// with the corpus-ab lane via [`specs_corpus_extended`]). An armed
+    /// option-conditioned posture refuses: the (qid, option) tables are
+    /// fit from gold events the synth rows do not carry, so an extended
+    /// build cannot honestly arm them (the corpus-ab lane's law).
     pub fn build_seat_engine<const N: usize>(
         name: &str,
         s: &Seat,
@@ -5246,6 +5395,11 @@ pub mod seat {
         // harness feeds, filtered to the seat's own corpus pool.
         #[cfg(feature = "option_cond")]
         if cfg.oc_scale > 0.0 {
+            if s.synth.is_some() {
+                return Err(format!(
+                    "seat-synth {name}: the posture arms the option-conditioned tables — \\\n                     the +synth corpus cannot carry them; refuse rather than mis-build"
+                ));
+            }
             let events = super::oc_events_for(&s.pool_rows, &s.train);
             return super::build_engine_oc_with::<N>(
                 name,
@@ -5259,6 +5413,22 @@ pub mod seat {
         }
         #[cfg(not(feature = "option_cond"))]
         let _ = name;
+        if let Some(synth) = &s.synth {
+            let nb_sets =
+                super::nb_sets_for(f64::from(cfg.nb_scale), &s.train, &s.labels, &synth.docs);
+            let (specs, fallbacks, used) = super::specs_corpus_extended(
+                &s.train,
+                &synth.docs,
+                &s.labels,
+                cap,
+                synth.extra_cap,
+                nb_sets.as_deref(),
+            );
+            let _ = used;
+            return DecisionEngine::<N, EMBED_DIM>::build_specs(specs, cfg)
+                .map(|e| (e, fallbacks))
+                .map_err(|e| format!("engine build ({name} +synth): {e}"));
+        }
         super::build_engine::<N>(name, &s.train, &s.labels, cap, cfg)
     }
 

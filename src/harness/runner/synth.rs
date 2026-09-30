@@ -701,8 +701,12 @@ fn write_artifact(
 /// validation + the sidecar digest check (a corpus whose bytes do not
 /// match its seal is refused, never loaded). Label semantics (membership
 /// in an engine universe) are the CONSUMER's check — the loader owns
-/// integrity only.
-pub fn load_synth_corpus(path: &Path) -> Result<(SynthArtifactMeta, Vec<TrainDoc>), String> {
+/// integrity only. Returns (meta, docs, the sidecar-verified digest hex)
+/// — the digest rides the same read that verified it (no second read, no
+/// TOCTOU window between the check and the identity).
+pub fn load_synth_corpus(
+    path: &Path,
+) -> Result<(SynthArtifactMeta, Vec<TrainDoc>, String), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("read {}: {e}", path.display()))?;
     let sidecar = std::path::PathBuf::from(format!("{}.blake3", path.display()));
     let expect = std::fs::read_to_string(&sidecar).map_err(|e| {
@@ -723,7 +727,8 @@ pub fn load_synth_corpus(path: &Path) -> Result<(SynthArtifactMeta, Vec<TrainDoc
         ));
     }
     let text =
-        String::from_utf8(bytes).map_err(|e| format!("{}: not utf-8: {e}", path.display()))?;
+        String::from_utf8(bytes.clone())
+            .map_err(|e| format!("{}: not utf-8: {e}", path.display()))?;
     let mut lines = text.lines();
     let header_line = lines
         .next()
@@ -785,7 +790,7 @@ pub fn load_synth_corpus(path: &Path) -> Result<(SynthArtifactMeta, Vec<TrainDoc
             docs.len()
         ));
     }
-    Ok((meta, docs))
+    Ok((meta, docs, got))
 }
 
 // ── the run entries ─────────────────────────────────────────────────────
@@ -1382,7 +1387,7 @@ mod tests {
         };
         let (path, _hex) =
             write_artifact(&dir, "fixture", &meta, &per_label, &accepted).expect("write");
-        let (loaded_meta, docs) = load_synth_corpus(&path).expect("load");
+        let (loaded_meta, docs, _digest) = load_synth_corpus(&path).expect("load");
         assert_eq!(loaded_meta.suite, "fixture");
         assert_eq!(
             docs,

@@ -134,35 +134,10 @@ fn arm_specs(
     extra_cap: usize,
     nb_sets: Option<&[Vec<String>]>,
 ) -> (Vec<ExpertSpec>, Vec<String>, usize) {
-    let mut specs = Vec::with_capacity(labels.len());
-    let mut fallback_labels = Vec::new();
-    let mut extra_used = 0usize;
-    for (idx, label) in labels.iter().enumerate() {
-        let mut docs: Vec<String> = train
-            .iter()
-            .filter(|d| d.label == *label)
-            .map(|d| d.text.clone())
-            .take(cap)
-            .collect();
-        for d in extra.iter().filter(|d| d.label == *label).take(extra_cap) {
-            docs.push(d.text.clone());
-            extra_used += 1;
-        }
-        if docs.is_empty() {
-            fallback_labels.push(label.clone());
-            docs.push(label.clone());
-        }
-        #[allow(unused_mut)]
-        let mut spec = ExpertSpec::new(label.as_str(), &docs);
-        #[cfg(feature = "nb_scope")]
-        if let Some(sets) = nb_sets {
-            spec = spec.with_nb_docs(sets[idx].clone());
-        }
-        #[cfg(not(feature = "nb_scope"))]
-        let _ = (idx, &nb_sets);
-        specs.push(spec);
-    }
-    (specs, fallback_labels, extra_used)
+    // Delegated to the seat's shared constructor (Plan 426 T6): the seat
+    // and this lane must not be able to drift apart — the V5 measurement
+    // and the served seat are the SAME build by construction now.
+    super::specs_corpus_extended(train, extra, labels, cap, extra_cap, nb_sets)
 }
 
 /// Run the corpus A/B for the synth artifact's suite. `opts.suites` (when
@@ -173,7 +148,7 @@ pub fn run_corpus_ab(
     synth_path: &Path,
     extra_cap: usize,
 ) -> Result<CorpusAbOutput, String> {
-    let (header, docs) = load_synth_corpus(synth_path)?;
+    let (header, docs, _digest) = load_synth_corpus(synth_path)?;
     let Some(spec) = SUITES.iter().find(|s| s.name == header.suite) else {
         return Err(format!(
             "artifact suite {:?} is not a registered suite",
