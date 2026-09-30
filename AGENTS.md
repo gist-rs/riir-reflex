@@ -401,6 +401,29 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -
   --nb-select --oc-select --ridge-select --gate-fit-selection --gate-distance-only \
   --out .benchmarks/066_gate_rate_axis_levers/both
 
+# Issue 055 CLOSED (Bench 092 — the distributional-layer PoC, the
+# pre-registered null path FIRED): `mc_ensemble` (opt-in, `src/mc_ensemble.rs`)
+# + the harness arm `--mc-ab` — seeded-MC bagging over the deterministic
+# engine (katgpt-core `perturbation_ensemble`; sample 0 = the unperturbed
+# served bytes). u_pair loses to the RAW readout confidence 8/8 (mean −0.091
+# AUC), LCB-λ null everywhere ⇒ the recorded negative — the feature stays
+# opt-in (McConfig::disabled() default, byte-identical unarmed).
+# Issue 056 CLOSED (Benches 093→095): the calibrated-confidence ranking
+# regression the PoC's baseline columns exposed — root-caused to a
+# Platt-solver defect substrate-side (katgpt-rs Issues 909/910/911: the
+# narrow-window degenerate stall + f32 tie-collapse, the Lin–Lin–Weng 2007
+# solve with base-rate start + Armijo backtracking, the resolution-aware w
+# floor + zero-tolerance AUC guard; real cal windows committed as replay
+# fixtures). `--gate-fit-calibrated` PROMOTED to the DEFAULT posture
+# (2026-09-30, owner-delegated verdict — "a units bug, not a matter of
+# taste"): the gate's score-axis threshold is fit on the CALIBRATED scale
+# it applies, at the harness CLI / the seat / the e0 lane alike — at a
+# monotone fit the percentile-coherent threshold reproduces the raw gate's
+# fitted target exactly (Bench 095: the AUC regression gone 15/15,
+# byte-for-byte on every suite; forced accuracy unchanged everywhere).
+# `--no-gate-fit-calibrated` restores the old fit-on-raw posture for
+# measurement.
+
 # The cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS, an EXAMPLE —
 # never in the default run): THEIR FP16 CoreML model on CPU_AND_NE via a
 # coremltools subprocess (scripts/cua_s1_lane.py, their preprocessing.py
