@@ -230,25 +230,32 @@ fn corpus_ab_suite<const N: usize>(
 
     // The seat posture (the anchor-void fix, 61d4a94d's filed repair): arm A
     // is the DEPLOYED build — the same `fit_posture` prologue the seat and
-    // `run_modelless` use, selected knobs included (massive: nb_scale 4.0 +
-    // the fitted fused-gate thresholds) — never `EngineConfig::default()`.
-    // The default posture measured gold 0.6100 against the published 0.7800
-    // anchor and voided the lane's own A/B (bench 089). Both arms share ONE
-    // fitted posture: the A/B varies ONLY the corpus content.
+    // `run_modelless` use at the PUBLISHED posture (the four select arms on,
+    // registry cap candidates; they arm only where the cal slice clears the
+    // bar and are byte-identical to off elsewhere — massive arms nb_scale
+    // 4.0 + the fitted fused-gate thresholds). NOT the invocation's flags:
+    // the A/B's contract is the published row, and a bare `--corpus-ab`
+    // invocation would otherwise fit the default posture and read 0.6100
+    // against the 0.7800 anchor (bench 089's void, reproduced here before
+    // the knob pin). Both arms share ONE fitted posture: the A/B varies
+    // ONLY the corpus content.
     let seat = seat::prepare_seat(spec.name, &opts.datasets_dir)?;
     let posture = seat::fit_posture::<N>(
         spec.name,
         &seat,
         &seat::PostureKnobs {
-            head_select: opts.head_select,
-            nb_select: opts.nb_select,
+            head_select: true,
+            nb_select: true,
             #[cfg(feature = "option_cond")]
-            oc_select: opts.oc_select,
+            oc_select: true,
             #[cfg(feature = "nb_ridge")]
-            ridge_select: opts.ridge_select,
-            genome_select: opts.genome_select,
-            genome_accept_margin: opts.genome_accept_margin,
-            cal_select_caps: opts.cal_select_caps.clone(),
+            ridge_select: true,
+            genome_select: false,
+            genome_accept_margin: 0.0,
+            // The published-posture convention (instinct server.rs:457): the
+            // cap ladder is OFF — the registry cap holds. The seat's cal
+            // face is the fitted fused gate, never a cap selection.
+            cal_select_caps: vec![],
         },
     )?;
     if posture.cfg.oc_scale > 0.0 {
@@ -340,8 +347,8 @@ fn corpus_ab_suite<const N: usize>(
     let aliveness = if spec.name == "massive_intent_en" {
         if (acc_a - PUBLISHED_MASSIVE_A0).abs() <= 1e-6 {
             format!(
-                "arm A reproduces the published {PUBLISHED_MASSIVE_A0} exactly (the seat \\
-                 posture, selected knobs + fitted gate) — the instrument is alive"
+                "arm A reproduces the published {PUBLISHED_MASSIVE_A0} exactly — the \
+                 instrument is alive (the seat posture, selected knobs + fitted gate)"
             )
         } else {
             format!(
