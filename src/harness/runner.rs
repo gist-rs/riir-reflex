@@ -735,6 +735,17 @@ pub struct LaneResult {
     /// silent). Laya lanes never carry one (they read no train rows).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub corpus_fallbacks: Vec<String>,
+    /// Issue 057: the corpus identity of the run that produced this lane's
+    /// numbers — the pool the timed engine actually consumed (capped
+    /// drafter docs per label, self-doc fallback included, plus the
+    /// uncapped count-table sets when the posture arms them). This is the
+    /// axis `corpus_cap` cannot see (the typed 800→1200 lift left the cap
+    /// echo byte-identical); the publish layer's LANE-CARRY compares it
+    /// per cell to decide whether incumbent timing still describes this
+    /// lane. None on the laya lanes (they read no train rows). See
+    /// [`corpus_digest`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub corpus_digest: Option<String>,
 }
 
 /// One cal-slice cap-selection candidate reading (Issue 013 lever-1
@@ -1176,6 +1187,56 @@ fn cases_digest(name: &str, cases: &[crate::harness::suites::SuiteCase]) -> Stri
     format!("fnv1a64-{h:016x}")
 }
 
+/// The corpus identity of one modelless lane run (Issue 057): what the
+/// timed engine actually consumed — the capped drafter docs per label
+/// ([`per_label_corpus_docs`], self-doc fallback included) plus, when the
+/// posture arms the count tables, the uncapped per-label table sets. This
+/// is the axis the corpus-cap echo could not see (the typed 800→1200 lift
+/// left `corpus_cap` byte-identical while ~50%'ing the tables): a pool or
+/// cap change that moves ANY consumed doc moves this digest.
+///
+/// FNV-1a 64 on purpose — same law as [`cases_digest`]: `pub mod harness`
+/// is ungated, so blake3 is not in the tree at `--no-default-features`;
+/// this is an identity tag for pairing, not a security hash. Deterministic
+/// across hosts/features/toolchains: the pool construction is
+/// manifest-pinned and the fold order is the engine's own label/doc order.
+fn corpus_digest(
+    suite: &str,
+    labels: &[String],
+    drafter_docs: &[Vec<String>],
+    nb_sets: Option<&[Vec<String>]>,
+) -> String {
+    fn fold(h: &mut u64, bytes: &[u8]) {
+        for &b in bytes {
+            *h ^= u64::from(b);
+            *h = h.wrapping_mul(0x0010_0000_01b3);
+        }
+    }
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    // Shape tag: a future change to WHAT this digest covers must not
+    // silently alias an older shape's values.
+    fold(&mut h, b"corpus-v1");
+    fold(&mut h, suite.as_bytes());
+    fold(&mut h, &[0]);
+    for (idx, label) in labels.iter().enumerate() {
+        fold(&mut h, label.as_bytes());
+        fold(&mut h, &[1]);
+        for t in &drafter_docs[idx] {
+            fold(&mut h, t.as_bytes());
+            fold(&mut h, &[2]);
+        }
+        fold(&mut h, &[3]);
+        if let Some(sets) = nb_sets {
+            for t in &sets[idx] {
+                fold(&mut h, t.as_bytes());
+                fold(&mut h, &[4]);
+            }
+        }
+        fold(&mut h, &[5]);
+    }
+    format!("fnv1a64-{h:016x}")
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct SuiteResult {
     pub name: String,
@@ -1474,6 +1535,36 @@ fn build_engine_with<const N: usize>(
         .map_err(|e| format!("engine build ({suite}): {e}"))
 }
 
+/// The timed drafter corpus, per label (Issue 057): exactly the docs
+/// [`specs_from_pool`] hands each expert — the pool's label docs, CAPPED,
+/// with the Issue-039 self-doc fallback for a starved label (the fallback
+/// labels are returned so the caller decides: disclose loud on main builds,
+/// ignore on selection slices where starvation is by construction). One
+/// home for the construction so the lane's `corpus_digest` provably hashes
+/// what the engine consumes, never a parallel reading of it.
+fn per_label_corpus_docs(
+    train: &[TrainDoc],
+    labels: &[String],
+    cap_per_label: usize,
+) -> (Vec<Vec<String>>, Vec<String>) {
+    let mut per_label: Vec<Vec<String>> = Vec::with_capacity(labels.len());
+    let mut fallback_labels: Vec<String> = Vec::new();
+    for label in labels {
+        let mut docs: Vec<String> = train
+            .iter()
+            .filter(|d| d.label == *label)
+            .map(|d| d.text.clone())
+            .take(cap_per_label)
+            .collect();
+        if docs.is_empty() {
+            fallback_labels.push(label.clone());
+            docs.push(label.clone());
+        }
+        per_label.push(docs);
+    }
+    (per_label, fallback_labels)
+}
+
 /// The shared per-label spec construction (domain corpora + the wider
 /// count-table sets) + the Issue-039 self-doc fallback disclosure. One body
 /// for both the plain and the option-conditioned build paths.
@@ -1483,33 +1574,13 @@ fn specs_from_pool(
     cap_per_label: usize,
     nb_sets: Option<Vec<Vec<String>>>,
 ) -> (Vec<ExpertSpec>, Vec<String>) {
+    let (drafter_docs, fallback_labels) = per_label_corpus_docs(train, labels, cap_per_label);
     let mut specs: Vec<ExpertSpec> = Vec::with_capacity(labels.len());
-    // Issue 039 T3: labels whose corpus is ONLY the self-doc fallback — the
-    // build-time signal that the fetched train rows do not cover the label
-    // universe (a truncated/label-sorted pull) or that a sub-pool build
-    // starved a label. The caller decides: disclose loud (main builds) or
-    // ignore (selection slices, where the starvation is by construction).
-    let mut fallback_labels: Vec<String> = Vec::new();
     for (idx, label) in labels.iter().enumerate() {
         #[cfg(not(feature = "nb_scope"))]
         let _ = (idx, &nb_sets);
-        let mut docs: Vec<String> = train
-            .iter()
-            .filter(|d| d.label == *label)
-            .map(|d| d.text.clone())
-            .take(cap_per_label)
-            .collect();
-        if docs.is_empty() {
-            // Self-doc fallback: the label text itself is the corpus (a
-            // corpus-is-the-model engine always has SOMETHING to score
-            // against; without this, out-of-train options would be
-            // unscorable). Reported in the run meta via corpus_protocol, and
-            // now ALSO surfaced by name to the caller (the Issue-039 guard).
-            fallback_labels.push(label.clone());
-            docs.push(label.clone());
-        }
         #[allow(unused_mut)]
-        let mut spec = ExpertSpec::new(label.as_str(), &docs);
+        let mut spec = ExpertSpec::new(label.as_str(), &drafter_docs[idx]);
         #[cfg(feature = "nb_scope")]
         if let Some(sets) = nb_sets.as_ref() {
             spec = spec.with_nb_docs(sets[idx].clone());
@@ -3246,6 +3317,20 @@ fn run_modelless<const N: usize>(
         inp.cap_source_base
     };
 
+    // Issue 057: the digest covers exactly the timed engine's corpus — the
+    // capped drafter docs + the count-table sets when the final posture
+    // arms them (`fitted_cfg_for_transductive` is the same cfg every
+    // `build_at_posture` call ran; the timed engines carry no extra_nb).
+    let corpus_digest = {
+        let (drafter_docs, _) = per_label_corpus_docs(train, labels, effective_cap);
+        let nb_sets = nb_sets_for(
+            f64::from(fitted_cfg_for_transductive.nb_scale),
+            train,
+            labels,
+            &[],
+        );
+        corpus_digest(spec.name, labels, &drafter_docs, nb_sets.as_deref())
+    };
     Ok((
         LaneResult {
         lane: "modelless",
@@ -3283,6 +3368,7 @@ fn run_modelless<const N: usize>(
             source: cap_source.to_string(),
             selection: selection.map(|s| s.rows),
         }),
+        corpus_digest: Some(corpus_digest),
         head_selection: head_selected,
         nb_selection: nb_selected,
         #[cfg(feature = "option_cond")]
@@ -3899,6 +3985,7 @@ fn assemble_laya_lane_result(
         mc_ab: None,
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
+        corpus_digest: None, // laya reads no train rows (Issue 057)
     }
 }
 
@@ -7839,5 +7926,126 @@ mod clm_request_tests {
         };
         let req = clm_request(&case(json!(1), vec![q])).unwrap();
         assert!(req.questions[0].options.is_empty());
+    }
+}
+
+#[cfg(test)]
+mod corpus_digest_tests {
+    //! Issue 057 — the corpus-identity digest: the consumed-corpus law
+    //! (capped drafter docs + fallback + optional nb sets), determinism,
+    //! and sensitivity to every axis the corpus-cap echo cannot see (the
+    //! typed 800→1200 lift class). Pure over its inputs — no dataset dir.
+
+    use super::{corpus_digest, per_label_corpus_docs, TrainDoc};
+
+    fn doc(label: &str, text: &str) -> TrainDoc {
+        TrainDoc {
+            label: label.to_string(),
+            text: text.to_string(),
+        }
+    }
+
+    fn pool() -> Vec<TrainDoc> {
+        vec![
+            doc("a", "alpha-1"),
+            doc("a", "alpha-2"),
+            doc("a", "alpha-3"),
+            doc("b", "beta-1"),
+        ]
+    }
+
+    #[test]
+    fn digest_is_deterministic() {
+        let labels = vec!["a".to_string(), "b".to_string()];
+        let (drafter, _) = per_label_corpus_docs(&pool(), &labels, 2);
+        let d1 = corpus_digest("typed_decisions", &labels, &drafter, None);
+        let d2 = corpus_digest("typed_decisions", &labels, &drafter, None);
+        assert_eq!(d1, d2);
+        assert!(d1.starts_with("fnv1a64-"));
+    }
+
+    /// The 057 specimen axis: pool growth under an unchanged cap moves the
+    /// digest (the pre-lift under-filled pool vs the post-lift filled one).
+    #[test]
+    fn pool_growth_changes_the_digest_even_at_the_same_cap() {
+        let labels = vec!["a".to_string(), "b".to_string()];
+        let (small, _) = per_label_corpus_docs(&pool(), &labels, 3);
+        let mut grown = pool();
+        grown.push(doc("b", "beta-2"));
+        let (large, _) = per_label_corpus_docs(&grown, &labels, 3);
+        assert_ne!(
+            corpus_digest("s", &labels, &small, None),
+            corpus_digest("s", &labels, &large, None)
+        );
+    }
+
+    /// The cap is part of what the engine consumed: truncating differently
+    /// is the same signal as changing the pool (the verdict's "cap
+    /// truncated differently and pool content changed" are one axis).
+    #[test]
+    fn cap_change_changes_the_digest() {
+        let labels = vec!["a".to_string(), "b".to_string()];
+        let (capped2, _) = per_label_corpus_docs(&pool(), &labels, 2);
+        let (capped3, _) = per_label_corpus_docs(&pool(), &labels, 3);
+        assert_ne!(
+            corpus_digest("s", &labels, &capped2, None),
+            corpus_digest("s", &labels, &capped3, None)
+        );
+    }
+
+    /// The nb posture is part of the timed corpus: arming the count tables
+    /// (which read the pool UNCAPPED) moves the digest even when the
+    /// drafter docs are byte-identical.
+    #[test]
+    fn nb_arm_changes_the_digest() {
+        let labels = vec!["a".to_string(), "b".to_string()];
+        let (drafter, _) = per_label_corpus_docs(&pool(), &labels, 2);
+        let nb = vec![
+            vec!["alpha-1".to_string(), "alpha-2".to_string(), "alpha-3".to_string()],
+            vec!["beta-1".to_string()],
+        ];
+        assert_ne!(
+            corpus_digest("s", &labels, &drafter, None),
+            corpus_digest("s", &labels, &drafter, Some(&nb))
+        );
+    }
+
+    /// Different corpus content (same shape) moves the digest; a different
+    /// suite name does too (two suites never share an identity).
+    #[test]
+    fn content_and_suite_name_change_the_digest() {
+        let labels = vec!["a".to_string(), "b".to_string()];
+        let (d1, _) = per_label_corpus_docs(&pool(), &labels, 3);
+        let mut swapped = pool();
+        swapped[0] = doc("a", "ALPHA-1");
+        let (d2, _) = per_label_corpus_docs(&swapped, &labels, 3);
+        assert_ne!(
+            corpus_digest("s", &labels, &d1, None),
+            corpus_digest("s", &labels, &d2, None)
+        );
+        assert_ne!(
+            corpus_digest("typed_decisions", &labels, &d1, None),
+            corpus_digest("ag_news", &labels, &d1, None)
+        );
+    }
+
+    /// The self-doc fallback is part of the consumed corpus: a starved
+    /// label's corpus is the label text itself, and the fallback labels
+    /// come back named (the Issue-039 disclosure rides the same law).
+    #[test]
+    fn starved_label_falls_back_and_is_digested() {
+        let labels = vec!["a".to_string(), "ghost".to_string()];
+        let (drafter, fallbacks) = per_label_corpus_docs(&pool(), &labels, 2);
+        assert_eq!(fallbacks, vec!["ghost".to_string()]);
+        assert_eq!(drafter[1], vec!["ghost".to_string()]);
+        let d_with = corpus_digest("s", &labels, &drafter, None);
+        // The fallback text is load-bearing: a label renamed ghost→phantom
+        // (same empty pool) must move the digest.
+        let labels2 = vec!["a".to_string(), "phantom".to_string()];
+        let (drafter2, _) = per_label_corpus_docs(&pool(), &labels2, 2);
+        assert_ne!(
+            corpus_digest("s", &labels, &drafter, None),
+            corpus_digest("s", &labels2, &drafter2, None)
+        );
     }
 }
