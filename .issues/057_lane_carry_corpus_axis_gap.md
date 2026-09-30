@@ -1,6 +1,6 @@
 # Issue 057 — LANE_CARRY has no corpus-axis escape: a corpus change can never refresh published timing
 
-**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED `7e03117`** (riir-reflex); publisher half SPEC'D below for the reflex-site session (outside this session's writable workspace). The specimen is live on reflex.gist.rs today.
+**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED `7e03117`** (riir-reflex); **publisher half LANDED 2026-09-30 (reflex-site `6e06264`, tests 56/56 — the deferred-to-reflex-site row is DONE)**; remaining: the republish (new post-landing run + the ack). The specimen is live on reflex.gist.rs today.
 
 ## The specimen (measured, quotable both sides)
 
@@ -111,14 +111,25 @@ exemption fires on an unquotable update the cell keeps its own
       fallback digested + disclosed). lib 225/225; harness_units 33/0 +
       seat 5/0 + families 7/0; clippy `-D` clean at default AND
       `--no-default-features`.
-- [-] Publisher: the `apply_lane_carry` corpus-mismatch exemption + the
+- [x] Publisher: the `apply_lane_carry` corpus-mismatch exemption + the
       shared `carry_applies` predicate at BOTH call sites
       (`apply_lane_carry` + the `_latency_slots` publish wall) + per-cell
       stamping + self-test arms (including the wall-refuses-unquotable
       arm) + the one-time `PUBLISH_BENCH_CORPUS_RESET` ack with its
-      stale-ack refusal. **Deferred to the reflex-site session** — that
-      repo is outside this session's writable workspace; the full patch
-      spec is this issue's next section.
+      stale-ack refusal. **DONE 2026-09-30 (4090 session, reflex-site
+      `6e06264`) — the "outside this session's writable workspace" block
+      resolved: reflex-site is in the 4090 workspace.** The verdict's
+      folded shape landed verbatim: one shared predicate (same-source-run
+      / unfit-incumbent / corpus-mismatch, per-CELL digest compare);
+      the wall judges a corpus-mismatch slot instead of assuming it
+      carried (the wall-refuses-unquotable arm is `case_wall_judges_a_corpus_changed_slot`);
+      the per-cell digest rides json passthrough (reflex `7e03117` stamps
+      it — no synthesis needed; laya cells never carry one, skip-None by
+      construction); the ack refuses stale three ways (absent suite /
+      digest-less update / equal digest), sys.exit(1) inside
+      apply_lane_carry — after the merge, before anything is written.
+      Tests 56/56 (52 pre-existing green UNMODIFIED — adoption-stable —
+      + 4 new).
 - [-] Re-publish typed timing (0.764-class) from a NEW post-landing run
       on a fit box with the ack. **Deferred with the publisher half** —
       Bench 096's doc carries no digest; the reproducing run must be
