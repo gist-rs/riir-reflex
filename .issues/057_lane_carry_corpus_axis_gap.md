@@ -1,6 +1,6 @@
 # Issue 057 — LANE_CARRY has no corpus-axis escape: a corpus change can never refresh published timing
 
-**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED** (riir-reflex, this commit); publisher half SPEC'D below for the reflex-site session (outside this session's writable workspace). The specimen is live on reflex.gist.rs today.
+**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED `7e03117`** (riir-reflex); publisher half SPEC'D below for the reflex-site session (outside this session's writable workspace). The specimen is live on reflex.gist.rs today.
 
 ## The specimen (measured, quotable both sides)
 
@@ -96,7 +96,8 @@ exemption fires on an unquotable update the cell keeps its own
 - [x] Owner call on the amendment — **DECIDED** (verdict round 1 above;
       REVISE folded).
 - [x] Harness corpus digest per lane (the `cases_digest` pattern, per the
-      verdict's shape): `LaneResult.corpus_digest: Option<String>` —
+      verdict's shape): **LANDED at `7e03117`** — `LaneResult.corpus_digest:
+      Option<String>` —
       FNV-1a 64 (ungated-safe; blake3 is not in the tree at
       `--no-default-features`) over a shape tag, the suite name, and the
       consumed corpus per label (capped drafter docs, self-doc fallback
