@@ -69,11 +69,9 @@ against pool docs with their own text). 14/15 suites clean; sst5 refused until f
   the same law (`scripts/fetch_datasets.sh dedupe_train <suite>`, jq-path, idempotent,
   key-order-independent — planted-fixture proven incl. a flipped-key twin; skips LOUD without
   jq, the 4090 syncs data by copy from this box).
-- ⛔ **`.raw/datasets_t20k` carries the same sst5 dups and is LEFT FROZEN on purpose**: instinct
-  pins it (frozen re-baseline pool; its sst5 A1 seat gates replay frozen predictions). Deduping
-  it is an owner-gated re-baseline act — until then, reflex runs on t20k for sst5 REFUSE (the
-  pool is genuinely dirty; the refusal names it). The 4090's `.raw/datasets/sst5` needs the same
-  3-row sync before the next cross-host run (the 077 copy procedure).
+- ⛔ **`.raw/datasets_t20k` carries the same sst5 dups and is LEFT FROZEN by verdict (2026-09-30, claude reviewer round 1 — REVISE)**: its aggregate blake3 (`ebfb0317…`, 8544 rows) is a published pin in `.docs/02_protocols/dataset_manifest.md`, and every published t20k-era row (reflex Benches 052+; the instinct arena's frozen re-baseline rows) was measured on those exact bytes — changing bytes under the name IS a re-baseline, not a cleanup. Instead the gate accepts the exact dirty state under a membership pin: `SliceFacts::KNOWN_DIRTY` pins the (test, cal, pool) triple (`67fe9666…`/`d210e7c6…`/`cf933108…`, pool 8344); only that triple proceeds, loudly (`⛔ KNOWN-DIRTY SLICE` line + `acknowledged: true` in results.json), and any repair/re-pull moves the triple → the refusal returns until the pin is deleted in the same change. Verified: t20k sst5 proceeds under the ack (acc 0.2017 == the fixed canonical pool's reading — **the 3 duplicate rows are sub-measurable at the published posture**); the canonical dir runs clean with no ack; **riir-instinct serve_gates 17/17 green again** (my first gate commit had red'd their `enc_row_boots…` test through the sst5 seat on the dirty t20k pool — caught before their next run). The re-baseline decision (dedupe t20k + re-verify the published rows, or a deduped sibling pool) rides **instinct `.issues/013_owner_gate_pickup.md`**.
+  The 4090's `.raw/datasets/sst5` needs the same 3-row sync before the next cross-host run (the 077 copy
+  procedure) — its copy predates the fix.
 
 ## TL;DR
 
