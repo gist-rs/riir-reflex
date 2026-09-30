@@ -1,6 +1,79 @@
 # Issue 058 — the cal-selection ladder overfits the cal slice; dataset-suite accuracy collapsed at Bench 076/077 and no arm owns a floor
 
-**Status:** OPEN — evidence pinned, repair design owner-gated; repair directions (a)–(d) below.
+**Status:** (d) ROOT-CAUSED 2026-09-30 — the drop is a DATASETS-DIR move, not a ladder/head change (verdict below, A/B-confirmed both directions); slice-integrity gate LANDED (see §Slice assertions, landed). (a)/(b)/(c) + the re-run remain owner-gated.
+
+## VERDICT on (d) — root cause found, 2026-09-30 (A/B-confirmed, same binary, same flags, only `--datasets-dir` changed)
+
+The 076-era "the ladder now selects postures that calibrated better on the cal slice" mechanism
+story is **wrong-in-mechanism**: the primary driver is a silent **datasets-dir move**.
+
+- **Every run that produced the board's "before" cells read `.raw/datasets_t20k`** (the 09-26
+  full-pull re-baseline: `meta.datasets_dir` in 052/057/058/061/062/063/064/069/070/073/092–095).
+- **Bench 076/077 — and 096/097 after them — read the DEFAULT `.raw/datasets`** (the Sep 22 pull,
+  `TRAIN_CAP=4000` → 40 pages ≈ 4,000 train rows/suite): the first runs in the whole
+  038→076 lineage to drop the t20k dir. 074/075 (the plan003 thai lane) started the drift; the
+  076 republish made it the published board.
+- **Same binary, same published flags, three same-selection suites** (run this session):
+
+| suite | t20k pools | default pools | 076 published | old board |
+|---|---|---|---|---|
+| emotion (ridge@8) | **0.8850** | 0.7700 | 0.77 ✓ | 0.8850 ✓ exact |
+| massive_intent_en (nb@4) | **0.7800** | 0.4067 | 0.4067 ✓ | 0.7800 ✓ exact |
+| banking77 (nb@1) | **0.8420** | 0.4020 | 0.4020 ✓ | 0.8260 (−1.6 pt = code drift since 052, disclosed) |
+
+  The old numbers reproduce EXACTLY on t20k at HEAD; the new numbers reproduce EXACTLY on the
+  default dir at HEAD. Test pages are byte-identical between the two dirs (verified per suite,
+  blake3) — only the corpus side moved: **a 3–5× smaller train pool rebuilt every count table
+  and ridge head under the same nominal rung**, and the ladder re-rolled its cal selection on
+  the new cal front. No head-semantics change; nothing to revert in code.
+- **Why nobody saw it**: `meta.datasets_dir` records the path, but no run-time or publish-side
+  check compared pool identity across runs (the 076 record's own words about its 4090 twin:
+  "the eval-side digest checks never caught it"). The cal-overfit story in the 076 disclosure
+  describes a real but SECONDARY effect (the ladder genuinely re-picks on the smaller cal front);
+  the halving is corpus starvation.
+- **Canonicalization is owner-gated** (the instinct precedent: "the frozen Bench-005
+  re-baseline pool (datasets_t20k) — re-pointing it is a re-baseline decision, never a
+  cleanup"). Options for the owner: (i) re-run the board on t20k (the selection-history pool),
+  or (ii) re-baseline the published posture on the default dir (a full re-selection read).
+  Either way the posture now CARRIES its pool: the slice-integrity digests below make the next
+  silent dir move impossible to publish through.
+
+## Slice assertions, landed (the owner's "do assert the slices — we get it wrong 3rd times around
+slices already")
+
+Three incidents priced this: 023 (misaligned cal index), 039 T2 (positional pool cut), 076 (this
+issue — the silent dir move). The gate (`src/harness/slice_guard.rs`, ungated + pure, 12 unit
+tests) runs in `prepare()` for every dataset suite and:
+
+1. **Refuses the suite** on: cal∩test / pool∩test / pool∩cal exact-row overlap, and a test
+   sample that misses an engine label while the budget could have covered it (the Issue-039
+   non-representative-sample class).
+2. **Discloses** (never fails): cal/pool label starvation (the fallback guard's territory).
+3. **Records raw slice-identity digests + counts** (test/cal/pool) into results.json and the
+   TABLES.md header + the run log — the pool digest is the RAW (uncapped) identity, the axis the
+   per-lane consumed-corpus digest (057) is deliberately not (at a small cap a truncated pool
+   and a full one consume near-identical docs — exactly why the 076 publish sailed through).
+   A future dir move is now visible at RUN time ("pool 3800" vs "pool 15,800") and mechanical
+   at publish time (digest compare).
+
+**First-run yield — the gate fired on real data**: sst5's train pull carries exact duplicate
+rows — one cross-split (train idx 1139 = test idx 180, the row `"no. ."`) and two train-internal
+(`"too bad ."`, `"see it ."` — copies straddling the cal/pool split, i.e. cal cases scoring
+against pool docs with their own text). 14/15 suites clean; sst5 refused until fixed.
+
+## Data fixes landed with the gate
+
+- `.raw/datasets/sst5` train pages surgically de-duplicated (3 train-side rows dropped; the test
+  population untouched, n_test stays 600). sst5 re-ran green: pool 3797, acc 0.2017 (== the 076
+  cell — the 3 docs moved no accuracy; the digests moved as designed). The fetcher now enforces
+  the same law (`scripts/fetch_datasets.sh dedupe_train <suite>`, jq-path, idempotent,
+  key-order-independent — planted-fixture proven incl. a flipped-key twin; skips LOUD without
+  jq, the 4090 syncs data by copy from this box).
+- ⛔ **`.raw/datasets_t20k` carries the same sst5 dups and is LEFT FROZEN on purpose**: instinct
+  pins it (frozen re-baseline pool; its sst5 A1 seat gates replay frozen predictions). Deduping
+  it is an owner-gated re-baseline act — until then, reflex runs on t20k for sst5 REFUSE (the
+  pool is genuinely dirty; the refusal names it). The 4090's `.raw/datasets/sst5` needs the same
+  3-row sync before the next cross-host run (the 077 copy procedure).
 
 ## TL;DR
 
@@ -79,12 +152,14 @@ the same-selection suites are a stronger claim: **same posture, cal ≈ unchange
 
 ## Tasks
 
-- [ ] (d first) Pin the 072-era commit(s) that changed same-posture head behavior; classify revert-vs-intended
+- [-] (d first) Pin the 072-era commit(s) that changed same-posture head behavior; classify revert-vs-intended — **RESOLVED 2026-09-30: no code to revert; a datasets-dir move (t20k → default 4k pools), A/B-confirmed both directions; verdict + table above**
 - [ ] (a) Land the baseline-arm floor in the harness + publisher (loud disclosure on any below-floor publish)
 - [ ] (b) LCB-based selection behind a flag; A/B on the 8 dataset suites, both hosts, byte-identity gates
 - [ ] (c) k-fold cal-front probe (measurement-only) to price the cal→test gap per suite
-- [ ] Re-run the full 15-suite matrix at the repaired posture; reflex-vs-laya verdict re-derives from the board
+- [ ] Re-run the full 15-suite matrix at the repaired posture — **now carries the slice digests; the pool question (t20k vs default) is the owner-gated half**
 - [ ] reflex-site: refresh the stale FAQ sentence ("took several suites to or past the laya lanes") to describe the current board honestly
+- [x] Slice-integrity gate (overlaps + test coverage hard-refuse; slice digests in results/TABLES/run log) + the sst5 data fix + the fetcher dedupe law (2026-09-30)
+- [ ] Owner: canonicalize the board's datasets dir (t20k re-run vs default re-baseline) + decide the t20k sst5 dedupe (instinct pins that pool)
 
 ## Non-goals
 

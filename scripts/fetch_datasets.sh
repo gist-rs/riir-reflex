@@ -314,6 +314,57 @@ probe_size() {
     sleep "$SLEEP"
 }
 
+# dedupe_train <suite> — the Issue-058 slice-integrity law at the fetch
+# plane: a train pull is de-duplicated against itself and against the test
+# split at EXACT-row identity, dropping only TRAIN-side copies (the test
+# population is the eval surface and is never rewritten). The harness's
+# slice_guard refuses a suite whose pool∩test or pool∩cal rows are not
+# distinct, so a fetch that skips this law produces a pull the run gate
+# refuses — the disclosure here is the cheap half. jq-path only: without
+# jq the pass SKIPS LOUD (the 4090 syncs data by copying from this box —
+# the 077 procedure — so the jq box is the producer of clean pulls).
+dedupe_train() {
+    suite=$1
+    dir="$OUT/$suite"
+    if ! have jq; then
+        log "  dedupe $suite/train SKIPPED (no jq on this box — sync data from a jq host)"
+        return 0
+    fi
+    [ -d "$dir" ] || return 0
+    ls "$dir"/test-*.json >/dev/null 2>&1 || return 0
+    keys=$(mktemp)          # newline-separated JSON strings (the seen set)
+    kjson=$(mktemp)         # the same set as one JSON array (jq --slurpfile)
+    for f in "$dir"/test-*.json; do
+        jq -c '.rows[] | (.row | to_entries | sort_by(.key) | from_entries | tojson)' "$f" >> "$keys"
+    done
+    jq -s . "$keys" > "$kjson"
+    removed=0
+    for f in "$dir"/train-*.json; do
+        [ -s "$f" ] || continue
+        n=$(jq --slurpfile seen "$kjson" '
+            [.rows[]
+             | (.row | to_entries | sort_by(.key) | from_entries | tojson) as $k
+             | select($seen[0] | any(. == $k))] | length' "$f") || n=0
+        if [ "${n:-0}" -gt 0 ]; then
+            jq --slurpfile seen "$kjson" '
+                .rows |= [.[] | select(
+                    (.row | to_entries | sort_by(.key) | from_entries | tojson) as $k
+                    | ($seen[0] | any(. == $k)) | not)]' "$f" > "$f.tmp" \
+                && mv "$f.tmp" "$f"
+            removed=$((removed + n))
+            log "  dedupe $suite/$(basename "$f"): dropped $n exact-duplicate row(s)"
+        fi
+        # Extend the seen-set with this page's survivors so later pages
+        # drop internal duplicates too.
+        jq -c '.rows[] | (.row | to_entries | sort_by(.key) | from_entries | tojson)' "$f" >> "$keys"
+        jq -s . "$keys" > "$kjson"
+    done
+    rm -f "$keys" "$kjson"
+    if [ "$removed" -gt 0 ]; then
+        log "  dedupe $suite/train: $removed exact-duplicate row(s) dropped (self + test overlap)"
+    fi
+}
+
 main() {
     if have b3sum; then
         digest_tool="b3sum (blake3)"
@@ -363,6 +414,7 @@ main() {
         if splits_have typed_decisions all train; then
             log "[suite] typed_decisions config=all split=train cap=1200 (train present per probe)"
             fetch_suite typed_decisions "LocalLLaMA%2Ftyped-decisions" all train 1200
+            dedupe_train typed_decisions
         else
             log "[suite] typed_decisions config=all split=train SKIPPED (no train split for config all, or probe missing)"
         fi
@@ -374,6 +426,7 @@ main() {
         fetch_suite ag_news "fancyzhx%2Fag_news" default test 400
         log "[suite] ag_news config=default split=train cap=$TRAIN_CAP"
         fetch_suite ag_news "fancyzhx%2Fag_news" default train "$TRAIN_CAP"
+        dedupe_train ag_news
     fi
 
     # 3. emotion
@@ -382,6 +435,7 @@ main() {
         fetch_suite emotion "dair-ai%2Femotion" split test 400
         log "[suite] emotion config=split split=train cap=4000"
         fetch_suite emotion "dair-ai%2Femotion" split train "$TRAIN_CAP"
+        dedupe_train emotion
     fi
 
     # 4. sst5
@@ -390,6 +444,7 @@ main() {
         fetch_suite sst5 "SetFit%2Fsst5" default test 600
         log "[suite] sst5 config=default split=train cap=4000"
         fetch_suite sst5 "SetFit%2Fsst5" default train "$TRAIN_CAP"
+        dedupe_train sst5
     fi
 
     # 5. banking77 — currently 404s on /rows (script-based dataset; see
@@ -403,6 +458,7 @@ main() {
         fetch_suite banking77 "mteb%2Fbanking77" default test all
         log "[suite] banking77 mteb/banking77 config=default split=train cap=4000"
         fetch_suite banking77 "mteb%2Fbanking77" default train "$TRAIN_CAP"
+        dedupe_train banking77
     fi
 
     # 6. prompt_injections — test: ALL (~116); train: first 1000 (actual
@@ -412,6 +468,7 @@ main() {
         fetch_suite prompt_injections "deepset%2Fprompt-injections" default test all
         log "[suite] prompt_injections config=default split=train cap=1000 (actual 546 per probe)"
         fetch_suite prompt_injections "deepset%2Fprompt-injections" default train 1000
+        dedupe_train prompt_injections
     fi
 
     # 7. massive_intent_en — config verified via /splits: the configs are
@@ -421,6 +478,7 @@ main() {
         fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en test all
         log "[suite] massive_intent_en config=en split=train cap=4000"
         fetch_suite massive_intent_en "mteb%2Famazon_massive_intent" en train "$TRAIN_CAP"
+        dedupe_train massive_intent_en
     fi
 
     # 8. xnli_en
@@ -429,6 +487,7 @@ main() {
         fetch_suite xnli_en "facebook%2Fxnli" en test 300
         log "[suite] xnli_en config=en split=train cap=$TRAIN_CAP"
         fetch_suite xnli_en "facebook%2Fxnli" en train "$TRAIN_CAP"
+        dedupe_train xnli_en
         # Issue 047 R1: the M1 reopen lane's confirmation surface — the
         # full validation split (~2490 rows), fetched once into the SAME
         # suite dir and read ONCE by `--nli-m1 --suites xnli_en_val`.
@@ -446,6 +505,7 @@ main() {
         fetch_suite thai_wisesight "pythainlp%2Fwisesight_sentiment" wisesight_sentiment test 400
         log "[suite] thai_wisesight config=wisesight_sentiment split=train cap=$TRAIN_CAP"
         fetch_suite thai_wisesight "pythainlp%2Fwisesight_sentiment" wisesight_sentiment train "$TRAIN_CAP"
+        dedupe_train thai_wisesight
     fi
 
     # 10. thai_sib200 — Plan 003 T3.1: the SIB-200 Thai topical probe
@@ -455,6 +515,7 @@ main() {
         fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai test all
         log "[suite] thai_sib200 config=tha_Thai split=train cap=all (701 rows whole-set)"
         fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai train all
+        dedupe_train thai_sib200
     fi
 
     log ""

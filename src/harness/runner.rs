@@ -59,7 +59,7 @@ use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
     build_massive_intent_en, build_prompt_injections, build_sst5, build_thai_sib200,
     build_thai_wisesight, build_typed_decisions,
-    build_xnli_en, stratified_selection_slices, stratified_split, train_docs,
+    build_xnli_en, stratified_selection_slices, stratified_split, train_docs, train_row_label,
 };
 use crate::pyjson::serialize_state;
 use crate::readout::ReadoutMode;
@@ -1303,6 +1303,14 @@ pub struct SuiteResult {
     /// `slice_leak` feature is off or the suite is out of scope.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub leak: Option<SuiteLeak>,
+    /// Issue 058: the slice-integrity audit — structural verdict
+    /// (`violations` empty = the hard assertions held), per-slice label
+    /// starvation disclosures, and the RAW slice-identity digests (test /
+    /// cal / pool). The pool digest is the axis that catches a silently
+    /// moved/truncated train pull at the same cap — the Bench-076 class.
+    /// Absent on the synthetic/code paths (authored slices, not composed).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub slices: Option<super::slice_guard::SliceFacts>,
 }
 
 /// Issue 024 T3 — the per-suite leak block (results.json, additive).
@@ -3317,18 +3325,18 @@ fn run_modelless<const N: usize>(
         inp.cap_source_base
     };
 
-    /// Issue 057: the digest covers exactly the timed engine's corpus — the
-    /// capped drafter docs + the count-table sets when the final posture
-    /// arms them (`fitted_cfg_for_transductive` is the same cfg every
-    /// `build_at_posture` call ran; the timed engines carry no extra_nb).
-    /// ⚠ coupling, not proof: this RE-DERIVES the docs the engines consume
-    /// (same inputs, deterministic construction — identical today). The
-    /// guard is the extraction: `specs_from_pool` itself calls
-    /// [`per_label_corpus_docs`], so an engine-call-site change (a
-    /// different cap or a non-empty extra_nb) cannot compile without
-    /// touching this site — but a future divergence here would make the
-    /// digest describe a corpus that was never timed (verdict round 2's
-    /// note; the fix then is passing one `drafter_docs` to BOTH sides).
+    // Issue 057: the digest covers exactly the timed engine's corpus — the
+    // capped drafter docs + the count-table sets when the final posture
+    // arms them (`fitted_cfg_for_transductive` is the same cfg every
+    // `build_at_posture` call ran; the timed engines carry no extra_nb).
+    // ⚠ coupling, not proof: this RE-DERIVES the docs the engines consume
+    // (same inputs, deterministic construction — identical today). The
+    // guard is the extraction: `specs_from_pool` itself calls
+    // [`per_label_corpus_docs`], so an engine-call-site change (a
+    // different cap or a non-empty extra_nb) cannot compile without
+    // touching this site — but a future divergence here would make the
+    // digest describe a corpus that was never timed (verdict round 2's
+    // note; the fix then is passing one `drafter_docs` to BOTH sides).
     let corpus_digest = {
         let (drafter_docs, _) = per_label_corpus_docs(train, labels, effective_cap);
         let nb_sets = nb_sets_for(
@@ -4975,6 +4983,9 @@ struct Prepared {
     /// cal front) — the selection stratification's input. Null on the
     /// synthetic/code paths (those suites are selection-ineligible).
     pool_rows: Value,
+    /// Issue 058: the slice-integrity audit + identity digests. None on the
+    /// synthetic/code paths (their slices are authored, not composed).
+    slices: Option<super::slice_guard::SliceFacts>,
 }
 
 fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
@@ -5010,6 +5021,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             cal_cases: d.cal_cases,
             cal_state_strs,
             pool_rows: Value::Null,
+            slices: None,
         });
     }
 
@@ -5033,6 +5045,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             cal_cases,
             cal_state_strs,
             pool_rows: Value::Null,
+            slices: None,
         });
     }
 
@@ -5188,6 +5201,31 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         .iter()
         .map(|c| serialize_state(&c.state))
         .collect();
+
+    // Issue 058 — the slice-integrity audit (the three-incident class:
+    // Issue 023's misaligned cal read, Issue 039 T2's positional pool cut,
+    // Bench 076's silent datasets-dir move). The audit is content-based —
+    // raw row identity, not envelope positions — and hard-refuses the suite
+    // on any overlap or an unrepresentative test sample; the slice digests
+    // ride into results.json either way so a board diff can see "same
+    // pool?" mechanically (the axis the 076 publish sailed through on).
+    let slices = super::slice_guard::audit_envelopes(
+        spec.name,
+        &labels,
+        &eval_split.front,
+        &cal_split.front,
+        &cal_split.rest,
+        spec.test_cap,
+        &|row| train_row_label(spec.name, row),
+    );
+    if !slices.is_clean() {
+        return Err(format!(
+            "suite {}: slice-integrity refusal — {}",
+            spec.name,
+            slices.violations.join("; ")
+        ));
+    }
+
     Ok(Prepared {
         suite,
         train,
@@ -5196,6 +5234,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         cal_state_strs,
         labels,
         pool_rows: cal_split.rest,
+        slices: Some(slices),
     })
 }
 
@@ -5948,6 +5987,12 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             n_questions,
             prepared.labels.len()
         );
+        // Issue 058: the slice-integrity line rides the run log AND the
+        // tables — a silently moved pool (the Bench-076 class) is visible
+        // at run time as a digest/count change, not as an accuracy move.
+        if let Some(s) = &prepared.slices {
+            eprintln!("    {}", s.summary_line());
+        }
 
         // Issue 024 T3: the corpus∪cal → eval near-duplicate scan over the
         // slices THIS run serves (feature `slice_leak`). Reference side =
@@ -6449,6 +6494,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
+            slices: prepared.slices,
         });
     }
 
@@ -6835,6 +6881,15 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
             "## {} — {} cases / {} questions\n\n",
             suite.name, suite.n_cases, suite.n_questions
         ));
+        // Issue 058: the slice-integrity record beside every suite's
+        // numbers — counts, raw slice digests, and any disclosed label
+        // starvation. A pool digest that moved between runs is the "the
+        // corpus moved, not the engine" tell (Bench 076's class). Violations
+        // cannot appear here (prepare refuses them before any lane runs);
+        // the disclosed starvation fields are what this line can carry.
+        if let Some(sl) = &suite.slices {
+            s.push_str(&format!("**{}**\n\n", sl.summary_line()));
+        }
         // The corpus-cap disclosure + the cal-slice selection table when
         // selection ran (Issue 013 lever-1 protocol): the selection reads
         // cal only; the suite's row below IS the single test read.

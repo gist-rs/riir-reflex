@@ -19,6 +19,10 @@ pub mod latency;
 pub mod mc_ab;
 pub mod metrics;
 pub mod pair_heads;
+// Issue 058 — the slice-integrity guard: hard assertions over the
+// test/cal/pool slices (overlaps, test-sample label coverage) + the raw
+// slice-identity digests the board publish path compares. Ungated + pure.
+pub mod slice_guard;
 // Near-duplicate leak report (Issue 024): opt-in, zero-dep, native-only.
 #[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
 pub mod slice_leak;

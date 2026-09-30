@@ -1208,6 +1208,7 @@ mod tests {
             gold: vec![],
         }];
         super::super::Prepared {
+            slices: None,
             suite: Suite {
                 name: "fixture",
                 cases: vec![],
