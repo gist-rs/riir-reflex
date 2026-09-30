@@ -1,6 +1,6 @@
 # Issue 057 — LANE_CARRY has no corpus-axis escape: a corpus change can never refresh published timing
 
-**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED `7e03117`** (riir-reflex); **publisher half LANDED 2026-09-30 (reflex-site `6e06264`, tests 56/56 — the deferred-to-reflex-site row is DONE)**; remaining: the republish (new post-landing run + the ack). The specimen is live on reflex.gist.rs today.
+**Status:** OPEN — **owner-gate DECIDED 2026-09-30 (Claude verdict round 1: REVISE — all fixes folded)**; **harness half LANDED `7e03117`** (riir-reflex); **publisher half LANDED 2026-09-30 (reflex-site `6e06264`, tests 56/56 — the deferred-to-reflex-site row is DONE)**; **republish DONE 2026-09-30 (Bench 099, reflex-site `e55a9ab` — the 4090-win typed cell refreshed, corpus_digest stamped; two publisher defects found + fixed by the first live use, tests 57/57)**; remaining: the m3 primary cell (same run + ack from an M3 session) + the CF deploy (no credentials on the 4090 box).
 
 ## The specimen (measured, quotable both sides)
 
@@ -130,10 +130,28 @@ exemption fires on an unquotable update the cell keeps its own
       apply_lane_carry — after the merge, before anything is written.
       Tests 56/56 (52 pre-existing green UNMODIFIED — adoption-stable —
       + 4 new).
-- [-] Re-publish typed timing (0.764-class) from a NEW post-landing run
-      on a fit box with the ack. **Deferred with the publisher half** —
-      Bench 096's doc carries no digest; the reproducing run must be
-      post-landing (box state recorded beside the number).
+- [x] Re-publish typed timing (0.764-class) from a NEW post-landing run
+      on a fit box with the ack. **DONE 2026-09-30 (4090 session, Bench 099
+      + reflex-site `e55a9ab`)** — the 4090-win cell now reads p50 0.917 ms
+      on the 1200-row pool, `corpus_digest fnv1a64-2fe9ec3132dbc924`
+      stamped, `source_run 021e1ae`, accuracy bit-identical (0.5725), all
+      publish gates green. The first live use caught TWO publisher defects,
+      both fixed in the same landing (record: reflex
+      `.benchmarks/099_typed_corpus_republish_4090.md`): (1) the ack
+      adjudicated the PRIMARY cell for an extra-host update — the merged
+      row's `modelless` slot is still the primary host's digest-less cell,
+      so a fresh post-landing run refused as stale; the ack now resolves
+      the UPDATING doc's host slot (the carry loop's own slot vocabulary)
+      + `case_corpus_reset_ack_extra_host_shape` pins both directions
+      (57/57 — every pre-existing arm was same-host, which is why the gap
+      was invisible); (2) `republish_bench.sh`'s env-clean predates the
+      ack — the env leaked into the merge-law self-test and its stale-ack
+      refusal killed step 1; one `-u` joined the line. **The m3 primary
+      cell (0.517 ms) is deliberately untouched** — it refreshes only from
+      an m3-host run with the same ack (its incumbent is the digest-less
+      primary, so the stale-equal arm cannot block it); CF deploy likewise
+      pending (this box has no Cloudflare credentials — reflex-site
+      `e55a9ab` is pushed, deploy from a credentialed context).
 
 ## Publisher patch spec (for the reflex-site session — the verdict's corrected shape)
 
