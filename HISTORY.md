@@ -7,6 +7,30 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-09-30
 
+- **Plan-426-T6 seat half LANDED (`776e8db`): the SEAT consumes the synth
+  corpus.** `seat::prepare_seat_with_synth` — the artifact is
+  blake3-verified by [`load_synth_corpus`]'s own path (the digest rides
+  the same read that verified it — no TOCTOU window), the header's suite
+  is pinned against the seat's name (a cross-suite corpus is a loud
+  refusal), rows outside the engine's label universe are dropped COUNTED,
+  and the provenance (path + digest + row counts) rides the public
+  `Seat.synth` — Issue 057's corpus-identity axis, now carried by the
+  type. `build_seat_engine` applies the overlay at BUILD time
+  (gold-cap-first + synth-beyond, in BOTH the drafter corpus and the
+  count tables) — the exact V5 arm-B construction, extracted as
+  `specs_corpus_extended` and SHARED with the corpus-ab lane (its
+  `arm_specs` now delegates): the measured V5 build and the served seat
+  are the same code by construction, they can no longer drift apart. An
+  armed option-conditioned posture refuses the overlay (the (qid, option)
+  tables are fit from gold events synth rows do not carry). `None` seats
+  are byte-identical to the pre-overlay seat. Consumers: instinct
+  `c7b7165` (arena `--synth-corpus/--synth-extra-cap`; serve
+  `INSTINCT_SYNTH_CORPUS_DIR` — a present artifact seats it, absent =
+  byte-identical boots). Validated by the instinct-side smoke: the
+  emotion fixture seated 6/6, A0 0.8850 == the published armed number
+  (unchanged path untouched at trivial corpus mass); the massive cert
+  read rides the instinct side (Plan 426 T6, in flight).
+
 - **The 056 close-out's owed site republish LANDED — Benches 096+097: the
   promoted gate posture serves on reflex.gist.rs (both hosts), and the
   deploy resolved the 09-29 typed-H2 deploy-pending note in the same
