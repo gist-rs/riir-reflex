@@ -3317,10 +3317,18 @@ fn run_modelless<const N: usize>(
         inp.cap_source_base
     };
 
-    // Issue 057: the digest covers exactly the timed engine's corpus — the
-    // capped drafter docs + the count-table sets when the final posture
-    // arms them (`fitted_cfg_for_transductive` is the same cfg every
-    // `build_at_posture` call ran; the timed engines carry no extra_nb).
+    /// Issue 057: the digest covers exactly the timed engine's corpus — the
+    /// capped drafter docs + the count-table sets when the final posture
+    /// arms them (`fitted_cfg_for_transductive` is the same cfg every
+    /// `build_at_posture` call ran; the timed engines carry no extra_nb).
+    /// ⚠ coupling, not proof: this RE-DERIVES the docs the engines consume
+    /// (same inputs, deterministic construction — identical today). The
+    /// guard is the extraction: `specs_from_pool` itself calls
+    /// [`per_label_corpus_docs`], so an engine-call-site change (a
+    /// different cap or a non-empty extra_nb) cannot compile without
+    /// touching this site — but a future divergence here would make the
+    /// digest describe a corpus that was never timed (verdict round 2's
+    /// note; the fix then is passing one `drafter_docs` to BOTH sides).
     let corpus_digest = {
         let (drafter_docs, _) = per_label_corpus_docs(train, labels, effective_cap);
         let nb_sets = nb_sets_for(
