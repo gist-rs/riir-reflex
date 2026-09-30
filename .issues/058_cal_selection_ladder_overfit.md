@@ -157,7 +157,7 @@ the same-selection suites are a stronger claim: **same posture, cal ≈ unchange
 - [ ] (b) LCB-based selection behind a flag; A/B on the 8 dataset suites, both hosts, byte-identity gates
 - [ ] (c) k-fold cal-front probe (measurement-only) to price the cal→test gap per suite
 - [ ] Re-run the full 15-suite matrix at the repaired posture — **now carries the slice digests; the pool question (t20k vs default) is the owner-gated half**
-- [ ] reflex-site: refresh the stale FAQ sentence ("took several suites to or past the laya lanes") to describe the current board honestly
+- [x] reflex-site: refresh the stale FAQ sentence ("took several suites to or past the laya lanes") to describe the current board honestly — done at reflex-site `1d32a33` (the sentence now scopes the claim to the 051-era posture and names this issue for the pool split)
 - [x] Slice-integrity gate (overlaps + test coverage hard-refuse; slice digests in results/TABLES/run log) + the sst5 data fix + the fetcher dedupe law (2026-09-30)
 - [ ] Owner: canonicalize the board's datasets dir (t20k re-run vs default re-baseline) + decide the t20k sst5 dedupe (instinct pins that pool)
 
