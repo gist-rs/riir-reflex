@@ -34,6 +34,37 @@ All eight dataset suites' slice lines read `OK` at full-pool scale (e.g. ag_news
 - **(b) LCB-based selection** — DEFERRED. Trigger: a future re-selection whose ladder top-2 are cal-tied (massive 0.715/0.72/0.72 was the recorded shape) AND the pick flips the served posture. Running it now would re-pick winners again — a second re-baseline right after this one, for robustness the restored board does not need.
 - **(c) k-fold cal-front probe** — DEFERRED. Trigger: any future selection whose cal→test gap exceeds ~15 pt at the selected posture (the massive-076 shape). Measurement-only whenever it runs.
 
+## PUBLISHED (2026-10-01) — the board is live at the restored basis
+
+- The 4090 re-ran the same command at `ad94345` after a full data sync
+  (**1039 dataset files SHA256-verified identical across hosts BEFORE the
+  run** — the verdict's pre-run hash condition): **15/15 accuracy
+  bit-identity vs the m3 doc, zero drift**. Records:
+  `.benchmarks/100_pool_fix_m3` + `.benchmarks/101_pool_fix_4090`.
+- Published through the Issue-057 CORPUS_RESET ack scoped to the six
+  suites whose pool actually changed (typed/prompt kept their pools —
+  the ack correctly REFUSED them as stale on the first attempt, the
+  stale-ack discipline working as designed); the fresh quotable m3
+  timing + the unjudged 4090 timing publish per the standing 4090
+  posture. Pairing gate PASS, self-test 66/66, chart smoke PASS.
+- reflex-site `d750175` + deployed (live-verified: the restored numbers
+  + corpus digests serve on reflex.gist.rs; the dated correction note
+  renders on the bench page). The wrapper's env-clean also gained
+  `-u PUBLISH_BENCH_ALLOW_UNQUOTABLE` — my first publish attempt leaked
+  the ack into the self-test's own stale-ack case and made it
+  pass-by-refusal (the 099 leak class, one env over).
+- En-route: the 4090's `git pull` over its GitHub path hangs (worked
+  around with a local `git bundle --all` + pull-from-bundle), and
+  detached (Start-Process) harness runs on that box die silently —
+  the foreground ssh run is the reliable posture (two silent detached
+  deaths, then 15/15 foreground).
+
+Issue 058's own surface is now CLOSED: root cause fixed (fetcher default
++ floors), data rebuilt + provenance-manifested, board restored on both
+hosts, published with a dated disclosure. The deferred (a)/(b)/(c) stay
+on their recorded triggers; the instinct arena re-point stays documented
+in instinct `.issues/013` (ready-to-flip).
+
 ## THE REMAINING PUBLISH PATH (the one open task)
 
 The reflex-site republish is BLOCKED on the 4090 re-run — the publisher's cross-host drift gate (Issue 018 T7, mechanized) refuses merged-state modelless drift, and the 4090's modelless cells carry the 4k-pool numbers. The 4090 was busy (2026-10-01, owner call) — the run is deferred, not skipped. When free: sync `.raw/datasets` (bytes + POOL_MANIFEST) to `E:\git\riir-reflex`, hash-verify BOTH sides BEFORE running (SHA256 per file, the 077 procedure), git pull + rebuild there, run the same command at `REFLEX_BENCH_HOST=4090-windows`, then `scripts/republish_bench.sh data/bench.json 100_pool_fix_m3/results.json <4090>/results.json` + the dated disclosure note (condition 7: the 09-28..10-01 modelless cells came from 4k pools and are superseded — swapping numbers without the note would hide the mistake).
