@@ -547,7 +547,7 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
   `scripts/build-release.sh` (dist build + `--remap-path-prefix $HOME=/build` + package
   root-layout tar.gz + SHA256SUMS; licenses via cargo-about), `scripts/binary_leak_scan.sh`
   (the Plan-105 port), `scripts/install_copy_parity.py` (site vs dist README).
-- **v0.1.1 live** on [`gist-rs/reflex`](https://github.com/gist-rs/reflex) — the FULL cargo-heal-matching matrix: macOS aarch64 + x86_64 · linux musl x86_64 + aarch64 · windows x86_64-pc-windows-gnu (the three cross targets built via `cargo zigbuild` from the M3 — `build-release.sh` routes non-host triples through it; no Actions minutes spent). Cross smoke: linux musl ×2 under docker (alpine, both arches) — `--version` stamp complete, serve + healthz + decide live; windows exe on the 4090 — same; leak scan PASS ×3; linux↔mac decide responses byte-identical. v0.1.0 was pulled: its archives nested the binary (found by the G1 clean-install smoke) and the same-name asset replacement did not survive the CDN cache. G1 PASS both mac arches (arm64 native + Rosetta x86_64), brew fetch through the tap formula hash-verified (`homebrew-tap` 8f8e28b). Scoop: `gist-rs/scoop-bucket` carries `bucket/riir-reflex.json` (landed WITH the windows asset, the no-404-manifest rule).
+- **v0.1.1 live** on [`gist-rs/reflex`](https://github.com/gist-rs/reflex) — the FULL cargo-refine-matching matrix: macOS aarch64 + x86_64 · linux musl x86_64 + aarch64 · windows x86_64-pc-windows-gnu (the three cross targets built via `cargo zigbuild` from the M3 — `build-release.sh` routes non-host triples through it; no Actions minutes spent). Cross smoke: linux musl ×2 under docker (alpine, both arches) — `--version` stamp complete, serve + healthz + decide live; windows exe on the 4090 — same; leak scan PASS ×3; linux↔mac decide responses byte-identical. v0.1.0 was pulled: its archives nested the binary (found by the G1 clean-install smoke) and the same-name asset replacement did not survive the CDN cache. G1 PASS both mac arches (arm64 native + Rosetta x86_64), brew fetch through the tap formula hash-verified (`homebrew-tap` 8f8e28b). Scoop: `gist-rs/scoop-bucket` carries `bucket/riir-reflex.json` (landed WITH the windows asset, the no-404-manifest rule).
 - **Arena site** ([gist-rs/reflex-site](https://github.com/gist-rs/reflex-site)) live at
   **<https://reflex.gist.rs>** (the custom domain — owner attached it via the dashboard
   2026-09-22; deliberately NOT declared in the site's `wrangler.toml`, which records why:
@@ -862,11 +862,11 @@ interleaved pairs, 177.5→161.0 / 181.7→166.0 / 193.5→173.0 /
 189.1→169.2 ms), matching the profile-share prediction. Numerics never
 move with worker count — that is the gate's own assertion.
 
-## Lint healing — `cargo heal` before manual fixes
+## Lint healing — `cargo refine` before manual fixes
 
 Mechanical clippy findings are fixed by the riir-clippy healer FIRST,
-manual second (`cargo heal --fix --write --verify <paths>`). Documented
-divergence classes stay manual; see the `cargo-heal` skill. The healer's
+manual second (`cargo refine --fix --write --verify <paths>`). Documented
+divergence classes stay manual; see the `cargo-refine` skill. The healer's
 bench-target guard (`bench-guard:`) declines perf edits under `benches/` —
 a bench file's numbers ARE its artifact.
 

@@ -84,7 +84,7 @@ cargo test                                     # the gates
 Public releases live at [`gist-rs/reflex`](https://github.com/gist-rs/reflex)
 (this source repo is public under the same amendment — the dist repo stays
 the binary-only install surface); the homebrew tap and scoop
-bucket carry the same archives — the FULL cargo-heal-matching matrix:
+bucket carry the same archives — the FULL cargo-refine-matching matrix:
 macOS aarch64 + x86_64 · linux musl x86_64 + aarch64 · windows
 x86_64-pc-windows-gnu. The shipped feature set is `modelless + laya-riir`
 (since v0.2.0, the candle-free cut — the candle reference lane was removed
@@ -120,7 +120,7 @@ reflex --version                  # build stamp: version + compiled feature set
 
 CORS is CLOSED by default: no `Access-Control-Allow-Origin` header is ever
 emitted unless `RIIR_REFLEX_ALLOWED_ORIGIN` names the origin(s) allowed to
-call the engine from a browser. `cargo-heal`-style staleness guard: a
+call the engine from a browser. `cargo-refine`-style staleness guard: a
 binary built without the full release set says so on `--version`
 (`release set: STALE — missing …` + the rebuild command).
 
