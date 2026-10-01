@@ -46,6 +46,37 @@
 use serde_json::Value;
 use std::collections::HashSet;
 
+/// Per-suite minimum corpus-pool rows — the "digests tell you the pool
+/// changed; a floor tells you it shrank" law (Issue 058, verdict
+/// condition 1). The values sit at ~80% of the full-pull expectation (the
+/// t20k re-baseline scale, `TRAIN_CAP=20000`): a 4k-row default pull —
+/// the exact state that silently re-scored the board at Bench 076 —
+/// REFUSES instead of publishing numbers against a starved corpus.
+/// Suites absent from the table carry no floor (synthetic/unknown suites,
+/// unit-test names). Floor violations are hard refusals like the overlaps;
+/// the remedy line names the fetch command.
+pub const MIN_POOL_ROWS: &[(&str, usize)] = &[
+    ("ag_news", 16_000),
+    ("banking77", 8_000),
+    ("emotion", 12_000),
+    ("massive_intent_en", 9_200),
+    ("sst5", 6_800),
+    ("xnli_en", 16_000),
+    ("typed_decisions", 960),
+    ("prompt_injections", 430),
+    ("thai_wisesight", 3_200),
+    ("thai_sib200", 560),
+];
+
+/// The floor for one suite, if any.
+#[must_use]
+pub fn min_pool_rows(suite: &str) -> Option<usize> {
+    MIN_POOL_ROWS
+        .iter()
+        .find(|(s, _)| *s == suite)
+        .map(|(_, n)| *n)
+}
+
 /// One pinned known-dirty slice state (see [`SliceFacts::KNOWN_DIRTY`]).
 /// Membership is the exact `(test, cal, pool)` digest triple — the same
 /// digests results.json publishes, so a pin is checkable against any run
@@ -284,6 +315,19 @@ pub fn audit(
         violations.push(format!(
             "{suite}: corpus pool ∩ cal front = {pool_cal} identical row(s) — selection and \
              gate-fit would score against rows the engine also trains on"
+        ));
+    }
+
+    // Pool floor (Issue 058 verdict condition 1): a pool below the suite's
+    // full-pull scale is the silent-shrink class — refuse with the remedy
+    // named, never score the board against a starved corpus.
+    if let Some(floor) = min_pool_rows(suite)
+        && pool_rows.len() < floor
+    {
+        violations.push(format!(
+            "{suite}: corpus pool = {} row(s) < floor {floor} — the pull shrank (the \
+             silent-move class); re-fetch full: TRAIN_CAP=20000 scripts/fetch_datasets.sh",
+            pool_rows.len()
         ));
     }
 
@@ -531,7 +575,9 @@ mod tests {
 
     #[test]
     fn known_dirty_pin_accepts_only_its_exact_triple() {
-        // A dirty slice whose triple matches the pin → acknowledged.
+        // A dirty slice whose triple matches the pin → acknowledged. The
+        // probe suite "s" carries no floor, so the tiny pools here trip
+        // ONLY the overlap violations.
         let test = envelope(&[row("a", "shared"), row("b", "t2")]);
         let cal = envelope(&[row("a", "shared"), row("b", "c2")]);
         let pool = envelope(&[row("a", "shared"), row("b", "p2")]);
@@ -540,21 +586,71 @@ mod tests {
         assert!(f.known_dirty_acknowledgement("s").is_none()); // not pinned
         assert_eq!(f.acknowledged, false);
 
-        // A clean slice never consults the pin table.
+        // A clean slice never consults the pin table — including for a
+        // suite that HAS a pin (a repaired pool just stops matching).
         let clean_test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let clean_cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let clean_pool = envelope(&[row("a", "p1"), row("b", "p2")]);
+        let pinned_suite = SliceFacts::KNOWN_DIRTY[0].suite;
+        // sst5 (the pinned suite) carries a pool floor, so the clean probe
+        // there runs at floor scale: a synthetic full-scale pool is built
+        // by repeating the floor-sized rows.
+        let floor = min_pool_rows(pinned_suite).unwrap();
+        let big_pool = envelope(
+            &(0..floor)
+                .map(|i| row("a", &format!("p{i}")))
+                .collect::<Vec<_>>(),
+        );
+        let mut big_labels = labels();
+        big_labels = vec!["a".to_string()]; // floor-probe pool is single-label
         let fc = audit_envelopes(
-            SliceFacts::KNOWN_DIRTY[0].suite,
-            &labels(),
+            pinned_suite,
+            &big_labels,
             &clean_test,
             &clean_cal,
-            &clean_pool,
+            &big_pool,
             2,
             &label_of,
         );
-        assert!(fc.is_clean());
-        assert!(fc.known_dirty_acknowledgement(SliceFacts::KNOWN_DIRTY[0].suite).is_none());
+        // The pool is at floor scale and clean of overlaps; whatever label
+        // starvation is disclosed, the pin itself is never consulted.
+        assert!(!fc.violations.iter().any(|v| v.contains("floor")));
+        assert!(fc.known_dirty_acknowledgement(pinned_suite).is_none());
+    }
+
+    #[test]
+    fn pool_below_floor_is_refused_with_the_remedy() {
+        // The Bench-076 class made structural: a 4k-scale pool for a
+        // full-pull suite refuses, naming the fetch command.
+        let test = envelope(&[row("a", "t1"), row("b", "t2")]);
+        let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
+        let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
+        let f = audit_envelopes("sst5", &labels(), &test, &cal, &pool, 2, &label_of);
+        assert!(
+            f.violations
+                .iter()
+                .any(|v| v.contains("< floor 6800") && v.contains("TRAIN_CAP=20000"))
+        );
+        // At floor scale the violation disappears.
+        let floor = min_pool_rows("sst5").unwrap();
+        let big_pool = envelope(
+            &(0..floor)
+                .map(|i| row("a", &format!("p{i}")))
+                .collect::<Vec<_>>(),
+        );
+        let one_label = vec!["a".to_string()];
+        let f2 = audit_envelopes("sst5", &one_label, &test, &cal, &big_pool, 2, &label_of);
+        assert!(!f2.violations.iter().any(|v| v.contains("floor")));
+    }
+
+    #[test]
+    fn suites_without_floor_are_unfloored() {
+        let test = envelope(&[row("a", "t1"), row("b", "t2")]);
+        let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
+        let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        assert!(f.is_clean()); // "s" is not in MIN_POOL_ROWS
+        assert!(min_pool_rows("s").is_none());
     }
 
     #[test]

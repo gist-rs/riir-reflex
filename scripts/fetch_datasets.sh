@@ -42,7 +42,14 @@ ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 # SEPARATE dir so the canonical .raw/datasets (the manifest-digested set
 # every published table reads) is never rewritten under a sibling run.
 OUT="${OUT:-$ROOT/.raw/datasets}"
-TRAIN_CAP="${TRAIN_CAP:-4000}"
+TRAIN_CAP="${TRAIN_CAP:-20000}"
+# Issue 058 (verdict condition 1, 2026-10-01): the default OUT is the
+# canonical .raw/datasets, which is now the FULL-pull pool — a 4000-row
+# default here was the root cause of the silent board regression (a fresh
+# fetch rebuilt 4k-row pools under the same dir name and every number
+# moved). The default now matches the t20k re-baseline scale; the
+# slice-integrity gate's per-suite pool floors (MIN_POOL_ROWS) refuse a
+# shrunken pull at run time regardless.
 # SUITES (issue 041): comma-separated subset filter, e.g.
 #   SUITES=ag_news OUT=$ROOT/.raw/datasets_agnews_full TRAIN_CAP=120000 scripts/fetch_datasets.sh
 # Default "all" = the birth behavior (every suite's blocks run). The

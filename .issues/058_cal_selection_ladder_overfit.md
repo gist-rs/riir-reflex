@@ -1,6 +1,42 @@
 # Issue 058 — the cal-selection ladder overfits the cal slice; dataset-suite accuracy collapsed at Bench 076/077 and no arm owns a floor
 
-**Status:** (d) ROOT-CAUSED 2026-09-30 — the drop is a DATASETS-DIR move, not a ladder/head change (verdict below, A/B-confirmed both directions); slice-integrity gate LANDED (see §Slice assertions, landed). (a)/(b)/(c) + the re-run remain owner-gated.
+**Status:** (d) ROOT-CAUSED + FIXED 2026-10-01 — the canonical pool is REBUILT (clean full pulls, deduped, provenance-manifested), the board is RESTORED at HEAD (Bench 100: every cell back to its pre-076 value, banking77 +1.6 real gain), the fetcher root cause is CLOSED (TRAIN_CAP default 20000 + per-suite pool floors in the gate). Remaining: 4090 re-run (deferred — box busy) then the reflex-site republish (the cross-host drift gate refuses without it); (a)/(b)/(c) DEFERRED with triggers recorded below.
+
+## THE RESTORATION (Bench 100, m3, 2026-10-01 — `.benchmarks/100_pool_fix_m3`)
+
+Verdict round 2 (claude reviewer, AGREE): rebuild the canonical dir as clean full pools, re-run, republish. Box state (Issue 021 preflight): `PROVENANCE: power=AC Power load=3.91 swap=294.50M canary=116.3us/best5 powermode=2(high)`.
+
+**The pool** (`.raw/datasets/POOL_MANIFEST.json` has the full provenance): t20k full pages copied for ag_news/banking77/massive/xnli/sst5/emotion, then the fetcher's own dedupe law applied in place (first occurrence kept, order preserved): sst5 −11 rows (8533), emotion −1 (15999); prompt_injections kept canonical (byte-identical to t20k); typed_decisions kept canonical (the fuller 1200-row pull — the 078/099 corpus-cap lift stays); thai kept canonical. Test pages untouched everywhere (byte-identical across all three pool generations — verified per suite).
+
+| suite | 4k pools (076–096 board, wrong) | t20k-era published (the selection basis) | **restored (Bench 100, clean full pool)** | Δ vs pre-076 |
+|---|---|---|---|---|
+| ag_news | 0.8625 | 0.8825 | **0.8825** | 0.0 |
+| emotion | 0.7700 | 0.8850 | **0.8850** | 0.0 |
+| sst5 | 0.2017 | 0.3967 | **0.3967** | 0.0 |
+| prompt_injections | 0.7672 | 0.7672 | **0.7672** | 0.0 |
+| xnli_en | 0.5033 | 0.5233 | **0.5233** | 0.0 |
+| massive_intent_en | 0.4067 | 0.7800 | **0.7800** | 0.0 |
+| banking77 | 0.4020 | 0.8260 | **0.8420** | **+1.6** (real engine gains since 052 — nb_ridge/count-table work — now actually serving) |
+| typed_decisions | 0.5725 | 0.4655 (800-row pull era) | **0.5725** | +10.7 vs the t20k column = the 078 corpus-cap lift, retained (the t20k typed pool was the stale 800-row pull; canonical is the fuller 1200) |
+
+(The t20k-era column cites the 052-era published records at old code; the at-HEAD exact-reproduction proof for the t20k bytes is the 3-suite A/B earlier in this issue — emotion/massive byte-exact, banking77 +1.6.) The canonical-deduped column reproduces the t20k-era numbers EXACTLY on 6 of 7 (the deduped rows are sub-measurable, as the earlier sst5/emotion A/Bs established) and gains on banking77 from real code drift. Nothing here is a regression.
+
+All eight dataset suites' slice lines read `OK` at full-pool scale (e.g. ag_news pool 19800, emotion 15799, sst5 8333, massive 11314, banking77 9793, xnli 19800) — zero KNOWN-DIRTY acks on the default board.
+
+## The fetcher root cause is CLOSED (verdict condition 1)
+
+- `scripts/fetch_datasets.sh`: `TRAIN_CAP` default 4000 → **20000** (the t20k re-baseline scale). The 4000 default writing into the canonical dir was the original sin; a fresh fetch no longer rebuilds 4k pools under the same name.
+- `slice_guard::MIN_POOL_ROWS`: per-suite pool floors (~80% of full-pull scale) — a shrunken pull is a hard refusal naming `TRAIN_CAP=20000 scripts/fetch_datasets.sh`. Digests tell you the pool changed; the floor tells you it shrank. 16 gate unit tests green.
+
+## DEFERRALS, with triggers (verdict round 2 — B/C/D deferred on purpose)
+
+- **(a) baseline-arm floor** — DEFERRED. Trigger to reopen: if the publisher ever publishes a modelless cell below its pre-076 value without a loud disclosure row. The slice digests + floors have closed the silent channel the floor was belt-and-braces against.
+- **(b) LCB-based selection** — DEFERRED. Trigger: a future re-selection whose ladder top-2 are cal-tied (massive 0.715/0.72/0.72 was the recorded shape) AND the pick flips the served posture. Running it now would re-pick winners again — a second re-baseline right after this one, for robustness the restored board does not need.
+- **(c) k-fold cal-front probe** — DEFERRED. Trigger: any future selection whose cal→test gap exceeds ~15 pt at the selected posture (the massive-076 shape). Measurement-only whenever it runs.
+
+## THE REMAINING PUBLISH PATH (the one open task)
+
+The reflex-site republish is BLOCKED on the 4090 re-run — the publisher's cross-host drift gate (Issue 018 T7, mechanized) refuses merged-state modelless drift, and the 4090's modelless cells carry the 4k-pool numbers. The 4090 was busy (2026-10-01, owner call) — the run is deferred, not skipped. When free: sync `.raw/datasets` (bytes + POOL_MANIFEST) to `E:\git\riir-reflex`, hash-verify BOTH sides BEFORE running (SHA256 per file, the 077 procedure), git pull + rebuild there, run the same command at `REFLEX_BENCH_HOST=4090-windows`, then `scripts/republish_bench.sh data/bench.json 100_pool_fix_m3/results.json <4090>/results.json` + the dated disclosure note (condition 7: the 09-28..10-01 modelless cells came from 4k pools and are superseded — swapping numbers without the note would hide the mistake).
 
 ## VERDICT on (d) — root cause found, 2026-09-30 (A/B-confirmed, same binary, same flags, only `--datasets-dir` changed)
 
