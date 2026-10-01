@@ -104,7 +104,7 @@ for target in "$@"; do
 
     ARCHIVE="$PKG_DIR/$BIN_NAME-v$VERSION-$target.$ARCHIVE_EXT"
     rm -f "$ARCHIVE"
-    # Contents at the archive ROOT (the cargo-heal installer + Homebrew
+    # Contents at the archive ROOT (the cargo-refine installer + Homebrew
     # `bin.install` both expect `<binary>` + THIRD_PARTY_LICENSES.md at top
     # level — found by the G1 clean-install smoke, Plan 606 T2.5).
     case "$ARCHIVE_EXT" in
