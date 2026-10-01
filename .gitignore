@@ -27,3 +27,6 @@ CLAUDE.md
 
 # Throwaway verification shots (the documented scratch spot, AGENTS.md)
 scripts/out/
+
+# cargo-refine machine-local state (trajectories, fixseq, outbox, active-set)
+.refine/
