@@ -864,7 +864,7 @@ move with worker count — that is the gate's own assertion.
 
 ## Lint healing — `cargo refine` before manual fixes
 
-Mechanical clippy findings are fixed by the riir-clippy healer FIRST,
+Mechanical clippy findings are fixed by the riir-refine healer FIRST,
 manual second (`cargo refine --fix --write --verify <paths>`). Documented
 divergence classes stay manual; see the `cargo-refine` skill. The healer's
 bench-target guard (`bench-guard:`) declines perf edits under `benches/` —

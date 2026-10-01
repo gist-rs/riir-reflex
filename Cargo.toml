@@ -50,7 +50,7 @@ blake3 = { version = "1", optional = true }
 [features]
 # The Proposal 014 Phase-1 modelless decision engine (Plan 603 T1.3) is the
 # product of this repo and ships default-on the way an application crate's
-# own domain ships default-on (the riir-clippy `clippy_lints`/`dist`
+# own domain ships default-on (the riir-refine `clippy_lints`/`dist`
 # precedent) — the GOAT discipline binds the engine's CLAIMS (G1 calibration
 # vs floors, G2/G4 gates land WITH the lane), not whether the binary exists.
 # `--no-default-features` is the tested flag-OFF posture (empty-ish lib, no

@@ -22,7 +22,7 @@
 //! magnitude.
 //!
 //! Sibling precedents: the served game heads (katgpt-rs Benches 881/882 —
-//! fitted heads from a digest-pinned fixture) and riir-clippy's rule_embed
+//! fitted heads from a digest-pinned fixture) and riir-refine's rule_embed
 //! (Bench 099). The Embedder is UNTOUCHED (issue 030's blast-radius
 //! warning: a feature change there invalidates every frozen fixture,
 //! game-head anchor and corpus gate — that is a separate plan with its own

@@ -136,6 +136,6 @@ source, and the two must move together.
 - `src/serve.rs` — the loopback edge + the CORS allow-list seam
 - katgpt-rs Plan 603 / Proposal 014 — where the engine comes from
 - `../reflex-site/` — the site that embeds the hero mirror
-- Pattern siblings: `../riir-clippy/.docs/10_self_evolve/self_evolve_flow.md`
-  and `../riir-clippy/.docs/01_orientation/role_flows.md` (the
+- Pattern siblings: `../riir-refine/.docs/10_self_evolve/self_evolve_flow.md`
+  and `../riir-refine/.docs/01_orientation/role_flows.md` (the
   doc-first → SVG → site-embed pattern this file follows)
