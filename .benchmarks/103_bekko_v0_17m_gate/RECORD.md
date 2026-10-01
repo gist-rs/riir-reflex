@@ -81,6 +81,17 @@ published, wins and losses alike, with the model column carrying the truth.
 400M (343M active) is UNMEASURED on this box — CPU-infeasible at ~88× the 17M compute
 (~2 h); it is the natural 4090-box follow-up if the 68M's per-suite wins justify it.
 
+## Board publish (reflex-site `4cb1b35`, CF `dd08a8ad`, live-verified)
+
+The lane joined the public board (`reflex.gist.rs/bench`) the same day: publisher + charts
++ self-test (68/68) landed, `data/bench.json` republished with the bekko cells as a
+lane-scoped update (`PUBLISH_BENCH_LANES="bekko:acc-only"`). The acc-only posture is the
+Issue-021 wall working as designed: this run's own box_state judged its latency NOT QUOTABLE
+(load 13.9–22.7, siblings compiling), the page smoke's unfit-latency budget tripped on the
+full-cell publish, and the latency columns therefore stay HERE (the record), not on the
+board. Pure addition — zero published cells removed or altered; the board smoke + pairing
+gate + mirrors all green.
+
 ## Distill (the "technics worth mining" answer)
 
 **The shared-prefix K/V reuse architecture** — the state+instruction prefix is encoded
