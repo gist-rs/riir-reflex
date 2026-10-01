@@ -37,6 +37,16 @@
 //! transformers + peft + accelerate). Env: `GLINER_PYTHON` (the venv
 //! python), `GLINER_PY_DEVICE` (default cuda), `GLINER_MODEL`. A missing
 //! script/venv is a loud absence, never a silent skip.
+//! `--bekko` adds the Bekko comparison lane (Bench 103, owner call
+//! 2026-10-01): hotchpotch/bekko-system-one-v0 (17M/68M/400M shared-prefix
+//! encoders — the same choice/noul/score decision vocabulary as the wire)
+//! as a JSONL subprocess oracle over THEIR `BekkoSentenceTransformer`
+//! runtime (`scripts/bekko_lane.py` — the venv needs torch, transformers
+//! and sentence-transformers, the card's runtime pins). Env: `BEKKO_PYTHON`
+//! (the venv python), `BEKKO_PY_DEVICE` (default cpu — the author's
+//! reference posture), `BEKKO_MODEL` + `BEKKO_REVISION` (default the
+//! card's 17M release). The card assigns NO license yet — measurement-only
+//! use. A missing script/venv is a loud absence, never a silent skip.
 //! `--agentjev` adds the AgentJev comparison lane (Issue 025 amendment 4 /
 //! `.issues/027`): their `jev_service` (malevrigns/agent-jev @ a965ca8f,
 //! Apache-2.0, not affiliated) answered over HTTP at `AGENTJEV_SERVE_URL`
@@ -180,6 +190,7 @@ fn harness_main() {
         laya_python: false,
         clm: false,
         gliner: false,
+        bekko: false,
         agentjev: false,
         openthai: false,
         paw: false,
@@ -418,6 +429,7 @@ fn harness_main() {
             "--laya-python" => opts.laya_python = true,
             "--clm" => opts.clm = true,
             "--gliner" => opts.gliner = true,
+            "--bekko" => opts.bekko = true,
             "--agentjev" => opts.agentjev = true,
             "--openthai" => opts.openthai = true,
             "--paw" => opts.paw = true,
