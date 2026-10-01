@@ -31,6 +31,8 @@ CLM is the fourth entry in the Jev lineage and the first one whose mechanism is 
 | License | code + weights Apache-2.0 |
 | Honest limits | Qwen3-8B-class encoder needed for the reference head (heads are encoder+pooling-specific); softmax-over-cosine (not sigmoid); **no abstention anywhere** (the recorded katgpt-rs Research-562 flaw, inherited); Reddit-style Q&A ≠ all decision domains; research repo is separate (scaling/paper figures not public yet); "Jev" baseline is their measurement, not ours |
 
+> **External read (2026-10-01, Raschka's IMDb/Tetris head-to-head — vendor/press numbers, never our published cells, the §5 rule):** CLM scored **82.90%** on his 25k IMDb test (Jev Choice 96.47 / Noul 96.20; fine-tuned ModernBERT ~95) and **failed his Tetris generality probe** — consistent with the specialist/classifier reading in the honest limits above. Recorded as external context only; the full landscape row (incl. OpenAI's Decisions API, same day) lives in katgpt-rs Research 562 addendum 2026-10-01.
+
 ## 2. Why it lands on riir-reflex (the lane mapping)
 
 1. **The wire is already ours.** `decision_wire` (katgpt-rs Plan 603 T1.2) was built on the Jev/laya vocabulary; CLM speaks the same `systemone` shape (`noul`/`choice`/`score`). A `clm` lane = an adapter like the laya lane: POST state+questions, map answers, publish in `/bench` tables beside modelless + laya. No harness change; byte-identical questions by construction.
