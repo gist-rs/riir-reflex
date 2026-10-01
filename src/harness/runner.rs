@@ -547,6 +547,7 @@ pub fn code_fixtures_cal_cases() -> Vec<SuiteCase> {
             ));
         }
     }
+    cases.shrink_to_fit();
     cases
 }
 
@@ -1749,6 +1750,7 @@ impl Eval {
                 rows.push((case.gold[qi].idx, self.probs[ci][qi].clone()));
             }
         }
+        rows.shrink_to_fit();
         rows
     }
 
@@ -1760,6 +1762,7 @@ impl Eval {
                 pairs.push((self.confs[ci][qi], self.picks[ci][qi] == case.gold[qi].idx));
             }
         }
+        pairs.shrink_to_fit();
         pairs
     }
 
@@ -4284,6 +4287,7 @@ pub fn case_questions(case: &SuiteCase) -> Vec<(String, Value)> {
         }
         questions.push((q.qid.clone(), Value::Object(def)));
     }
+    questions.shrink_to_fit();
     questions
 }
 
@@ -8121,7 +8125,6 @@ mod corpus_digest_tests {
         let (drafter, fallbacks) = per_label_corpus_docs(&pool(), &labels, 2);
         assert_eq!(fallbacks, vec!["ghost".to_string()]);
         assert_eq!(drafter[1], vec!["ghost".to_string()]);
-        let d_with = corpus_digest("s", &labels, &drafter, None);
         // The fallback text is load-bearing: a label renamed ghost→phantom
         // (same empty pool) must move the digest.
         let labels2 = vec!["a".to_string(), "phantom".to_string()];

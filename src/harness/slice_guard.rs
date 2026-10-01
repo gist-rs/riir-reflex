@@ -584,13 +584,12 @@ mod tests {
         let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
         assert!(!f.is_clean());
         assert!(f.known_dirty_acknowledgement("s").is_none()); // not pinned
-        assert_eq!(f.acknowledged, false);
+        assert!(!f.acknowledged);
 
         // A clean slice never consults the pin table — including for a
         // suite that HAS a pin (a repaired pool just stops matching).
         let clean_test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let clean_cal = envelope(&[row("a", "c1"), row("b", "c2")]);
-        let clean_pool = envelope(&[row("a", "p1"), row("b", "p2")]);
         let pinned_suite = SliceFacts::KNOWN_DIRTY[0].suite;
         // sst5 (the pinned suite) carries a pool floor, so the clean probe
         // there runs at floor scale: a synthetic full-scale pool is built
@@ -601,8 +600,7 @@ mod tests {
                 .map(|i| row("a", &format!("p{i}")))
                 .collect::<Vec<_>>(),
         );
-        let mut big_labels = labels();
-        big_labels = vec!["a".to_string()]; // floor-probe pool is single-label
+        let big_labels = vec!["a".to_string()]; // floor-probe pool is single-label
         let fc = audit_envelopes(
             pinned_suite,
             &big_labels,
