@@ -5,6 +5,29 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-01
+
+- **Issue 057 CLOSED (Bench 102 + reflex-site `8d33e3f` + `2b699f0`, CF
+  `30402050`): the LANE_CARRY corpus-axis gap — every host slot can now
+  refresh published timing on a corpus change.** The m3 primary
+  `typed_decisions` cell reads p50 **0.782 ms** live (was the carried 0.517
+  from the pre-lift 800-row pool; the 4090 half refreshed at Bench 099).
+  The close-out caught a residual publisher defect the 4090 half could not
+  see: the Bench-100 board restore had carried the stale timing onto a cell
+  already carrying the new-pool digest (`_carry_into` re-attaches ONLY
+  timing — the merged cell read digest(new pool) + timing(old pool)), which
+  made the m3 cell PERMANENTLY unrefreshable (equal-digest refuses the ack;
+  no ack re-carries). The repair keys the ack's staleness on whether the
+  incumbent's timing is its OWN — a carried incumbent's equal digest stamps
+  its accuracy merge, not its timing; only an own-timing cell can make the
+  ack stale (one-time property pinned both directions, self-test 67/67).
+  Validated dry against a /tmp copy of the real board with Bench 100's doc
+  BEFORE the live publish; the live publish printed both disclosure notes.
+  Run gates: preflight PASSED (AC/high/settle 6m/canary 129.2µs; swap 3831M
+  disclosed), acc 0.5725 bit-identical, slice + corpus digests byte-equal
+  Bench 100's (pairing gate's own check), all publish gates green, live
+  curl-verified. Full record: `.benchmarks/102_typed_corpus_republish_m3.md`.
+
 ## 2026-09-30
 
 - **Plan-426-T6 seat half LANDED (`776e8db`): the SEAT consumes the synth

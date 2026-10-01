@@ -1,0 +1,444 @@
+{
+  "meta": {
+    "date_utc": "2026-10-01T08:34:03Z",
+    "git_sha": "19cb043",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 4.08,
+        "swap_used_mb": 3831.0,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 3.91,
+        "swap_used_mb": 3831.0,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "ON — cal-selected per suite (scale 0/1/4/16/32/64 × α observed-laplace/fixed-1, promotion bar +5 pt over off on the stratified slice; + noul polarity per domain on noul suites; + bag/pair view on multi-field states; count tables from TRAIN rows only, uncapped). Transductive column: TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc",
+    "oc_posture": "ON — cal-selected per suite (scale 0/0.25/0.5/1/2/4/8, promotion bar +5 pt over off on the stratified slice; one contrastive table per (question id, gold option) from the TRAIN rows, events filtered to the corpus pool; every question kind armed — typed_decisions is the target suite)",
+    "ridge_posture": "ON — cal-selected per suite (scale 0/0.5/1/2/4/8 × λ 10 fixed, promotion bar +5 pt over off on the stratified slice; NBSVM closed-form ridge, k=2048, per-class NB log-count ratios, fit-time self-calibrated margin temperature)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "harness families (Issue 004, Research 579): in-process synthetic fixtures with programmatic gold; all six modelless at default features since Issue 045 (cache_reuse's LLM-only carve-out REVERSED — Bench 072: modelless 0.9167 vs the frozen LLM-lane 0.5000)"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.5725,
+          "macro_f1": 0.5428588466644556,
+          "ece": 0.09930298611894249,
+          "brier": 0.5634444755044175,
+          "nll": 0.9993372554767699,
+          "aurc": 0.2967333943470369,
+          "mean_confidence": 0.4731970138810575,
+          "acc_at_50_coverage": 0.676,
+          "acc_at_80_coverage": 0.613125
+        },
+        "readout_ece": 0.04959756752848618,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.717,
+          "selective_accuracy": 0.6537102473498233,
+          "selective_n": 566
+        },
+        "readout_ece_raw": 0.48374495857954025,
+        "readout_ece_calibrated": 0.04959756752848618,
+        "floor_ece": 0.18175548902195604,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.5483333333333333,
+            "macro_f1": 0.432556704787651,
+            "ece": 0.14819766720136004,
+            "brier": 0.6304564691715672,
+            "nll": 1.1799754866711054,
+            "aurc": 0.3777896524930003,
+            "mean_confidence": 0.40013566613197327,
+            "acc_at_50_coverage": 0.59,
+            "acc_at_80_coverage": 0.5291666666666667
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.73,
+            "macro_f1": 0.7272727272727273,
+            "ece": 0.06820527624338865,
+            "brier": 0.3752274001772096,
+            "nll": 0.5569624129029627,
+            "aurc": 0.16418833870677263,
+            "mean_confidence": 0.6617947237566113,
+            "acc_at_50_coverage": 0.8266666666666667,
+            "acc_at_80_coverage": 0.7770833333333333
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.4725,
+            "macro_f1": 0.37283935453238826,
+            "ece": 0.09739159643650055,
+            "brier": 0.6543482867494519,
+            "nll": 1.1956397140113715,
+            "aurc": 0.4607954011325077,
+            "mean_confidence": 0.3865447422862053,
+            "acc_at_50_coverage": 0.5275,
+            "acc_at_80_coverage": 0.51875
+          }
+        },
+        "soft_acc": 0.3826607784062584,
+        "brier_soft": 0.16762865443923508,
+        "score_mae": 0.5717842324853881,
+        "within_1": 0.81625,
+        "latency_p50_ms": 0.782,
+        "latency_p99_ms": 1.69,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.22,
+          "max_ms": 1.701,
+          "argmax_case": 150
+        },
+        "determinism_ok": true,
+        "seconds": 6.8922451670000004,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.57852864,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.57852864,
+            "status": "fitted",
+            "targetAccuracy": 0.45714286,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.5285714,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            }
+          ]
+        },
+        "oc_selection": {
+          "selected_scale": 4.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.452
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.496
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.536
+            },
+            {
+              "scale": 2.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 4.0,
+              "cal_acc": 0.544
+            },
+            {
+              "scale": 8.0,
+              "cal_acc": 0.542
+            }
+          ]
+        },
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.544
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.542
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.554
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.516
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.508
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.466
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Critical; requires action within the same day.",
+            "count": 63,
+            "share_of_errors": 0.09090909090909091
+          },
+          {
+            "gold": "success",
+            "pred": "partial",
+            "count": 50,
+            "share_of_errors": 0.07215007215007214
+          },
+          {
+            "gold": "No time pressure; can wait indefinitely.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 36,
+            "share_of_errors": 0.05194805194805195
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "None: everything reconciles.",
+            "count": 35,
+            "share_of_errors": 0.050505050505050504
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 34,
+            "share_of_errors": 0.049062049062049064
+          },
+          {
+            "gold": "Benign: read-only or clearly safe actions.",
+            "pred": "Low: routine writes within scope.",
+            "count": 33,
+            "share_of_errors": 0.047619047619047616
+          },
+          {
+            "gold": "Moderate: access to internal systems or non-public data.",
+            "pred": "High: access to production, secrets or customer data.",
+            "count": 30,
+            "share_of_errors": 0.04329004329004329
+          },
+          {
+            "gold": "approve",
+            "pred": "manual_review",
+            "count": 27,
+            "share_of_errors": 0.03896103896103896
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "Critical; requires action within the same day.",
+            "count": 25,
+            "share_of_errors": 0.03607503607503607
+          },
+          {
+            "gold": "request_information",
+            "pred": "escalate_to_human",
+            "count": 24,
+            "share_of_errors": 0.03463203463203463
+          },
+          {
+            "gold": "Mild frustration, but the relationship is intact.",
+            "pred": "Clearly unhappy; repeat problems or explicit complaints.",
+            "count": 23,
+            "share_of_errors": 0.03318903318903319
+          },
+          {
+            "gold": "observe",
+            "pred": "human_review",
+            "count": 22,
+            "share_of_errors": 0.031746031746031744
+          }
+        ],
+        "pair_head_ab": null,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.482341635107994
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.1155914064347744
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.482341635107994
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    }
+  ]
+}
