@@ -72,6 +72,15 @@ against pool docs with their own text). 14/15 suites clean; sst5 refused until f
 - ⛔ **`.raw/datasets_t20k` carries the same sst5 dups and is LEFT FROZEN by verdict (2026-09-30, claude reviewer round 1 — REVISE)**: its aggregate blake3 (`ebfb0317…`, 8544 rows) is a published pin in `.docs/02_protocols/dataset_manifest.md`, and every published t20k-era row (reflex Benches 052+; the instinct arena's frozen re-baseline rows) was measured on those exact bytes — changing bytes under the name IS a re-baseline, not a cleanup. Instead the gate accepts the exact dirty state under a membership pin: `SliceFacts::KNOWN_DIRTY` pins the (test, cal, pool) triple (`67fe9666…`/`d210e7c6…`/`cf933108…`, pool 8344); only that triple proceeds, loudly (`⛔ KNOWN-DIRTY SLICE` line + `acknowledged: true` in results.json), and any repair/re-pull moves the triple → the refusal returns until the pin is deleted in the same change. Verified: t20k sst5 proceeds under the ack (acc 0.2017 == the fixed canonical pool's reading — **the 3 duplicate rows are sub-measurable at the published posture**); the canonical dir runs clean with no ack; **riir-instinct serve_gates 17/17 green again** (my first gate commit had red'd their `enc_row_boots…` test through the sst5 seat on the dirty t20k pool — caught before their next run). The re-baseline decision (dedupe t20k + re-verify the published rows, or a deduped sibling pool) rides **instinct `.issues/013_owner_gate_pickup.md`**.
   The 4090's `.raw/datasets/sst5` needs the same 3-row sync before the next cross-host run (the 077 copy
   procedure) — its copy predates the fix.
+- **t20k-wide dup sweep (2026-09-30, throwaway canon probe + the gate itself):** sst5 carries 1 cross-split + **10**
+  train-internal dups (the bigger pull has more mirror dups — the KNOWN_DIRTY pin covers that exact state, verified
+  proceeding under the ack); **emotion carries 1 train-internal dup that does NOT straddle cal/pool** (harness on
+  t20k: `pool 15800 · OK` — proven, not inferred); every other t20k suite reads 0 cross-split / 0 internal. The
+  instinct/Rethink arena (frozen t20k, all lanes selected + measured + served on it) is internally consistent and
+  needed no numeric fix — the cross-lane break is on the SITE: modelless rows (post-076 canonical pools) vs
+  hybrid/encoder rows (t20k) are different data bases, which is instinct 013's E2 observation with its cause now
+  named. The owner canonicalization call (one pool everywhere, likely t20k — the A/B shows the old modelless
+  numbers reproduce exactly there) restores cross-lane comparability and retires the arena's `--skip-pin-a0` posture.
 
 ## TL;DR
 
