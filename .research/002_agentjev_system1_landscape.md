@@ -133,3 +133,23 @@ head becomes a product requirement.
 
 No PoC required: no quality-parity claim is made by us — their numbers are
 cited as published, ours as measured, protocol differences flagged.
+
+> **PASS-Redirects (synthesis):** Alex Zhang ["Language Model \"Shape\""
+> (alexzhang13.github.io/blog/2026/shape/, 2026-09-26)] — external doctrinal
+> validation, no new mechanism. He names Jev's ℝ[0,1]-constrained prefill-only
+> output the anchor of an "alternate shape tradeoff space" and reports the
+> use-pattern this lane already serves: Jev as a cheap fuzzy-conditional /
+> if-statement inside recursive-LM harnesses — exactly `decision_wire`'s
+> `choice`/`noul` control-flow stance, with our modelless lane being the same
+> shape-to-fit-harness thesis executed without weights (the RLM harness
+> itself: katgpt-rs Research 146 / riir-ai Research 333, already PASS'd).
+> His agent-shape
+> proposal (recurrent compressed history + dense current window on *parallel*
+> residual streams, vs today's vertical attention/SSM interleave) is the
+> architecture-level analog of the two-brain + consolidation pattern riir-ai
+> ships agent-side (typed decision gates with compact-state budget shipped
+> at riir-ai `987f2e787`, ex-issue 1005); conceptually adjacent to the
+> bounded-memory-coexisting-
+> with-dense-attention family (Block-Recurrent Transformer, Infini-attention,
+> LongMem), and a riir-infer/riir-train lane only if a consumer + recipe ever
+> appear (none today).
