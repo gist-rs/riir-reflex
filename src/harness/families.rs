@@ -27,6 +27,7 @@
 
 use serde_json::{Map, Value};
 
+use super::families_eval_wide;
 use crate::harness::suites::{GoldAnswer, QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc};
 
 /// One in-process suite, prepared for the runner: the eval suite, its
@@ -212,72 +213,7 @@ static VIS: FamilyDef = FamilyDef {
             gold: 3,
         },
     ],
-    eval: &[
-        FamilyText {
-            text: "An upstream fork's roadmap document, listing plans this tree never adopted.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "The draft design note that the shipped architecture superseded two iterations ago.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Build output from an unrelated repository, swept in by a careless search.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "The deprecated flag registry that the last release emptied and retired.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "A hundred-line search result where three hits matter and the rest repeat one import.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The changelog of an indirect dependency, no interface this repo uses touched.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The directory tree of the asset pack, one folder of which the task actually reads.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Ten versions of benchmark history, flat across the last seven.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The failing test's output with its setup, its broken assertion, and the fixture that seeded the state.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The deserializer branch under suspicion, its arms and guards shown intact.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The lock-ordering log from every reproduction of the deadlock so far.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The repro-session transcript, kept until the fix lands and the ticket closes.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The function under edit, every line the diff touches, exactly as written.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The user's pasted panic message, character for character.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The wire-contract table the patch extends, offsets and guarantees complete.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The license header under audit, untruncated for the compliance check.",
-            gold: 3,
-        },
-    ],
+    eval: &families_eval_wide::VIS_WIDE_EVAL,
 };
 
 // ── permissions (T4): allow / ask / deny over commands ─────────────────────
@@ -407,56 +343,7 @@ static PERM: FamilyDef = FamilyDef {
             gold: 2,
         },
     ],
-    eval: &[
-        FamilyText {
-            text: "git status --porcelain before the commit, to see what is staged.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "grep the sources for the unused import the warning names.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "cargo check on the current crate after the edit.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Show the tracked LICENSE file the release job reads.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Deploy the worker to the edge network ahead of the review.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Fetch the metrics endpoint on the public monitoring host.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Write a config file into the user's home directory.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Publish the crate to the registry under a new version.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Print the production environment file with its credentials inline.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Write the SSH private key to standard output.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Recursive-force-remove another checkout's build directory.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Rewrite main's history and force it over the shared remote.",
-            gold: 2,
-        },
-    ],
+    eval: &families_eval_wide::PERM_WIDE_EVAL,
 };
 
 // ── tool_fit (T4): which single tool fits the intent ───────────────────────
@@ -602,56 +489,7 @@ static TOOL: FamilyDef = FamilyDef {
             gold: 5,
         },
     ],
-    eval: &[
-        FamilyText {
-            text: "Find every TODO comment left in the crate.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Search for the exact error string the user reported.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Find all if-let statements that could be let-else, by tree shape.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Locate every closure capturing by reference, structurally.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Which commit introduced this TODO, and when?",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Blame the line whose change regressed the count.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Run the gates and report the pass counts.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "Check whether the suite is green after the fix.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "Format the touched files before committing.",
-            gold: 4,
-        },
-        FamilyText {
-            text: "Apply the house style to the new module.",
-            gold: 4,
-        },
-        FamilyText {
-            text: "Find where the harness tables are documented.",
-            gold: 5,
-        },
-        FamilyText {
-            text: "Look up the fixture-slice law in the guides.",
-            gold: 5,
-        },
-    ],
+    eval: &families_eval_wide::TOOL_WIDE_EVAL,
 };
 
 // ── routing (T5): which execution lane runs the subtask ────────────────────
@@ -790,72 +628,7 @@ static ROUTE: FamilyDef = FamilyDef {
             gold: 3,
         },
     ],
-    eval: &[
-        FamilyText {
-            text: "Decide, in microseconds, whether this command should run at all.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Score these spans for the fix lane, in-process, with identical bytes out.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Route the per-tick visibility choice against the fixed option set.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Classify request intents at ten thousand per hour.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "Summarize the commits of the day in plain prose, on a budget.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Tag the sentiment of the review backlog, item by item.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Extract the structured fields from these scanned forms, at volume.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Draft simple release-note blurbs for the patch set.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "Debug the defect that reproduces only on the release profile.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Design the migration plan for the sharded schema.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Write the security review for the new signing flow.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Reason about the borrow-path defect that spans three modules.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "Regenerate the documentation site overnight.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "Re-embed the full corpus after the model swap.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "Compact the stores and archive the old runs on a schedule.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "Assemble the weekly digest from the analytics ledgers.",
-            gold: 3,
-        },
-    ],
+    eval: &families_eval_wide::ROUTE_WIDE_EVAL,
 };
 
 // ── sensitivity (T5): file-sensitivity ordinal score ───────────────────────
@@ -1019,68 +792,7 @@ static SENS: FamilyDef = FamilyDef {
             gold: 4,
         },
     ],
-    eval: &[
-        FamilyText {
-            text: "The changelog published on the site, announcing last week's release.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "The license file, identical to the one on the public forge.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "The tutorial repository that walks new users through setup.",
-            gold: 0,
-        },
-        FamilyText {
-            text: "The vendored async-runtime sources, unpatched from upstream.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The lock entry resolving a public registry crate.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The BSD-licensed parser module copied into the vendor tree.",
-            gold: 1,
-        },
-        FamilyText {
-            text: "The playground module implementing our arena scoring.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The fixture families authored for the proprietary engine.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The hand-tuned routing head at the core of the product.",
-            gold: 2,
-        },
-        FamilyText {
-            text: "The TLS certificate stanza in the deploy configuration.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The deployment wiring that names the internal hosts.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The provisioning state describing the cluster's networks.",
-            gold: 3,
-        },
-        FamilyText {
-            text: "The environment file with the payment provider's live keys.",
-            gold: 4,
-        },
-        FamilyText {
-            text: "The signing key that authorizes releases.",
-            gold: 4,
-        },
-        FamilyText {
-            text: "The callback-verification value shared with the payment provider.",
-            gold: 4,
-        },
-    ],
+    eval: &families_eval_wide::SENS_WIDE_EVAL,
 };
 
 // ── cache_reuse (Issue 045): modelless DEFAULT ───────────────────────────
@@ -1100,7 +812,11 @@ no = rebuild (the context no longer matches the task).";
 const CACHE_REUSE_NOTE: &str = "authored prefix scenarios; gold = reuse-vs-rebuild by \
 construction. Modelless since Issue 045 (the T3 carve-out reversed): the \
 corpus + cal slices below teach the coverage-vs-divergence distinction; the \
-12 eval fixtures and their gold are UNCHANGED from the T3 authoring.";
+12 eval fixtures and their gold are UNCHANGED from the T3 authoring. \
+Plan 009 REVISED-2 (issue 059): this is the DOCUMENTED DIVERGENCE — the other \
+five families went wide (families_eval_wide), this one keeps its frozen T3 \
+record on purpose (its grounded-posture gate pins the 12-fixture history); \
+the wide-eval gates exempt it by name.";
 
 static CACHE_REUSE_EVAL: [FamilyText; 12] = [
     FamilyText {
@@ -1156,6 +872,8 @@ static CACHE_REUSE_EVAL: [FamilyText; 12] = [
 /// The LLM-era fixture set, exposed for the gate tests (the runner
 /// consumes [`synth_cache_reuse`] instead). UNCHANGED from the T3
 /// authoring — the non-goal law: gold and fixture text never move.
+/// Plan 009 REVISED-2: the documented divergence — the other five
+/// families' evals went wide; this one stays the frozen 12 on purpose.
 #[must_use]
 pub fn cache_reuse_eval() -> &'static [FamilyText] {
     &CACHE_REUSE_EVAL

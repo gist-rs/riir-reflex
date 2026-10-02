@@ -11,6 +11,9 @@ pub mod cascade;
 #[cfg(feature = "modelless")]
 pub mod code_frozen;
 pub mod families;
+// Plan 009 REVISED-2: the five widened eval populations (data-only, the
+// families module's sibling — see the module's own doc).
+pub mod families_eval_wide;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
 // Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm

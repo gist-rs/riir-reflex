@@ -24,6 +24,12 @@
 //!   degenerate-lane lesson: a constant, input-independent pick sits at
 //!   exactly chance on class-balanced fixtures, so accuracy alone cannot
 //!   see it — only distinct counts can);
+//! - Plan 009 REVISED-2 (issue 059): the WIDE-eval authoring law over the
+//!   five widened families — population band + exact class balance,
+//!   per-family label-token bans, the corpus/cal 3-gram wall (zero
+//!   tolerance), unigram-overlap ceilings, and a BLAKE3 digest pin per
+//!   family (`harness_cache_reuse` is the documented divergence and stays
+//!   the frozen T3 12-fixture record).
 
 #![cfg(feature = "modelless")]
 
@@ -34,6 +40,8 @@ use riir_reflex::harness::families;
 use riir_reflex::harness::runner;
 use riir_reflex::harness::suites::QKind;
 use riir_reflex::pyjson::serialize_state;
+
+use std::collections::HashSet;
 
 const MODELLESS_FAMILIES: &[&str] = &[
     "harness_visibility",
@@ -576,5 +584,300 @@ fn cache_reuse_grounded_posture_discriminates() {
          are published, not gated — the G1 power statement lives in the bench \
          record)",
         seat.suite.cases.len()
+    );
+}
+
+// ── Plan 009 REVISED-2: the wide-eval authoring gates (issue 059) ─────────
+//
+// The five widened families' eval populations carry an authoring law the
+// gates below enforce. `harness_cache_reuse` is the DOCUMENTED DIVERGENCE —
+// it keeps its frozen T3 12-fixture record (see `CACHE_REUSE_NOTE`) and is
+// exempt from this section BY NAME (a name-based exemption, not a
+// structural one: a seventh family added tomorrow lands here gated, and
+// deleting the exemption requires editing this line).
+//
+// Baselines (measured on the pre-wide evals before the swap — the
+// `.benchmarks/105` record carries the full table): old mean unigram
+// overlap ran 0.68–0.78 with per-case maxes at 1.00 and 2–7 of 12–16 eval
+// cases sharing a word 3-gram with corpus/cal. The wide authoring is
+// STRICTER than every old number: zero shared 3-grams (the
+// memorization-path wall), mean ≤ [`WIDE_MAX_MEAN_OVERLAP`], per-case ≤
+// [`WIDE_MAX_CASE_OVERLAP`], and exact per-family label-token bans.
+
+/// The widened families, in registry order. `harness_cache_reuse` is
+/// deliberately absent — the documented divergence.
+const WIDE_FAMILIES: &[&str] = &[
+    "harness_visibility",
+    "harness_permissions",
+    "harness_tool_fit",
+    "harness_routing",
+    "harness_sensitivity",
+];
+
+/// Per-family banned label tokens (exact token match, lowercased).
+/// `harness_tool_fit` bans the six tool names AND their component tokens
+/// (an intent that names its own answer leaks the label); the other
+/// families ban their label words. `harness_sensitivity` bans every digit
+/// character instead (its labels ARE the levels 0–4).
+const LABEL_BANS: &[(&str, &[&str])] = &[
+    (
+        "harness_visibility",
+        &["hide", "short", "long", "full"],
+    ),
+    ("harness_permissions", &["allow", "ask", "deny"]),
+    (
+        "harness_tool_fit",
+        &[
+            "grep", "ast", "git", "log", "cargo", "test", "tests", "fmt",
+            "docs", "search",
+        ],
+    ),
+    (
+        "harness_routing",
+        &[
+            "local", "engine", "cheap", "api", "frontier", "background",
+            "batch",
+        ],
+    ),
+];
+
+/// Mean unigram overlap ceiling per family (eval-text token share that
+/// appears in the family's corpus∪cal pool). The old evals measured
+/// 0.68–0.78; the wide authoring targets materially fresher vocabulary.
+const WIDE_MAX_MEAN_OVERLAP: f64 = 0.78;
+
+/// Per-case unigram overlap ceiling — the old evals carried 1.00 cases
+/// (every token already in the pool); the wide law requires every case to
+/// carry fresh vocabulary.
+const WIDE_MAX_CASE_OVERLAP: f64 = 0.92;
+
+/// The acceptance band for a widened eval population (the plan's numbers).
+const WIDE_MIN_CASES: usize = 88;
+const WIDE_MAX_CASES: usize = 104;
+
+fn wide_tokens(text: &str) -> Vec<String> {
+    text.to_lowercase()
+        .replace('\'', "")
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|s| !s.is_empty())
+        .map(String::from)
+        .collect()
+}
+
+fn wide_trigrams(text: &str) -> HashSet<[String; 3]> {
+    let t = wide_tokens(text);
+    let mut out = HashSet::new();
+    if t.len() >= 3 {
+        for w in t.windows(3) {
+            out.insert([w[0].clone(), w[1].clone(), w[2].clone()]);
+        }
+    }
+    out
+}
+
+/// BLAKE3 digest pin over the canonical wide-eval bytes: the family name,
+/// then per case `gold 0x1F text 0x1E`. Any fixture edit (text, gold,
+/// order, insertion, deletion) moves the digest and reds this gate until
+/// the pin is consciously re-typed in the same change.
+fn wide_eval_digest(def: &families::FamilyDef) -> String {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(def.name.as_bytes());
+    bytes.push(0x1E);
+    for t in def.eval {
+        bytes.extend_from_slice(t.gold.to_string().as_bytes());
+        bytes.push(0x1F);
+        bytes.extend_from_slice(t.text.as_bytes());
+        bytes.push(0x1E);
+    }
+    blake3::hash(&bytes).to_hex().to_string()
+}
+
+/// The digest pins, one per widened family. Bootstrap: a mismatch panic
+/// prints the computed digest — paste it here in the same change that
+/// moved the fixtures (never delete a pin to make a red go away).
+const WIDE_EVAL_DIGESTS: &[(&str, &str)] = &[
+    (
+        "harness_visibility",
+        "2fb6e5ecf0a5d204b264d9a59556762ec0ddf09dc5c29bf50fef0fdd2d045945",
+    ),
+    (
+        "harness_permissions",
+        "e5127a1fada65c5b42e3df5a2f11cfd9a9f2ef3872248e1c29866e01da5f50e9",
+    ),
+    (
+        "harness_tool_fit",
+        "47e6d75a046abb7f483689d838553e13ea4566d433bdfe3b487cbc3d3290d7c9",
+    ),
+    (
+        "harness_routing",
+        "beecd817d1e7179f1f9928b888aeff035937d5fd4b8d5f1d38541c0e229f6458",
+    ),
+    (
+        "harness_sensitivity",
+        "ad778f9de86320a76e947c1a7e69b3eb0b78028351282df72f281c736e76a802",
+    ),
+];
+
+#[test]
+fn wide_evals_meet_the_authoring_law() {
+    for name in WIDE_FAMILIES {
+        let def = families::family_def(name).unwrap_or_else(|| panic!("{name} has no FamilyDef"));
+
+        // Population band + exact class balance (max−min ≤ 1, every class
+        // ≥ 16 — the small-n near-duplicate classes are gone).
+        let n = def.eval.len();
+        assert!(
+            (WIDE_MIN_CASES..=WIDE_MAX_CASES).contains(&n),
+            "{name}: eval population {n} outside the wide band \
+             [{WIDE_MIN_CASES}, {WIDE_MAX_CASES}]"
+        );
+        let mut class_counts = vec![0usize; def.labels.len()];
+        for t in def.eval {
+            class_counts[t.gold] += 1;
+        }
+        let lo = *class_counts.iter().min().unwrap();
+        let hi = *class_counts.iter().max().unwrap();
+        assert!(
+            hi - lo <= 1 && lo >= 16,
+            "{name}: class balance {class_counts:?} — the wide law is exact \
+             balance (max−min ≤ 1) with every class ≥ 16"
+        );
+
+        // Label-token bans. SENS bans every digit (labels ARE the levels);
+        // every other family bans its exact label tokens on eval AND cal.
+        if *name == "harness_sensitivity" {
+            for (i, t) in def.eval.iter().enumerate() {
+                assert!(
+                    !t.text.chars().any(|c| c.is_ascii_digit()),
+                    "{name}: eval case {i} carries a digit — the family law is \
+                     no level digits (labels are 0–4)"
+                );
+            }
+        } else {
+            let bans = LABEL_BANS
+                .iter()
+                .find(|(n, _)| n == name)
+                .map(|(_, b)| *b)
+                .unwrap_or(&[]);
+            assert!(!bans.is_empty(), "{name}: no label-ban row (gate bug)");
+            for (i, t) in def.eval.iter().enumerate() {
+                for w in wide_tokens(t.text) {
+                    assert!(
+                        !bans.contains(&w.as_str()),
+                        "{name}: eval case {i} carries the label token `{w}` — \
+                         the text leaks its own answer"
+                    );
+                }
+            }
+            // Cal-text bans: VIS/PERM/ROUTE's cal was authored token-free
+            // too (and stays gated); `harness_tool_fit`'s cal predates the
+            // ban law and legitimately contains generic verbs ("Search the
+            // tree…") — eval-only there.
+            if *name != "harness_tool_fit" {
+                for (i, t) in def.cal.iter().enumerate() {
+                    for w in wide_tokens(t.text) {
+                        assert!(
+                            !bans.contains(&w.as_str()),
+                            "{name}: cal case {i} carries the label token `{w}`"
+                        );
+                    }
+                }
+            }
+        }
+
+        // The memorization-path wall: no word 3-gram shared with corpus or
+        // cal (the old evals carried 2–7 such cases per family; the wide
+        // authoring is held to zero).
+        let mut wall: HashSet<[String; 3]> = HashSet::new();
+        for (_, ct) in def.corpus {
+            wall.extend(wide_trigrams(ct));
+        }
+        for c in def.cal {
+            wall.extend(wide_trigrams(c.text));
+        }
+        for (i, t) in def.eval.iter().enumerate() {
+            let et = wide_trigrams(t.text);
+            let hits: Vec<_> = et.intersection(&wall).take(3).collect();
+            assert!(
+                hits.is_empty(),
+                "{name}: eval case {i} shares {hits:?} with corpus/cal — \
+                 the memorization-path wall is zero-tolerance"
+            );
+        }
+
+        // Unigram overlap ceilings (mean + per-case), measured against the
+        // corpus∪cal token pool. Prints the actuals on every run — the
+        // numbers the bench record cites.
+        let mut pool: HashSet<String> = HashSet::new();
+        for (_, ct) in def.corpus {
+            pool.extend(wide_tokens(ct));
+        }
+        for c in def.cal {
+            pool.extend(wide_tokens(c.text));
+        }
+        let mut sum = 0.0f64;
+        let mut max = 0.0f64;
+        for (i, t) in def.eval.iter().enumerate() {
+            let toks = wide_tokens(t.text);
+            let hits = toks.iter().filter(|w| pool.contains(*w)).count();
+            let o = hits as f64 / toks.len() as f64;
+            sum += o;
+            max = max.max(o);
+            assert!(
+                o <= WIDE_MAX_CASE_OVERLAP,
+                "{name}: eval case {i} unigram overlap {o:.3} > \
+                 {WIDE_MAX_CASE_OVERLAP} — a wholesale vocabulary copy"
+            );
+        }
+        let mean = sum / n as f64;
+        assert!(
+            mean <= WIDE_MAX_MEAN_OVERLAP,
+            "{name}: mean unigram overlap {mean:.4} > {WIDE_MAX_MEAN_OVERLAP}"
+        );
+
+        // Eval-internal dedup (case-insensitive).
+        let mut seen: HashSet<String> = HashSet::new();
+        for (i, t) in def.eval.iter().enumerate() {
+            assert!(
+                seen.insert(t.text.to_lowercase()),
+                "{name}: eval case {i} duplicates an earlier case"
+            );
+        }
+
+        // The digest pin.
+        let computed = wide_eval_digest(def);
+        let pin = WIDE_EVAL_DIGESTS
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, d)| *d)
+            .expect("digest pin row");
+        assert_eq!(
+            pin, computed,
+            "{name}: wide-eval digest moved (computed {computed}) — the \
+             fixtures changed; re-pin in the same change, with the reason"
+        );
+        println!(
+            "[recorded] {name}: eval {n} cases, balance {class_counts:?}, \
+             mean_ovl {mean:.4}, max_ovl {max:.4}"
+        );
+    }
+}
+
+/// The divergence pin: `harness_cache_reuse` must NOT silently join the
+/// wide population — its eval stays the frozen 12-fixture T3 record. If a
+/// future change widens it on purpose, this test is edited in the SAME
+/// change with the reason (and the grounded-posture gate's count pin
+/// moves with it).
+#[test]
+fn cache_reuse_stays_the_documented_divergence() {
+    let def = families::family_def("harness_cache_reuse").expect("cache_reuse def");
+    assert_eq!(
+        def.eval.len(), 12,
+        "cache_reuse's eval moved off the frozen T3 record without the \
+         documented-divergence edit"
+    );
+    assert!(
+        !WIDE_FAMILIES.contains(&"harness_cache_reuse"),
+        "cache_reuse joined WIDE_FAMILIES without its divergence note"
     );
 }

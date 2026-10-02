@@ -1,0 +1,100 @@
+0	The press kit folder with logos and boilerplate for journalists covering the launch.
+0	The blog post announcing last month's feature drop, straight from the marketing team.
+0	The contributing guide that shows newcomers how to submit their first patch.
+0	The code-of-conduct page every community member agrees to before posting.
+0	The screenshot gallery showcasing the redesigned dashboard in several color themes.
+0	The quickstart tutorial that gets a fresh clone compiling within minutes.
+0	The podcast episode where the founders discuss the roadmap for the year ahead.
+0	The webinar deck explaining the architecture to a nontechnical audience.
+0	The newsletter archive holding every monthly digest since the project went public.
+0	The download page linking the signed installers for each supported platform.
+0	The glossary entry defining every term newcomers encounter in the handbook.
+0	The office-hours notes where maintainers answered community questions last quarter.
+0	The changelog page on the docs portal listing what shipped since the winter release.
+0	The status page widget that reports uptime to visitors in plain language.
+0	The brand guidelines specifying which accent colors accompany the wordmark.
+0	The community showcase thread collecting fan-built plugins and themes from the forums.
+0	The migration guide walking administrators through upgrading from the legacy release.
+0	The interview article where the engineering lead demos the public beta build.
+0	The faq entry clarifying which license applies to the sample snippets.
+0	The poster artwork pinned beside the booth at last spring's expo.
+1	The vendored fork of the YAML loader, carrying small local patches.
+1	The third-party compression crate mirrored into the vendor directory at a pinned revision.
+1	The checksum entry that pins the registry tarball of the templating library.
+1	The git submodule snapshot tracking the upstream parser library, unmodified.
+1	The dependency's migration notes copied into the tree for reference during upgrades.
+1	The Apache license header at the top of every vendored math routine.
+1	The upstream test suite bundled beside the bindings so regressions stay reproducible.
+1	The wasm glue package imported wholesale from the original authors.
+1	The crate metadata describing the pinned semver range for the tracing client.
+1	The vendored image codec whose upstream repo we mirror for offline builds.
+1	The gem spec synced from the community package index at install time.
+1	The vendored protobuf definitions generated from the schemas of the upstream service.
+1	The changelog excerpt from the date library, documenting its breaking releases.
+1	The BSD-licensed renderer module dropped into vendor/ during the dependency audit.
+1	The shell completions copied from the CLI toolkit we depend on.
+1	The upstream issue tracker export archived next to the vendored sources.
+1	The polyfill shim adapted slightly from the browser compatibility library.
+1	The module cache entry referencing the released version of the websocket library.
+1	The example programs shipped inside the vendored database driver for reference.
+1	The compatibility layer vendored from the SDK, matching its published release exactly.
+2	The pricing engine that computes subscription quotes from our rate cards.
+2	The recommendation module blending viewing history with taste embeddings for suggestions.
+2	The fraud heuristic that flags unusually rapid checkout attempts for review.
+2	The matchmaking routine pairing players by latent skill and latency budget.
+2	The sprite atlas packer that packs hand-drawn frames into GPU-friendly pages.
+2	The physics solver integrating our custom friction model every tick.
+2	The lexer and parser for the templating DSL we designed in-house.
+2	The schema migrator that applies versioned DDL batches to the product database on startup.
+2	The cache eviction policy tuned for our read-heavy workload patterns.
+2	The binary protocol encoder that serializes world snapshots for the netcode.
+2	The leaderboard aggregator computing seasonal ranks from raw match outcomes.
+2	The batch scheduler that groups telemetry flushes to protect the tick budget.
+2	The reconciler that settles divergent inventory counts after a node rejoins.
+2	The entitlement checker deciding which premium features unlock for each account.
+2	The order-matching core pairing limit orders against the live book.
+2	The search ranking head that blends lexical scores with our learned prior.
+2	The loyalty accrual module awarding points for streaks and referrals.
+2	The widget toolkit rendering our bespoke calendar controls on the canvas.
+2	The compaction pass that merges cold segments during idle windows.
+2	The domain model expressing orders, holdings, and settlements in the ledger core.
+3	The nginx pool routing traffic to the staging fleet's health endpoints.
+3	The kubernetes rollout manifest describing canary weights across the node pools.
+3	The terraform module provisioning the private subnets and NAT gateways for the database tier.
+3	The CI pipeline definition that lints, tests, and publishes on every merge.
+3	The ansible playbook that hardens the bastion before it joins the production network.
+3	The compose file wiring the database, cache, and queue for local orchestration.
+3	The ingress ruleset routing external paths to the right backend services.
+3	The load-balancer health probe settings that drain instances before shutdown.
+3	The DNS zone file listing the records for every internal service name.
+3	The cron schedule that snapshots the metrics store nightly to the archive bucket.
+3	The service-mesh routing table steering mirrored traffic into the shadow cluster.
+3	The scrape configuration enumerating the metrics endpoints across every monitored host.
+3	The wireguard topology file describing the tunnels between regional relays.
+3	The subnet allocation sheet reserving address blocks for each availability zone.
+3	The build pipeline that cross-compiles the release binaries for every target triple.
+3	The proxy allowlist that gates which client origins may reach the API gateway.
+3	The retention policy governing how long access logs persist in cold storage.
+3	The autoscaling thresholds that grow the worker pool as queue depth climbs.
+3	The migration runner config that applies database revisions before each deploy.
+3	The observability dashboard definition charting tail latency per service tier.
+4	The dotfile at the repo root holding the production database credentials.
+4	The OAuth client secret issued for the billing dashboard's server-side calls.
+4	The SSH identity that authenticates deploys to the bare git remote.
+4	The webhook secret that authenticates every payload the vendor posts to us.
+4	The HMAC secret used to sign the license activation responses.
+4	The service-account JSON with the storage keys the nightly export assumes.
+4	The vault unseal shares split across the keepers for disaster recovery.
+4	The TLS private key backing the edge certificate for the storefront domain.
+4	The bot token letting the release announcer post to the chat workspace.
+4	The recovery codes sheet for the owner's hardware second factor.
+4	The deploy passphrase guarding the encrypted bundle the installer fetches.
+4	The cluster bootstrap token that nodes present when joining the managed fleet.
+4	The publish token authorizing uploads of signed artifacts to the registry.
+4	The pepper constant added to every password hash before storage.
+4	The relay credentials the on-prem agent presents to phone home.
+4	The cookie-signing secret that keeps session identifiers unforgeable across the storefront.
+4	The MFA seed values provisioned for every operator account in the vault.
+4	The release signing identity kept offline except during the monthly promotion.
+4	The environment variables file exporting the third-party credentials for staging.
+4	The encryption passphrase protecting the offline backup of the signer identities.
