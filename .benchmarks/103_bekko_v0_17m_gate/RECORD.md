@@ -198,7 +198,9 @@ pull is the stale one)
   suites' numeric levels; typed_decisions (the mixed suite) refuses on this pool (stale
   700-row typed pull, the known pool staleness) so bekko went unmeasured there.
 - English-only model on English-only suites — no language confound.
-- 400M unmeasured (see above).
+- 400M unmeasured (see above) — **SUPERSEDED 2026-10-02: measured as [Bench 107](../107_bekko_v0_400m_board/RECORD.md)
+  (Plan 617 A6, on this box — the ~2 h estimate did not survive contact with the real M3);
+  the 400M beats the 68M on all 9 suites and takes the board seat.**
 
 ## Addendum — 2026-10-02: the license is MIT (verified); the typed-pool blocker repaired
 
