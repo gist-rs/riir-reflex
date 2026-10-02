@@ -1405,7 +1405,7 @@ pub struct RunMeta {
     /// Whether the Bekko comparison lane ran (Bench 103), and its serving
     /// posture when it did (hotchpotch/bekko-system-one-v0 over their
     /// `BekkoSentenceTransformer` runtime as a JSONL subprocess — comparison
-    /// lane, never a product lane; the card assigns no license yet).
+    /// lane, never a product lane; MIT — verified 2026-10-02).
     pub bekko_lane: String,
     /// Whether the AgentJev comparison lane ran (Issue 025 amendment 4 /
     /// `.issues/027`), and its serving posture when it did (their
@@ -4880,8 +4880,8 @@ fn run_gliner_lane(
 /// Latency is the subprocess round-trip per case (IPC included — the
 /// laya-python measurement law). The model id rides `BEKKO_MODEL` (default
 /// the card's 17M release; the bench-record runs pin 68m explicitly) and
-/// `BEKKO_REVISION` pins the card's release commit. The card assigns NO
-/// license yet — measurement-only use.
+/// `BEKKO_REVISION` pins the card's release commit. License: MIT (verified
+/// 2026-10-02 — distill/teacher use license-clear with attribution).
 fn run_bekko_lane(
     suite: &Suite,
     laya_max_questions: usize,
@@ -4895,8 +4895,8 @@ fn run_bekko_lane(
         "BEKKO_PY_DEVICE",
         "cpu",
         "the lane is opt-in measurement tooling; the venv needs torch + \
-         transformers + sentence-transformers (the card's runtime pins; the \
-         card assigns no license yet — measurement-only)",
+         transformers + sentence-transformers (the card's runtime pins; MIT \
+         license — verified 2026-10-02)",
         suite,
         laya_max_questions,
         leak_flags,
@@ -5946,8 +5946,8 @@ pub struct RunOptions {
     pub gliner: bool,
     /// Also run the Bekko comparison lane — hotchpotch/bekko-system-one-v0
     /// over their BekkoSentenceTransformer runtime as a JSONL subprocess
-    /// oracle (Bench 103; measurement-only, off by default; the card
-    /// assigns no license yet).
+    /// oracle (Bench 103; measurement-only, off by default; MIT — verified
+    /// 2026-10-02).
     pub bekko: bool,
     /// Also run the AgentJev comparison lane (Issue 025 amendment 4 /
     /// `.issues/027`): their `jev_service` answered over HTTP
@@ -6940,7 +6940,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         bekko_lane: if opts.bekko {
             "on — hotchpotch/bekko-system-one-v0 over their BekkoSentenceTransformer \
              runtime as a JSONL subprocess oracle (comparison lane, never a product \
-             lane; the card assigns NO license yet — measurement-only): same cases, \
+             lane; MIT — verified 2026-10-02): same cases, \
              their softmax-over-candidates readout taken as-is, the state passed AS \
              JSON (their reference law renders JSON states itself), score native \
              when levels are numeric else choice-over-labels (disclosed), noul native \
