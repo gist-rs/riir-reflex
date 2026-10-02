@@ -10,6 +10,12 @@
 //! Python-oracle subprocess (the gliner-lane shape).
 
 pub mod agentjev;
+// Plan 011 Phase A: the Cloudflare Clef comparison lane — agentjev-shaped
+// (ungated: imports only `crate::harness::suites` + std + serde_json, the
+// G-ISO-4 import law); the hosted Workers-AI route behind an operator-run
+// loopback TLS forwarder (plan 011 A0). The no-creds refusal is the lane's
+// own construction gate.
+pub mod clef;
 #[cfg(feature = "clm-lane")]
 pub mod clm;
 #[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]

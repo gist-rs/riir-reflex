@@ -4,6 +4,9 @@
 (owner ask: research the Clef blog, bench Rethink against the Jev Decision Index like the blog does,
 plan a `--clef` run published to reflex.gist.rs/bench like the other lanes). Hosted-Clef credentials
 are owner-gated; phases run in order, each commits+pushes its own unit.
+**Progress 2026-10-02: Phase A + Phase B LANDED** (lane + wiring + JDI adapter + snapshot + gates;
+A2.5/A6 blocked on owner creds; Phase C blocked on A6 — C1's hosted run needs the forwarder +
+token; Phase D deferred per its own rows).
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -12,7 +15,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
 
 ## Phase A — the `--clef` comparison lane (riir-reflex)
 
-- [ ] A0 **transport decision (blocks A1 — verdict round 1 finding):** the harness lanes are
+- [x] A0 **transport decision (blocks A1 — verdict round 1 finding):** the harness lanes are
       deliberately std-only plaintext HTTP (`TcpStream`, zero TLS deps — the clm-lane law), so the
       hosted Workers AI HTTPS endpoint is unreachable from the agentjev lane shape. Default
       posture: a **loopback TLS-terminating forwarder** (operator-run ~20-line process outside the
@@ -24,58 +27,94 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       direct HTTPS — a BOUNDARY.md change (allowlist row + boundary-guard run + the one-dep law
       amended); take it only if the forwarder posture proves annoying in practice. Rejected:
       committing Python (repo law); local vLLM serving stays deferred to D1.
-- [ ] A1 `src/lanes/clef.rs` — sibling of `agentjev.rs` (NOT a config flag):
+- [x] A1 `src/lanes/clef.rs` — sibling of `agentjev.rs` (NOT a config flag):
       `ClefLane { url, token, model, timeout }`, `from_url`, a **probe handshake `info()` = one
       minimal `noul` request** (the Workers AI route has no `GET /api/info`; the reply proves the
       wire shape and carries model identity when the envelope provides it), `decide(case)` /
       `decide_raw(case) -> AnswerTriple` + raw probs; `CLEF_SERVE_URL` (default the loopback
       forwarder), `CLEF_API_TOKEN` (bearer), `CLEF_MODEL` (`clef`|`clef-flash`),
       `CLEF_TIMEOUT_MS`.
-- [ ] A2 wire mapping tests in the lane module (the agentjev.rs test shape): body passes `state`
+- [x] A2 wire mapping tests in the lane module (the agentjev.rs test shape): body passes `state`
       through; `choice` renders `criteria` as the options map (key = desc), `score` renders the
       levels list, `noul` carries no options (wire law); answers map back in OUR option order;
       missing qid in the reply is a loud error, never a positional guess; the Workers AI
       `{result, success, errors}` ENVELOPE is unwrapped explicitly (the raw envelope is never
-      parsed as an answer set).
-- [ ] A2.5 **wire fixture (the compatibility evidence — verdict round 1):** capture ONE real
+      parsed as an answer set). 12 tests in-module, all green.
+- [-] A2.5 **wire fixture (the compatibility evidence — verdict round 1):** capture ONE real
       request/response pair (envelope included, token redacted) as a golden fixture + BLAKE3 pin
-      in the lane module. Until this lands, the wire claim stays "Jev-shaped per the vendor; to be
-      verified" — never asserted.
-- [ ] A3 `run_clef_lane` in `harness/runner.rs` + `SuiteResult.clef: Option<LaneResult>` +
+      in the lane module. BLOCKED on owner creds (A6) — the lane reads strict until then (every
+      missing/foreign shape refuses loud citing A2.5; a reply WITHOUT distributions refuses
+      citing A4 — the accuracy-only fallback is deliberately unimplemented against an unverified
+      shape).
+- [x] A3 `run_clef_lane` in `harness/runner.rs` + `SuiteResult.clef: Option<LaneResult>` +
       `RunMeta.clef_lane` + `--clef` in `src/bin/harness.rs` (opts, parse, module docs) — the
       exact agentjev wiring incl. warmup (fixed throwaway case, never a measured one), the trim
       law (same question cap as the laya lanes), and the determinism rerun probe.
-- [ ] A4 metric tail: gold-label accuracy + per-option agreement + abstain handling + **ECE ONLY
+- [x] A4 metric tail: gold-label accuracy + per-option agreement + abstain handling + **ECE ONLY
       if the reply carries per-option probabilities** (the agentjev triple relies on
       `top_probability`/level probs; Clef's hosted reply may not return them — absent probs → an
-      accuracy-only row with the disclosure, never a fabricated ECE).
-- [ ] A5 clippy `-D` clean at default + `--all-features`; `cargo test` gates green; harness
+      accuracy-only row with the disclosure, never a fabricated ECE). Refined in implementation:
+      v1 REFUSES on a distribution-less reply (loud, citing A4) rather than shipping a fallback
+      row against an unverified shape — implement the fallback FROM the A2.5 fixture, not from
+      the guess.
+- [x] A5 clippy `-D` clean at default + `--all-features`; `cargo test` gates green; harness
       `--skip-laya --clef --suites typed_decisions` smoke (refusal path verified WITHOUT creds
-      first — the loud refusal is itself a gate).
-- [ ] A6 owner step (blocked on creds): `CLOUDFLARE_ACCOUNT_ID` + a Workers AI API token in the
+      first — the loud refusal is itself a gate). Done 2026-10-02: lib+all-targets+all-features
+      clippy green, `cargo test --lib` 256/0, harness_units 37/37; the smoke ran on
+      `harness_cache_reuse` (synthetic, no datasets needed on this box) and the refusal fired
+      loud with the full env contract. A5 EN-ROUTE repairs (pre-existing-at-HEAD breaks the
+      all-features/all-targets lanes hit on this box, fixed en route, not plan work): the clm
+      loop's dropped `let req = clm_request(case)?;` (its own restore comment in runner.rs) + the
+      stray duplicate `determinism_ok`; `examples/typed_case_split.rs`'s whole-file `#![cfg]`
+      → the house two-arm main-dispatch shape (E0601 on non-macOS).
+- [-] A6 owner step (blocked on creds): `CLOUDFLARE_ACCOUNT_ID` + a Workers AI API token in the
       environment; recorded in the lane's docs as an env contract, never a committed value. Spend
       ceiling: `CLEF_SMOKE_MAX_CASES` (default 50) — a run above the ceiling REFUSES unless
-      explicitly overridden (pricing is undisclosed; no unbounded spend).
+      explicitly overridden (pricing is undisclosed; no unbounded spend). The ceiling + override
+      enforcement SHIPPED with the lane (A1/A3); only the creds themselves are owner-gated.
 
 ## Phase B — the JDI protocol adapter (riir-reflex)
 
-- [ ] B1 snapshot the JDI reference into `.benchmarks/data/jdi/`: `index.json` + `README.md`
+- [x] B1 snapshot the JDI reference into `.benchmarks/data/jdi/`: `index.json` + `README.md`
       excerpt with blake3 pins + `generated_utc` + suite `corpus_sha256` recorded in a
       `PROVENANCE.md` (read-only reference data; NEVER our gold; re-snapshot = new bench number).
-- [ ] B2 macro-F1 readout in the harness metrics (per-suite, one-vs-rest over gold labels) — the
-      JDI's retrieval-area metric; additive column, existing accuracy unchanged.
-- [ ] B3 chance-corrected skill column: `(score − chance)/(1 − chance)` with chance levels
+      Done 2026-10-02: fetched 952,868 B, snapshot sha256 `37526dd3…0d50`, in-file generated_utc
+      `2026-09-28T00:39:36+00:00` + edition `release-v2.1` + corpus sha256 `b2b56d6f…d5` — all
+      three match the research pin exactly. Note: `.benchmarks/data/` is gitignored, so the
+      snapshot is LOCAL-ONLY by design and the pins live in the tracked PROVENANCE.md there —
+      re-fetch with the recorded URL + verify the sha256. ⚠ A webReader fetch of the same URL
+      served a DIFFERENT cached variant (2026-09-22 edition) — direct curl is authoritative.
+- [x] B2 macro-F1 readout in the harness metrics (per-suite, one-vs-rest over gold labels) — the
+      JDI's retrieval-area metric; additive column, existing accuracy unchanged. DISCOVERY on
+      implementation: the harness ALREADY computes `hard.macro_f1` (protocol §5.1 port, on every
+      lane row since the openthai/agentjev lanes) — the plan's premise ("our harness currently
+      reads accuracy") was stale. JDI-comparability note: it classes on gold option-INDICES;
+      every JDI-relevant suite carries FIXED option sets (banking77 presents all 77 in ClassLabel
+      order per case), so index identity IS label identity there; only sampled-distractor suites
+      diverge, and they carry no JDI crosswalk cell.
+- [x] B3 chance-corrected skill column: `(score − chance)/(1 − chance)` with chance levels
       **computed from the label distribution actually evaluated** on our (capped) suite — a
       stratified cap that drops labels has a different chance level than the board's full-label-set
       figure (verdict round 1); the pinned board chance values stay REFERENCE columns only.
-- [ ] B4 coverage disclosure: answered/unsupported/errors printed per lane row (JDI law: an
+      Shipped as `chance_majority` (majority gold-class share) + `chance_corrected_skill`
+      (clipped [0,1]; chance→1 guards to 0) in `harness/metrics.rs`, carried on every
+      `LaneResult` as `jdi_chance`/`jdi_skill` (results.json), rendered in the crosswalk table.
+- [x] B4 coverage disclosure: answered/unsupported/errors printed per lane row (JDI law: an
       unanswered request counts wrong — our lanes already refuse-and-fail-loud, this makes it
-      visible in the table).
-- [ ] B5 the honesty law, enforced in the table header text: "JDI-comparable crosswalk, not a JDI
+      visible in the table). Rendered as the crosswalk header's coverage line (our rows are
+      structurally answered=n/0/0 — a lane row exists only if EVERY case was answered; per-row
+      columns would be constants). Clef adds the RunMeta posture line with the forwarder hop.
+- [x] B5 the honesty law, enforced in the table header text: "JDI-comparable crosswalk, not a JDI
       board row — different corpus, protocol caps, hardware; board membership requires their full
       frozen suite." The harness families stay quarantined from any JDI column (Issue 059 law).
-- [ ] B6 gates: unit tests for macro-F1 (hand-checked toy), skill score (clipping + chance
-      arithmetic), and the refusal shapes; count pins in the existing gate files.
+      The crosswalk renders ONLY for the dataset population — read off the SUITES registry
+      (`synthetic: None ∧ !named_only`), never a hand-typed name list; verified on the A5 smoke
+      (0 renders on harness_cache_reuse).
+- [x] B6 gates: unit tests for macro-F1 (hand-checked toy), skill score (clipping + chance
+      arithmetic), and the refusal shapes; count pins in the existing gate files. Done:
+      `chance_majority` + `chance_corrected_skill` known-answer tests in `tests/harness_units.rs`
+      (37/37 green); macro-F1's existing tests unchanged; the lane's refusal shapes pinned by the
+      12 in-module clef tests (A2).
 
 ## Phase C — Rethink-on-JDI cells + the site publication
 

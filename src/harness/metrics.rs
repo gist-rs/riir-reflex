@@ -11,6 +11,8 @@
 //!   numpy; the protocol compares lanes that both run THESE functions, so
 //!   internal consistency is what carries the comparison.
 
+use std::collections::BTreeMap;
+
 use serde::Serialize;
 
 /// Hard metrics over `(gold_idx, probs)` rows — the §5.1 reference port.
@@ -655,6 +657,39 @@ mod subset_accuracy_tests {
     fn flag_and_case_count_mismatch_refuses() {
         let _ = subset_accuracy(&rows(), &[false, false, false], &[1, 2]);
     }
+}
+
+/// Plan 011 §B3 — the JDI chance level for one evaluated slice: the
+/// MAJORITY gold-class share (the no-skill classifier's expected score),
+/// computed from the label distribution ACTUALLY EVALUATED — a stratified
+/// cap that drops rows has a different chance level than the board's
+/// full-label-set figure, so the pinned board chance values stay
+/// reference columns only and this number is re-derived per run.
+/// Classes are the harness's gold option-indices (fixed-option suites:
+/// index IS the label identity — banking77 carries all 77 options per
+/// case; disclosed in the crosswalk header).
+#[must_use]
+pub fn chance_majority(golds: &[usize]) -> f64 {
+    assert!(!golds.is_empty(), "chance_majority: non-empty golds required");
+    let mut counts: BTreeMap<usize, usize> = BTreeMap::new();
+    for g in golds {
+        *counts.entry(*g).or_default() += 1;
+    }
+    let top = counts.values().copied().max().unwrap_or(0);
+    top as f64 / golds.len() as f64
+}
+
+/// Plan 011 §B3 — the JDI chance-corrected skill:
+/// `(score − chance) / (1 − chance)` clipped to `[0, 1]`. A chance of 1
+/// (single-class slice) carries no skill information and reports 0 rather
+/// than dividing by zero.
+#[must_use]
+pub fn chance_corrected_skill(score: f64, chance: f64) -> f64 {
+    let denom = 1.0 - chance;
+    if denom <= 1e-9 {
+        return 0.0;
+    }
+    ((score - chance) / denom).clamp(0.0, 1.0)
 }
 
 #[cfg(test)]

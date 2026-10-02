@@ -1044,3 +1044,42 @@ fn abstain_cause_and_abstained_flag_agree_by_construction() {
     }
     assert_eq!(AbstainCause::default(), AbstainCause::Answered);
 }
+
+// ── metrics: the JDI chance/skill adapter (plan 011 B3/B6) ─────────────────
+
+/// Majority gold-class share over a hand-checked slice: 6 rows, gold
+/// [0,0,0,1,2,2] → top class 0 has 3/6 = 0.5.
+#[test]
+fn chance_majority_known_answer() {
+    use riir_reflex::harness::metrics::chance_majority;
+    approx(
+        chance_majority(&[0, 0, 0, 1, 2, 2]),
+        0.5,
+    );
+    // Uniform two-class slice: the coin-flip floor.
+    approx(chance_majority(&[1, 0, 1, 0]), 0.5);
+    // Single class: chance 1 — the no-information ceiling (skill's guard).
+    approx(chance_majority(&[3, 3, 3]), 1.0);
+    // 77-way balanced-ish slice: top share 2/4.
+    approx(chance_majority(&[5, 9, 5, 9]), 0.5);
+}
+
+/// Skill arithmetic + clipping + the chance=1 guard (plan 011 B3/B6):
+/// score at chance → 0; perfect → 1; below chance → clips to 0 (never a
+/// negative skill); chance → 1 reports 0 rather than dividing by zero.
+#[test]
+fn chance_corrected_skill_known_answers() {
+    use riir_reflex::harness::metrics::chance_corrected_skill;
+    // JDI's own worked shape: (0.55 − 0.10)/(1 − 0.10) = 0.5.
+    approx(chance_corrected_skill(0.55, 0.10), 0.5);
+    // At chance → 0.
+    approx(chance_corrected_skill(0.5, 0.5), 0.0);
+    // Perfect over a two-class slice → 1.
+    approx(chance_corrected_skill(1.0, 0.5), 1.0);
+    // Below chance clips to 0 — never a negative skill.
+    approx(chance_corrected_skill(0.2, 0.5), 0.0);
+    // Above the ceiling clips to 1 (defensive; acc ≤ 1 keeps this at 1).
+    approx(chance_corrected_skill(1.0, 0.1), 1.0);
+    // chance = 1 (single-class slice): 0, not NaN.
+    approx(chance_corrected_skill(1.0, 1.0), 0.0);
+}

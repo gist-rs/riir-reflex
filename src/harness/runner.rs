@@ -45,6 +45,7 @@ use crate::engine::{
     GateObservation, Posture, Scratch, recommend_fused_gate,
 };
 use crate::harness::families::SynthData;
+use crate::harness::metrics::{chance_corrected_skill, chance_majority};
 #[cfg(feature = "option_cond")]
 use crate::harness::suites::typed_gold_events;
 use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
@@ -802,6 +803,16 @@ pub struct LaneResult {
     /// (an absence, never a fabricated rate).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub acc_deleaked: Option<f64>,
+    /// Plan 011 §B3 — the JDI chance level (majority gold-class share) of
+    /// the slice this row evaluated, and the chance-corrected skill
+    /// `(hard.accuracy − chance)/(1 − chance)` clipped `[0,1]`. Reference
+    /// columns for the JDI crosswalk (NEVER folded into `hard.accuracy`);
+    /// None on rows without forced picks. See [`chance_majority`] /
+    /// [`chance_corrected_skill`] in `super::metrics`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jdi_chance: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jdi_skill: Option<f64>,
     /// Issue 039 T4: the confidence-readout CANDIDATE table on the cal
     /// slice — REPORT-ONLY (the arming lever was demoted at Bench 052; the
     /// shipped Dispatch law runs everywhere). None = thin cal.
@@ -1366,6 +1377,16 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agentjev: Option<LaneResult>,
+    /// Plan 011 Phase A: the Cloudflare Clef comparison lane's row —
+    /// `Cloudflare/clef` (+ `clef-flash`, Apache-2.0, not affiliated)
+    /// served on Workers AI behind an operator-run loopback TLS forwarder
+    /// (plan 011 A0; the extra hop is part of the row's latency claim and
+    /// is disclosed in `RunMeta::clef_lane`). Jev-shaped per the vendor;
+    /// the wire fixture (plan 011 A2.5) is the compatibility evidence.
+    /// Absent (never a fabricated row) when the lane did not run — the
+    /// no-creds refusal at lane construction is the gate.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub clef: Option<LaneResult>,
     /// Plan 003 Phase 2: the OpenThai comparison lane's row — their
     /// `openthai_systemone` (Apache-2.0, not affiliated) served on
     /// loopback, measured over HTTP; the family's first Thai+English
@@ -1466,6 +1487,11 @@ pub struct RunMeta {
     /// `jev_service` on loopback, measured over HTTP — the MEASURE-vs-SERVE
     /// split; comparison lane, never a product lane).
     pub agentjev_lane: String,
+    /// Whether the Clef comparison lane ran (plan 011 Phase A), and its
+    /// serving posture when it did — including the loopback TLS-forwarder
+    /// hop disclosure (plan 011 A0: the hop is part of the row's latency
+    /// claim) and the env contract (never a committed credential).
+    pub clef_lane: String,
     /// Whether the OpenThai comparison lane ran (Plan 003 Phase 2), and
     /// its serving posture when it did (their `openthai_systemone` on
     /// loopback, measured over HTTP — comparison lane, never a product
@@ -3312,6 +3338,11 @@ fn run_modelless<const N: usize>(
     // ── metrics assembly (label space; noul [no, yes]) ──
     let forced = raw_eval.forced_rows(&suite.cases);
     let hard = hard_metrics(&forced);
+    // Plan 011 §B3: the JDI reference columns from the same forced rows.
+    let jdi_chance = chance_majority(
+        &forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>(),
+    );
+    let jdi_skill = chance_corrected_skill(hard.accuracy, jdi_chance);
     // Issue 024 T3: the same walk restricted to the unflagged cases. None
     // (feature off / out of scope) stays an absence in results.json.
     let acc_deleaked = inp.leak_flags.and_then(|keep| {
@@ -3523,6 +3554,8 @@ fn run_modelless<const N: usize>(
         latency_p99_ms: lat.p99_ms,
         latency_tail_support: lat.tail_support,
         acc_deleaked,
+        jdi_chance: Some(jdi_chance),
+        jdi_skill: Some(jdi_skill),
         readout_report,
         corpus_fallbacks,
         latency_extremes: lat.extremes,
@@ -4056,6 +4089,12 @@ fn assemble_laya_lane_result(
     };
     let forced = ev.forced_rows(cases);
     let hard = hard_metrics(&forced);
+    // Plan 011 §B3: the JDI reference columns, derived from the same
+    // forced rows `hard` read (never folded into `hard.accuracy`).
+    let jdi_chance = chance_majority(
+        &forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>(),
+    );
+    let jdi_skill = chance_corrected_skill(hard.accuracy, jdi_chance);
     let acc_deleaked = leak_flags.and_then(|keep| {
         let per_case: Vec<usize> = cases.iter().map(|c| c.as_ref().questions.len()).collect();
         subset_accuracy(&forced, keep, &per_case)
@@ -4147,6 +4186,8 @@ fn assemble_laya_lane_result(
         n_cases: cases.len(),
         n_questions: ev.n_questions(),
         acc_deleaked,
+        jdi_chance: Some(jdi_chance),
+        jdi_skill: Some(jdi_skill),
         score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
@@ -4590,11 +4631,14 @@ fn run_clm_lane(
                  CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"));
         }
     }
-let mut determinism_ok: Option<bool> = Some(true);
     // Plan 001 task 9: the repeat COUNT (the verdict's support).
     let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
+        // Restored 2026-10-02 (plan 011 A5 found it): the loop's request
+        // construction was dropped — `decide(&req)` below had no `req` in
+        // scope, breaking every `clm-lane` build at HEAD.
+        let req = clm_request(case)?;
         let t0 = Instant::now();
         let req = clm_request(case)?;
         let (resp, usage) = lane
@@ -5141,6 +5185,150 @@ fn run_agentjev_lane(
 
     Ok(assemble_laya_lane_result(
         "agentjev",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
+/// The Cloudflare Clef comparison lane (plan 011 Phase A, from
+/// `.research/005_…`): their decision models served on Workers AI behind
+/// an operator-run loopback TLS forwarder, measured over HTTP — the
+/// agentjev lane's shape (same cases, the Jev-shaped wire via
+/// `src/lanes/clef.rs`, the same metrics tail through
+/// [`assemble_laya_lane_result`]). Latency = client round-trip per case,
+/// INCLUDING the forwarder hop (plan 011 A0: disclosed, part of the
+/// claim).
+///
+/// Env contract: `CLEF_SERVE_URL` (default `http://127.0.0.1:8791`),
+/// `CLEF_ACCOUNT_ID` or `CLEF_RUN_PATH` (missing creds refuse at
+/// construction — the A5 gate), `CLEF_API_TOKEN`, `CLEF_MODEL`,
+/// `CLEF_TIMEOUT_MS`, and the spend ceiling `CLEF_SMOKE_MAX_CASES`
+/// (default 50 cases; `CLEF_ALLOW_UNCAPPED=1` overrides — pricing is
+/// undisclosed, no unbounded spend).
+fn run_clef_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::clef::ClefLane;
+
+    let t_start = Instant::now();
+    let lane = ClefLane::from_env()?;
+    let (model, posture) = lane.info()?;
+    eprintln!("    [clef] service up: {model} via {posture}");
+
+    // WARMUP (the clm lane's cold-start law): one FIXED throwaway request
+    // (never a case's — no cache pollution of measured latencies) absorbs
+    // the hosted route's cold path before the first measured case.
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("clef warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N clef row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    // The spend ceiling (plan 011 A6): pricing is undisclosed, so a run
+    // above the default smoke cap REFUSES unless explicitly overridden.
+    let max_cases = std::env::var(crate::lanes::clef::MAX_CASES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(crate::lanes::clef::DEFAULT_MAX_CASES);
+    let uncapped = std::env::var(crate::lanes::clef::UNCAPPED_ENV)
+        .is_ok_and(|v| v == "1");
+    if cases.len() > max_cases && !uncapped {
+        return Err(format!(
+            "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — \
+             pricing is undisclosed; raise {CAP} or set {UNC}=1 to run uncapped",
+            cases.len(),
+            crate::lanes::clef::DEFAULT_MAX_CASES,
+            CAP = crate::lanes::clef::MAX_CASES_ENV,
+            UNC = crate::lanes::clef::UNCAPPED_ENV,
+        ));
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, _wall) = lane
+            .decide(case)
+            .map_err(|e| format!("clef lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column.
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("clef determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("clef determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+
+    Ok(assemble_laya_lane_result(
+        "clef",
         &model,
         suite.name,
         cases,
@@ -6088,6 +6276,14 @@ pub struct RunOptions {
     /// lane). An unreachable server is a LOUD error, never a silent skip.
     /// Default off.
     pub agentjev: bool,
+    /// Also run the Cloudflare Clef comparison lane (plan 011 Phase A):
+    /// their Workers-AI-hosted decision models behind an operator-run
+    /// loopback TLS forwarder (`CLEF_SERVE_URL`, default
+    /// `http://127.0.0.1:8791`) — the agentjev shape; missing creds
+    /// (`CLEF_ACCOUNT_ID`/`CLEF_RUN_PATH`) refuse at lane construction,
+    /// and the spend ceiling `CLEF_SMOKE_MAX_CASES` (default 50) bounds
+    /// undisclosed pricing. Default off.
+    pub clef: bool,
     /// Also run the OpenThai comparison lane (Plan 003 Phase 2): their
     /// `openthai_systemone` service answered over HTTP
     /// (`OPENTHAI_SERVE_URL`, default `http://127.0.0.1:8000`) — the
@@ -6700,6 +6896,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // Clef comparison lane (plan 011 Phase A): Cloudflare's hosted
+        // decision models behind the operator-run loopback forwarder —
+        // same cases, the Jev-shaped wire, the same metrics tail. The
+        // no-creds refusal and the spend ceiling are the lane's own gates.
+        let clef_result = if opts.clef {
+            eprintln!("    clef: running…");
+            match run_clef_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    clef: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (clef): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // OpenThai comparison lane (Plan 003 Phase 2): their
         // openthai_systemone served on loopback, measured over HTTP —
         // same cases, their contract, the same metrics tail.
@@ -6871,6 +7093,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             gliner: gliner_result,
             bekko: bekko_result,
             agentjev: agentjev_result,
+            clef: clef_result,
             openthai: openthai_result,
             paw: paw_result,
             paw_local: paw_local_result,
@@ -7103,6 +7326,27 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              jev_service on AGENTJEV_SERVE_URL — .issues/025)"
                 .to_string()
         },
+        clef_lane: if opts.clef {
+            let url = std::env::var(crate::lanes::clef::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::clef::DEFAULT_SERVE_URL.into());
+            format!(
+                "on — Cloudflare Clef decision models (Cloudflare/clef + clef-flash, \
+                 Apache-2.0, not affiliated) served on Workers AI, measured over HTTP \
+                 via {url} (comparison lane, never a product lane): same cases, the \
+                 Jev-shaped wire per the vendor (the wire fixture is plan 011 A2.5 — \
+                 captured before any published cell), gold-label scoring; the \
+                 TLS-terminating forwarder hop is INCLUDED in the client round-trip \
+                 and disclosed here (plan 011 A0 — the JDI's hosted rows disclose the \
+                 same class); env: CLEF_SERVE_URL, CLEF_ACCOUNT_ID/CLEF_RUN_PATH, \
+                 CLEF_API_TOKEN, CLEF_MODEL, CLEF_TIMEOUT_MS, spend ceiling \
+                 CLEF_SMOKE_MAX_CASES (default 50; CLEF_ALLOW_UNCAPPED=1 overrides); \
+                 plan 011 Phase A"
+            )
+        } else {
+            "off (pass --clef to add the comparison lane; needs the owner's Workers AI \
+             creds behind the loopback forwarder — plan 011 Phase A)"
+                .to_string()
+        },
         openthai_lane: if opts.openthai {
             "on — openthai_systemone (iapp-technology/OpenThai-SystemOne,              Apache-2.0, not affiliated) served on loopback, measured over              HTTP (comparison lane, never a product lane): same cases,              their /v1/systemone contract, gold-label scoring; liveness =              GET /healthz, the model id read from the response's own model              field (never hardcoded); their usage.input_tokens + the              in-head abstain-slot count reported beside the metrics;              determinism = the observed-repeat check; plan 003 Phase 2"
                 .to_string()
@@ -7209,6 +7453,20 @@ fn fmt_gate_fit(r: &LaneResult) -> String {
     }
 }
 
+/// Plan 011 §B5: the JDI crosswalk renders for the DATASET population
+/// only — the registry rows that read real dataset files at the protocol
+/// caps (not the six in-process harness families — Issue 059's quarantine
+/// — and not the s1mb named-only protocol suites, whose variable option
+/// sets make an index-class chance a label-chance lie). Membership is read
+/// off the SUITES registry (synthetic: None ∧ not named-only), never a
+/// hand-typed name list — a dataset suite joining the registry joins the
+/// crosswalk by existing.
+fn jdi_crosswalk_applies(name: &str) -> bool {
+    SUITES.iter().any(|sp| {
+        sp.name == name && sp.synthetic.is_none() && !sp.named_only
+    })
+}
+
 pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     let mut s = String::new();
     s.push_str("# Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)\n\n");
@@ -7241,6 +7499,8 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- clm lane: {}\n", out.meta.clm_lane));
     s.push_str(&format!("- gliner lane: {}\n", out.meta.gliner_lane));
     s.push_str(&format!("- bekko lane: {}\n", out.meta.bekko_lane));
+    s.push_str(&format!("- agentjev lane: {}\n", out.meta.agentjev_lane));
+    s.push_str(&format!("- clef lane: {}\n", out.meta.clef_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(
@@ -7755,6 +8015,34 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.clef {
+            // Same shape as the agentjev row — the Clef reference is a
+            // comparison lane with the same metrics surface (latency =
+            // client round-trip INCLUDING the disclosed forwarder hop,
+            // plan 011 A0; the wire fixture A2.5 gates any published cell).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if let Some(r) = &suite.openthai {
             // Same shape as the agentjev row — the OpenThai reference is a
             // comparison lane with the same metrics surface (their abstain
@@ -7820,6 +8108,66 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         }
         if let Some(r) = &suite.paw_local {
             s.push_str(&crate::lanes::paw::render_detail_line(r));
+        }
+
+        // Plan 011 §B3–B5: the JDI-protocol crosswalk — chance + skill
+        // columns for every lane with forced picks on this suite, rendered
+        // ONLY for the dataset population (the harness families stay
+        // quarantined from any JDI column — Issue 059 law; the s1mb
+        // named-only protocol suites and synthetic builds carry variable
+        // option sets where an index-class chance is not a label chance).
+        // B4's coverage law is structural here: a lane row exists only if
+        // EVERY case was answered (the harness refuses-and-fails-loud),
+        // so the coverage columns are constants, disclosed in the header
+        // rather than fabricated per row.
+        if jdi_crosswalk_applies(&suite.name) {
+            let mut rows: Vec<&LaneResult> = Vec::new();
+            if let Some(m) = &suite.modelless {
+                rows.push(m);
+            }
+            rows.extend(suite.laya.values());
+            for r in [
+                suite.clm.as_ref(),
+                suite.gliner.as_ref(),
+                suite.bekko.as_ref(),
+                suite.agentjev.as_ref(),
+                suite.clef.as_ref(),
+                suite.openthai.as_ref(),
+            ]
+            .into_iter()
+            .flatten()
+            {
+                rows.push(r);
+            }
+            if !rows.is_empty() {
+                s.push_str(
+                    "\n**JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — \
+                     different corpus, protocol caps, hardware; board membership requires their full frozen \
+                     suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — \
+                     the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) \
+                     clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness \
+                     law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families \
+                     carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, \
+                     not lanes).\n\n",
+                );
+                s.push_str(
+                    "| lane · model | n | acc | macro F1 | chance | skill | det |\n|---|---|---|---|---|---|---|\n",
+                );
+                for r in &rows {
+                    s.push_str(&format!(
+                        "| {} · {} | {} | {} | {} | {} | {} | {} |\n",
+                        r.lane,
+                        r.model,
+                        r.hard.n,
+                        fmt4(r.hard.accuracy),
+                        fmt4(r.hard.macro_f1),
+                        fmt_opt(r.jdi_chance),
+                        fmt_opt(r.jdi_skill),
+                        r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+                    ));
+                }
+                s.push('\n');
+            }
         }
 
         // G1 table (modelless only).

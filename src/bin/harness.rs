@@ -58,6 +58,17 @@
 //! on our split (their published 79.25% is teacher-argmax agreement — a
 //! different protocol). An unreachable server is a loud absence, never a
 //! silent skip.
+//! `--clef` adds the Cloudflare Clef comparison lane (plan 011 Phase A,
+//! from `.research/005_…`): their Workers-AI-hosted decision models
+//! (`Cloudflare/clef` + `clef-flash`, Apache-2.0, not affiliated) answered
+//! over the Jev-shaped wire behind an operator-run loopback TLS forwarder
+//! (`CLEF_SERVE_URL`, default `http://127.0.0.1:8791` — the hop is part of
+//! the row's latency claim and is disclosed in the run posture). Missing
+//! creds (`CLEF_ACCOUNT_ID` or `CLEF_RUN_PATH`) refuse at lane
+//! construction; the spend ceiling `CLEF_SMOKE_MAX_CASES` (default 50
+//! cases; `CLEF_ALLOW_UNCAPPED=1` overrides) bounds undisclosed pricing.
+//! Other env: `CLEF_API_TOKEN` (bearer; the forwarder may inject),
+//! `CLEF_MODEL` (`clef` default | `clef-flash`), `CLEF_TIMEOUT_MS`.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -195,6 +206,7 @@ fn harness_main() {
         gliner: false,
         bekko: false,
         agentjev: false,
+        clef: false,
         openthai: false,
         paw: false,
         paw_local: false,
@@ -434,6 +446,7 @@ fn harness_main() {
             "--gliner" => opts.gliner = true,
             "--bekko" => opts.bekko = true,
             "--agentjev" => opts.agentjev = true,
+            "--clef" => opts.clef = true,
             "--openthai" => opts.openthai = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
