@@ -7,6 +7,45 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-02
 
+- **Issue 053 CLOSED (owner-gate pickup C8/C9/D6) — file removed per the noise-reduction
+  rule; the ratification state lives in the master (riir-ai 1016).** C8 (typed_decisions
+  cap 800→1200) was SUPERSEDED-BY-EXECUTION before the prep ran: landed as `2cbbce7` +
+  Bench 078 (modelless 0.4655 → 0.5725 at the published posture), master 1016 C8 row
+  EXECUTED, site republished `a2f1f9e` — the scratch-worktree prep the row asked for is
+  moot. C9 RECORD-ONLY: the Thai lane stays closed; the reopen trigger lives on
+  `.research/003_openthai_systemone_thai_lane.md`'s status line and master 1016 C9 reads
+  "Keep closed; reopen trigger already documented". D6 RECORD-ONLY: native agentjev
+  serving via riir-infer DECLINED for now — the HTTP comparison lane already yields the
+  data (`.research/002_agentjev_system1_landscape.md:107`); master 1016 D6 reads
+  TRIGGER/decline. The 2026-09-28 owner direction (4 repos deferred, all mainnet actions
+  on hold) is recorded in the master, which remains the single ratification surface.
+
+- **Issue 058 CLOSED (cal-selection ladder / board collapse) — every actionable task
+  landed; file removed per the noise-reduction rule; the deferral triggers are preserved
+  here.** Root cause (d): A/B-confirmed silent datasets-dir move (t20k → default 4k
+  pools), no code to revert — fixed at the fetcher (`TRAIN_CAP` default 20000) + the
+  `slice_guard` per-suite pool floors (overlaps hard-refuse; slice-identity digests in
+  results/TABLES/run log; the sst5 dedupe + the frozen-t20k KNOWN_DIRTY pin). The
+  canonical pool was REBUILT as clean full pools (deduped, provenance-manifested,
+  `POOL_MANIFEST.json`), the board RESTORED on both hosts (Bench 100 m3 + Bench 101 4090
+  — 15/15 accuracy bit-identity, zero drift, 1039 dataset files SHA256-verified identical
+  pre-run) and PUBLISHED (reflex-site `d750175` + deployed, live-verified; the Issue-057
+  CORPUS_RESET ack scoped to the six changed suites + the dated disclosure note). The
+  executed canonicalization was the owner's option (i) (t20k-scale pools); the remaining
+  OWNER ratification + the frozen-`datasets_t20k` sst5 dedupe decision live on **instinct
+  `.issues/013`** (OPEN — the arena re-point, ready-to-flip). DEFERRALS with reopen
+  triggers: **(a)** baseline-arm floor — reopen if the publisher ever ships a modelless
+  cell below its pre-076 value without a loud disclosure row (the slice digests + floors
+  closed the silent channel the floor was belt-and-braces against); **(b)** LCB-based
+  selection — reopen when a future re-selection's ladder top-2 are cal-tied AND the pick
+  flips the served posture (massive 0.715/0.72/0.72 was the recorded shape); **(c)**
+  k-fold cal-front probe — reopen when any future selection's cal→test gap exceeds ~15 pt
+  at the selected posture (the massive-076 shape). Published posture flags stay
+  `--skip-laya --nb-select --oc-select --ridge-select` unless the owner re-baselines.
+  Code comments citing "Issue 058" (slice_guard/runner) remain valid historical
+  identifiers — the file's full life: `git log --follow --
+  .issues/058_cal_selection_ladder_overfit.md`.
+
 - **Issue 060 RESOLVED (a7475c7): the harness records the abstain CAUSE per case —
   reflex-site plan 001 task 6's unblock.** The engine classifies WHY the fused
   gate abstained at the decision site (`AbstainCause`: ScoreGate / DistanceGate /
