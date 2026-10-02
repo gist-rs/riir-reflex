@@ -52,6 +52,10 @@ use std::collections::HashSet;
 /// t20k re-baseline scale, `TRAIN_CAP=20000`): a 4k-row default pull —
 /// the exact state that silently re-scored the board at Bench 076 —
 /// REFUSES instead of publishing numbers against a starved corpus.
+/// The expectation is the AUDITED quantity — the pool AFTER the cal front
+/// is removed — never the raw pull: a source-limited suite must subtract
+/// its cal rows first (the thai_sib200 mispin, repaired 2026-10-02 — the
+/// 560 floor was 80% of a 701-row raw pull and unsatisfiable at source).
 /// Suites absent from the table carry no floor (synthetic/unknown suites,
 /// unit-test names). Floor violations are hard refusals like the overlaps;
 /// the remedy line names the fetch command.
@@ -65,7 +69,16 @@ pub const MIN_POOL_ROWS: &[(&str, usize)] = &[
     ("typed_decisions", 960),
     ("prompt_injections", 430),
     ("thai_wisesight", 3_200),
-    ("thai_sib200", 560),
+    // Source-measured, NOT raw-pull-derived: the suite's SOURCE yields 701
+    // train rows total (re-fetch 2026-10-02, TRAIN_CAP=20000 — proven by the
+    // riir-infer Plan-617 A5 board's slice refusal), so pool-after-cal maxes
+    // at 501 (701 − 200 cal) and the old 560 (80% of the raw pull) was
+    // unsatisfiable at any pull. 400 = 80% of 501. Both shrink classes stay
+    // covered: the cal front is a fixed 200 rows, so pool = raw − 200 and a
+    // raw-pull loss >14% still drops the pool below this floor. The fix is
+    // decoupled from that lane's re-open (riir-infer issue 034 — the re-open
+    // is a NEW pre-registered decision, never "the floor now passes").
+    ("thai_sib200", 400),
 ];
 
 /// The floor for one suite, if any.
