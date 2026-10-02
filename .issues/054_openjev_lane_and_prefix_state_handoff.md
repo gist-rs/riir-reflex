@@ -38,6 +38,16 @@ Owner decision on this issue: **do not add the openjev lane to the arena — the
 2. **GDN chunked prefill (candidate 1) → ABSORBED**: `riir-infer-gpu`'s v3 design already hoists the ENTIRE state-independent set for ALL chunks into parallel pre-pass kernels (`decay`/`gram`/`tinv`) before the serial kernel — a stronger form of the source's intra-kernel two-chunk overlap. Residual (the cross-chunk state-dot recurrence) = the measured-GOAT re-arm on the 4090 prefill row, unchanged from Research 221's detection-only filing.
 3. **Tree attention bit block-skip (candidate 2) → NOT TRANSFERABLE** (league is single-stream; our tree verify is linear-attention forward substitution, not softmax attention). **bf16 activation LUT (candidate 3) → N/A** (engine is f32 scalar sigmoids; the GDN lane's activations are already fused — the source's own anti-data says the LUT loses where folding removed the op). **Shape-bucketed graph-cache LRU (candidate 4) → ALREADY ADJUDICATED** (riir-infer Issue 967 capture-ladder status-quo; our capture-once-at-`capture_p()` posture is deliberate).
 
+## Part 4 — perch: a second production deployment of the same System One wire (addendum 2026-10-02, no lane, recorded for the wire pin)
+
+`lakeday-org/perch @ 07d38cacba96f1def641899ec695dceeb0fd7f43` (MIT, npm/TypeScript, "semantic code linting with decision models") is a CLIENT over the same System One decision-model format this issue pins — its model table routes to `https://api.typesafe.ai/v1/systemone` with `jev-latest`, Liquid d1, and Beam-hosted Jev variants, and `PERCH_BASE_URL` accepts any System One endpoint. Recorded here because it is independent client-side evidence about the wire:
+
+1. **Question-batching is a first-class wire contract, not a client detail.** "Each model gets as many questions per request as it says it takes. For a model that doesn't say, set `PERCH_MAX_QUESTIONS`." Their tip commit at the pin is literally "fix: perch sent a model more questions per request than it accepts (#265)" — over-batching a System One request is a real, shipped failure class. Anyone putting multi-question cases on this wire (or the lanes measuring it) inherits the contract.
+2. **Production question-set grammar** (37 declared questions in `scan.yaml`): boolean questions with dual `true`/`false` grounding criteria, per-question belief floors, conditional gating (finding = class × reachability), `type: choice`/`type: score`. Filed as the authoring seed for the `semantic_defects` suite family (issue 061, same commit).
+3. **No lane through perch, deliberately:** it is a client, not a model — a lane through it measures whatever `PERCH_BASE_URL` points at, duplicating the agentjev/openthai cells. The wire pin here stays the one home for that question.
+
+Distill verdict (riir-refine): MARGINAL C+ corpus / LANE INTEL HIGH; queue line in riir-refine `.distill/001_mining_queue_snapshot.md` 2026-10-02.
+
 ## References
 
 - riir-clippy `.research/221_open_jev_fast_cuda_gdn_serving_distill.md` — full distill verdict
