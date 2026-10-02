@@ -159,7 +159,7 @@ pool) and `code_fixtures` (not in that run's suite list) were missing. Both meas
 - code_fixtures is the repo's own generated fixture (fn spans at `a2545b9`); its
   `cases_digest` matched the published board row exactly (population guard green).
 - Determinism: both accuracies byte-identical across two independent processes
-  (`addendum_suites/` + `/tmp/bekko_rerun2`), the 103 law's 4th/5th witnesses.
+  (`addendum_suites/results.json` + `addendum_suites/results_rerun2.json`, both committed), the 103 law's 4th/5th witnesses.
 - Board publish: the reflex-site publish sat uncommitted in the main checkout and was
   landed by the sibling session's `26fddb9` rederived onto the plan-001 blocks (cells
   byte-identical, the rederive guard's proof; accuracy-only — this run's box load 14.1,
