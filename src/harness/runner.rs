@@ -4631,16 +4631,13 @@ fn run_clm_lane(
                  CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"));
         }
     }
+    let mut determinism_ok: Option<bool> = Some(true);
     // Plan 001 task 9: the repeat COUNT (the verdict's support).
     let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
-        // Restored 2026-10-02 (plan 011 A5 found it): the loop's request
-        // construction was dropped — `decide(&req)` below had no `req` in
-        // scope, breaking every `clm-lane` build at HEAD.
         let req = clm_request(case)?;
         let t0 = Instant::now();
-        let req = clm_request(case)?;
         let (resp, usage) = lane
             .decide(&req)
             .map_err(|e| format!("clm round trip ({}): {e}", case.id))?;
