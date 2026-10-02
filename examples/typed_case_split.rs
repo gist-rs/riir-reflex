@@ -30,8 +30,19 @@
 //! Env: `LAYA_SPLIT_CASES` (default 16, evenly spaced over the suite),
 //! `LAYA_SPLIT_ROUNDS` (default 7 timed rounds after 2 warmups),
 //! `LAYA_SPLIT_LOOP=0` skips the loop arm.
-#![cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
-
+#![cfg_attr(
+    all(target_os = "macos", feature = "laya-riir-metal"),
+    allow(unused)
+)]
+// The macOS body lives in a cfg'd module; the ungated `main` at the file
+// tail dispatches to it (or refuses loud elsewhere). The whole-file
+// `#![cfg]` shape was the E0601 trap — under `--all-features` on a
+// non-macOS box the example compiled EMPTY (no `main`) and failed the
+// all-targets clippy lane (found 2026-10-02, plan 011 A5; the
+// sgemm_shape_timing / cua_s1_forms_arena two-arm shape is the house
+// pattern).
+#[cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
+mod imp {
 use riir_reflex::harness::suites::{build_typed_decisions, SuiteCase};
 use riir_reflex::laya::config::{load_checkpoint_configs, Checkpoint};
 use riir_reflex::laya::riir::backend::Backend;
@@ -344,5 +355,21 @@ fn main() {
         run_profile(&mut cases, &enc, &head, &backend);
     } else {
         run_walls(&mut cases, &enc, &head, &backend, rounds, loop_arm);
+    }
+}
+} // mod imp
+
+fn main() {
+    #[cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
+    {
+        imp::main();
+    }
+    #[cfg(not(all(target_os = "macos", feature = "laya-riir-metal")))]
+    {
+        eprintln!(
+            "refusing: typed_case_split needs target_os = \"macos\" + feature \
+             laya-riir-metal (the Metal substrate) — this build has neither"
+        );
+        std::process::exit(2);
     }
 }
