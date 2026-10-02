@@ -4569,7 +4569,6 @@ fn run_clm_lane(
     let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
     let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
-    let mut determinism_ok: Option<bool> = Some(true);
     let mut input_tokens: u64 = 0;
 
     // WARMUP (measured 2026-09-25, the determinism pin's cold-start
@@ -4597,6 +4596,7 @@ let mut determinism_ok: Option<bool> = Some(true);
 
     for (ci, case) in cases.iter().enumerate() {
         let t0 = Instant::now();
+        let req = clm_request(case)?;
         let (resp, usage) = lane
             .decide(&req)
             .map_err(|e| format!("clm round trip ({}): {e}", case.id))?;
