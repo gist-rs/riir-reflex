@@ -279,6 +279,7 @@ pub fn envelope_rows(envelope: &Value) -> Vec<&Value> {
 /// label missing from the test sample while
 /// `test_budget == 0 || test_budget >= labels.len()`.
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn audit(
     suite: &str,
     labels: &[String],
@@ -287,6 +288,7 @@ pub fn audit(
     pool_rows: &[&Value],
     test_budget: usize,
     label_of_row: &dyn Fn(&Value) -> Option<String>,
+    label_coverage: bool,
 ) -> SliceFacts {
     let keys = |rows: &[&Value]| -> HashSet<String> { rows.iter().map(|r| row_key(r)).collect() };
     let test_keys = keys(test_rows);
@@ -345,7 +347,15 @@ pub fn audit(
             .collect()
     };
     let missing_test = missing(&slice_labels(test_rows));
-    let coverage_possible = test_budget == 0 || test_budget >= labels.len();
+    // Plan 010's scoped relief: a VARIABLE-OPTION breadth suite (s1mb) arms
+    // its engine over the PRESENTED option-key union, which deliberately
+    // exceeds the gold space (long-tail keys are presented, rarely gold) —
+    // the coverage law's premise (every engine label is realizable as a
+    // gold on a full pull) does not hold there. Starved labels ride the
+    // Issue-039 self-doc fallback, disclosed at build. The fields stay
+    // populated (the disclosure survives); only the VIOLATION is skipped,
+    // and the identity checks above are untouched.
+    let coverage_possible = (test_budget == 0 || test_budget >= labels.len()) && label_coverage;
     if coverage_possible && !missing_test.is_empty() {
         violations.push(format!(
             "{suite}: test sample (budget {test_budget}) misses {} engine label(s) [{}] — \
@@ -376,6 +386,7 @@ pub fn audit(
 /// Convenience over split envelopes: extracts the raw rows and delegates to
 /// [`audit`].
 #[must_use]
+#[allow(clippy::too_many_arguments)]
 pub fn audit_envelopes(
     suite: &str,
     labels: &[String],
@@ -384,6 +395,7 @@ pub fn audit_envelopes(
     pool_envelope: &Value,
     test_budget: usize,
     label_of_row: &dyn Fn(&Value) -> Option<String>,
+    label_coverage: bool,
 ) -> SliceFacts {
     audit(
         suite,
@@ -393,6 +405,7 @@ pub fn audit_envelopes(
         &envelope_rows(pool_envelope),
         test_budget,
         label_of_row,
+        label_coverage,
     )
 }
 
@@ -431,7 +444,7 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.is_clean(), "unexpected violations: {:?}", f.violations);
         assert_eq!(f.n_test, 2);
         assert_eq!(f.n_cal, 2);
@@ -444,7 +457,7 @@ mod tests {
         let test = envelope(&[row("a", "shared"), row("b", "t2")]);
         let cal = envelope(&[row("a", "shared"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.violations.iter().any(|v| v.contains("cal front ∩ test")));
     }
 
@@ -453,7 +466,7 @@ mod tests {
         let test = envelope(&[row("a", "leaked"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "leaked"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.violations.iter().any(|v| v.contains("pool ∩ test")));
     }
 
@@ -462,7 +475,7 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "shared"), row("b", "c2")]);
         let pool = envelope(&[row("a", "shared"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.violations.iter().any(|v| v.contains("pool ∩ cal")));
     }
 
@@ -471,14 +484,14 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("a", "t2")]); // b never sampled
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(
             f.violations
                 .iter()
                 .any(|v| v.contains("misses 1 engine label"))
         );
         // The same slice at a budget too small to cover: disclosed, not failed.
-        let f2 = audit_envelopes("s", &labels(), &test, &cal, &pool, 1, &label_of);
+        let f2 = audit_envelopes("s", &labels(), &test, &cal, &pool, 1, &label_of, true);
         assert!(f2.is_clean());
         assert_eq!(f2.missing_test_labels, vec!["b".to_string()]);
     }
@@ -488,7 +501,7 @@ mod tests {
         let test = envelope(&[row("a", "t1")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 0, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 0, &label_of, true);
         assert!(
             f.violations
                 .iter()
@@ -501,7 +514,7 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1")]); // b starved in cal
         let pool = envelope(&[row("a", "p1")]); // b starved in pool
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.is_clean());
         assert_eq!(f.missing_cal_labels, vec!["b".to_string()]);
         assert_eq!(f.missing_pool_labels, vec!["b".to_string()]);
@@ -523,8 +536,8 @@ mod tests {
             row("a", "p3"),
             row("b", "p4"),
         ]);
-        let f1 = audit_envelopes("s", &labels(), &test, &cal, &truncated, 2, &label_of);
-        let f2 = audit_envelopes("s", &labels(), &test, &cal, &full, 2, &label_of);
+        let f1 = audit_envelopes("s", &labels(), &test, &cal, &truncated, 2, &label_of, true);
+        let f2 = audit_envelopes("s", &labels(), &test, &cal, &full, 2, &label_of, true);
         assert_ne!(f1.pool_digest, f2.pool_digest);
         assert_ne!(f1.n_pool, f2.n_pool);
         assert_eq!(f1.test_digest, f2.test_digest);
@@ -536,12 +549,12 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let a = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
-        let b = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let a = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
+        let b = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert_eq!(a.pool_digest, b.pool_digest);
         assert_eq!(a.test_digest, b.test_digest);
         assert_eq!(a.cal_digest, b.cal_digest);
-        let other = audit_envelopes("other", &labels(), &test, &cal, &pool, 2, &label_of);
+        let other = audit_envelopes("other", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert_ne!(a.pool_digest, other.pool_digest);
         assert_ne!(a.test_digest, other.test_digest);
     }
@@ -560,8 +573,8 @@ mod tests {
         let e2 = json!({ "rows": shifted });
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f1 = audit_envelopes("s", &labels(), &e1, &cal, &pool, 2, &label_of);
-        let f2 = audit_envelopes("s", &labels(), &e2, &cal, &pool, 2, &label_of);
+        let f1 = audit_envelopes("s", &labels(), &e1, &cal, &pool, 2, &label_of, true);
+        let f2 = audit_envelopes("s", &labels(), &e2, &cal, &pool, 2, &label_of, true);
         assert_eq!(f1.test_digest, f2.test_digest);
         assert_eq!(f1.n_test, f2.n_test);
     }
@@ -581,7 +594,7 @@ mod tests {
         let test = envelope(&[row("a", "shared"), row("b", "t2")]);
         let cal = envelope(&[row("a", "shared"), row("b", "c2")]);
         let pool = envelope(&[row("a", "shared"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(!f.is_clean());
         assert!(f.known_dirty_acknowledgement("s").is_none()); // not pinned
         assert!(!f.acknowledged);
@@ -609,6 +622,7 @@ mod tests {
             &big_pool,
             2,
             &label_of,
+            true,
         );
         // The pool is at floor scale and clean of overlaps; whatever label
         // starvation is disclosed, the pin itself is never consulted.
@@ -623,7 +637,7 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("sst5", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("sst5", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(
             f.violations
                 .iter()
@@ -637,7 +651,7 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
         let one_label = vec!["a".to_string()];
-        let f2 = audit_envelopes("sst5", &one_label, &test, &cal, &big_pool, 2, &label_of);
+        let f2 = audit_envelopes("sst5", &one_label, &test, &cal, &big_pool, 2, &label_of, true);
         assert!(!f2.violations.iter().any(|v| v.contains("floor")));
     }
 
@@ -646,7 +660,7 @@ mod tests {
         let test = envelope(&[row("a", "t1"), row("b", "t2")]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         assert!(f.is_clean()); // "s" is not in MIN_POOL_ROWS
         assert!(min_pool_rows("s").is_none());
     }
@@ -679,7 +693,7 @@ mod tests {
         let test = envelope(&[json!({ "text": "no label here" })]);
         let cal = envelope(&[row("a", "c1"), row("b", "c2")]);
         let pool = envelope(&[row("a", "p1"), row("b", "p2")]);
-        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of);
+        let f = audit_envelopes("s", &labels(), &test, &cal, &pool, 2, &label_of, true);
         // Both labels missing from the test sample (nothing projected) —
         // the hard violation fires with both named, no panic.
         assert!(

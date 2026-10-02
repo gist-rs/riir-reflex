@@ -57,7 +57,8 @@ use crate::harness::pair_heads::{
 };
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
-    build_massive_intent_en, build_prompt_injections, build_sst5, build_thai_sib200,
+    build_massive_intent_en, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
+    build_s1mb_score, build_sst5, build_thai_sib200,
     build_thai_wisesight, build_typed_decisions,
     build_xnli_en, stratified_selection_slices, stratified_split, train_docs, train_row_label,
 };
@@ -146,6 +147,12 @@ struct SuiteSpec {
     /// (a 2490-case confirmation slice would tax every default run, and
     /// its laya seat would be meaningless spend).
     named_only: bool,
+    /// false = the suite arms its engine over a universe that DELIBERATELY
+    /// exceeds the gold space (Plan 010's s1mb variable-option breadth:
+    /// long-tail keys are presented, rarely gold) — the slice-integrity
+    /// audit's label-coverage law is scoped OFF while its identity checks
+    /// stay ON. Starved labels ride the Issue-039 fallback, disclosed.
+    coverage_audit: bool,
     build: fn(&Value, usize) -> Suite,
     /// Some(build) = in-process synthetic suite (Issue 004): no dataset
     /// files — `prepare` never touches `dir`, the builder self-splits
@@ -159,10 +166,39 @@ struct SuiteSpec {
     modelless_lane: bool,
 }
 
+// Plan 010's shared S1MB registry block (three suites by decision kind, the
+// generic build_s1mb_* builders; the caps' shape: cal 200 like the big
+// suites, corpus 16/label — the choice suite's option-key union is hundreds
+// wide, so per-label caps bound the corpus without starving frequent keys;
+// noul's two labels × 64 = 128, its train half carries 6,182). All three
+// are `named_only` — 13k test questions must never tax a default run.
+macro_rules! s1mb_spec {
+    ($name:literal, $corpus_cap:literal, $build:path) => {
+        SuiteSpec {
+            name: $name,
+            dataset_dir: $name,
+            test_cap: 0, // the split IS the protocol half (converter-written)
+            cal_cap: 200,
+            corpus_cap_per_label: $corpus_cap,
+            eval_split: "test",
+            named_only: true,
+            coverage_audit: false, // the presented universe exceeds the gold space (breadth suite)
+            build: $build,
+            synthetic: None,
+            modelless_lane: true,
+        }
+    };
+}
+
 /// Per-suite registry. Domain counts are pinned to the FETCHED test rows
 /// (dataset_manifest.md); the runner asserts them at build time so a
 /// silently different fetch fails loud instead of mis-arming the engine.
 const SUITES: &[SuiteSpec] = &[
+    // Plan 010: the S1MB lane (named-only; s1mb_fetch_convert.py writes the
+    // splits). First so the trio reads together.
+    s1mb_spec!("s1mb_choice", 16, build_s1mb_choice),
+    s1mb_spec!("s1mb_noul", 64, build_s1mb_noul),
+    s1mb_spec!("s1mb_score", 16, build_s1mb_score),
     SuiteSpec {
         name: "typed_decisions",
         dataset_dir: "typed_decisions",
@@ -171,6 +207,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 48,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_typed_decisions,
         synthetic: None,
         modelless_lane: true,
@@ -183,6 +220,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_ag_news,
         synthetic: None,
         modelless_lane: true,
@@ -195,6 +233,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_emotion,
         synthetic: None,
         modelless_lane: true,
@@ -207,6 +246,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_sst5,
         synthetic: None,
         modelless_lane: true,
@@ -219,6 +259,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_prompt_injections,
         synthetic: None,
         modelless_lane: true,
@@ -231,6 +272,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_xnli_en,
         synthetic: None,
         modelless_lane: true,
@@ -247,6 +289,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "validation",
         named_only: true,
+        coverage_audit: true,
         build: build_xnli_en,
         synthetic: None,
         modelless_lane: true,
@@ -263,6 +306,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: true,
+        coverage_audit: true,
         build: build_thai_wisesight,
         synthetic: None,
         modelless_lane: true,
@@ -275,6 +319,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 64,
         eval_split: "test",
         named_only: true,
+        coverage_audit: true,
         build: build_thai_sib200,
         synthetic: None,
         modelless_lane: true,
@@ -287,6 +332,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 48,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: |v, n| build_massive_intent_en(v, n, MASSIVE_OPTION_SEED),
         synthetic: None,
         modelless_lane: true,
@@ -299,6 +345,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: 40,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_banking77_mteb,
         synthetic: None,
         modelless_lane: true,
@@ -311,6 +358,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX, // the builder fixes its own corpus
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: build_code_fixtures, // generated in-process; rows_file unused
         synthetic: None, // legacy in-process path (prepare branch below)
         modelless_lane: true,
@@ -326,6 +374,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_visibility),
         modelless_lane: true,
@@ -338,6 +387,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_permissions),
         modelless_lane: true,
@@ -350,6 +400,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_tool_fit),
         modelless_lane: true,
@@ -362,6 +413,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_routing),
         modelless_lane: true,
@@ -374,6 +426,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         synthetic: Some(families_synth_sensitivity),
         modelless_lane: true,
@@ -386,6 +439,7 @@ const SUITES: &[SuiteSpec] = &[
         corpus_cap_per_label: usize::MAX,
         eval_split: "test",
         named_only: false,
+        coverage_audit: true,
         build: synthetic_build_unused,
         // Issue 045: the T3 carve-out is REVERSED — the family is
         // text-decidable ("does the described prefix still cover the
@@ -5385,6 +5439,12 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         u
     };
     let labels: Vec<String> = match spec.name {
+        // Plan 010 S1MB noul: a 2-label suite ("false"/"true" — the gold
+        // key strings the corpus docs carry); the option-key union is empty
+        // (noul presents no keys), so the labels ride the train-doc
+        // vocabulary exactly like the exempt branch below describes.
+        "s1mb_noul" => vec!["false".to_string(), "true".to_string()],
+        "s1mb_choice" | "s1mb_score" => option_key_union.clone(),
         "ag_news" => (0..4).map(|i| i.to_string()).collect(),
         "emotion" => (0..6).map(|i| i.to_string()).collect(),
         "sst5" => (0..5).map(|i| i.to_string()).collect(),
@@ -5483,6 +5543,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         &cal_split.rest,
         spec.test_cap,
         &|row| train_row_label(spec.name, row),
+        spec.coverage_audit,
     );
     if !slices.is_clean() {
         // Issue 058 (verdict route 1): a frozen pool whose published
@@ -6419,8 +6480,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 6 => dispatch!(6),
                 7 => dispatch!(7), // Plan 003: thai_sib200 (the first 7-domain suite)
                 8 => dispatch!(8),
+                10 => dispatch!(10), // Plan 010: s1mb_score (the presented level-key union)
+                15 => dispatch!(15), // Plan 010: s1mb_score headroom (a wider pull widens the union)
                 59 => dispatch!(59),
                 77 => dispatch!(77),
+                842 => dispatch!(842), // Plan 010: s1mb_choice (the option-key union — the massive by-name posture at breadth)
                 n => {
                     errors.push(format!(
                         "{}: no engine instantiation for {} domains — extend the \

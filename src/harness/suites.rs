@@ -1012,6 +1012,21 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
         "thai_wisesight" => row_i64(row, "category").map(|l| l.to_string()),
         "thai_sib200" => row_str(row, "category").map(str::to_string),
         "typed_decisions" => row_str(row, "workflow").map(str::to_string),
+        // Plan 010 S1MB: the corpus label = the gold KEY string at the
+        // row's gold position (choice: the option key; score: the level-
+        // index string; noul: "false"/"true") — the same spelling the
+        // option-key union (choice/score) and the noul-exempt branch read.
+        "s1mb_choice" | "s1mb_noul" | "s1mb_score" => {
+            let (Some(keys), Some(gold_idx)) = (
+                row.get("question").and_then(|q| q.get("keys")).and_then(Value::as_array),
+                row.get("question").and_then(|q| q.get("gold_idx")).and_then(Value::as_u64),
+            ) else {
+                return None;
+            };
+            keys.get(gold_idx as usize)
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        }
         // mteb/banking77 carries label_text (the option-key source — the
         // STRIPPED form, so the corpora bind to the engine's option-key
         // domains); int label as the fallback for a PolyAI-shaped row.
@@ -1277,8 +1292,101 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
                 })
             })
             .collect(),
+        // Plan 010 S1MB: the same shape as typed_decisions — the corpus
+        // text is the RAW state_json string, identical to what
+        // serialize_state returns for the built case (zero drift).
+        "s1mb_choice" | "s1mb_noul" | "s1mb_score" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: row_str(r, "state")?.to_string(),
+                })
+            })
+            .collect(),
         _ => Vec::new(),
     }
+}
+
+/// Plan 010 — the S1MB lane (our-lanes scope, riir-train Issue 607): the
+/// GENERIC builder over `scripts/s1mb_fetch_convert.py`'s converter rows.
+/// One row = ONE judgment (case × decision, flattened at the converter) —
+/// the universal single-question shape every lane consumes unchanged. The
+/// state rides as the RAW state_json string (the typed_decisions row shape):
+/// serialize_state passes it through verbatim, so corpus text == query state
+/// text with zero re-serialization drift. Gold was mapped BY ID at the
+/// converter (criteria order and target-ids order are independent in S1MB);
+/// the builder trusts the row's gold_idx — the converter's zero-skip run is
+/// the contract (26,269/26,269 mapped).
+fn build_s1mb_kind(rows_file: &Value, max_rows: usize, name: &'static str, kind_want: &str) -> Suite {
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let Some(state) = row.get("state").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(q) = row.get("question") else { continue };
+        let Some(qid) = q.get("qid").and_then(Value::as_str) else { continue };
+        let Some(kind) = q.get("kind").and_then(Value::as_str) else { continue };
+        if kind != kind_want {
+            eprintln!("  [{name}] row {pos}: kind {kind:?} != {kind_want:?} — skipped");
+            continue;
+        }
+        let Some(instructions) = q.get("instructions").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(gold_idx) = q.get("gold_idx").and_then(Value::as_u64) else { continue };
+        let Some(case_id) = row.get("case_id").and_then(Value::as_str) else { continue };
+        let kind = match kind {
+            "choice" => QKind::Choice,
+            "score" => QKind::Score,
+            _ => QKind::Noul,
+        };
+        let soft: Vec<f64> = q
+            .get("soft")
+            .and_then(Value::as_array)
+            .map(|a| a.iter().filter_map(|v| v.as_f64()).collect())
+            .unwrap_or_default();
+        let gold_score = q.get("gold_score").and_then(Value::as_f64);
+        let criteria = q.get("criteria").cloned().unwrap_or(Value::Null);
+        cases.push(SuiteCase {
+            id: format!("{case_id}:{qid}"),
+            state: Value::String(state.to_string()),
+            questions: vec![SuiteQuestion {
+                qid: qid.to_string(),
+                kind,
+                instructions: instructions.to_string(),
+                criteria,
+            }],
+            gold: vec![GoldAnswer {
+                idx: gold_idx as usize,
+                soft,
+                gold_score,
+            }],
+        });
+    }
+    Suite {
+        name,
+        cases,
+        option_counts_note: "S1MB: variable per-question candidate sets (106 subsets, flattened one judgment per case); gold mapped by id at the converter",
+    }
+}
+
+/// The three registry rows' entry points (Suite.name is &'static — the
+/// kind dispatch rides the wrappers, one per converter suite dir).
+#[must_use]
+pub fn build_s1mb_choice(rows_file: &Value, max_rows: usize) -> Suite {
+    build_s1mb_kind(rows_file, max_rows, "s1mb_choice", "choice")
+}
+
+#[must_use]
+pub fn build_s1mb_noul(rows_file: &Value, max_rows: usize) -> Suite {
+    build_s1mb_kind(rows_file, max_rows, "s1mb_noul", "noul")
+}
+
+#[must_use]
+pub fn build_s1mb_score(rows_file: &Value, max_rows: usize) -> Suite {
+    build_s1mb_kind(rows_file, max_rows, "s1mb_score", "score")
 }
 
 #[cfg(test)]
@@ -1519,8 +1627,11 @@ mod stratified_split_tests {
 
 #[cfg(test)]
 mod thai_builder_tests {
-    //! Plan 003 T3.2 — the Thai probe-suite builders.
+    //! Plan 003 T3.2 — the Thai probe-suite builders. Plan 010: also hosts
+    //! the S1MB generic-builder tests (same module shape: builder + row
+    //! envelope fixtures).
 
+    use super::{QKind, build_s1mb_choice, build_s1mb_noul, build_s1mb_score};
     use super::{build_thai_sib200, build_thai_wisesight, train_docs};
 
     fn envelope(rows: Vec<serde_json::Value>) -> serde_json::Value {
@@ -1600,5 +1711,112 @@ mod thai_builder_tests {
         assert_eq!(docs.len(), 2);
         assert_eq!(docs[0].label, "politics");
         assert_eq!(docs[1].label, "sports");
+    }
+
+    // ── S1MB (Plan 010): the generic converter-row builder ─────────────
+
+    fn s1mb_row(subset: &str, q: serde_json::Value) -> serde_json::Value {
+        serde_json::json!({
+            "subset": subset,
+            "group": "domain",
+            "case_id": format!("{subset}:hash"),
+            "state": "{\"prompt\": \"x\"}",
+            "question": q,
+        })
+    }
+
+    #[test]
+    fn s1mb_choice_builder_maps_gold_by_presented_position() {
+        let env = envelope(vec![s1mb_row(
+            "arc",
+            serde_json::json!({
+                "qid": "answer", "kind": "choice", "instructions": "pick",
+                "criteria": {"B": "desc-b", "C": null, "A": null, "D": null},
+                "keys": ["B", "C", "A", "D"],
+                "gold_idx": 2, "gold_score": null,
+                "soft": [0.0, 0.0, 1.0, 0.0],
+            }),
+        )]);
+        let s = build_s1mb_choice(&env, 0);
+        assert_eq!(s.name, "s1mb_choice");
+        assert_eq!(s.cases.len(), 1);
+        let c = &s.cases[0];
+        assert_eq!(c.id, "arc:hash:answer");
+        // The state rides verbatim (Value::String) — serialize_state passthrough.
+        assert_eq!(c.state.as_str(), Some("{\"prompt\": \"x\"}"));
+        let q = &c.questions[0];
+        assert_eq!(q.kind, QKind::Choice);
+        let keys: Vec<_> = q.criteria.as_object().unwrap().keys().cloned().collect();
+        assert_eq!(keys, vec!["B", "C", "A", "D"]);
+        assert_eq!(c.gold[0].idx, 2);
+        assert_eq!(c.gold[0].soft, vec![0.0, 0.0, 1.0, 0.0]);
+    }
+
+    #[test]
+    fn s1mb_score_builder_carries_numeric_levels_and_gold_score() {
+        let env = envelope(vec![s1mb_row(
+            "s1mb-generalization-diverse-score",
+            serde_json::json!({
+                "qid": "rate", "kind": "score", "instructions": "rate",
+                "criteria": [0.0, 0.3333333333333333, 0.6666666666666666, 1.0],
+                "keys": ["0", "1", "2", "3"],
+                "gold_idx": 2, "gold_score": 0.6666666666666666,
+                "soft": [0.0, 0.0, 1.0, 0.0],
+            }),
+        )]);
+        let s = build_s1mb_score(&env, 0);
+        let q = &s.cases[0].questions[0];
+        assert_eq!(q.kind, QKind::Score);
+        assert_eq!(q.criteria.as_array().unwrap().len(), 4);
+        assert_eq!(s.cases[0].gold[0].gold_score, Some(0.6666666666666666));
+        assert_eq!(s.cases[0].gold[0].idx, 2);
+    }
+
+    #[test]
+    fn s1mb_noul_builder_maps_false_true_and_the_label_arm_keys_the_corpus() {
+        let env = envelope(vec![
+            s1mb_row(
+                "babi_nli",
+                serde_json::json!({
+                    "qid": "support", "kind": "noul", "instructions": "Does it support?",
+                    "criteria": null, "keys": ["false", "true"],
+                    "gold_idx": 1, "gold_score": null, "soft": [0.0, 1.0],
+                }),
+            ),
+            s1mb_row(
+                "babi_nli",
+                serde_json::json!({
+                    "qid": "support", "kind": "noul", "instructions": "Does it support?",
+                    "criteria": null, "keys": ["false", "true"],
+                    "gold_idx": 0, "gold_score": null, "soft": [1.0, 0.0],
+                }),
+            ),
+        ]);
+        let s = build_s1mb_noul(&env, 0);
+        assert_eq!(s.cases[0].questions[0].kind, QKind::Noul);
+        assert!(s.cases[0].questions[0].criteria.is_null());
+        assert_eq!(s.cases[0].gold[0].idx, 1);
+        assert_eq!(s.cases[1].gold[0].idx, 0);
+        // The corpus label = the gold key string ("true"/"false") — the
+        // noul-exempt branch rides train-doc labels, so the arm must speak
+        // the same spelling the gold positions do.
+        let docs = train_docs(&env, "s1mb_noul");
+        assert_eq!(docs.len(), 2);
+        assert_eq!(docs[0].label, "true");
+        assert_eq!(docs[1].label, "false");
+        // The choice corpus label = the gold KEY string (the option-key
+        // union branch — default — must meet it).
+        let env2 = envelope(vec![s1mb_row(
+            "arc",
+            serde_json::json!({
+                "qid": "answer", "kind": "choice", "instructions": "pick",
+                "criteria": {"B": "d", "C": null, "A": null, "D": null},
+                "keys": ["B", "C", "A", "D"],
+                "gold_idx": 0, "gold_score": null, "soft": [1.0, 0.0, 0.0, 0.0],
+            }),
+        )]);
+        let docs2 = train_docs(&env2, "s1mb_choice");
+        assert_eq!(docs2[0].label, "B");
+        assert_eq!(docs2[0].text, "{\"prompt\": \"x\"}");
     }
 }
