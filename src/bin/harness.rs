@@ -45,8 +45,11 @@
 //! and sentence-transformers, the card's runtime pins). Env: `BEKKO_PYTHON`
 //! (the venv python), `BEKKO_PY_DEVICE` (default cpu — the author's
 //! reference posture), `BEKKO_MODEL` + `BEKKO_REVISION` (default the
-//! card's 17M release). The card assigns NO license yet — measurement-only
-//! use. A missing script/venv is a loud absence, never a silent skip.
+//! card's 17M release). License: MIT (verified 2026-10-02,
+//! `hotchpotch/bekko-system-one` LICENSE — Copyright (c) 2026 Yuichi Tatsumi)
+//! — a comparison lane today; teacher/distill use is license-clear with
+//! attribution (riir-train Issue 608). A missing script/venv is a loud
+//! absence, never a silent skip.
 //! `--agentjev` adds the AgentJev comparison lane (Issue 025 amendment 4 /
 //! `.issues/027`): their `jev_service` (malevrigns/agent-jev @ a965ca8f,
 //! Apache-2.0, not affiliated) answered over HTTP at `AGENTJEV_SERVE_URL`

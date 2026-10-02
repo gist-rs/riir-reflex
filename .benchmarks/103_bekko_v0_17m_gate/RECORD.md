@@ -199,3 +199,15 @@ pull is the stale one)
   700-row typed pull, the known pool staleness) so bekko went unmeasured there.
 - English-only model on English-only suites — no language confound.
 - 400M unmeasured (see above).
+
+## Addendum — 2026-10-02: the license is MIT (verified); the typed-pool blocker repaired
+
+- **License**: the record's "the card assigns NO license yet — measurement-only" note is
+  SUPERSEDED — the repo carries an MIT LICENSE (verified 2026-10-02 at
+  `https://raw.githubusercontent.com/hotchpotch/bekko-system-one/refs/heads/main/LICENSE`,
+  Copyright (c) 2026 Yuichi Tatsumi, owner-supplied). Distill/teacher/architecture use is
+  license-clear with attribution; the open distill lane is riir-train Issue 608.
+- **The typed_decisions refusal above is repaired on m3**: the t20k pool now carries the
+  full 12-page/1200-row typed train pull (the four unfetched pages synced from
+  `riir-train/.raw/datasets_typed_full` — the slice-guard floor of 960 refused the stale
+  800-row envelope by design). A future `--bekko` run can measure typed_decisions.
