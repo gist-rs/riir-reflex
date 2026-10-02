@@ -7,6 +7,38 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-02
 
+- **The six harness families RETIRED (owner call, this session):**
+  `harness_visibility` · `harness_permissions` · `harness_tool_fit` ·
+  `harness_routing` · `harness_sensitivity` · `harness_cache_reuse` are
+  REMOVED from the harness so no one benches them anymore — the runner
+  SUITES rows, the `families.rs` defs + `families_eval_wide.rs` wide
+  evals, the gates' family arms (incl. the
+  `cache_reuse_grounded_posture_discriminates` production-seat grounding
+  gate and the wide-law/divergence pins), `benches/harness_families_goat.rs`
+  (the families' G2/G4 lane — `decision_set_goat` remains THE G2/G4
+  lane), the fixture-fleet cache_reuse history pin, and the
+  `route_scale_probe` sweep rows all went in one change. Verdict that
+  drove it: home-made synthetic evals (authored in this repo, Issue 004
+  / Research 579) the modelless engine reads AT CHANCE on at the honest
+  wide-eval populations — 0.3125/0.3125/0.302/0.281/0.22 vs
+  ~0.2–0.33 chance — while the small-n template-shared reads (0.56–0.92,
+  n=12–16) that had looked strong were the artifact (instinct issue 008
+  T8's unfalsifiable-memorization class), and cache_reuse's 0.9167/0.5000
+  pair was n=12 noise either way. The eval DISCRIMINATES (laya-rust read
+  0.51–0.66 on 4/5 at the same populations), so the at-chance verdict is
+  about the lane, not the fixtures. Consequences accepted and recorded:
+  the seat-selection machinery the families exercised is name-agnostic
+  (rides the `synthetic` flag) and stays covered by
+  `harness_seat_gates` over `semantic_defects`; the wide-law gates +
+  digest pin continue over `semantic_defects` (Issue 061, which STAYS);
+  the BLAKE3-pinned `code_fixtures_frozen.json` still quotes the retired
+  names inside its frozen source snapshot — history, untouched by law.
+  `.benchmarks/` records survive as history. Downstream: reflex-site
+  board rows removed + /families/ section retired (its HISTORY),
+  instinct arena population 15 → 9 (its HISTORY). Gates: full `cargo
+  test` green (15/15 binaries, 0 failures) + clippy `--all-targets`
+  clean.
+
 - **Issue 061 LANDED — the `semantic_defects` code-defect family (this session, shikuwa/4090):** the perch-derived defect taxonomy became a 7th harness family — 6-way Choice (`clean` + `off_by_one` / `inverted_condition` / `unwrapped_none` / `swapped_lookup` / `swallowed_error`, Rust-native spellings), **102 eval (6×17 exact balance) / 18 cal / 18 corpus** in `src/harness/families_semantic_defects{,_eval}.rs`, authored under the full wide law (label-token-free eval+cal with the 12-token ban row, ZERO trigram wall hits vs corpus∪cal, per-case overlap ≤ 0.92 / mean ~0.3x, digest pin `52573a21…cac78`), wired through `FAMILY_DEFS` + the runner SUITES + `MODELLESS_FAMILIES`/`WIDE_FAMILIES`/`LABEL_BANS`/`ACC_FLOORS` (floor 0.13 = 0.8× the 1/6 chance) + the fleet-hygiene coverage wall. **First modelless cell: acc 0.1863 vs 0.1667 chance** (macro-F1 0.1798, ECE 0.0287, abstain 61%, p50 0.021 ms, det ✓; `.scratch/sd_first_cells/` — untracked) — the family is the hardest of the seven for the hashed-bag lane, which is the honest answer to the issue's opening question. Gates: `harness_families_gates` 9/9 + `fixture_fleet_hygiene` GREEN + full `--features modelless` sweep 0 failures (one loopback flake in `lanes::openthai::stub_listener_round_trip` passed in isolation — the known class, not this change) + clippy `-D`-clean at the modelless posture. The two documented divergences from the issue text: the family is class-Choice rather than per-class booleans (the wide band cannot hold 10 classes), and four perch classes (`does_not_do_what_it_claims`, `bad_state_change`, `wrong_return_value`, `resource_leak`) wait for a deliberate widening. The issue's remaining open question — LLM-lane cells (agentjev / openthai / gliner / PAW) over the family — rides the standing comparison-lane cadence, not this file. Per the noise-reduction rule the issue file is removed with this record; its full life: `git log --follow -- .issues/061_semantic_defects_suite_family.md`.
 
 - **The fixture-fleet hygiene wall (`3a307ee`) — the four-time recurrence closed mechanically; the

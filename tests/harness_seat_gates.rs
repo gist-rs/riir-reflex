@@ -1,8 +1,8 @@
-//! Issue 049 T1+T2+T3's seat gates: the synthetic harness families +
-//! `code_fixtures` seat through `prepare_seat` (marked `synthetic`), the
-//! seated path reproduces the runner's own build byte-for-byte, and
-//! unknown suites refuse. `harness_cache_reuse` joined the synthetic
-//! seats at Issue 045 (its T3 carve-out reversed).
+//! Issue 049 T1+T2+T3's seat gates: the remaining synthetic family
+//! `semantic_defects` + `code_fixtures` seat through `prepare_seat`
+//! (marked `synthetic`), the seated path reproduces the runner's own
+//! build byte-for-byte, and unknown suites refuse. (The six Issue-004
+//! families that used to seat here were retired 2026-10-02.)
 //!
 //! Pins:
 //! - **marker** — every synthetic seat carries `synthetic: true` (the
@@ -24,14 +24,7 @@ use riir_reflex::engine::{DecisionEngine, ExpertSpec};
 use riir_reflex::harness::families;
 use riir_reflex::harness::runner::seat::{PostureKnobs, fit_posture, prepare_seat};
 
-const FAMILIES: [(&str, usize); 6] = [
-    ("harness_visibility", 4),
-    ("harness_permissions", 3),
-    ("harness_tool_fit", 6),
-    ("harness_routing", 4),
-    ("harness_sensitivity", 5),
-    ("harness_cache_reuse", 2),
-];
+const FAMILIES: [(&str, usize); 1] = [("semantic_defects", 6)];
 
 #[test]
 fn synthetic_families_seat_marked_and_byte_identical() {
@@ -85,8 +78,8 @@ fn seat_engine_accuracy_equals_the_manual_build() {
     // compare forced-pick accuracy against the direct manual build (the
     // same construction `harness_families_gates::family_engine` uses) on
     // the same cases. EXACT equality — any drift is a fork.
-    const NAME: &str = "harness_visibility";
-    const N: usize = 4;
+    const NAME: &str = "semantic_defects";
+    const N: usize = 6;
     let seat = prepare_seat(NAME, std::path::Path::new(".raw/datasets")).expect("seat");
     let posture = fit_posture::<N>(NAME, &seat, &PostureKnobs::default()).expect("posture");
     let (mut seat_engine, _) = riir_reflex::harness::runner::seat::build_seat_engine::<N>(
@@ -177,21 +170,21 @@ fn seat_engine_accuracy_equals_the_manual_build() {
 }
 
 #[test]
-fn cache_reuse_seats_as_synthetic_and_unknown_suites_refuse() {
-    // Issue 045: the family seats like its five siblings — the T3
-    // refusal is gone, the synthetic marker and the byte-identity pins
-    // apply to it unchanged (the FAMILIES loop above covers them; here
-    // the docs/cal presence is pinned alongside the refusal arm).
-    let seat = prepare_seat("harness_cache_reuse", std::path::Path::new(".raw/datasets"))
-        .expect("cache_reuse must seat since Issue 045");
+fn synthetic_family_seats_cal_and_corpus_and_unknown_suites_refuse() {
+    // The family seats like code_fixtures — the synthetic marker, the
+    // pool-null rule, and the byte-identity pins apply to it unchanged
+    // (the FAMILIES loop above covers them; here the docs/cal presence
+    // is pinned alongside the refusal arm).
+    let seat = prepare_seat("semantic_defects", std::path::Path::new(".raw/datasets"))
+        .expect("semantic_defects must seat");
     assert!(
         seat.synthetic,
-        "cache_reuse seat must carry the synthetic marker"
+        "semantic_defects seat must carry the synthetic marker"
     );
     assert!(seat.pool_rows.is_null(), "synthetic pool stays null");
     assert!(
         !seat.cal_cases.is_empty() && !seat.train.is_empty(),
-        "cache_reuse must ship its cal front and corpus (Issue 045 T1)"
+        "semantic_defects must ship its cal front and corpus"
     );
     let err = prepare_seat("not_a_suite", std::path::Path::new(".raw/datasets"))
         .err()

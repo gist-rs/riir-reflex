@@ -11,9 +11,9 @@ pub mod cascade;
 #[cfg(feature = "modelless")]
 pub mod code_frozen;
 pub mod families;
-// Plan 009 REVISED-2: the five widened eval populations (data-only, the
-// families module's sibling — see the module's own doc).
-pub mod families_eval_wide;
+// (families_eval_wide removed 2026-10-02 with the six Issue-004 families'
+// retirement — owner call; only `semantic_defects` remains, whose wide
+// eval lives in its own sibling module.)
 // Issue 061: the semantic_defects code-defect family (perch-derived
 // taxonomy; original Rust fixtures — data-only, families-shaped).
 pub mod families_semantic_defects;

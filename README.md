@@ -265,7 +265,7 @@ generated into `data/sizes.json`, never hand-typed).
 
 | gate | verdict | where |
 |---|---|---|
-| G1 calibration (beats raw + conformal-naive floor) | PASS 8/14 · FAIL 1 (ag_news) — massive FAIL → PASS with Issue 023 (Bench 007; TABLES.md re-reads it at the next full run) · NO CLAIM 5 (the synthetic families — their cal windows sit below the calibrator's 64-obs fit floor, so no calibration claim is made; reported NO CLAIM since `bb2370a`, matching the calibration_protocol promise, never a FAIL) | `.benchmarks/001_phase1_tables/TABLES.md` |
+| G1 calibration (beats raw + conformal-naive floor) | PASS 8/14 · FAIL 1 (ag_news) — massive FAIL → PASS with Issue 023 (Bench 007; TABLES.md re-reads it at the next full run) · NO CLAIM 5 (suites whose cal windows sit below the calibrator's 64-obs fit floor, so no calibration claim is made; reported NO CLAIM since `bb2370a`, matching the calibration_protocol promise, never a FAIL — the retired synthetic families' rows are history) | `.benchmarks/001_phase1_tables/TABLES.md` |
 | G2 latency (p99 ≤ 1 ms per decision set) | PASS — p99 0.06 ms per 8-question set | `benches/decision_set_goat.rs` |
 | G3 no regression | PASS — consumes katgpt-rs, never edits it | boundary gate |
 | G4 alloc (hot path alloc-free, canary-armed) | PASS — 0 allocs post-warmup | `benches/decision_set_goat.rs` |
@@ -444,10 +444,12 @@ lane (specialist proposes, modelless gates/abstains), so the category's accuracy
 races and reflex's guarantees compose instead of compete.
 
 **Addendum (2026-09-28, Benches 072 + 074):** the suite set grew to 17 and
-the comparison-lane family grew by one. `harness_cache_reuse` now answers
+the comparison-lane family grew by one. ~~`harness_cache_reuse` now answers
 MODELLESS (Issue 045: **0.9167** vs the published laya 0.5000, p50 0.009 ms
 — n=12, Wilson [0.646, 0.985], no accuracy claim; the LLM-only carve-out is
-reversed on its own issue's premises) and the **OpenThai-SystemOne**
+reversed on its own issue's premises)~~ — RETIRED 2026-10-02 (owner call:
+the six harness families are removed from the harness, at-chance verdict;
+the 0.9167/0.5000 pair was n=12 noise) — and the **OpenThai-SystemOne**
 comparison lane joined (their stack serves, our Rust measures — Plan 003,
 research-sake): xnli_en **0.8967** vs their card 89.0, massive_intent_en
 **0.9200** vs 88.3, and on the Thai probe suites the specialist leads

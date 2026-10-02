@@ -301,8 +301,8 @@ AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
 # 088 record names the massive sampled-presentation refusal class) / 089
 # (typed_decisions — FIFTEEN per-qid programs, 2000 q, 0.5925 ft with 2
 # refusals; score MAE 0.6485 / within-1 0.7937 both beat modelless; the
-# DATASET BOARD IS COMPLETE — only the harness_families probes stay
-# PAW-less by board symmetry) / 090 (paw-LOCAL posture twins for the four
+# DATASET BOARD IS COMPLETE (the six harness_families probes were retired
+# 2026-10-02 — owner call — so nothing else is PAW-less) / 090 (paw-LOCAL posture twins for the four
 # new suites — the 056 verdict repeating: accuracy-neutral, deltas −0.7
 # to +0.3 pt, refusals within 1, det ✓ ×4 AND byte-identical ×2 full
 # runs; needed the per-shape resolution PORTED to the local lane, which
@@ -562,41 +562,37 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
 
 T1.1–T1.8 all landed. The last two:
 
-- **T1.5 harness LANDED 2026-09-22** — 9 dataset suites + the Issue-004
-  harness decision-point families (`src/harness/families.rs`: five modelless
-  synthetic + `harness_cache_reuse` — the LLM-lane-only carve-out reversed by
-  Issue 045 — and since Issue 061 (2026-10-02) the seventh family
-  `semantic_defects`, the perch-derived code-defect Choice over clean + five
-  defect classes, 102 eval cases wide-law-authored, first modelless cell
-  acc 0.1863 vs 0.1667 chance; record in HISTORY.md 10-02) over byte-identical
+- **T1.5 harness LANDED 2026-09-22** — 9 dataset suites + the harness
+  decision-point families (`src/harness/families.rs`) over byte-identical
   questions (`src/harness/`, bin `harness`, record `.benchmarks/001_phase1_harness.md`,
   regenerated tables
   `.benchmarks/001_phase1_tables/`, dispatch-only CI lane
-  `.github/workflows/harness_tables.yml`). Gates: `tests/harness_families_gates.rs`
-  (9 tests — counts/disjointness/gold-agreement/determinism/anti-pathology
-  floors/**discrimination floor**/cache_reuse loud-skip + grounded posture +
-  the wide-eval authoring law + its divergence pin) +
-  `benches/harness_families_goat.rs` (G2 p99 59–79 µs tail support 11/1000,
-  G4 alloc-free ×5, canary-first). **Issue-004 T3 COMPLETED 2026-09-23**
-  (the issue closed, record in HISTORY.md): the full laya-lane harness run
-  landed (uncapped, 15 suites, PASSED) — `harness_cache_reuse` measured at
-  acc 0.5000 = exactly chance (the honest negative-ish result; reading +
-  box state in Bench 001 Addendum 6), laya columns published as a
-  PRE-MOVE BASELINE sha-pinned against the 008 T4 `src/laya` move, and the
-  runner now discloses `laya_max_questions` + the baseline posture in
-  every TABLES.md header. **The engine option-rank blend (Issue 004
-  T7, verdict round 3):** the pre-blend engine ranked options by the LZ4
-  drafter delta alone — a 4-byte option string never moves a ~300-byte
-  context's compressed length, so every option tied and picks were CONSTANT
-  (input-independent; accuracy sat exactly at the gold-0 rate on
-  class-balanced fixtures). The fix blends the drafter delta with the
-  state-alone cosine to each option's corpus centroid (`ROUTE_SCALE = 8`); a
-  discrimination floor (distinct picks ≥ 2, distinct vectors ≥ 2) pins the
-  fix in the gates. Post-blend the modelless lane reads ABOVE chance on
-  every family (0.375–0.500) and the dataset lane moved too — banking77
-  0.040 → 0.446, ag_news 0.258 → 0.510, sst5 0.157 → 0.217; small mixed
-  deltas on emotion (−1.3 pt) and prompt_injections (−4.3 pt), recorded
-  both ways in the Bench 001 addendum (published, never gated). Datasets:
+  `.github/workflows/harness_tables.yml`). ⛔ **THE FAMILIES ARE RETIRED
+  (owner call, 2026-10-02): the six Issue-004 decision-point families
+  (`harness_visibility` · `harness_permissions` · `harness_tool_fit` ·
+  `harness_routing` · `harness_sensitivity` · `harness_cache_reuse`) are
+  REMOVED — registry rows, wide evals, gates, and the GOAT bench all gone
+  — so no one benches them anymore.** Verdict that drove it: home-made
+  synthetic evals the modelless engine reads AT CHANCE on at the honest
+  wide-eval populations (0.22–0.31 vs ~0.2–0.33 chance; the small-n
+  template-shared reads 0.56–0.92 that looked strong were the artifact —
+  instinct issue 008 T8's unfalsifiable-memorization class), and
+  `harness_cache_reuse`'s historical 0.9167/0.5000 rows were n=12 noise.
+  Final readings live in git history + `.benchmarks/`; the production-seat
+  grounding gate `cache_reuse_grounded_posture_discriminates` died with
+  its suite (consequence accepted — the seat selection machinery itself
+  is name-agnostic and stays covered by `harness_seat_gates`).
+  `semantic_defects` (Issue 061, 102 eval cases wide-law-authored) STAYS.
+  Gates now: `tests/harness_families_gates.rs` (semantic_defects only —
+  counts/disjointness/gold-agreement/determinism/anti-pathology
+  floor/**discrimination floor**/the wide-eval authoring law + digest
+  pin) + `tests/harness_seat_gates.rs` + `tests/fixture_fleet_hygiene.rs`.
+  **The engine option-rank blend (Issue 004 T7, verdict round 3)** —
+  the historical fix that un-constanted the option ranking — stands on
+  the DATASET lane, where it matters: banking77 0.040 → 0.446, ag_news
+  0.258 → 0.510, sst5 0.157 → 0.217; small mixed deltas on emotion (−1.3
+  pt) and prompt_injections (−4.3 pt), recorded both ways in the Bench
+  001 addendum (published, never gated). Datasets:
   HF datasets-server `/rows` JSON (`scripts/fetch_datasets.sh`,
   blake3-digested in `.docs/02_protocols/dataset_manifest.md`); banking77 via the
   `mteb/banking77` mirror (PolyAI is script-based and unservable — recorded
@@ -612,19 +608,13 @@ T1.1–T1.8 all landed. The last two:
   exactly 0.0 and abstains everything — correct autonomous behavior, and
   the reason some rows read readout-ECE 0.000 (the protocol's ECE bins are
   left-open `(0,1]`, so zero-confidence rows fall in NO bin — read those
-  as n/a, never as perfect). **The family's lane posture CHANGED 09-28
-  (Issue 045 T1+T2, Bench 072 — the paragraph's "LLM-lane only" wording
-  above is the LANDING-TIME state, superseded):** `harness_cache_reuse`
-  now answers MODELLESS at default features — an authored 12-doc reuse
-  corpus + a 20-case cal front, the cal-selected issue-038 noul
-  count-table polarity as the lever — reading 0.9167 (11/12) vs the LLM
-  lane's 0.5000, G2 p50 0.009 ms, bit-identical ×3 (n=12 → Wilson
-  [0.646, 0.985], no accuracy claim); the loud-skip became a modelless
-  answer, the eval fixtures are byte-unchanged (gate-pinned), and the
-  families' `cache_reuse` gate is now the production-seat grounding gate
-  `cache_reuse_grounded_posture_discriminates`. Record:
-  `.benchmarks/072_cache_reuse_modelless/`; the publish half (site bench
-  row) rides the reflex-site session.
+  as n/a, never as perfect). **The 045 cache_reuse posture history is
+  RETIRED with the family (2026-10-02):** the modelless cache_reuse
+  answer (0.9167 vs the LLM lane's 0.5000, both n=12), its grounding
+  gate, and the eval fixtures are gone — the seat-selection machinery
+  they exercised is name-agnostic and covered by
+  `harness_seat_gates`. Records: `.benchmarks/072_cache_reuse_modelless/`
+  (and the family's other bench records) survive as history.
 - **T1.8 docs closure LANDED 2026-09-22** — this file, README (results +
   honest reading), the katgpt-rs `decision_wire` catalog note (the
   substrate's consumer), and the `.docs/02_protocols/dataset_manifest.md` banking77

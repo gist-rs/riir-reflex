@@ -12,11 +12,8 @@
 //! - its population is DERIVED (`runner::synthetic_suite_names()`), so a
 //!   new synthetic suite joins by EXISTING and reds here until it carries
 //!   hygiene facts — no 12th-instance silence;
-//! - the five wide families re-assert the authoring law's overlap bounds
-//!   (the gates file owns their label bans + digest pins);
-//! - `harness_cache_reuse` is pinned at its EXACT measured history
-//!   (the documented divergence — it keeps the inflated T3 record ON
-//!   PURPOSE, so its numbers are a history pin, never a ceiling);
+//! - `semantic_defects` re-asserts the authoring law's overlap bounds
+//!   (the gates file owns its label ban + digest pin);
 //! - `code_fixtures` is pinned at its measured numbers, whatever they
 //!   are — a re-baseline of its frozen population must re-pin here
 //!   consciously, with the overlap stats moving in the record.
@@ -31,22 +28,9 @@ use riir_reflex::harness::runner;
 const WIDE_MAX_MEAN_OVERLAP: f64 = 0.78;
 const WIDE_MAX_CASE_OVERLAP: f64 = 0.92;
 
-/// The five widened families (the wide authoring law's population —
-/// `harness_cache_reuse` is the documented divergence, pinned below at
-/// its history, not held to the wide bounds).
-const WIDE_FAMILIES: &[&str] = &[
-    "harness_visibility",
-    "harness_permissions",
-    "harness_tool_fit",
-    "harness_routing",
-    "harness_sensitivity",
-    "semantic_defects",
-];
-
-/// `harness_cache_reuse`'s EXACT measured hygiene (the 059 audit — the
-/// frozen T3 record kept on purpose). Drift reds: a moved number means
-/// the frozen fixtures were edited without their divergence note.
-const CACHE_REUSE_PIN: (f64, f64, usize) = (0.8145, 0.8750, 11);
+/// The wide-law population (`semantic_defects` — the gates file owns the
+/// label ban + the digest pin).
+const WIDE_FAMILIES: &[&str] = &["semantic_defects"];
 
 /// `code_fixtures`' measured hygiene (the 059 audit, 2026-10-02): mean
 /// 0.9494 · max 1.0000 · 15 of 16 eval cases share a 3-gram with the
@@ -85,7 +69,6 @@ fn fixture_fleet_hygiene_is_measured_and_walled() {
     // adjudicated below. A new synthetic suite reds HERE — the audit's
     // arms must name it before it can land ungated.
     let mut covered: Vec<&str> = WIDE_FAMILIES.to_vec();
-    covered.push("harness_cache_reuse");
     covered.push("code_fixtures");
     covered.sort_unstable();
     let mut derived = registry.clone();
@@ -132,20 +115,6 @@ fn fixture_fleet_hygiene_is_measured_and_walled() {
                 h.mean_unigram_overlap,
                 h.max_unigram_overlap,
                 h.trigram_hit_cases
-            );
-        } else if name == "harness_cache_reuse" {
-            // History pin: the frozen T3 record's exact measured shape.
-            assert!(
-                approx(h.mean_unigram_overlap, CACHE_REUSE_PIN.0)
-                    && approx(h.max_unigram_overlap, CACHE_REUSE_PIN.1)
-                    && h.trigram_hit_cases == CACHE_REUSE_PIN.2,
-                "cache_reuse's frozen-record hygiene moved (measured {:.4}/{:.4}/{} \
-                 vs the history pin {:?}) — the T3 fixtures were edited without \
-                 their documented-divergence note",
-                h.mean_unigram_overlap,
-                h.max_unigram_overlap,
-                h.trigram_hit_cases,
-                CACHE_REUSE_PIN
             );
         } else if name == "code_fixtures" {
             // Standing disclosure, pinned at the measured triple (see the

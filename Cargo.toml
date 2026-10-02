@@ -274,16 +274,17 @@ required-features = ["modelless"]
 name = "harness_units"
 required-features = ["modelless"]
 
-# Issue 004 (Research 579) T6: the six harness decision-point families —
-# count floors, slice disjointness, gold/option agreement, determinism,
-# G2 latency, and the cache_reuse loud-skip contract.
+# The remaining harness family (Issue 061 semantic_defects; the six
+# Issue-004 families retired 2026-10-02 — owner call) — count floors,
+# slice disjointness, gold/option agreement, determinism, G2 latency,
+# and the wide-eval authoring law.
 [[test]]
 name = "harness_families_gates"
 required-features = ["modelless"]
 
-# Issue 049 T1-T3: the synthetic seat seam (families + code_fixtures seat
-# marked synthetic; cache_reuse refusal names the decision; the seated
-# engine reproduces the manual build exactly).
+# Issue 049 T1-T3: the synthetic seat seam (semantic_defects +
+# code_fixtures seat marked synthetic; unknown-suite refusal names the
+# decision; the seated engine reproduces the manual build exactly).
 [[test]]
 name = "harness_seat_gates"
 required-features = ["modelless"]
@@ -291,8 +292,8 @@ required-features = ["modelless"]
 # The four-time-recurrence wall (2026-10-02): every synthetic fixture
 # suite is hygiene-audited (fixture_hygiene::audit_slices) with the
 # population DERIVED from the registry — a new synthetic suite reds here
-# until its arm exists. Wide families re-assert the overlap bounds;
-# cache_reuse + code_fixtures are pinned at their measured history.
+# until its arm exists. semantic_defects re-asserts the overlap bounds;
+# code_fixtures is pinned at its measured history.
 [[test]]
 name = "fixture_fleet_hygiene"
 required-features = ["modelless"]
@@ -319,17 +320,8 @@ path = "benches/decision_set_goat.rs"
 harness = false
 required-features = ["modelless"]
 
-# Issue 004 T6: G2 (p99 per family decision set ≤ 1 ms, tail support
-# printed) + G4 (alloc-free core, canary-first) over the family engines —
-# the decision_set_goat law applied to the six-point families.
-[[bench]]
-name = "harness_families_goat"
-path = "benches/harness_families_goat.rs"
-harness = false
-required-features = ["modelless"]
-
-# Issue 013 lever 2: the route_scale sweep probe over the synthetic
-# families (measurement only — never a gate).
+# Issue 013 lever 2: the route_scale sweep probe over the remaining
+# synthetic family (measurement only — never a gate).
 [[example]]
 name = "route_scale_probe"
 required-features = ["modelless"]

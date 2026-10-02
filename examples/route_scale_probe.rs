@@ -1,15 +1,17 @@
 //! The `route_scale` sweep probe (issue 013 lever 2 — MEASUREMENT ONLY, not
-//! a gate): forced accuracy of the raw modelless engine over the five
-//! synthetic decision-point families across the blend-scale grid, vs the
+//! a gate): forced accuracy of the raw modelless engine over the remaining
+//! synthetic decision-point family across the blend-scale grid, vs the
 //! shipped default 8.0. The blend only moves `route_active` questions
 //! (`k == N` — options == domains), which is every family here.
 //!
-//! Scope is deliberately the synthetic families ONLY: they are
-//! self-contained (`families::synth_by_name`, the same builder the gates
-//! test consumes), so the probe duplicates no runner pipeline. A
-//! full-suite sweep (dataset suites via the harness) is the follow-up only
-//! if this grid shows signal — the promotion bar is a measured win at
-//! parity everywhere else (the GOAT shape), never this probe alone.
+//! Scope is deliberately the synthetic family ONLY: it is self-contained
+//! (`families::synth_by_name`, the same builder the gates test consumes),
+//! so the probe duplicates no runner pipeline. (The five Issue-004
+//! families this grid used to sweep were retired 2026-10-02 — owner call;
+//! at-chance on the modelless lane.) A full-suite sweep (dataset suites
+//! via the harness) is the follow-up only if this grid shows signal — the
+//! promotion bar is a measured win at parity everywhere else (the GOAT
+//! shape), never this probe alone.
 //!
 //! Run:
 //!   cargo run --release --features modelless --example route_scale_probe
@@ -25,15 +27,9 @@ use riir_reflex::pyjson::serialize_state;
 
 const SCALES: &[f32] = &[2.0, 4.0, 8.0, 16.0, 32.0];
 
-/// The five modelless families (cache_reuse has no modelless lane by
-/// construction) with their domain counts — the gates-test dispatch.
-const FAMILIES: &[(&str, usize)] = &[
-    ("harness_visibility", 4),
-    ("harness_permissions", 3),
-    ("harness_tool_fit", 6),
-    ("harness_routing", 4),
-    ("harness_sensitivity", 5),
-];
+/// The remaining modelless family with its domain count — the
+/// gates-test dispatch.
+const FAMILIES: &[(&str, usize)] = &[("semantic_defects", 6)];
 
 /// The engine over one family's authored corpus at a given blend scale —
 /// the gates-test builder with the one knob turned.

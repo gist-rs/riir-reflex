@@ -1,36 +1,32 @@
-//! Issue 004 (Research 579) T6 gates for the harness decision-point
-//! families — `harness_visibility` · `harness_permissions` ·
-//! `harness_tool_fit` · `harness_routing` · `harness_sensitivity` ·
-//! `harness_cache_reuse` (all six modelless DEFAULT since Issue 045
-//! reversed cache_reuse's LLM-only carve-out) — plus Issue 061's
+//! Gates for the remaining harness family — Issue 061's
 //! `semantic_defects` code-defect family (modelless, wide-law authored).
+//! The six Issue-004 decision-point families were RETIRED 2026-10-02
+//! (owner call — home-made synthetic evals the modelless engine reads at
+//! chance on at the honest populations); their registry rows, wide evals,
+//! gates, and the GOAT bench are gone with them, and the grounded-posture
+//! gate died with its suite.
 //!
 //! What is asserted here:
-//! - registry contract: all six registered synthetic AND modelless;
+//! - registry contract: semantic_defects registered synthetic AND modelless;
 //! - count floors: eval ≥ 12, cal ≥ 16 (the fused-gate thresholds cannot
 //!   fit below 16 cal observations — runner law), corpus ≥ 8, every class
 //!   covered in all three slices;
 //! - the self-inclusion leak law: corpus/cal/eval text sets pairwise
-//!   disjoint per family (a cal case scoring against itself inflates every
+//!   disjoint (a cal case scoring against itself inflates every
 //!   cal-slice quantile);
-//! - gold/option agreement: gold indexes in range, score families carry
-//!   `gold_score == level`, noul families carry null criteria and 0/1
-//!   gold (Issue 045: cache_reuse is the first noul family in the
-//!   modelless registry);
-//! - engine smoke over every modelless family: wire-valid answers,
-//!   normalized probabilities (noul: the single p_yes in [0, 1]),
+//! - gold/option agreement: gold indexes in range, Choice criteria match
+//!   the label universe;
+//! - engine smoke: wire-valid answers, normalized probabilities,
 //!   per-request G2 < 1 ms, bit-identical repeats, anti-pathology accuracy
-//!   floors (0.8× chance), and the DISCRIMINATION floor — distinct picks
+//!   floor (0.8× chance), and the DISCRIMINATION floor — distinct picks
 //!   AND distinct probability vectors across the eval slice (the
 //!   degenerate-lane lesson: a constant, input-independent pick sits at
 //!   exactly chance on class-balanced fixtures, so accuracy alone cannot
 //!   see it — only distinct counts can);
-//! - Plan 009 REVISED-2 (issue 059): the WIDE-eval authoring law over the
-//!   five widened families — population band + exact class balance,
-//!   per-family label-token bans, the corpus/cal 3-gram wall (zero
-//!   tolerance), unigram-overlap ceilings, and a BLAKE3 digest pin per
-//!   family (`harness_cache_reuse` is the documented divergence and stays
-//!   the frozen T3 12-fixture record).
+//! - Plan 009 REVISED-2 (issue 059): the WIDE-eval authoring law —
+//!   population band + exact class balance, the label-token ban, the
+//!   corpus/cal 3-gram wall (zero tolerance), unigram-overlap ceilings,
+//!   and the BLAKE3 digest pin over the canonical wide-eval bytes.
 
 #![cfg(feature = "modelless")]
 
@@ -45,15 +41,7 @@ use riir_reflex::pyjson::serialize_state;
 
 use std::collections::HashSet;
 
-const MODELLESS_FAMILIES: &[&str] = &[
-    "harness_visibility",
-    "harness_permissions",
-    "harness_tool_fit",
-    "harness_routing",
-    "harness_sensitivity",
-    "harness_cache_reuse",
-    "semantic_defects",
-];
+const MODELLESS_FAMILIES: &[&str] = &["semantic_defects"];
 
 /// Anti-pathology forced-accuracy floors per family — 0.8× chance. The
 /// floors gate DOWNWARD only (they catch a systematically wrong engine —
@@ -66,11 +54,7 @@ const MODELLESS_FAMILIES: &[&str] = &[
 /// banking77 0.446 (was 0.040 ≈ 1/77) — above chance materially, still
 /// published-not-gated.
 const ACC_FLOORS: &[(&str, f64)] = &[
-    ("harness_visibility", 0.20),  // chance 0.25
-    ("harness_permissions", 0.26), // chance ~0.33
-    ("harness_tool_fit", 0.13),    // chance ~0.17
-    ("harness_routing", 0.20),     // chance 0.25
-    ("semantic_defects", 0.13),    // chance ~0.17 (6-way)
+    ("semantic_defects", 0.13), // chance ~0.17 (6-way)
 ];
 
 #[test]
@@ -377,12 +361,6 @@ fn engine_answers_families_deterministically_fast_and_above_chance() {
             acc
         }};
     }
-    let _vis = run_family!(4, "harness_visibility");
-    let _perm = run_family!(3, "harness_permissions");
-    let _tool = run_family!(6, "harness_tool_fit");
-    let _route = run_family!(4, "harness_routing");
-    let _sens = run_family!(5, "harness_sensitivity");
-    let _cache = run_family!(2, "harness_cache_reuse");
     let _defects = run_family!(6, "semantic_defects");
 }
 
@@ -458,149 +436,14 @@ fn families_discriminate_their_inputs() {
             );
         }};
     }
-    discriminate!(4, "harness_visibility");
-    discriminate!(3, "harness_permissions");
-    discriminate!(6, "harness_tool_fit");
-    discriminate!(4, "harness_routing");
-    discriminate!(5, "harness_sensitivity");
     discriminate!(6, "semantic_defects");
-    // cache_reuse is deliberately NOT here: at the DEFAULT config its noul
-    // candidates are the question vocabulary yes/no (issue-030 no-route
-    // law), so the pick is the length-prior constant and the discrimination
-    // floor would fail BY DESIGN. Its live-lane discrimination is asserted
-    // at the grounded posture in `cache_reuse_grounded_posture_discriminates`.
 }
 
-#[test]
-fn sensitivity_scores_within_one_level() {
-    // The score-family anti-pathology floor: the expected level under the
-    // calibrated probs lands within 1.0 of gold for ≥ 0.35 of cases — the
-    // threshold the verdict round pinned (uniform picks measure 0.40 by
-    // adjacent-mass arithmetic, so anything at or above 0.35 with real
-    // discrimination is a live, non-anti-correlated scorer; the floor only
-    // catches a systematically wrong engine, never gates accuracy claims).
-    let d = families::synth_by_name("harness_sensitivity").expect("family synth");
-    let mut engine = family_engine::<5>(&d);
-    let mut sc: Scratch<EMBED_DIM> = Scratch::new();
-    sc.prepare(1);
-    let mut within = 0usize;
-    for c in &d.suite.cases {
-        let req = case_request(c);
-        let resp = engine.decide_with(&req, &mut sc).expect("decide");
-        let a = &resp.answers[0];
-        let expected: f64 = a
-            .probabilities
-            .iter()
-            .enumerate()
-            .map(|(i, p)| i as f64 * f64::from(*p))
-            .sum();
-        let gold = c.gold[0].gold_score.expect("score gold");
-        if (expected - gold).abs() <= 1.0 {
-            within += 1;
-        }
-    }
-    let rate = within as f64 / d.suite.cases.len() as f64;
-    assert!(
-        rate >= 0.35,
-        "sensitivity: within-1 rate {rate:.3} < 0.35 — picks are \
-         systematically wrong (the recorded baseline is 0.40 at uniform \
-         picks; zero-shot accuracy is published, not gated)"
-    );
-}
-
-/// Issue 045: the family's grounding gate — the count-table polarity
-/// (issue 038) selected on the authored CAL front must arm AND the
-/// grounded engine must discriminate the eval fixtures. This runs the
-/// PRODUCTION seat path (`prepare_seat` → `fit_posture` with
-/// `nb_select`) — the same code a harness `--nb-select` run executes —
-/// so the gate cannot drift from the runner.
-///
-/// Fixture-preservation pin (the non-goal law): the 12 eval fixtures and
-/// their gold are UNCHANGED from the T3 authoring — count + gold balance
-/// only; the texts are the binary's own statics.
-#[test]
-fn cache_reuse_grounded_posture_discriminates() {
-    // Fixture preservation (unchanged from the T3 authoring).
-    let fixtures = families::cache_reuse_eval();
-    assert_eq!(fixtures.len(), 12, "eval fixture count moved");
-    assert_eq!(
-        fixtures.iter().filter(|t| t.gold == 1).count(),
-        6,
-        "eval gold balance moved"
-    );
-
-    let seat = runner::seat::prepare_seat("harness_cache_reuse", std::path::Path::new("."))
-        .expect("cache_reuse seats since Issue 045");
-    let posture = runner::seat::fit_posture::<2>(
-        "harness_cache_reuse",
-        &seat,
-        &runner::seat::PostureKnobs {
-            nb_select: true,
-            ..Default::default()
-        },
-    )
-    .expect("posture fit");
-    let nb = posture
-        .nb_selection
-        .as_ref()
-        .expect("nb selection must run under nb_select");
-    assert_eq!(
-        nb.selected_noul_domain,
-        Some(1),
-        "the cal-selected polarity must read yes as the 'true' domain — got \
-         {:?} (selected scale {}, best cal {:.4}); the authored corpus is \
-         mislabelled or the classes' vocabulary no longer separates",
-        nb.selected_noul_domain,
-        nb.selected_scale,
-        nb.candidates
-            .iter()
-            .filter(|c| c.scale > 0.0)
-            .map(|c| c.cal_acc)
-            .fold(0.0_f64, f64::max)
-    );
-
-    // The grounded engine discriminates: ≥ 2 distinct picks over the 12
-    // eval fixtures (the discrimination floor, at the LIVE posture).
-    let (mut engine, _) = runner::seat::build_seat_engine::<2>(
-        "harness_cache_reuse",
-        &seat,
-        posture.effective_cap,
-        posture.cfg.clone(),
-    )
-    .expect("seat engine");
-    let eval = runner::seat::eval_seat::<2>(&mut engine, &seat.suite.cases, &seat.state_strs)
-        .expect("seat eval");
-    let mut picks: Vec<usize> = eval.cases.iter().map(|c| c[0].pick).collect();
-    picks.sort_unstable();
-    picks.dedup();
-    assert!(
-        picks.len() >= 2,
-        "the grounded noul engine emitted {picks:?} — a constant pick over 12 \
-         fixtures means the polarity armed on cal but does not transfer (the \
-         honest negative would be recorded in the issue, not pinned here)"
-    );
-    let hits = eval
-        .cases
-        .iter()
-        .zip(&seat.suite.cases)
-        .filter(|(slots, case)| slots[0].pick == case.gold[0].idx)
-        .count();
-    println!(
-        "[recorded] cache_reuse: grounded forced acc {hits}/{} (zero-shot losses \
-         are published, not gated — the G1 power statement lives in the bench \
-         record)",
-        seat.suite.cases.len()
-    );
-}
-
-// ── Plan 009 REVISED-2: the wide-eval authoring gates (issue 059) ─────────
+// ── Plan 009 REVISED-2: the wide-eval authoring gates (issue 059) ───────
 //
-// The five widened families' eval populations carry an authoring law the
-// gates below enforce. `harness_cache_reuse` is the DOCUMENTED DIVERGENCE —
-// it keeps its frozen T3 12-fixture record (see `CACHE_REUSE_NOTE`) and is
-// exempt from this section BY NAME (a name-based exemption, not a
-// structural one: a seventh family added tomorrow lands here gated, and
-// deleting the exemption requires editing this line).
+// The remaining family's eval population carries an authoring law the
+// gates below enforce. (The six Issue-004 families retired 2026-10-02;
+// the retired section's constants and pins went with them.)
 //
 // Baselines (measured on the pre-wide evals before the swap — the
 // `.benchmarks/105` record carries the full table): old mean unigram
@@ -608,44 +451,13 @@ fn cache_reuse_grounded_posture_discriminates() {
 // cases sharing a word 3-gram with corpus/cal. The wide authoring is
 // STRICTER than every old number: zero shared 3-grams (the
 // memorization-path wall), mean ≤ [`WIDE_MAX_MEAN_OVERLAP`], per-case ≤
-// [`WIDE_MAX_CASE_OVERLAP`], and exact per-family label-token bans.
+// [`WIDE_MAX_CASE_OVERLAP`], and the exact label-token ban.
 
-/// The widened families, in registry order. `harness_cache_reuse` is
-/// deliberately absent — the documented divergence.
-const WIDE_FAMILIES: &[&str] = &[
-    "harness_visibility",
-    "harness_permissions",
-    "harness_tool_fit",
-    "harness_routing",
-    "harness_sensitivity",
-    "semantic_defects",
-];
+/// The widened families, in registry order.
+const WIDE_FAMILIES: &[&str] = &["semantic_defects"];
 
 /// Per-family banned label tokens (exact token match, lowercased).
-/// `harness_tool_fit` bans the six tool names AND their component tokens
-/// (an intent that names its own answer leaks the label); the other
-/// families ban their label words. `harness_sensitivity` bans every digit
-/// character instead (its labels ARE the levels 0–4).
 const LABEL_BANS: &[(&str, &[&str])] = &[
-    (
-        "harness_visibility",
-        &["hide", "short", "long", "full"],
-    ),
-    ("harness_permissions", &["allow", "ask", "deny"]),
-    (
-        "harness_tool_fit",
-        &[
-            "grep", "ast", "git", "log", "cargo", "test", "tests", "fmt",
-            "docs", "search",
-        ],
-    ),
-    (
-        "harness_routing",
-        &[
-            "local", "engine", "cheap", "api", "frontier", "background",
-            "batch",
-        ],
-    ),
     (
         "semantic_defects",
         &[
@@ -692,26 +504,6 @@ fn wide_eval_digest(def: &families::FamilyDef) -> String {
 /// moved the fixtures (never delete a pin to make a red go away).
 const WIDE_EVAL_DIGESTS: &[(&str, &str)] = &[
     (
-        "harness_visibility",
-        "2fb6e5ecf0a5d204b264d9a59556762ec0ddf09dc5c29bf50fef0fdd2d045945",
-    ),
-    (
-        "harness_permissions",
-        "e5127a1fada65c5b42e3df5a2f11cfd9a9f2ef3872248e1c29866e01da5f50e9",
-    ),
-    (
-        "harness_tool_fit",
-        "47e6d75a046abb7f483689d838553e13ea4566d433bdfe3b487cbc3d3290d7c9",
-    ),
-    (
-        "harness_routing",
-        "beecd817d1e7179f1f9928b888aeff035937d5fd4b8d5f1d38541c0e229f6458",
-    ),
-    (
-        "harness_sensitivity",
-        "ad778f9de86320a76e947c1a7e69b3eb0b78028351282df72f281c736e76a802",
-    ),
-    (
         "semantic_defects",
         "52573a21b72da3444c97293728f85e6256226499ae6794ed75585227d69cac78",
     ),
@@ -742,45 +534,29 @@ fn wide_evals_meet_the_authoring_law() {
              balance (max−min ≤ 1) with every class ≥ 16"
         );
 
-        // Label-token bans. SENS bans every digit (labels ARE the levels);
-        // every other family bans its exact label tokens on eval AND cal.
-        if *name == "harness_sensitivity" {
-            for (i, t) in def.eval.iter().enumerate() {
+        // Label-token bans: the family bans its exact label tokens on
+        // eval AND cal.
+        let bans = LABEL_BANS
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, b)| *b)
+            .unwrap_or(&[]);
+        assert!(!bans.is_empty(), "{name}: no label-ban row (gate bug)");
+        for (i, t) in def.eval.iter().enumerate() {
+            for w in wide_tokens(t.text) {
                 assert!(
-                    !t.text.chars().any(|c| c.is_ascii_digit()),
-                    "{name}: eval case {i} carries a digit — the family law is \
-                     no level digits (labels are 0–4)"
+                    !bans.contains(&w.as_str()),
+                    "{name}: eval case {i} carries the label token `{w}` — \
+                     the text leaks its own answer"
                 );
             }
-        } else {
-            let bans = LABEL_BANS
-                .iter()
-                .find(|(n, _)| n == name)
-                .map(|(_, b)| *b)
-                .unwrap_or(&[]);
-            assert!(!bans.is_empty(), "{name}: no label-ban row (gate bug)");
-            for (i, t) in def.eval.iter().enumerate() {
-                for w in wide_tokens(t.text) {
-                    assert!(
-                        !bans.contains(&w.as_str()),
-                        "{name}: eval case {i} carries the label token `{w}` — \
-                         the text leaks its own answer"
-                    );
-                }
-            }
-            // Cal-text bans: VIS/PERM/ROUTE's cal was authored token-free
-            // too (and stays gated); `harness_tool_fit`'s cal predates the
-            // ban law and legitimately contains generic verbs ("Search the
-            // tree…") — eval-only there.
-            if *name != "harness_tool_fit" {
-                for (i, t) in def.cal.iter().enumerate() {
-                    for w in wide_tokens(t.text) {
-                        assert!(
-                            !bans.contains(&w.as_str()),
-                            "{name}: cal case {i} carries the label token `{w}`"
-                        );
-                    }
-                }
+        }
+        for (i, t) in def.cal.iter().enumerate() {
+            for w in wide_tokens(t.text) {
+                assert!(
+                    !bans.contains(&w.as_str()),
+                    "{name}: cal case {i} carries the label token `{w}`"
+                );
             }
         }
 
@@ -860,23 +636,4 @@ fn wide_evals_meet_the_authoring_law() {
              mean_ovl {mean:.4}, max_ovl {max:.4}"
         );
     }
-}
-
-/// The divergence pin: `harness_cache_reuse` must NOT silently join the
-/// wide population — its eval stays the frozen 12-fixture T3 record. If a
-/// future change widens it on purpose, this test is edited in the SAME
-/// change with the reason (and the grounded-posture gate's count pin
-/// moves with it).
-#[test]
-fn cache_reuse_stays_the_documented_divergence() {
-    let def = families::family_def("harness_cache_reuse").expect("cache_reuse def");
-    assert_eq!(
-        def.eval.len(), 12,
-        "cache_reuse's eval moved off the frozen T3 record without the \
-         documented-divergence edit"
-    );
-    assert!(
-        !WIDE_FAMILIES.contains(&"harness_cache_reuse"),
-        "cache_reuse joined WIDE_FAMILIES without its divergence note"
-    );
 }

@@ -364,94 +364,13 @@ const SUITES: &[SuiteSpec] = &[
         synthetic: None, // legacy in-process path (prepare branch below)
         modelless_lane: true,
     },
-    // ── Issue 004 (Research 579): the six harness decision-point families ──
-    // In-process synthetic suites (no datasets); all six modelless by
-    // default since Issue 045 lifted cache_reuse's LLM-only carve-out.
-    SuiteSpec {
-        name: "harness_visibility",
-        dataset_dir: "harness_visibility",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        synthetic: Some(families_synth_visibility),
-        modelless_lane: true,
-    },
-    SuiteSpec {
-        name: "harness_permissions",
-        dataset_dir: "harness_permissions",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        synthetic: Some(families_synth_permissions),
-        modelless_lane: true,
-    },
-    SuiteSpec {
-        name: "harness_tool_fit",
-        dataset_dir: "harness_tool_fit",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        synthetic: Some(families_synth_tool_fit),
-        modelless_lane: true,
-    },
-    SuiteSpec {
-        name: "harness_routing",
-        dataset_dir: "harness_routing",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        synthetic: Some(families_synth_routing),
-        modelless_lane: true,
-    },
-    SuiteSpec {
-        name: "harness_sensitivity",
-        dataset_dir: "harness_sensitivity",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        synthetic: Some(families_synth_sensitivity),
-        modelless_lane: true,
-    },
-    SuiteSpec {
-        name: "harness_cache_reuse",
-        dataset_dir: "harness_cache_reuse",
-        test_cap: 0,
-        cal_cap: 0,
-        corpus_cap_per_label: usize::MAX,
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: synthetic_build_unused,
-        // Issue 045: the T3 carve-out is REVERSED — the family is
-        // text-decidable ("does the described prefix still cover the
-        // described next turn") and ships its authored corpus + cal; the
-        // noul polarity (issue 038, cal-selected) is the lever that arms
-        // it. The `modelless_lane = false` mechanism below stays as the
-        // declared-inability machinery for any future suite the modelless
-        // lane genuinely cannot answer.
-        modelless_lane: true,
-        synthetic: Some(families_synth_cache_reuse),
-    },
+    // ── RETIRED (owner call, 2026-10-02): the six Issue-004 harness
+    // decision-point families (`harness_visibility` · `harness_permissions`
+    // · `harness_tool_fit` · `harness_routing` · `harness_sensitivity` ·
+    // `harness_cache_reuse`) are REMOVED — home-made synthetic evals the
+    // modelless engine reads at chance on at the honest wide-eval
+    // populations. Nobody benches them anymore; the final readings live in
+    // git history and the instinct/reflex-site records.
     // Issue 061: the code-defect family (perch-derived taxonomy, original
     // Rust fixtures; choice over clean + five defect classes).
     SuiteSpec {
@@ -487,30 +406,6 @@ pub fn synthetic_suite_names() -> Vec<&'static str> {
         .filter(|s| s.synthetic.is_some() || s.name == "code_fixtures")
         .map(|s| s.name)
         .collect()
-}
-
-fn families_synth_visibility() -> SynthData {
-    crate::harness::families::synth_visibility()
-}
-
-fn families_synth_permissions() -> SynthData {
-    crate::harness::families::synth_permissions()
-}
-
-fn families_synth_tool_fit() -> SynthData {
-    crate::harness::families::synth_tool_fit()
-}
-
-fn families_synth_routing() -> SynthData {
-    crate::harness::families::synth_routing()
-}
-
-fn families_synth_sensitivity() -> SynthData {
-    crate::harness::families::synth_sensitivity()
-}
-
-fn families_synth_cache_reuse() -> SynthData {
-    crate::harness::families::synth_cache_reuse()
 }
 
 fn families_synth_semantic_defects() -> SynthData {
@@ -2808,10 +2703,8 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // STRATIFIED selection slice (forced accuracy, ties → 0 = off), and
     // the test split is read ONCE at the selected posture. Runs at the
     // selected cap; eligible = the dataset suites (the cap-selection
-    // eligibility) — the synthetic families keep the default CLI posture
-    // for HEADS: their choice-route baseline rows are the harness sanity
-    // pins, and cache_reuse's lever is the NB polarity (below), not
-    // heads.
+    // eligibility) — synthetic suites keep the default CLI posture for
+    // HEADS: their baseline rows are harness sanity pins.
     let head_selected = if inp.head_select
         && spec.synthetic.is_none()
         && spec.corpus_cap_per_label != usize::MAX
@@ -2826,10 +2719,11 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // ── Count-table posture selection (issue 038 T1): same slice, same
     // promotion bar, at the selected cap + head scale; test read once.
     // Eligible = the dataset suites, and — since Issue 045's synthetic
-    // selection fallback — the synthetic families whose cal front can
-    // carry the selection (cache_reuse's noul polarity is the lane's
-    // whole lever). `corpus_cap_per_label == usize::MAX` marks the
-    // registry-fixed-corpus suites (code_fixtures + the families); the
+    // selection fallback — synthetic suites whose cal front can carry
+    // the selection (semantic_defects remains; the six Issue-004
+    // families that carried the noul polarity lever were retired
+    // 2026-10-02). `corpus_cap_per_label == usize::MAX` marks the
+    // registry-fixed-corpus suites (code_fixtures + the family); the
     // synthetic eligibility rides the synthetic flag alone now.
     #[cfg(feature = "nb_scope")]
     let nb_selected = if inp.nb_select
@@ -5867,12 +5761,11 @@ pub mod seat {
         pub rows_dropped: usize,
     }
 
-    /// Prepare a suite by name. The six MODELESS harness families +
-    /// `code_fixtures` seat through their in-process builds (Issue 049
-    /// T1/T2 — the seat marks them `synthetic`, so the posture fork the
-    /// old blanket refusal feared is now explicit; cache_reuse joined
-    /// them at Issue 045, its T3 carve-out reversed); dataset suites are
-    /// unchanged.
+    /// Prepare a suite by name. `semantic_defects` + `code_fixtures` seat
+    /// through their in-process builds (Issue 049 T1/T2 — the seat marks
+    /// them `synthetic`, so the posture fork the old blanket refusal
+    /// feared is now explicit; the six Issue-004 families that used to
+    /// seat here were retired 2026-10-02); dataset suites are unchanged.
     pub fn prepare_seat(name: &str, dir: &Path) -> Result<Seat, String> {
         let spec = SUITES
             .iter()
@@ -7435,11 +7328,10 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             "engine context = state + prompt (wire criteria None) — the modelless \
              serving path"
                 .to_string(),
-            "harness families (Issue 004, Research 579): in-process synthetic \
-             fixtures with programmatic gold; all six modelless at default \
-             features since Issue 045 (cache_reuse's LLM-only carve-out \
-             REVERSED — Bench 072: modelless 0.9167 vs the frozen LLM-lane \
-             0.5000)"
+            "synthetic fixtures (semantic_defects, code_fixtures): in-process \
+             fixtures with programmatic gold; the six Issue-004 harness \
+             families were retired 2026-10-02 (owner call — at-chance on \
+             the modelless lane at the honest populations)"
                 .to_string(),
         ],
     };

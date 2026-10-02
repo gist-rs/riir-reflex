@@ -758,6 +758,6 @@ mod tests {
             { "row": { "text": "the article body", "label": 1 } }
         ]});
         let built = build_ag_news(&rows, 0);
-        assert_eq!(text_of("harness_visibility", &built.cases[0]), None);
+        assert_eq!(text_of("semantic_defects", &built.cases[0]), None);
     }
 }

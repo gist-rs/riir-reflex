@@ -1,8 +1,17 @@
 # Plan 009 — the six harness families: wide eval feeding a quarantined our-lanes web section
 
+> ⛔ **WITHDRAWN 2026-10-02 (owner call): the six harness families are RETIRED** —
+> the wide evals, gates, GOAT bench, registry rows, and the quarantined /families/
+> web section are all removed, so no one benches them anymore. Verdict: home-made
+> synthetic evals the modelless engine reads AT CHANCE on at the honest wide-eval
+> populations (0.22–0.31 vs ~0.2–0.33 chance); the small-n template-shared reads
+> (0.56–0.92) were the artifact. `semantic_defects` (Issue 061) stays. Records:
+> reflex HISTORY.md (removal row) + reflex-site HISTORY.md (board row).
+
 Status: EXECUTED 2026-10-02 — all tasks landed (reflex `e78c0e6` + instinct `0340f1f` + reflex-site `38fbae4`);
 the wide populations + gates + frozen read (`.benchmarks/105`) + the quarantined section are live. The
 encoder lane rendered `not run` (the owner call on riir-train heads is unmade; absence is honest).
+**SUPERSEDED same day by the withdrawal above — the families were retired hours after this plan closed.**
 
 ## Arc (kept for the record)
 
