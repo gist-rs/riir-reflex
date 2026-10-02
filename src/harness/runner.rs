@@ -668,6 +668,9 @@ pub struct LaneResult {
     pub latency_extremes: Option<LatencyExtremes>,
     /// Repeat-run bit-identity check (first 10 cases answered twice).
     pub determinism_ok: Option<bool>,
+    /// How many cases the repeat-run check re-ran (the verdict's support —
+    /// plan 001 task 9's repeat-count ask; `None` when the check did not run).
+    pub determinism_n: Option<usize>,
     pub seconds: f64,
     pub n_cases: usize,
     pub n_questions: usize,
@@ -1866,6 +1869,10 @@ struct Latency {
     tail_support: usize,
     extremes: Option<LatencyExtremes>,
     determinism_ok: Option<bool>,
+    /// Issue 060 rider (plan 001 task 9's deferred ask): HOW MANY cases the
+    /// repeat-run check actually re-ran — the `determinism_ok` verdict's
+    /// support. `None` when the check did not run (the flag's own None).
+    determinism_n: Option<usize>,
     /// The raw per-case wall times (µs) — the seat's consumers compose
     /// H1's total from these ([`seat::SeatEval::durs_us`]).
     durs_us: Vec<u64>,
@@ -1914,6 +1921,7 @@ fn eval_engine<const N: usize>(
     sc.prepare(max_q);
     let mut durs_us: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = if check_determinism { Some(true) } else { None };
+    let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
         let req = engine_request(case, &state_strs[ci])?;
@@ -1924,6 +1932,7 @@ fn eval_engine<const N: usize>(
         durs_us.push(t0.elapsed().as_micros() as u64);
 
         if check_determinism && ci < 10 {
+            determinism_n += 1;
             let resp2 = engine
                 .decide_with(&req, &mut sc)
                 .map_err(|e| format!("engine determinism rerun ({}, case {ci}): {e}", case.id))?;
@@ -1992,6 +2001,11 @@ fn eval_engine<const N: usize>(
             tail_support: support,
             extremes: LatencyExtremes::of(&durs_us, 1000.0),
             determinism_ok,
+            determinism_n: if check_determinism {
+                Some(determinism_n)
+            } else {
+                None
+            },
             durs_us,
         },
     ))
@@ -3171,6 +3185,7 @@ fn run_modelless<const N: usize>(
                 tail_support: 0,
                 extremes: None,
                 determinism_ok: None,
+                determinism_n: None,
                 durs_us: Vec::new(),
             },
         )
@@ -3458,6 +3473,7 @@ fn run_modelless<const N: usize>(
         corpus_fallbacks,
         latency_extremes: lat.extremes,
         determinism_ok: lat.determinism_ok,
+        determinism_n: lat.determinism_n,
         seconds: t_start.elapsed().as_secs_f64(),
         n_cases: suite.cases.len(),
         n_questions: raw_eval.n_questions(),
@@ -3706,6 +3722,10 @@ fn run_laya_checkpoint(
     let mut confs = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT — incremented on every actual
+    // re-run (bucket-skipped cases `continue` before this, so the count is
+    // the SERVED re-runs, the verdict's true support).
+    let mut determinism_n: usize = 0;
     // The ANE lane's bucket refusals are a coverage LIMIT, not a compute
     // failure: the case is skipped LOUDLY (named + counted into the suite's
     // disclosure) and the lane continues with the servable cases. Real
@@ -3735,6 +3755,7 @@ fn run_laya_checkpoint(
         durs_ms.push(t0.elapsed().as_millis() as u64);
 
         if ci < 10 {
+            determinism_n += 1;
             let answers2 = agent
                 .system_one(&case.state, &questions)
                 .map_err(|e| format!("laya determinism rerun (case {ci}): {e}"))?;
@@ -3881,6 +3902,7 @@ fn run_laya_checkpoint(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     );
     // The bucket-skip disclosure rides back to the caller (who pushes it
@@ -3966,6 +3988,7 @@ fn assemble_laya_lane_result(
     confs: Vec<Vec<f64>>,
     durs_ms: Vec<u64>,
     determinism_ok: Option<bool>,
+    determinism_n: Option<usize>,
     seconds: f64,
 ) -> LaneResult {
     let ev = Eval {
@@ -4065,6 +4088,7 @@ fn assemble_laya_lane_result(
         latency_tail_support: support,
         latency_extremes: LatencyExtremes::of(&durs_ms, 1.0),
         determinism_ok,
+        determinism_n,
         seconds,
         n_cases: cases.len(),
         n_questions: ev.n_questions(),
@@ -4223,6 +4247,8 @@ fn run_laya_python_checkpoint(
     let mut confs = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
         let t0 = Instant::now();
@@ -4234,6 +4260,7 @@ fn run_laya_python_checkpoint(
             .map_err(|e| format!("oracle response ({ckpt}, case {ci}): {e}"))?;
 
         if ci < 10 {
+            determinism_n += 1;
             send_case(&mut stdin, case)?;
             let mut line2 = String::new();
             read_line(&mut reader, &mut line2)?;
@@ -4277,6 +4304,7 @@ fn run_laya_python_checkpoint(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     ))
 }
@@ -4509,9 +4537,11 @@ fn run_clm_lane(
                  CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"));
         }
     }
+let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
-        let req = clm_request(case)?;
         let t0 = Instant::now();
         let (resp, usage) = lane
             .decide(&req)
@@ -4522,6 +4552,7 @@ fn run_clm_lane(
         // Observed-repeat check, first 10 cases (the laya lane's law): a
         // lane that cannot repeat byte-identically flags its det column.
         if ci < 10 {
+            determinism_n += 1;
             let (resp2, _) = lane
                 .decide(&req)
                 .map_err(|e| format!("clm determinism rerun ({}): {e}", case.id))?;
@@ -4585,6 +4616,7 @@ fn run_clm_lane(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     );
     Ok((result, input_tokens))
@@ -4744,6 +4776,8 @@ fn run_jsonl_oracle_lane(
     let mut confs = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
 
     for (ci, case) in cases.iter().enumerate() {
         let t0 = Instant::now();
@@ -4758,6 +4792,7 @@ fn run_jsonl_oracle_lane(
         // lanes' law): a lane that cannot repeat byte-identically flags
         // its det column.
         if ci < 10 {
+            determinism_n += 1;
             send_case(&mut stdin, case)?;
             let mut line2 = String::new();
             read_line(&mut reader, &mut line2)?;
@@ -4801,6 +4836,7 @@ fn run_jsonl_oracle_lane(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     ))
 }
@@ -4934,6 +4970,8 @@ fn run_agentjev_lane(
     let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
     let mut server_wall_ms: f64 = 0.0;
 
     for (ci, case) in cases.iter().enumerate() {
@@ -4950,6 +4988,7 @@ fn run_agentjev_lane(
         // lanes' law): a lane that cannot repeat byte-identically flags
         // its det column.
         if ci < 10 {
+            determinism_n += 1;
             let raw1 = lane
                 .decide_raw(case)
                 .map_err(|e| format!("agentjev determinism rerun: {e}"))?;
@@ -4986,6 +5025,7 @@ fn run_agentjev_lane(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     ))
 }
@@ -5063,6 +5103,8 @@ fn run_openthai_lane(
     let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
     let mut abstains: usize = 0;
     let mut input_tokens: u64 = 0;
 
@@ -5079,6 +5121,7 @@ fn run_openthai_lane(
         // lanes' law): a lane that cannot repeat byte-identically flags
         // its det column.
         if ci < 10 {
+            determinism_n += 1;
             let raw1 = lane
                 .decide_raw(case)
                 .map_err(|e| format!("openthai determinism rerun: {e}"))?;
@@ -5117,6 +5160,7 @@ fn run_openthai_lane(
         confs,
         durs_ms,
         determinism_ok,
+        Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     ))
 }
