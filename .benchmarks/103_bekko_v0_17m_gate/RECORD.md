@@ -138,6 +138,53 @@ target/release/harness --bekko --skip-laya --nb-select --ridge-select \
   --datasets-dir .raw/datasets_t20k --out /tmp/bekko_rerun
 ```
 
+## Addendum (2026-10-02) — the two missing dataset suites measured + the sizes row; the lane's board coverage complete
+
+Owner ask ("beko has no size report and missing code_fixtures bench"): the lane was seated on
+7 of the 9 English dataset suites — `typed_decisions` (refused in the original run on the t20k
+pool) and `code_fixtures` (not in that run's suite list) were missing. Both measured at the
+68M, CPU FP32, reflex `a2545b9`:
+
+| suite | n | reflex (published posture, reproduced in-run) | bekko-68m | winner |
+|---|---|---|---|---|
+| typed_decisions | 2000 q | **0.5725** (oc-armed, selected_scale 4.0 — byte-reproduced) | 0.4840 | reflex +8.85 pt |
+| code_fixtures | 32 q | 0.3750 (byte-reproduced) | **0.40625** (13/32) | bekko +3.1 pt — ⚠ a ONE-QUESTION margin (Wilson intervals overlap almost entirely; read as a tie-class cell, never as a bekko win claim) |
+
+- **The typed_decisions refusal was POOL-SCOPED, not intrinsic**: the canonical
+  `.raw/datasets` pool carries the full 400-case pull and runs clean (2000 q) — the
+  "stale 700-row typed pull" caveat lives on `datasets_t20k` only. The posture needed
+  `--nb-select --oc-select --ridge-select` (the published typed row arms the oc tables at
+  scale 4.0; the 103 repro block's `--nb-select --ridge-select` alone reads 0.3345 — the
+  comparator-posture law applied per-suite before comparing).
+- code_fixtures is the repo's own generated fixture (fn spans at `a2545b9`); its
+  `cases_digest` matched the published board row exactly (population guard green).
+- Determinism: both accuracies byte-identical across two independent processes
+  (`addendum_suites/` + `/tmp/bekko_rerun2`), the 103 law's 4th/5th witnesses.
+- Board publish: the reflex-site publish sat uncommitted in the main checkout and was
+  landed by the sibling session's `26fddb9` rederived onto the plan-001 blocks (cells
+  byte-identical, the rederive guard's proof; accuracy-only — this run's box load 14.1,
+  not quotable, the Issue-021 wall as before). The lane now seats **9 of 9** English
+  dataset suites; the two thai suites stay openthai/encoder-only (bekko is English-only).
+- **The sizes row** (the `/#sizes` report): `Bekko-SystemOne-v0 (68M)` = venv 661,500,299 B
+  (recorded on m3-max-metal, the lstat convention) + HF model tree 476,225,680 B (LIVE tree
+  API) ≈ **1.14 GB total** — between laya-typed and the python reference. Note the 68M tree
+  weighs ~476 MB on HF (more than the ~244 MB safetensors estimate in §Why — the repo tree
+  carries more than the one weights file; the row measures what a consumer downloads, the
+  law). Artifacts: `addendum_suites/{results.json,TABLES.md}`.
+
+Repro (the addendum run):
+
+```sh
+BEKKO_MODEL=hotchpotch/bekko-system-one-v0-68m \
+BEKKO_REVISION=6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1 \
+BEKKO_PYTHON=$PWD/.raw/bekko-env/bin/python \
+target/release/harness --bekko --skip-laya --nb-select --oc-select --ridge-select \
+  --suites typed_decisions,code_fixtures --out .benchmarks/103_bekko_v0_17m_gate/addendum_suites
+```
+
+(the datasets dir is the harness default `.raw/datasets` — NOT `datasets_t20k`, whose typed
+pull is the stale one)
+
 ## Honest caveats
 
 - Rendering laws are per-lane by design: bekko saw JSON states (its native shape) while the
