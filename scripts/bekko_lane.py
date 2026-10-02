@@ -40,8 +40,10 @@ Env: BEKKO_MODEL (hotchpotch/bekko-system-one-v0-17m) ·
      author's reference posture is CPU FP32 — CUDA uses BF16 autocast).
 
 The venv needs torch==2.10 transformers==5.17 sentence-transformers==6.1
-(the card's runtime pins). License caveat: the model card assigns NO
-license yet ("remains to be finalized") — measurement-only use.
+(the card's runtime pins). License: MIT — verified 2026-10-02
+(https://raw.githubusercontent.com/hotchpotch/bekko-system-one/refs/heads/main/LICENSE,
+Copyright (c) 2026 Yuichi Tatsumi) — measurement AND distill/teacher use
+are license-clear with attribution (riir-train Issue 608).
 """
 
 import json

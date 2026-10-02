@@ -4632,13 +4632,161 @@ fn run_clm_lane(
     Err("clm-lane feature off — rebuild with --features clm-lane to measure the CLM reference".to_string())
 }
 
-/// The GLiNER comparison lane (Issue 029): fastino/GLiNER2.5-Decide driven
+/// The shared JSONL-subprocess-oracle handle — spawn + handshake + the
+/// send/ask wire, ONE implementation for every external oracle that speaks
+/// the laya-python line protocol over stdin/stdout: the GLiNER/Bekko
+/// comparison lanes ([`run_jsonl_oracle_lane`]) AND the distill teacher's
+/// bekko arm (riir-train Issue 608) — the wire is the point of the
+/// protocol, never a per-consumer copy. `ask` returns the RAW response
+/// line: the comparison lane's determinism check is byte-exact on it, and
+/// each consumer applies its own parse.
+pub(crate) struct JsonlOracle {
+    lane: &'static str,
+    child: std::process::Child,
+    stdin: Option<std::process::ChildStdin>,
+    reader: std::io::BufReader<std::process::ChildStdout>,
+    /// The advertised model id — the handshake stamps it, never a
+    /// hardcoded name (an env override shows up as itself).
+    pub(crate) model: String,
+    /// The advertised device (the handshake's own disclosure).
+    pub(crate) device: String,
+}
+
+impl JsonlOracle {
+    /// Spawn the oracle subprocess and read its ready handshake. `extra_env`
+    /// overrides inherited env for the CHILD only (the teacher's model pins
+    /// — the parent process never mutates its own env).
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn spawn(
+        lane: &'static str,
+        script_env: &str,
+        script_default: &str,
+        python_env: &str,
+        device_env: &str,
+        default_device: &str,
+        fail_hint: &str,
+        extra_env: &[(&str, &str)],
+    ) -> Result<Self, String> {
+        let script = std::env::var(script_env).unwrap_or_else(|_| script_default.to_string());
+        if !Path::new(&script).is_file() {
+            return Err(format!(
+                "{lane} lane script not found at {script} — run from the repo root or set \
+                 {script_env} ({fail_hint})"
+            ));
+        }
+        let python = std::env::var(python_env).unwrap_or_else(|_| "python3".to_string());
+        let device =
+            std::env::var(device_env).unwrap_or_else(|_| default_device.to_string());
+
+        let mut child = std::process::Command::new(&python)
+            .arg(&script)
+            .arg(&device)
+            .envs(extra_env.iter().copied())
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            // stderr inherits: their loader's warnings stay visible.
+            .spawn()
+            .map_err(|e| format!("spawn {python} {script}: {e}"))?;
+        let stdin = child
+            .stdin
+            .take()
+            .ok_or_else(|| format!("{lane} oracle stdin unavailable"))?;
+        let stdout = child
+            .stdout
+            .take()
+            .ok_or_else(|| format!("{lane} oracle stdout unavailable"))?;
+        let mut reader = std::io::BufReader::new(stdout);
+
+        // Handshake: one ready line once the checkpoint is loaded; the
+        // advertised model id is stamped into the row (never hardcoded).
+        let mut line = String::new();
+        read_raw_line(lane, &mut reader, &mut line)?;
+        let ready: Value = serde_json::from_str(line.trim())
+            .map_err(|e| format!("{lane} handshake: {e} (got: {})", line.trim()))?;
+        if ready.get("ready") != Some(&Value::Bool(true)) {
+            return Err(format!(
+                "{lane} handshake: expected {{\"ready\":true}}, got {line}"
+            ));
+        }
+        let model = ready
+            .get("model")
+            .and_then(Value::as_str)
+            .unwrap_or("?")
+            .to_string();
+        let device = ready
+            .get("device")
+            .and_then(Value::as_str)
+            .unwrap_or("?")
+            .to_string();
+        Ok(Self {
+            lane,
+            child,
+            stdin: Some(stdin),
+            reader,
+            model,
+            device,
+        })
+    }
+
+    /// One request/response round trip — returns the RAW response line
+    /// (the caller parses; the comparison lane's determinism check is
+    /// byte-exact on the raw bytes).
+    pub(crate) fn ask(&mut self, case: &SuiteCase) -> Result<String, String> {
+        use std::io::Write;
+        let stdin = self
+            .stdin
+            .as_mut()
+            .ok_or_else(|| format!("{} oracle stdin closed", self.lane))?;
+        let questions = case_questions(case);
+        let qs: Vec<Value> = questions
+            .iter()
+            .map(|(qid, def)| serde_json::json!({"qid": qid, "def": def}))
+            .collect();
+        let line = serde_json::json!({"state": case.state, "questions": qs});
+        writeln!(stdin, "{line}").map_err(|e| format!("{} stdin: {e}", self.lane))?;
+        stdin
+            .flush()
+            .map_err(|e| format!("{} stdin flush: {e}", self.lane))?;
+        let mut buf = String::new();
+        read_raw_line(self.lane, &mut self.reader, &mut buf)?;
+        Ok(buf)
+    }
+}
+
+impl Drop for JsonlOracle {
+    fn drop(&mut self) {
+        // Closing stdin is the script's exit signal (its loop reads to
+        // EOF); wait so the subprocess never outlives the run silently.
+        drop(self.stdin.take());
+        let _ = self.child.wait();
+    }
+}
+
+fn read_raw_line(
+    lane: &str,
+    reader: &mut std::io::BufReader<std::process::ChildStdout>,
+    buf: &mut String,
+) -> Result<(), String> {
+    use std::io::BufRead;
+    buf.clear();
+    let n = reader
+        .read_line(buf)
+        .map_err(|e| format!("{lane} stdout: {e}"))?;
+    if n == 0 {
+        return Err(format!(
+            "{lane} oracle stream ended early — the subprocess died; its \
+             stderr above names the cause"
+        ));
+    }
+    Ok(())
+}
+
 /// The shared JSONL-subprocess-oracle lane runner — ONE implementation for
-/// every external oracle that speaks the laya-python line protocol over
-/// stdin/stdout (the GLiNER and Bekko lanes today). The per-lane identity
-/// (env names, script default, device default, failure hint) rides the
-/// parameters; the wire, the trim law, the pre-ramp, the determinism check
-/// and the metrics tail are shared verbatim.
+/// every external oracle that speaks the laya-python line protocol (the
+/// GLiNER and Bekko lanes today), over the [`JsonlOracle`] wire. The
+/// per-lane identity (env names, script default, device default, failure
+/// hint) rides the parameters; the trim law, the pre-ramp, the determinism
+/// check and the metrics tail are shared verbatim.
 ///
 /// Env contract per lane: `<script_env>` (default `script_default`) ·
 /// `<python_env>` (default `python3`) · `<device_env>` (default
@@ -4658,89 +4806,19 @@ fn run_jsonl_oracle_lane(
     laya_max_questions: usize,
     leak_flags: Option<&[bool]>,
 ) -> Result<LaneResult, String> {
-    use std::io::{BufRead, BufReader, Write};
-    use std::process::{ChildStdin, Command, Stdio};
-
-    let script = std::env::var(script_env).unwrap_or_else(|_| script_default.to_string());
-    if !Path::new(&script).is_file() {
-        return Err(format!(
-            "{lane} lane script not found at {script} — run from the repo root or set \
-             {script_env} ({fail_hint})"
-        ));
-    }
-    let python = std::env::var(python_env).unwrap_or_else(|_| "python3".to_string());
-    let device =
-        std::env::var(device_env).unwrap_or_else(|_| default_device.to_string());
-
     let t_start = Instant::now();
-    let mut child = Command::new(&python)
-        .arg(&script)
-        .arg(&device)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        // stderr inherits: their loader's warnings stay visible.
-        .spawn()
-        .map_err(|e| format!("spawn {python} {script}: {e}"))?;
-    let mut stdin: ChildStdin = child
-        .stdin
-        .take()
-        .ok_or_else(|| format!("{lane} oracle stdin unavailable"))?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| format!("{lane} oracle stdout unavailable"))?;
-    let mut reader = BufReader::new(stdout);
-
-    // The send/read helpers share the laya-python lane's shapes verbatim
-    // (the wire is the point of the protocol).
-    let send_case = |stdin: &mut ChildStdin, case: &SuiteCase| -> Result<(), String> {
-        let questions = case_questions(case);
-        let qs: Vec<Value> = questions
-            .iter()
-            .map(|(qid, def)| serde_json::json!({"qid": qid, "def": def}))
-            .collect();
-        let line = serde_json::json!({"state": case.state, "questions": qs});
-        writeln!(stdin, "{line}").map_err(|e| format!("{lane} stdin: {e}"))?;
-        stdin.flush().map_err(|e| format!("{lane} stdin flush: {e}"))
-    };
-    let read_line = |reader: &mut BufReader<std::process::ChildStdout>,
-                     buf: &mut String|
-     -> Result<(), String> {
-        buf.clear();
-        let n = reader
-            .read_line(buf)
-            .map_err(|e| format!("{lane} stdout: {e}"))?;
-        if n == 0 {
-            return Err(format!(
-                "{lane} oracle stream ended early — the subprocess died; its \
-                 stderr above names the cause"
-            ));
-        }
-        Ok(())
-    };
-
-    // Handshake: one ready line once the checkpoint is loaded; the
-    // advertised model id is stamped into the row (never hardcoded).
-    let mut line = String::new();
-    read_line(&mut reader, &mut line)?;
-    let ready: Value = serde_json::from_str(line.trim())
-        .map_err(|e| format!("{lane} handshake: {e} (got: {})", line.trim()))?;
-    if ready.get("ready") != Some(&Value::Bool(true)) {
-        return Err(format!(
-            "{lane} handshake: expected {{\"ready\":true}}, got {line}"
-        ));
-    }
-    let model = ready
-        .get("model")
-        .and_then(Value::as_str)
-        .unwrap_or("?")
-        .to_string();
-    let advertised_device = ready
-        .get("device")
-        .and_then(Value::as_str)
-        .unwrap_or("?")
-        .to_string();
-    eprintln!("    [{lane}] oracle up: {model} on {advertised_device}");
+    let mut oracle = JsonlOracle::spawn(
+        lane,
+        script_env,
+        script_default,
+        python_env,
+        device_env,
+        default_device,
+        fail_hint,
+        &[],
+    )?;
+    let model = oracle.model.clone();
+    eprintln!("    [{lane}] oracle up: {} on {}", oracle.model, oracle.device);
 
     // The trim law: the SAME question cap as the laya lanes, so a capped
     // run never compares a full-N row against a capped row.
@@ -4765,9 +4843,7 @@ fn run_jsonl_oracle_lane(
     if laya_gpu_preramp_enabled()
         && let Some(first) = cases.first()
     {
-        send_case(&mut stdin, first)?;
-        let mut warm = String::new();
-        read_line(&mut reader, &mut warm)?;
+        oracle.ask(first)?;
         eprintln!("  [{lane}] gpu pre-ramp: 1 unmeasured warmup case");
     }
 
@@ -4781,9 +4857,7 @@ fn run_jsonl_oracle_lane(
 
     for (ci, case) in cases.iter().enumerate() {
         let t0 = Instant::now();
-        send_case(&mut stdin, case)?;
-        let mut line = String::new();
-        read_line(&mut reader, &mut line)?;
+        let line = oracle.ask(case)?;
         durs_ms.push(t0.elapsed().as_millis() as u64);
         let resp: Value = serde_json::from_str(line.trim())
             .map_err(|e| format!("{lane} response (case {ci}): {e}"))?;
@@ -4793,9 +4867,7 @@ fn run_jsonl_oracle_lane(
         // its det column.
         if ci < 10 {
             determinism_n += 1;
-            send_case(&mut stdin, case)?;
-            let mut line2 = String::new();
-            read_line(&mut reader, &mut line2)?;
+            let line2 = oracle.ask(case)?;
             if line != line2 {
                 *determinism_ok.get_or_insert(true) = false;
             }
@@ -4822,8 +4894,7 @@ fn run_jsonl_oracle_lane(
         picks.push(cpicks);
         confs.push(cconfs);
     }
-    drop(stdin);
-    let _ = child.wait();
+    drop(oracle);
 
     Ok(assemble_laya_lane_result(
         lane,

@@ -357,7 +357,7 @@ fn harness_main() {
                 distill_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai)"));
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko)"));
             }
             "--distill-out" => {
                 i += 1;
@@ -373,7 +373,7 @@ fn harness_main() {
                 synth_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--synth-teacher needs a name (laya | openthai)"));
+                    .unwrap_or_else(|| die("--synth-teacher needs a name (laya | openthai | bekko)"));
             }
             "--synth-max" => {
                 i += 1;
@@ -594,8 +594,10 @@ fn harness_main() {
     // naming the rebuild (the build-stamp law).
     if distill {
         // Plan 426 T1: the openthai teacher is a plain lane (no feature);
-        // the laya teacher keeps its loud feature refusal (the same
-        // message, unchanged behavior for the existing posture).
+        // Issue 608: the bekko teacher likewise (the JSONL oracle — no
+        // feature, the venv + script are its requirements). The laya
+        // teacher keeps its loud feature refusal (the same message,
+        // unchanged behavior for the existing posture).
         if distill_teacher == "laya" && !cfg!(feature = "laya-riir") {
             die(
                 "--distill-teacher laya needs the `laya-riir` feature — rebuild: cargo build \
@@ -606,7 +608,7 @@ fn harness_main() {
         #[cfg(feature = "laya-riir")]
         let run = runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher);
         #[cfg(not(feature = "laya-riir"))]
-        let run = if distill_teacher == "openthai" {
+        let run = if matches!(distill_teacher.as_str(), "openthai" | "bekko") {
             runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher)
         } else {
             // Unreachable — the laya posture died above; kept for the

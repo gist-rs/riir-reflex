@@ -14,6 +14,16 @@
 //!   HTTP). No feature needed; the loud refusal without their server is
 //!   the agentjev law. The strongest measured massive teacher (0.9200,
 //!   Bench 074/075) — Plan 426's V2-qualified distill source.
+//! * `bekko` — the Bekko JSONL subprocess oracle (the `--bekko` lane's
+//!   script, `scripts/bekko_lane.py`; hotchpotch/bekko-system-one-v0).
+//!   No feature needed; the subprocess stays up for the whole suite pass
+//!   over the shared [`super::JsonlOracle`] wire. The distill default is
+//!   the 68M checkpoint (Bench 103's measured teacher — 17M measured
+//!   negative on the owner's accuracy gate; `BEKKO_MODEL`/`BEKKO_REVISION`
+//!   override, the revision default follows the model choice). License:
+//!   MIT (verified 2026-10-02) — the RIDT header carries the license field
+//!   on a bekko dump (the attribution law, Issue 608 T5). The measured
+//!   xnli teacher (0.6767, Bench 103 — the board's largest gap).
 //!
 //! Early-exit mode (`harness --distill`), like `--e0`: no eval lane runs,
 //! no test row is touched. Per suite:
@@ -109,6 +119,12 @@ pub(crate) enum TeacherForward {
     /// keyed probabilities are built from their positional answer over
     /// the question's presented keys.
     Openthai { lane: crate::lanes::openthai::OpenThaiLane, provenance: String },
+    /// The Bekko JSONL subprocess oracle (riir-train Issue 608, ungated —
+    /// the `--bekko` lane's script over the shared [`super::JsonlOracle`]
+    /// wire). The subprocess stays up for the whole suite pass; the keyed
+    /// probabilities reuse the openthai keying over the same positional
+    /// answer shape (one keying law, two oracles).
+    Bekko { oracle: super::JsonlOracle },
 }
 
 impl TeacherForward {
@@ -118,16 +134,32 @@ impl TeacherForward {
             #[cfg(feature = "laya-riir")]
             Self::Laya { .. } => "laya",
             Self::Openthai { .. } => "openthai",
+            Self::Bekko { .. } => "bekko",
         }
     }
 
-    /// Checkpoint (laya) or model id (openthai) — the record's
+    /// Checkpoint (laya), model id (openthai/bekko) — the record's
     /// `checkpoint` field, the teacher-side provenance.
     pub(crate) fn provenance(&self) -> &str {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { provenance, .. } => provenance,
             Self::Openthai { provenance, .. } => provenance,
+            Self::Bekko { oracle } => &oracle.model,
+        }
+    }
+
+    /// The license token the RIDT header carries when the teacher is
+    /// EXTERNAL (the attribution law, Issue 608 T5 — the artifact names
+    /// its teacher's license wherever bekko outputs are recorded; ours
+    /// and the Apache-2.0-served openthai read as None here).
+    pub(crate) fn license(&self) -> Option<&'static str> {
+        match self {
+            Self::Bekko { .. } => {
+                Some("MIT (hotchpotch/bekko-system-one — Copyright (c) 2026 Yuichi \
+                      Tatsumi; verified 2026-10-02)")
+            }
+            _ => None,
         }
     }
 
@@ -155,13 +187,22 @@ impl TeacherForward {
                 *provenance = format!("openthai:{}", crate::lanes::openthai::OpenThaiLane::model_of(&parsed));
                 Ok(())
             }
+            // One discarded forward post-handshake: the loud proof the
+            // oracle ANSWERS (the handshake only proves it loaded), and
+            // the latency stat is not cold-skewed (the seam's law).
+            Self::Bekko { oracle } => {
+                oracle
+                    .ask(case)
+                    .map(|_| ())
+                    .map_err(|e| format!("bekko warmup: {e}"))
+            }
         }
     }
 
     /// One row's keyed probabilities + wall ms. The FIRST question's
     /// answer (the distill join is one gold per row — the single-question
     /// contract the T3 suites speak).
-    pub(crate) fn forward(&self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
+    pub(crate) fn forward(&mut self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { agent, .. } => {
@@ -189,6 +230,32 @@ impl TeacherForward {
                 let keyed = openthai_keyed_probs(q, probs)
                     .map_err(|e| format!("{}: {e}", case.id))?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            // The distill join is ONE gold per row (the single-question
+            // contract) — the FIRST question's answer, positional p array
+            // keyed by the SAME law openthai speaks (one keying, two
+            // oracles — [`openthai_keyed_probs`] is the shared home).
+            Self::Bekko { oracle } => {
+                let t0 = std::time::Instant::now();
+                let raw = oracle
+                    .ask(case)
+                    .map_err(|e| format!("bekko forward ({}): {e}", case.id))?;
+                let ms = t0.elapsed().as_millis() as u64;
+                let resp: serde_json::Value = serde_json::from_str(raw.trim())
+                    .map_err(|e| format!("bekko forward ({}): parse: {e}", case.id))?;
+                let q = case.questions.first().ok_or_else(|| {
+                    format!("{}: no questions for its single gold", case.id)
+                })?;
+                let a = resp
+                    .get("answers")
+                    .and_then(|v| v.as_object())
+                    .and_then(|m| m.get(&q.qid))
+                    .ok_or_else(|| format!("{}: no bekko answer for qid {}", case.id, q.qid))?;
+                let (probs, _pick, _conf) = super::parse_python_answer(q, a)
+                    .map_err(|e| format!("{}: {e}", case.id))?;
+                let keyed =
+                    openthai_keyed_probs(q, &probs).map_err(|e| format!("{}: {e}", case.id))?;
                 Ok((keyed, ms))
             }
         }
@@ -231,10 +298,39 @@ pub(crate) fn openthai_keyed_probs(
     Ok(keys.into_iter().zip(probs.iter().copied()).collect())
 }
 
+/// The bekko distill teacher's model pins (riir-train Issue 608): the 68M
+/// checkpoint by default — Bench 103's measured teacher (17M measured
+/// NEGATIVE on the owner's accuracy gate; the distill headroom cells are
+/// all 68M). `BEKKO_MODEL`/`BEKKO_REVISION` overrides are respected; the
+/// REVISION default FOLLOWS the model choice, because the lane script's
+/// own revision default pins the 17M release — loading 68m without its
+/// revision would drift (or fail). Pure over an env lookup so the default
+/// matrix is testable.
+fn bekko_teacher_pins_with(get: impl Fn(&str) -> Option<String>) -> (String, String) {
+    const M68: &str = "hotchpotch/bekko-system-one-v0-68m";
+    const REV_68M: &str = "6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1";
+    const REV_17M: &str = "2147c3d9d00559bf972616c2589eee967e266f3b";
+    let model = get("BEKKO_MODEL").unwrap_or_else(|| M68.to_string());
+    let revision = get("BEKKO_REVISION").unwrap_or_else(|| {
+        if model == M68 {
+            REV_68M.to_string()
+        } else {
+            REV_17M.to_string()
+        }
+    });
+    (model, revision)
+}
+
+fn bekko_teacher_pins() -> (String, String) {
+    bekko_teacher_pins_with(|k| std::env::var(k).ok())
+}
+
 /// Construct the selected teacher for one distill run (Plan 426 T1).
 /// `laya` needs the checkpoints + the `laya-riir` feature; `openthai`
 /// health-checks their loopback service here — a server that is down is
 /// a LOUD refusal naming the env (the agentjev law), never a half-run.
+/// `bekko` spawns the JSONL oracle subprocess (the handshake IS the loud
+/// proof the model loaded) at the 68M pins.
 pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherForward, String> {
     match name {
         "openthai" => {
@@ -246,6 +342,21 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
                 // off their response — the lane's own law).
                 provenance: "openthai:?".to_string(),
             })
+        }
+        "bekko" => {
+            let (model, revision) = bekko_teacher_pins();
+            let oracle = super::JsonlOracle::spawn(
+                "bekko",
+                "BEKKO_LANE_SCRIPT",
+                "scripts/bekko_lane.py",
+                "BEKKO_PYTHON",
+                "BEKKO_PY_DEVICE",
+                "cpu",
+                "the venv needs torch + transformers + sentence-transformers \
+                 (the card's runtime pins; MIT license — verified 2026-10-02)",
+                &[("BEKKO_MODEL", model.as_str()), ("BEKKO_REVISION", revision.as_str())],
+            )?;
+            Ok(TeacherForward::Bekko { oracle })
         }
         "laya" => {
             #[cfg(feature = "laya-riir")]
@@ -275,7 +386,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             }
         }
         other => Err(format!(
-            "unknown --distill-teacher {other:?} (the seam knows 'laya' and 'openthai')"
+            "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai' and 'bekko')"
         )),
     }
 }
@@ -448,7 +559,7 @@ fn distill_suite(
         .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?;
     let mut teacher = construct_teacher(teacher_name, spec)?;
 
-    let header = serde_json::json!({
+    let mut header = serde_json::json!({
         "suite": spec.name,
         "teacher": teacher.name(),
         "checkpoint": teacher.provenance(),
@@ -462,6 +573,13 @@ fn distill_suite(
         "limit": limit,
         "created_utc": iso8601_utc(),
     });
+    // The attribution law (Issue 608 T5): an EXTERNAL teacher's license
+    // rides the artifact header wherever its outputs are recorded (the
+    // student reader tolerates extra header fields — the RidtWriter
+    // header_extra precedent).
+    if let Some(license) = teacher.license() {
+        header["license"] = serde_json::Value::String(license.to_string());
+    }
     let header_bytes = serde_json::to_string(&header).expect("header json").into_bytes();
 
     let mut out_bytes: Vec<u8> = Vec::with_capacity(1 << 20);
@@ -594,7 +712,15 @@ pub fn run_distill(
             date_utc: iso8601_utc(),
             git_sha: git_sha().unwrap_or_else(|| "unknown".into()),
             host: hostname_refusing_unknown(),
-            device: format!("teacher={teacher_name}; laya_device={device_env}"),
+            device: if teacher_name == "laya" {
+                format!("teacher=laya; laya_device={device_env}")
+            } else {
+                // The oracle lanes carry their own device env
+                // (BEKKO_PY_DEVICE / the openthai service); the per-suite
+                // RIDT header's teacher/checkpoint fields carry the
+                // model-side provenance.
+                format!("teacher={teacher_name}; oracle-lane device env")
+            },
             datasets_dir: opts.datasets_dir.display().to_string(),
             limit,
             row_rule: "train rows only (the no-cheat law, riir-reflex Issue 038); the test \
@@ -763,5 +889,25 @@ mod tests {
         let mut bad = choice_question(serde_json::json!(["x"]));
         bad.kind = crate::harness::suites::QKind::Choice;
         assert!(openthai_keyed_probs(&bad, &[1.0]).is_err());
+    }
+
+    #[test]
+    fn bekko_teacher_pins_default_to_68m_and_revision_follows_model() {
+        // The default: the 68M teacher at its own release revision.
+        let (model, revision) = bekko_teacher_pins_with(|_| None);
+        assert_eq!(model, "hotchpotch/bekko-system-one-v0-68m");
+        assert_eq!(revision, "6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1");
+        // An explicit non-default model falls back to the 17M revision
+        // (the script's own default pin) — never 68m's revision on a
+        // foreign model id.
+        let (model, revision) =
+            bekko_teacher_pins_with(|k| (k == "BEKKO_MODEL").then(|| "other/model".to_string()));
+        assert_eq!(model, "other/model");
+        assert_eq!(revision, "2147c3d9d00559bf972616c2589eee967e266f3b");
+        // An explicit revision override wins over both defaults.
+        let (_, revision) = bekko_teacher_pins_with(|k| {
+            (k == "BEKKO_REVISION").then(|| "feedfacedeadbeef".to_string())
+        });
+        assert_eq!(revision, "feedfacedeadbeef");
     }
 }
