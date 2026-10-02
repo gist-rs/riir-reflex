@@ -1,9 +1,8 @@
 # Plan 009 — the six harness families: wide eval feeding a quarantined our-lanes web section
 
-Status: REVISED-2 2026-10-02 (owner call): UN-WITHDRAWN with a new product — the wide
-eval feeds a NEW reflex-site section showing ONLY our lanes (Reflex modelless · Rethink
-hybrid · Rethink encoder) behind a mandatory honesty caveat. Display-only; the
-specialist-certification purpose stays dead.
+Status: EXECUTED 2026-10-02 — all tasks landed (reflex `e78c0e6` + instinct `0340f1f` + reflex-site `38fbae4`);
+the wide populations + gates + frozen read (`.benchmarks/105`) + the quarantined section are live. The
+encoder lane rendered `not run` (the owner call on riir-train heads is unmade; absence is honest).
 
 ## Arc (kept for the record)
 
@@ -67,22 +66,31 @@ redefined).
 ## Tasks
 
 - [x] Restore + refine `.issues/059` (revived, redefined — this commit)
-- [ ] Author wide eval populations: 6 families × ~96 cases, class-balanced,
-      label-token-free, template-disjoint (per-family subagents; assembled + reviewed
-      here)
-- [ ] `src/harness/families_eval_wide.rs`; rewire all six `FamilyDef.eval`; gates
-      (ceilings from measured old-vs-new overlap stats, 3-gram wall, label bans, BLAKE3
-      pin); update CACHE_REUSE_NOTE + the T3 gate comment (documented divergence)
-- [ ] One frozen read: reflex modelless rows (run() posture + abstain rates) →
-      `.benchmarks/104_families_wide_eval.md` (box state + overlap stats + provenance)
-- [ ] Hand the frozen eval to instinct: Rethink (hybrid) cells via the seat/arena seam;
-      Rethink (encoder) = owner call on riir-train heads (absent → `not run`)
-- [ ] reflex-site: build the NEW section (own page/block, own data file), our lanes
-      only, caveat rendered verbatim, pending-not-zero, never touching bench.json's
-      areas/index
-- [ ] Full lane green: `cargo test` (families gates + lib) + `cargo clippy
-      --all-targets -- -D warnings` at default and all-features postures
-- [ ] Records: bench file, HISTORY.md entry, commit + push (develop); cross-ref issue
+- [x] Author wide eval populations: 5 families × 96–100 cases, class-balanced,
+      label-token-free, template-disjoint (five parallel authoring sessions; assembled
+      + verified by the committed checker scripts — `harness_cache_reuse` stays the
+      documented divergence, its frozen 12 kept)
+- [x] `src/harness/families_eval_wide.rs`; rewire all five widened `FamilyDef.eval`; gates
+      (label bans + 3-gram wall zero-tolerance + overlap ceilings mean≤0.78/case≤0.92 +
+      BLAKE3 digest pins + class balance + the divergence pin); CACHE_REUSE_NOTE + the
+      T3 gate comment updated (documented divergence)
+- [x] One frozen read: reflex modelless rows (run() posture + abstain rates) →
+      `.benchmarks/105_families_wide_eval.md` (box state + overlap stats + provenance;
+      the plan's 104 was taken by bekko_distill_close — 105 is the measured highwater)
+- [x] Hand the frozen eval to instinct: Rethink (hybrid) cells via the seat/arena seam
+      → instinct `.benchmarks/0051_families_wide_eval` (A0 0.4896/0.4896/0.4896/0.4479/
+      0.3400/0.9167; the serve-parity gate re-pinned; A0 leg 1 held, the stale site leg
+      documented under --skip-pin-a0); Rethink (encoder) = owner call on riir-train heads
+      (unmade → `not run` on the page)
+- [x] reflex-site: the NEW section at `/families/` (own page + own data file
+      `data/families.json`), our lanes only, caveat rendered verbatim, pending-not-zero,
+      never touching bench.json's areas/index (quarantine asserted by
+      `scripts/test_publish_families.py` + `scripts/families_page_smoke.cjs`); deployed
+      CF `0da6b32e`, live-verified
+- [x] Full lane green: `cargo test` 359 passed / 0 failed + `cargo clippy
+      --all-targets -- -D warnings` at default AND all-features (the all-features
+      posture needed a pre-existing clm-lane break fixed in passing, `b72f808`)
+- [x] Records: bench file, HISTORY.md entry, commit + push (develop); cross-ref issue
       059 + the reflex-site section landing hash
 
 ## Non-goals
