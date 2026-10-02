@@ -43,6 +43,9 @@
 // pattern).
 #[cfg(all(target_os = "macos", feature = "laya-riir-metal"))]
 mod imp {
+    // pub(crate): the two-arm file-level main dispatch calls in — private
+    // here was an E0603 under `--all-features` on macOS (the only posture
+    // that compiles this module), missed by the fd3c0d2 verification.
 use riir_reflex::harness::suites::{build_typed_decisions, SuiteCase};
 use riir_reflex::laya::config::{load_checkpoint_configs, Checkpoint};
 use riir_reflex::laya::riir::backend::Backend;
@@ -314,7 +317,7 @@ fn run_profile(cases: &mut [SplitCase], enc: &Encoder, head: &Head, b: &dyn Back
     );
 }
 
-fn main() {
+pub(crate) fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     let ckpt = match args.first().map_or("english", String::as_str) {
         "english" => Checkpoint::English,
