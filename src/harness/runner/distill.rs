@@ -18,9 +18,11 @@
 //!   script, `scripts/bekko_lane.py`; hotchpotch/bekko-system-one-v0).
 //!   No feature needed; the subprocess stays up for the whole suite pass
 //!   over the shared [`super::JsonlOracle`] wire. The distill default is
-//!   the 68M checkpoint (Bench 103's measured teacher — 17M measured
-//!   negative on the owner's accuracy gate; `BEKKO_MODEL`/`BEKKO_REVISION`
-//!   override, the revision default follows the model choice). License:
+//!   the 400M checkpoint (riir-train Issue 609 — Bench 107: above the
+//!   68M on all 9 suites; Issue 608's 68M default followed Bench 103,
+//!   where 17M measured negative on the owner's accuracy gate;
+//!   `BEKKO_MODEL`/`BEKKO_REVISION` override, the revision default
+//!   follows the model choice). License:
 //!   MIT (verified 2026-10-02) — the RIDT header carries the license field
 //!   on a bekko dump (the attribution law, Issue 608 T5). The measured
 //!   xnli teacher (0.6767, Bench 103 — the board's largest gap).
@@ -298,24 +300,30 @@ pub(crate) fn openthai_keyed_probs(
     Ok(keys.into_iter().zip(probs.iter().copied()).collect())
 }
 
-/// The bekko distill teacher's model pins (riir-train Issue 608): the 68M
-/// checkpoint by default — Bench 103's measured teacher (17M measured
-/// NEGATIVE on the owner's accuracy gate; the distill headroom cells are
-/// all 68M). `BEKKO_MODEL`/`BEKKO_REVISION` overrides are respected; the
-/// REVISION default FOLLOWS the model choice, because the lane script's
-/// own revision default pins the 17M release — loading 68m without its
-/// revision would drift (or fail). Pure over an env lookup so the default
-/// matrix is testable.
+/// The bekko distill teacher's model pins (riir-train Issue 609): the
+/// 400M checkpoint by default — Bench 107 measured it ABOVE the 68M on
+/// all 9 board suites (the family sign flipped: +2.6 pt overall vs the
+/// 68M's −6.1). History: Issue 608 defaulted 68M (17M measured NEGATIVE
+/// on the owner's accuracy gate; 68M was Bench 103's measured teacher)
+/// — that closure was AT the 68M; the 400M re-opens the distill question
+/// with better priors, same gates. `BEKKO_MODEL`/`BEKKO_REVISION`
+/// overrides are respected; the REVISION default FOLLOWS the model
+/// choice (each release has its own; the lane script's own revision
+/// default pins the 17M release — loading a known model without its
+/// revision would drift, and a FOREIGN model id takes the script's own
+/// default). Pure over an env lookup so the default matrix is testable.
 fn bekko_teacher_pins_with(get: impl Fn(&str) -> Option<String>) -> (String, String) {
+    const M400: &str = "hotchpotch/bekko-system-one-v0-400m";
     const M68: &str = "hotchpotch/bekko-system-one-v0-68m";
+    const REV_400M: &str = "4aeb85b9d4042d75d8b8adf6ff7ba9e4629510ba";
     const REV_68M: &str = "6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1";
     const REV_17M: &str = "2147c3d9d00559bf972616c2589eee967e266f3b";
-    let model = get("BEKKO_MODEL").unwrap_or_else(|| M68.to_string());
+    let model = get("BEKKO_MODEL").unwrap_or_else(|| M400.to_string());
     let revision = get("BEKKO_REVISION").unwrap_or_else(|| {
-        if model == M68 {
-            REV_68M.to_string()
-        } else {
-            REV_17M.to_string()
+        match model.as_str() {
+            M400 => REV_400M.to_string(),
+            M68 => REV_68M.to_string(),
+            _ => REV_17M.to_string(),
         }
     });
     (model, revision)
@@ -892,19 +900,28 @@ mod tests {
     }
 
     #[test]
-    fn bekko_teacher_pins_default_to_68m_and_revision_follows_model() {
-        // The default: the 68M teacher at its own release revision.
+    fn bekko_teacher_pins_default_to_400m_and_revision_follows_model() {
+        // The default: the 400M teacher at its own release revision
+        // (riir-train Issue 609 — Bench 107: the 400M above the 68M on
+        // all 9 board suites).
         let (model, revision) = bekko_teacher_pins_with(|_| None);
+        assert_eq!(model, "hotchpotch/bekko-system-one-v0-400m");
+        assert_eq!(revision, "4aeb85b9d4042d75d8b8adf6ff7ba9e4629510ba");
+        // An EXPLICIT 68M model keeps its own release revision — the
+        // Issue-608 posture stays reachable by name.
+        let (model, revision) = bekko_teacher_pins_with(|k| {
+            (k == "BEKKO_MODEL").then(|| "hotchpotch/bekko-system-one-v0-68m".to_string())
+        });
         assert_eq!(model, "hotchpotch/bekko-system-one-v0-68m");
         assert_eq!(revision, "6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1");
-        // An explicit non-default model falls back to the 17M revision
-        // (the script's own default pin) — never 68m's revision on a
-        // foreign model id.
+        // An explicit UNKNOWN model falls back to the 17M revision
+        // (the script's own default pin) — never a known model's
+        // revision on a foreign model id.
         let (model, revision) =
             bekko_teacher_pins_with(|k| (k == "BEKKO_MODEL").then(|| "other/model".to_string()));
         assert_eq!(model, "other/model");
         assert_eq!(revision, "2147c3d9d00559bf972616c2589eee967e266f3b");
-        // An explicit revision override wins over both defaults.
+        // An explicit revision override wins over all defaults.
         let (_, revision) = bekko_teacher_pins_with(|k| {
             (k == "BEKKO_REVISION").then(|| "feedfacedeadbeef".to_string())
         });
