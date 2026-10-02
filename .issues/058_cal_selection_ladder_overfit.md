@@ -1,6 +1,6 @@
 # Issue 058 — the cal-selection ladder overfits the cal slice; dataset-suite accuracy collapsed at Bench 076/077 and no arm owns a floor
 
-**Status:** (d) ROOT-CAUSED + FIXED 2026-10-01 — the canonical pool is REBUILT (clean full pulls, deduped, provenance-manifested), the board is RESTORED at HEAD (Bench 100: every cell back to its pre-076 value, banking77 +1.6 real gain), the fetcher root cause is CLOSED (TRAIN_CAP default 20000 + per-suite pool floors in the gate). Remaining: 4090 re-run (deferred — box busy) then the reflex-site republish (the cross-host drift gate refuses without it); (a)/(b)/(c) DEFERRED with triggers recorded below.
+**Status:** CLOSED 2026-10-01 — surface complete: (d) ROOT-CAUSED + FIXED (the canonical pool REBUILT — clean full pulls, deduped, provenance-manifested; fetcher root cause closed: `TRAIN_CAP` default 20000 + per-suite pool floors), the board RESTORED at HEAD on BOTH hosts (Bench 100 m3 + Bench 101 4090 — **15/15 accuracy bit-identity, zero drift, 1039 dataset files SHA256-verified identical across hosts BEFORE the run**) and PUBLISHED (reflex-site `d750175` + deployed, live-verified; the Issue-057 CORPUS_RESET ack scoped to the six suites whose pool changed + the dated disclosure note). (a)/(b)/(c) DEFERRED with recorded reopen triggers (below); the one remaining line is the OWNER-gated canonicalization ratification. Filed-done note 2026-10-02: the file stays OPEN only for that owner line + the defers — every actionable task below is landed.
 
 ## THE RESTORATION (Bench 100, m3, 2026-10-01 — `.benchmarks/100_pool_fix_m3`)
 
@@ -65,9 +65,9 @@ hosts, published with a dated disclosure. The deferred (a)/(b)/(c) stay
 on their recorded triggers; the instinct arena re-point stays documented
 in instinct `.issues/013` (ready-to-flip).
 
-## THE REMAINING PUBLISH PATH (the one open task)
+## THE REMAINING PUBLISH PATH — RESOLVED 2026-10-01 (kept for the record)
 
-The reflex-site republish is BLOCKED on the 4090 re-run — the publisher's cross-host drift gate (Issue 018 T7, mechanized) refuses merged-state modelless drift, and the 4090's modelless cells carry the 4k-pool numbers. The 4090 was busy (2026-10-01, owner call) — the run is deferred, not skipped. When free: sync `.raw/datasets` (bytes + POOL_MANIFEST) to `E:\git\riir-reflex`, hash-verify BOTH sides BEFORE running (SHA256 per file, the 077 procedure), git pull + rebuild there, run the same command at `REFLEX_BENCH_HOST=4090-windows`, then `scripts/republish_bench.sh data/bench.json 100_pool_fix_m3/results.json <4090>/results.json` + the dated disclosure note (condition 7: the 09-28..10-01 modelless cells came from 4k pools and are superseded — swapping numbers without the note would hide the mistake).
+~~The reflex-site republish is BLOCKED on the 4090 re-run~~ — **RESOLVED:** the 4090 freed, the data was synced (`1039 dataset files SHA256-verified identical across hosts BEFORE the run` — the verdict's pre-run hash condition), `git pull` needed the local-bundle workaround (its GitHub path hangs; the detached-Start-Process harness runs died silently twice — the foreground ssh run is the reliable posture on that box), the same command ran at `REFLEX_BENCH_HOST=4090-windows` → 15/15 bit-identity, and the republish + dated disclosure landed (`d750175`). The original runbook below is the record of what was executed:
 
 ## VERDICT on (d) — root cause found, 2026-09-30 (A/B-confirmed, same binary, same flags, only `--datasets-dir` changed)
 
@@ -230,7 +230,7 @@ the same-selection suites are a stronger claim: **same posture, cal ≈ unchange
 - [ ] (a) Land the baseline-arm floor in the harness + publisher (loud disclosure on any below-floor publish)
 - [ ] (b) LCB-based selection behind a flag; A/B on the 8 dataset suites, both hosts, byte-identity gates
 - [ ] (c) k-fold cal-front probe (measurement-only) to price the cal→test gap per suite
-- [ ] Re-run the full 15-suite matrix at the repaired posture — **now carries the slice digests; the pool question (t20k vs default) is the owner-gated half**
+- [x] Re-run the full 15-suite matrix at the repaired posture — **DONE 2026-10-01 BOTH hosts (Bench 100 m3 + Bench 101 4090, 15/15 bit-identity); the t20k-scale canonical rebuild was the executed owner option (i), published through the Issue-057 CORPUS_RESET ack; the remaining owner line above is the ratification record**
 - [x] reflex-site: refresh the stale FAQ sentence ("took several suites to or past the laya lanes") to describe the current board honestly — done at reflex-site `1d32a33` (the sentence now scopes the claim to the 051-era posture and names this issue for the pool split)
 - [x] Slice-integrity gate (overlaps + test coverage hard-refuse; slice digests in results/TABLES/run log) + the sst5 data fix + the fetcher dedupe law (2026-09-30)
 - [ ] Owner: canonicalize the board's datasets dir (t20k re-run vs default re-baseline) + decide the t20k sst5 dedupe (instinct pins that pool)
