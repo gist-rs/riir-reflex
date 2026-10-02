@@ -288,6 +288,15 @@ required-features = ["modelless"]
 name = "harness_seat_gates"
 required-features = ["modelless"]
 
+# The four-time-recurrence wall (2026-10-02): every synthetic fixture
+# suite is hygiene-audited (fixture_hygiene::audit_slices) with the
+# population DERIVED from the registry — a new synthetic suite reds here
+# until its arm exists. Wide families re-assert the overlap bounds;
+# cache_reuse + code_fixtures are pinned at their measured history.
+[[test]]
+name = "fixture_fleet_hygiene"
+required-features = ["modelless"]
+
 # Issue 024 G1/G2: the Rust leak index reproduces the probe's per-suite
 # counts EXACTLY over `.raw/datasets` (loud UNSEEN skip when absent), and
 # the per-row classify loop allocates nothing once warm.

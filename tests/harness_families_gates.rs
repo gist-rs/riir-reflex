@@ -37,6 +37,7 @@ use katgpt_core::decision_wire::{DecisionRequest, Question};
 use riir_reflex::embed::EMBED_DIM;
 use riir_reflex::engine::{DecisionEngine, EngineConfig, ExpertSpec, Scratch};
 use riir_reflex::harness::families;
+use riir_reflex::harness::fixture_hygiene;
 use riir_reflex::harness::runner;
 use riir_reflex::harness::suites::QKind;
 use riir_reflex::pyjson::serialize_state;
@@ -656,40 +657,21 @@ const WIDE_MIN_CASES: usize = 88;
 const WIDE_MAX_CASES: usize = 104;
 
 fn wide_tokens(text: &str) -> Vec<String> {
-    text.to_lowercase()
-        .replace('\'', "")
-        .split(|c: char| !c.is_ascii_alphanumeric())
-        .filter(|s| !s.is_empty())
-        .map(String::from)
-        .collect()
+    fixture_hygiene::tokens(text)
 }
 
 fn wide_trigrams(text: &str) -> HashSet<[String; 3]> {
-    let t = wide_tokens(text);
-    let mut out = HashSet::new();
-    if t.len() >= 3 {
-        for w in t.windows(3) {
-            out.insert([w[0].clone(), w[1].clone(), w[2].clone()]);
-        }
-    }
-    out
+    fixture_hygiene::trigrams(text)
 }
 
-/// BLAKE3 digest pin over the canonical wide-eval bytes: the family name,
-/// then per case `gold 0x1F text 0x1E`. Any fixture edit (text, gold,
-/// order, insertion, deletion) moves the digest and reds this gate until
-/// the pin is consciously re-typed in the same change.
+/// BLAKE3 digest pin over the canonical wide-eval bytes — the shared
+/// `fixture_hygiene::fixture_digest` law (name, then gold 0x1F text 0x1E
+/// per case). Any fixture edit (text, gold, order, insertion, deletion)
+/// moves the digest and reds this gate until consciously re-typed in the
+/// same change.
 fn wide_eval_digest(def: &families::FamilyDef) -> String {
-    let mut bytes = Vec::new();
-    bytes.extend_from_slice(def.name.as_bytes());
-    bytes.push(0x1E);
-    for t in def.eval {
-        bytes.extend_from_slice(t.gold.to_string().as_bytes());
-        bytes.push(0x1F);
-        bytes.extend_from_slice(t.text.as_bytes());
-        bytes.push(0x1E);
-    }
-    blake3::hash(&bytes).to_hex().to_string()
+    let eval: Vec<(usize, &str)> = def.eval.iter().map(|t| (t.gold, t.text)).collect();
+    fixture_hygiene::fixture_digest(def.name, &eval)
 }
 
 /// The digest pins, one per widened family. Bootstrap: a mismatch panic

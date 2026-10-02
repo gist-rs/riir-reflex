@@ -460,6 +460,20 @@ fn synthetic_build_unused(_rows: &Value, _max_rows: usize) -> Suite {
     unreachable!("synthetic suites build via SuiteSpec::synthetic")
 }
 
+/// The synthetic (in-process fixture) suite names, derived from the
+/// registry — never hand-typed. The fixture-fleet hygiene audit's
+/// population: a new synthetic suite joins it by EXISTING, and the audit
+/// reds until that suite carries hygiene facts (the 12th-instance wall —
+/// every fixture set before the families was authored ungated and
+/// measured its overlap only after the inflation was published).
+pub fn synthetic_suite_names() -> Vec<&'static str> {
+    SUITES
+        .iter()
+        .filter(|s| s.synthetic.is_some() || s.name == "code_fixtures")
+        .map(|s| s.name)
+        .collect()
+}
+
 fn families_synth_visibility() -> SynthData {
     crate::harness::families::synth_visibility()
 }
