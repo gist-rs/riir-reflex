@@ -7,6 +7,29 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-02
 
+- **Issue 060 RESOLVED (a7475c7): the harness records the abstain CAUSE per case —
+  reflex-site plan 001 task 6's unblock.** The engine classifies WHY the fused
+  gate abstained at the decision site (`AbstainCause`: ScoreGate / DistanceGate /
+  GrammarInvalid-reserved, score-gate precedence, the `||` short-circuit preserved
+  — byte-identical decisions, identical evaluation order; `DistanceGate` is the
+  marginal cause: score threshold passed, distance gate fired). The harness
+  captures the per-question causes from the CALLER-OWNED scratch right after
+  `decide_with` (zero wire changes — the slots survive the call and hold exactly
+  the last request's verdicts), asserts the wire's `outcome.is_none()` agrees
+  with `cause.abstained()` (debug), and publishes `abstain_causes` on the
+  modelless LaneResult — the CALIBRATED gate's shares as the fixed 3-key
+  snake_case object (`{score_gate, distance_gate, grammar_invalid}`; the shares
+  sum to `calibrated_abstain`'s abstaining total by the precedence law). laya
+  publishes `None` (cannot abstain — never a fake zero); pre-field cells publish
+  as absent (the site renders "not recorded", never guessed). grammar_invalid
+  is 0 on every harness run — the reserved serve-lane arm (game-heads
+  fall-through), carried so the taxonomy's wire shape is closed. Gates:
+  engine_gates classification test (score-only / distance-only / answered /
+  both→ScoreGate), harness_units wire-shape pin + cause/flag agreement law;
+  clippy `-D warnings` clean; lib 241 / engine_gates 9 / harness_units 35 /
+  families 7 all green. The SITE half (publish + render) stays with reflex-site
+  plan 001 task 6 — it lights up when a harness run carrying the field lands.
+
 - **Issue 059 CLOSED WITHOUT EXECUTION (owner verdict 2026-10-02): the six harness
   families are INTERNAL TEST FIXTURES, not benchmarks — the wide template-disjoint
   eval is withdrawn before any build.** The plan (`009`) + the anchor issue were
