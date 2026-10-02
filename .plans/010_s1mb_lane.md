@@ -54,29 +54,33 @@ banking77, massive, snli, ...).
 
 ## Tasks
 
-- [ ] T1 converter: `scripts/s1mb_fetch_convert.py` (stdlib-only python:
-      urllib + json; the fetch_datasets.sh politeness/resume laws — 0.3s
-      sleep, skip-if-complete, loud per-page failures; utf-8 everywhere, the
-      locale_io lesson) — `/splits` enumerates configs, `/rows` pages each
-      config, flatten judgments → our row shape, deterministic 50/50 split,
-      write `.raw/datasets_s1mb/<suite>/` + a fetch manifest with blake3
-      digests + row counts (the dataset_manifest law).
-- [ ] T2 reflex harness: the generic `build_s1mb` builder (rows carry the
-      pre-parsed decision payload verbatim: qid/kind/instructions/criteria/
-      keys/gold_idx/gold_score/soft) + 3 SuiteSpec rows (named_only, counts
-      asserted at build time). `--suites s1mb_choice --limit`-style smoke.
-- [ ] T3 Reflex row: the modelless lane over the 3 suites (t20k-pool
-      preflight posture; box-state PROVENANCE quoted).
-- [ ] T4 Instinct row: riir-train `instinct_arm_b` gains a gold-only path
+- [x] T1 converter: `scripts/s1mb_fetch_convert.py` — DONE reflex `c6cc1e7`
+      (all 106 configs, 0 skips; state-coharent 50/50 split + exact-dup dedup;
+      /rows envelope shape; gold by ID; noul definitions folded into
+      instructions; raw state_json strings). Counts: choice 4330/4330,
+      noul 6174/6173, score 2574/2574 = 26,261 after dedup.
+- [x] T2 reflex harness: build_s1mb_{choice,noul,score} + the label arms +
+      3 named-only SuiteSpec rows + dispatch arms 10/15/842 + the scoped
+      slice-guard coverage flag — DONE reflex `c6cc1e7`; 3 builder tests;
+      clippy -D clean; 245 lib tests green.
+- [x] T3 Reflex row (modelless lane, t20k posture, preflight
+      `power=AC Power load=3.99 swap=2603.25M canary=119.3us/best5
+      powermode=2(high)`): **s1mb_noul 0.7055** (p50 0.292 ms) ·
+      **s1mb_score 0.4967** (p50 0.243 ms; majority-class ≈ 0.48) ·
+      **s1mb_choice 0.2296** (p50 0.399 ms; 842-domain by-name posture,
+      464 starved-key self-doc fallbacks disclosed; wall 547 s). Tables in
+      /tmp/smokes — RE-RUN into .benchmarks/105 at record time (T7).
+- [ ] T4 Instinct row: riir-train `instinct_arm_b` gold-only path
       (`--arm-a-only`, the teacher dump optional) → winner artifacts for the
-      3 suites → instinct arena runs (`--datasets-dir .raw/datasets_s1mb`)
-      → A1/H1/H2 best per suite. instinct .benchmarks record (next number).
+      3 suites → instinct arena runs (`--datasets-dir .raw/datasets_s1mb`,
+      the 3 suites are SEATABLE — prepare_seat reads the registry) → A1/H1/
+      H2 best per suite. instinct .benchmarks record (next number).
 - [ ] T5 Rethink row: laya-typed encodes of the corpus half → lenc cache →
       the NLEH v2 per-option head trained over the S1MB label space
-      (riir-train encoder trainer; may need an S1MB adapter — coordinate with
-      the Lane E owner session, instinct Issue 018, which cites this exact
-      intel) → sealed artifact → arena `--encoder-art` replay over the test
-      half. Record-only, `serve: ✗`.
+      (riir-train encoder trainer; may need an S1MB adapter — coordinate
+      with the Lane E owner session, instinct Issue 018, which cites this
+      exact intel) → sealed artifact → arena `--encoder-art` replay over the
+      test half. Record-only, `serve: ✗`.
 - [ ] T6 site: `reflex-site` — publish_bench.py + the /bench/ page render a
       new S1MB section positioned after the #timing section (per-lane rows ×
       3 suites + overall; disclosure line: our-metric, not leaderboard-
@@ -84,10 +88,10 @@ banking77, massive, snli, ...).
       wrangler deploy is manual. ⚠ COORDINATION: a sibling session is active
       in reflex-site (bench.json areas v3) — read the tree first, commit only
       this section's files.
-- [ ] T7 records: reflex `.benchmarks/105_s1mb_lane/` (the lane record + all
-      three lanes' numbers + the domain-vs-generalization split + full
-      disclosure) + riir-train Issue 607 updated (the our-lanes scope
-      executed; the repro path still deferred) + cross-refs.
+- [ ] T7 records: reflex `.benchmarks/105_s1mb_lane/` (all three lanes'
+      numbers + the domain-vs-generalization split + full disclosure) +
+      riir-train Issue 607 updated (the our-lanes scope executed; the repro
+      path still deferred) + cross-refs.
 
 ## Gates / honesty
 
