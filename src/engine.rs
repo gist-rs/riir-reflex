@@ -978,6 +978,79 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         for (o, e) in dirs.iter_mut().zip(self.experts.iter()) {
             *o = e.direction;
         }
+        // Case-level state derivation (the open-jev-fast prefix-root shape,
+        // issue 054's transferable technique — reflex Research 006): every
+        // quantity below is a pure function of `req.state`, the shared
+        // prefix of the request, and the pipeline used to re-derive it once
+        // per QUESTION. Derived once per case here, the per-question path
+        // maps through its own option→domain view. Outputs are bit-
+        // identical (same bytes into the same pure functions — the hoist
+        // changes WORK, never VALUES); the state hash/token pass runs once
+        // per request instead of once per question, which is the modelless
+        // engine's exact analogue of the source's root-node sharing (the
+        // laya encoder could not take it — bidirectional attention couples
+        // the shared span; a hashed bag has no coupling at all).
+        let mut state_q = [0.0f32; D];
+        self.embedder.embed_into(req.state.as_bytes(), &mut state_q);
+        // Unperturbed cosine terms — state alone (the route/heads shared
+        // input). MC perturbation is per-question BY DESIGN (its seed folds
+        // `qi`), so the perturbed arm re-derives from this base below — the
+        // identical bytes the pre-hoist form embedded fresh per question.
+        let mut route_base = [0.0f32; N];
+        for (rt, dir) in route_base.iter_mut().zip(dirs.iter()) {
+            let mut dot = 0.0f32;
+            for (qv, dv) in state_q.iter().zip(dir.iter()) {
+                dot += qv * dv;
+            }
+            *rt = exact_sigmoid(dot * self.cfg.route_scale);
+        }
+        // Per-domain fitted-head blends on the unperturbed state; a
+        // question's head term is its resolved domain's entry.
+        let mut head_base = [0.0f32; N];
+        if let Some(heads) = self.heads.as_ref() {
+            for (d, hb) in head_base.iter_mut().enumerate() {
+                *hb = heads.blend_term(d, &state_q, self.cfg.head_scale);
+            }
+        }
+        // Count-table state tokens + per-domain in-scores, UNPERTURBED by
+        // construction: the nb family always re-hashed `req.state` fresh
+        // (the perturbation hit the cosine state alone) — the hoist keeps
+        // exactly that. One fill serves three consumers that each hashed
+        // the state with the same view into this same buffer: the
+        // route-nb arm, the noul polarity arm and the option-conditioned
+        // arm.
+        #[cfg(feature = "nb_scope")]
+        let mut nb_in_base = [0.0f32; N];
+        #[cfg(feature = "nb_scope")]
+        let nb_state_tokens = self.nb.is_some();
+        #[cfg(all(feature = "nb_scope", feature = "option_cond"))]
+        let nb_state_tokens = nb_state_tokens || self.oc.is_some();
+        #[cfg(feature = "nb_scope")]
+        let nb_n_tok = if nb_state_tokens {
+            view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
+            if let Some(nb) = self.nb.as_ref() {
+                nb.in_scores(&sc.nb_tok, &mut nb_in_base);
+            }
+            sc.nb_tok.len()
+        } else {
+            0
+        };
+        // Ridge state tokens + per-domain scores (bag view, unperturbed —
+        // the same law as the count tables).
+        #[cfg(feature = "nb_ridge")]
+        if let Some(ridge) = self.ridge.as_ref() {
+            crate::embed::hashed_tokens_into(
+                req.state.as_bytes(),
+                crate::nb_scope::NB_VOCAB,
+                &mut sc.ridge_tok,
+            );
+            sc.ridge_in.clear();
+            for d in 0..N {
+                sc.ridge_in.push(ridge.in_score(d, &sc.ridge_tok));
+            }
+        }
+        #[cfg(feature = "nb_ridge")]
+        let r_temp = self.ridge.as_ref().map(NbRidge::temp).unwrap_or(0.0);
         for (qi, q) in req.questions.iter().enumerate() {
             // Context = state + prompt (+ criteria).
             sc.ctx.clear();
@@ -1027,7 +1100,13 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // scale is a config knob (`route_scale`, sweep lever in
             // issue 013), not a silent constant. Stack-local;
             // zero-alloc law holds.
-            let mut route_terms = [0.0f32; N];
+            // Case-level cosine terms (the unperturbed state base —
+            // derived once per case above); the MC hook re-derives per
+            // question from the perturbed base when armed.
+            #[cfg(not(feature = "mc_ensemble"))]
+            let route_terms = route_base;
+            #[cfg(feature = "mc_ensemble")]
+            let mut route_terms = route_base;
             // Option → domain index. By NAME first (Issue 023): exact
             // byte-equality of the option string with a domain name, on a
             // stack array (k ≤ N is necessary for every option to resolve
@@ -1096,43 +1175,53 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             #[cfg(feature = "nb_scope")]
             let mut nb_terms = [0.0f32; N];
             if route_active {
-                let mut q_state = [0.0f32; D];
-                self.embedder.embed_into(req.state.as_bytes(), &mut q_state);
+                // The case-level state base stands in for the per-question
+                // fresh embed (bit-identical: same bytes, same pure
+                // function). The MC hook perturbs it per (sample, question)
+                // — the seed folds `qi`, unchanged — and the cosine + head
+                // families re-run on the perturbed state, exactly the
+                // pre-hoist order.
+                #[cfg(feature = "mc_ensemble")]
+                let mut perturbed_state: Option<[f32; D]> = None;
                 #[cfg(feature = "mc_ensemble")]
                 if let Some((sample, p_drop, seed)) = perturb {
                     let sseed = seed
                         .wrapping_mul(0x9E37_79B9_7F4A_7C15)
                         .wrapping_add((sample as u64) << 32)
                         .wrapping_add(0x5DEE_CE66_D000_0000 ^ (qi as u64));
-                    let mut tmp = [0.0f32; D];
+                    let mut q_state = [0.0f32; D];
                     katgpt_core::perturbation_ensemble::bucket_dropout_into(
-                        &q_state, &mut tmp, sseed, p_drop,
+                        &state_q, &mut q_state, sseed, p_drop,
                     );
-                    q_state = tmp;
-                }
-                for (rt, dir) in route_terms.iter_mut().zip(dirs.iter()) {
-                    let mut dot = 0.0f32;
-                    for (qv, dv) in q_state.iter().zip(dir.iter()) {
-                        dot += qv * dv;
+                    for (rt, dir) in route_terms.iter_mut().zip(dirs.iter()) {
+                        let mut dot = 0.0f32;
+                        for (qv, dv) in q_state.iter().zip(dir.iter()) {
+                            dot += qv * dv;
+                        }
+                        *rt = exact_sigmoid(dot * self.cfg.route_scale);
                     }
-                    *rt = exact_sigmoid(dot * self.cfg.route_scale);
+                    perturbed_state = Some(q_state);
                 }
                 if let Some(heads) = self.heads.as_ref() {
                     for (ht, &d) in head_terms.iter_mut().zip(opt_dom.iter()).take(k) {
-                        *ht = heads.blend_term(d, &q_state, self.cfg.head_scale);
+                        #[cfg(feature = "mc_ensemble")]
+                        if let Some(qs) = perturbed_state.as_ref() {
+                            *ht = heads.blend_term(d, qs, self.cfg.head_scale);
+                            continue;
+                        }
+                        *ht = head_base[d];
                     }
                 }
                 // Count-table terms (issue 038): the STATE's hashed tokens
                 // (the same state-alone rule as route + heads), one
                 // in-scope score per domain, one term per offered option.
                 #[cfg(feature = "nb_scope")]
-                if let Some(nb) = self.nb.as_ref() {
-                    view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
-                    let mut nb_in = [0.0f32; N];
-                    nb.in_scores(&sc.nb_tok, &mut nb_in);
-                    let n_tok = sc.nb_tok.len();
+                if self.nb.is_some() {
+                    // The count-table terms read the case-level in-scores
+                    // (the same unperturbed state scores the pre-hoist
+                    // form recomputed per question).
                     for (nt, &d) in nb_terms.iter_mut().zip(opt_dom.iter()).take(k) {
-                        *nt = NbScope::blend_term(&nb_in, d, n_tok, self.cfg.nb_scale);
+                        *nt = NbScope::blend_term(&nb_in_base, d, nb_n_tok, self.cfg.nb_scale);
                     }
                 }
             }
@@ -1140,11 +1229,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // configured which domain "yes" means.
             #[cfg(feature = "nb_scope")]
             let noul_nb: Option<(f32, f32)> = match (q.kind, self.nb.as_ref(), self.cfg.nb_noul_domain) {
-                (QuestionKind::Noul, Some(nb), Some(d)) if d < N => {
-                    view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
-                    let mut nb_in = [0.0f32; N];
-                    nb.in_scores(&sc.nb_tok, &mut nb_in);
-                    let yes = NbScope::blend_term(&nb_in, d, sc.nb_tok.len(), self.cfg.nb_scale);
+                (QuestionKind::Noul, Some(_), Some(d)) if d < N => {
+                    let yes = NbScope::blend_term(&nb_in_base, d, nb_n_tok, self.cfg.nb_scale);
                     Some((yes, self.cfg.nb_scale - yes))
                 }
                 _ => None,
@@ -1159,7 +1245,9 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             let oc_present = self.oc.is_some();
             #[cfg(feature = "option_cond")]
             if let Some(oc) = self.oc.as_ref() {
-                view_tokens_into(self.cfg.nb_view, req.state.as_bytes(), &mut sc.nb_tok);
+                // State tokens read the case-level fill (the same view the
+                // route-nb and noul arms consume — one hash pass per case,
+                // identical bytes per question).
                 let n_tok = sc.nb_tok.len();
                 sc.oc_in.clear();
                 for i in 0..k {
@@ -1195,27 +1283,21 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             #[cfg(feature = "nb_ridge")]
             let ridge_on = route_active && self.ridge.is_some();
             #[cfg(feature = "nb_ridge")]
-            if let Some(ridge) = self.ridge.as_ref()
-                && route_active
-            {
-                crate::embed::hashed_tokens_into(
-                    req.state.as_bytes(),
-                    crate::nb_scope::NB_VOCAB,
-                    &mut sc.ridge_tok,
-                );
-                let n_tok = sc.ridge_tok.len();
-                sc.ridge_in.clear();
-                for d in 0..N {
-                    sc.ridge_in.push(ridge.in_score(d, &sc.ridge_tok));
-                }
+            if ridge_on {
+                // Tokens + per-domain scores come from the case-level
+                // fill; the per-question work is only the option mapping.
                 if std::env::var_os("RIIR_DEBUG_RIDGE").is_some() {
-                    eprintln!("[ridge-dbg] n_tok={n_tok} ridge_in={:?}", sc.ridge_in);
+                    eprintln!(
+                        "[ridge-dbg] n_tok={} ridge_in={:?}",
+                        sc.ridge_tok.len(),
+                        sc.ridge_in
+                    );
                 }
                 sc.ridge_terms.clear();
                 sc.ridge_terms.resize(k, 0.0);
-                let r_temp = ridge.temp();
                 for (i, &dom) in opt_dom.iter().take(k).enumerate() {
-                    sc.ridge_terms[i] = NbRidge::blend_term(&sc.ridge_in, dom, r_temp, self.cfg.ridge_scale);
+                    sc.ridge_terms[i] =
+                        NbRidge::blend_term(&sc.ridge_in, dom, r_temp, self.cfg.ridge_scale);
                 }
             }
             sc.scores.clear();
@@ -2369,5 +2451,87 @@ mod tests {
             max_ulps <= 3,
             "negative-x drift {max_ulps} ULPs (at x={max_ulps_at}) exceeds the pinned envelope"
         );
+    }
+
+    /// Issue 054 (the open-jev-fast prefix-root follow-through, reflex
+    /// Research 006): the case-level state derivation (embed, cosine
+    /// terms, head blends, count-table tokens, ridge scores) must not leak
+    /// across questions — every slot is a pure function of (state,
+    /// question). Solving a mixed multi-question case must match solving
+    /// each question alone with the same state, bit for bit: the
+    /// regression gate for the per-question → per-case hoist (a leaked
+    /// scratch buffer or a mis-mapped per-domain base would red here).
+    #[test]
+    fn per_question_slots_are_independent_of_their_neighbors() {
+        let mut eng: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let questions = vec![
+            // by-name subset (route terms + heads, k < N)
+            Question::choice(
+                "q0",
+                "which intent?",
+                vec!["billing".to_string(), "music".to_string()],
+                None,
+            ),
+            // full option set (by-name + k == N route)
+            Question::choice(
+                "q1",
+                "pick one",
+                vec![
+                    "deploy".to_string(),
+                    "weather".to_string(),
+                    "music".to_string(),
+                    "billing".to_string(),
+                ],
+                None,
+            ),
+            // drafter-only (no route terms: option names miss every domain)
+            Question::choice(
+                "q2",
+                "which team handles it?",
+                vec!["ops deploy crew".to_string(), "weather desk".to_string()],
+                None,
+            ),
+            // noul (never takes route/head terms)
+            Question::noul("q3", "deploy now?"),
+        ];
+        let state = "please refund my invoice, the billing balance is wrong";
+        let multi = DecisionRequest {
+            state: state.to_string(),
+            questions: questions.clone(),
+        };
+        let mut sc = Scratch::new();
+        sc.prepare(questions.len());
+        eng.solve_into(&multi, &mut sc).unwrap();
+        assert_eq!(sc.slots.len(), questions.len());
+        for (qi, q) in questions.iter().enumerate() {
+            let single = DecisionRequest {
+                state: state.to_string(),
+                questions: vec![q.clone()],
+            };
+            let mut sc1 = Scratch::new();
+            sc1.prepare(1);
+            eng.solve_into(&single, &mut sc1).unwrap();
+            let (a, b) = (&sc.slots[qi], &sc1.slots[0]);
+            assert_eq!(a.abstained, b.abstained, "q{qi} abstain");
+            assert_eq!(
+                std::mem::discriminant(&a.cause),
+                std::mem::discriminant(&b.cause),
+                "q{qi} cause"
+            );
+            assert_eq!(a.pick, b.pick, "q{qi} pick");
+            assert_eq!(
+                a.confidence.to_bits(),
+                b.confidence.to_bits(),
+                "q{qi} confidence"
+            );
+            assert_eq!(a.drafter_only, b.drafter_only, "q{qi} drafter_only");
+            assert_eq!(a.prob_len, b.prob_len, "q{qi} prob len");
+            let pa = &sc.probs[a.prob_lo..a.prob_lo + a.prob_len];
+            let pb = &sc1.probs[b.prob_lo..b.prob_lo + b.prob_len];
+            for (x, y) in pa.iter().zip(pb.iter()) {
+                assert_eq!(x.to_bits(), y.to_bits(), "q{qi} probability bit");
+            }
+        }
     }
 }
