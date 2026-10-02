@@ -40,6 +40,7 @@ const WIDE_FAMILIES: &[&str] = &[
     "harness_tool_fit",
     "harness_routing",
     "harness_sensitivity",
+    "semantic_defects",
 ];
 
 /// `harness_cache_reuse`'s EXACT measured hygiene (the 059 audit — the

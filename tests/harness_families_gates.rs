@@ -1,8 +1,9 @@
-//! Issue 004 (Research 579) T6 gates for the six harness decision-point
+//! Issue 004 (Research 579) T6 gates for the harness decision-point
 //! families — `harness_visibility` · `harness_permissions` ·
 //! `harness_tool_fit` · `harness_routing` · `harness_sensitivity` ·
 //! `harness_cache_reuse` (all six modelless DEFAULT since Issue 045
-//! reversed cache_reuse's LLM-only carve-out).
+//! reversed cache_reuse's LLM-only carve-out) — plus Issue 061's
+//! `semantic_defects` code-defect family (modelless, wide-law authored).
 //!
 //! What is asserted here:
 //! - registry contract: all six registered synthetic AND modelless;
@@ -51,6 +52,7 @@ const MODELLESS_FAMILIES: &[&str] = &[
     "harness_routing",
     "harness_sensitivity",
     "harness_cache_reuse",
+    "semantic_defects",
 ];
 
 /// Anti-pathology forced-accuracy floors per family — 0.8× chance. The
@@ -68,6 +70,7 @@ const ACC_FLOORS: &[(&str, f64)] = &[
     ("harness_permissions", 0.26), // chance ~0.33
     ("harness_tool_fit", 0.13),    // chance ~0.17
     ("harness_routing", 0.20),     // chance 0.25
+    ("semantic_defects", 0.13),    // chance ~0.17 (6-way)
 ];
 
 #[test]
@@ -380,6 +383,7 @@ fn engine_answers_families_deterministically_fast_and_above_chance() {
     let _route = run_family!(4, "harness_routing");
     let _sens = run_family!(5, "harness_sensitivity");
     let _cache = run_family!(2, "harness_cache_reuse");
+    let _defects = run_family!(6, "semantic_defects");
 }
 
 /// Discrimination floor (verdict round 3, the degenerate-lane lesson): a
@@ -459,6 +463,7 @@ fn families_discriminate_their_inputs() {
     discriminate!(6, "harness_tool_fit");
     discriminate!(4, "harness_routing");
     discriminate!(5, "harness_sensitivity");
+    discriminate!(6, "semantic_defects");
     // cache_reuse is deliberately NOT here: at the DEFAULT config its noul
     // candidates are the question vocabulary yes/no (issue-030 no-route
     // law), so the pick is the length-prior constant and the discrimination
@@ -613,6 +618,7 @@ const WIDE_FAMILIES: &[&str] = &[
     "harness_tool_fit",
     "harness_routing",
     "harness_sensitivity",
+    "semantic_defects",
 ];
 
 /// Per-family banned label tokens (exact token match, lowercased).
@@ -638,6 +644,13 @@ const LABEL_BANS: &[(&str, &[&str])] = &[
         &[
             "local", "engine", "cheap", "api", "frontier", "background",
             "batch",
+        ],
+    ),
+    (
+        "semantic_defects",
+        &[
+            "clean", "off", "by", "one", "inverted", "condition", "unwrapped",
+            "none", "swapped", "lookup", "swallowed", "error",
         ],
     ),
 ];
@@ -697,6 +710,10 @@ const WIDE_EVAL_DIGESTS: &[(&str, &str)] = &[
     (
         "harness_sensitivity",
         "ad778f9de86320a76e947c1a7e69b3eb0b78028351282df72f281c736e76a802",
+    ),
+    (
+        "semantic_defects",
+        "52573a21b72da3444c97293728f85e6256226499ae6794ed75585227d69cac78",
     ),
 ];
 

@@ -1,10 +1,11 @@
-//! The six harness decision-point families (Issue 004, from Research 579 —
+//! The harness decision-point families (Issue 004, from Research 579 —
 //! the "Jev Engineering for Coding Agents" six-per-turn-question map):
 //! `harness_visibility` · `harness_permissions` · `harness_tool_fit` ·
 //! `harness_routing` · `harness_sensitivity` · `harness_cache_reuse`
 //! (all six modelless DEFAULT — Issue 045 lifted the LLM-only carve-out:
 //! the family is text-decidable like the other five, and the LLM lane's
-//! published 0.5000 row had no winner to protect).
+//! published 0.5000 row had no winner to protect) plus Issue 061's
+//! `semantic_defects` code-defect family (its own module).
 //!
 //! Pure data + builders (ungated), the `code_fixtures` shape: in-process
 //! synthetic fixtures with programmatic gold, self-split into three
@@ -1087,6 +1088,11 @@ pub fn synth_cache_reuse() -> SynthData {
     build_family(&CACHE_REUSE)
 }
 
+#[must_use]
+pub fn synth_semantic_defects() -> SynthData {
+    build_family(&super::families_semantic_defects::DEFECTS)
+}
+
 // ── the shared builder ─────────────────────────────────────────────────────
 
 fn build_family(def: &'static FamilyDef) -> SynthData {
@@ -1157,16 +1163,24 @@ fn build_family(def: &'static FamilyDef) -> SynthData {
     }
 }
 
-/// The six modelless family definitions (registry order = suite order).
-pub const FAMILY_DEFS: &[&FamilyDef] = &[&VIS, &PERM, &TOOL, &ROUTE, &SENS, &CACHE_REUSE];
+/// The seven modelless family definitions (registry order = suite order).
+pub const FAMILY_DEFS: &[&FamilyDef] = &[
+    &VIS,
+    &PERM,
+    &TOOL,
+    &ROUTE,
+    &SENS,
+    &CACHE_REUSE,
+    &super::families_semantic_defects::DEFECTS,
+];
 
-/// Lookup by suite name (all six families carry a `FamilyDef`).
+/// Lookup by suite name (all seven families carry a `FamilyDef`).
 #[must_use]
 pub fn family_def(name: &str) -> Option<&'static FamilyDef> {
     FAMILY_DEFS.iter().copied().find(|d| d.name == name)
 }
 
-/// Build any family's [`SynthData`] by suite name (all six).
+/// Build any family's [`SynthData`] by suite name (all seven).
 #[must_use]
 pub fn synth_by_name(name: &str) -> Option<SynthData> {
     family_def(name).map(build_family)

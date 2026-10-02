@@ -14,6 +14,10 @@ pub mod families;
 // Plan 009 REVISED-2: the five widened eval populations (data-only, the
 // families module's sibling — see the module's own doc).
 pub mod families_eval_wide;
+// Issue 061: the semantic_defects code-defect family (perch-derived
+// taxonomy; original Rust fixtures — data-only, families-shaped).
+pub mod families_semantic_defects;
+pub mod families_semantic_defects_eval;
 // The ONE fixture-hygiene checker (tokens/trigrams/overlap/digest) —
 // shared by every in-process fixture authoring; see the module doc for
 // the four-time recurrence record that forced it out of private copies.

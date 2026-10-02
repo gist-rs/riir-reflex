@@ -452,6 +452,21 @@ const SUITES: &[SuiteSpec] = &[
         modelless_lane: true,
         synthetic: Some(families_synth_cache_reuse),
     },
+    // Issue 061: the code-defect family (perch-derived taxonomy, original
+    // Rust fixtures; choice over clean + five defect classes).
+    SuiteSpec {
+        name: "semantic_defects",
+        dataset_dir: "semantic_defects",
+        test_cap: 0,
+        cal_cap: 0,
+        corpus_cap_per_label: usize::MAX,
+        eval_split: "test",
+        named_only: false,
+        coverage_audit: true,
+        build: synthetic_build_unused,
+        synthetic: Some(families_synth_semantic_defects),
+        modelless_lane: true,
+    },
 ];
 
 /// Never called — synthetic suites build via their `synthetic` fn; this
@@ -496,6 +511,10 @@ fn families_synth_sensitivity() -> SynthData {
 
 fn families_synth_cache_reuse() -> SynthData {
     crate::harness::families::synth_cache_reuse()
+}
+
+fn families_synth_semantic_defects() -> SynthData {
+    crate::harness::families::synth_semantic_defects()
 }
 
 /// Checkpoints per suite (laya lane): the specialist `typed` model answers

@@ -562,15 +562,20 @@ Distribution + arena site live (plan: `../katgpt-rs/.plans/606_reflex_phase2_sit
 
 T1.1–T1.8 all landed. The last two:
 
-- **T1.5 harness LANDED 2026-09-22** — 9 dataset suites + the six Issue-004
+- **T1.5 harness LANDED 2026-09-22** — 9 dataset suites + the Issue-004
   harness decision-point families (`src/harness/families.rs`: five modelless
-  synthetic + `harness_cache_reuse`, LLM-lane only — loud SKIPPED without
-  `laya-riir`) over byte-identical questions (`src/harness/`, bin `harness`,
-  record `.benchmarks/001_phase1_harness.md`, regenerated tables
+  synthetic + `harness_cache_reuse` — the LLM-lane-only carve-out reversed by
+  Issue 045 — and since Issue 061 (2026-10-02) the seventh family
+  `semantic_defects`, the perch-derived code-defect Choice over clean + five
+  defect classes, 102 eval cases wide-law-authored, first modelless cell
+  acc 0.1863 vs 0.1667 chance; record in HISTORY.md 10-02) over byte-identical
+  questions (`src/harness/`, bin `harness`, record `.benchmarks/001_phase1_harness.md`,
+  regenerated tables
   `.benchmarks/001_phase1_tables/`, dispatch-only CI lane
   `.github/workflows/harness_tables.yml`). Gates: `tests/harness_families_gates.rs`
-  (7 tests — counts/disjointness/gold-agreement/determinism/anti-pathology
-  floors/**discrimination floor**/cache_reuse loud-skip) +
+  (9 tests — counts/disjointness/gold-agreement/determinism/anti-pathology
+  floors/**discrimination floor**/cache_reuse loud-skip + grounded posture +
+  the wide-eval authoring law + its divergence pin) +
   `benches/harness_families_goat.rs` (G2 p99 59–79 µs tail support 11/1000,
   G4 alloc-free ×5, canary-first). **Issue-004 T3 COMPLETED 2026-09-23**
   (the issue closed, record in HISTORY.md): the full laya-lane harness run
