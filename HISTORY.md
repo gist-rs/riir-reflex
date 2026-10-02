@@ -7,6 +7,38 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-02
 
+- **The fixture-fleet hygiene wall (`3a307ee`) — the four-time recurrence closed mechanically; the
+  `91e9246` en-route fix completes the plan-011 typed_case_split dispatch (E0603 under
+  `--all-features` on macOS, the one posture its fd3c0d2 verification missed).** The owner asked why
+  the corpus-overlap class keeps recurring "the 4th time" — the honest accounting: (1) the dataset
+  suites' near-duplicate train/test leakage (Issue 024, the `slice_leak` probe); (2) the frozen t20k
+  sst5 pool's cross-split duplicates (`slice_guard` KNOWN_DIRTY — published rows measured on dirty
+  bytes, dedupe parked on instinct 013); (3) `code_fixtures`' template-shared eval (the instinct 008
+  T8 unfalsifiable-memorization refusal); (4) the harness families — measured at the 059 landing:
+  mean unigram overlap 0.68–0.78 against corpus∪cal, per-case maxes at 1.00, 2–7 trigram-hit cases
+  each, and the published family accuracies (0.56–0.92) were that overlap's inflation. **Why the
+  asserts never caught it:** every assert that existed was structurally blind to this class —
+  `assert_ne!` on whole texts (exact-equality disjointness) passes two texts sharing 90% of their
+  vocabulary; `ACC_FLOORS` gate DOWNWARD only (a systematically-wrong engine, never an inflated one);
+  `slice_guard` audits row MEMBERSHIP across slices, not vocabulary sharing; the slice_leak probe and
+  the code_frozen digest each lived private to the set that got burned. And the fixture-design law
+  itself pushed toward overlap — "class-distinctive by VOCABULARY" with a corpus that teaches exactly
+  that vocabulary, and no quantitative boundary between separable and contaminated. **The wall
+  (`3a307ee`):** `src/harness/fixture_hygiene.rs` is the ONE shared checker (tokens/trigrams/
+  audit_slices/label bans/fixture digest — the families gates now consume it instead of their private
+  copies); `tests/fixture_fleet_hygiene.rs` derives its population from the registry via the new
+  `runner::synthetic_suite_names()` — a new synthetic suite joins the audit BY EXISTING and reds until
+  it carries hygiene facts, so the 5th instance cannot land silently; the wide families re-assert the
+  overlap bounds; `harness_cache_reuse` is pinned at its exact measured history (0.8145/0.8750/11 —
+  the documented divergence, a history pin never a ceiling); **`code_fixtures` measured and pinned at
+  0.9494 mean / 1.0000 max / 15-of-16 trigram-hit cases — the fleet's WORST contamination, the
+  measured basis of the 008 T8 refusal, RECORDED-not-gated** (its population is frozen + digest-pinned;
+  a re-baseline is the same owner-visible decision the families' wide eval was, and any silent drift
+  now reds). 379 tests / clippy `-D` at default AND all-features. Recorded follow-up (not landed): the
+  hygiene facts could ride results.json for synthetic suites the way 058's corpus digests ride the
+  dataset cells — the audit wall covers authored fixtures; the disclosure seam would make any future
+  inflation self-identifying on the board itself.
+
 - **Issue 059 CLOSED — the families wide eval + the quarantined web section EXECUTED; file removed
   per the noise-reduction rule; this row is the record.** Plan 009 REVISED-2's product shipped end to
   end. **reflex `e78c0e6`**: the five families' evals widened to 96–100-case class-balanced
