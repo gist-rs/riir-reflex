@@ -9,8 +9,10 @@
 //!   counting global allocator with a CANARY first — a green zero from a
 //!   dead counter is the green-zero trap. Wire materialization
 //!   (`decide_with`) allocates BY DESIGN and is reported, never gated.
-//! - **cache_reuse is absent by design** (LLM-lane only, Issue 004 T3) —
-//!   no modelless engine exists for it to gate.
+//! - **cache_reuse is absent by design** (the bench's engine-shaped G2/G4
+//!   gates run over the five Choice/Score families; cache_reuse is noul,
+//!   and its modelless posture has been owned since Issue 045 by the
+//!   grounded-posture gate — `cache_reuse_grounded_posture_discriminates`)
 
 #![cfg(feature = "modelless")]
 
@@ -213,6 +215,9 @@ fn main() {
 
     println!("═══════════════════════════════════════════════════════════════");
     println!("  harness_families_goat PASS — G2 ≤ 1 ms + G4 alloc-free × 5 families");
-    println!("  (harness_cache_reuse: LLM-lane only — no modelless engine to gate)");
+    println!(
+        "  (harness_cache_reuse: noul — its modelless posture is owned by the \
+         grounded-posture gate, not this bench)"
+    );
     println!("═══════════════════════════════════════════════════════════════");
 }
