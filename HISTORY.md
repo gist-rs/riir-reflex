@@ -29,6 +29,21 @@ work lives in `.issues/` and `.plans/`, never here.
   `git log --follow -- .issues/059_harness_families_wide_eval_reopen.md`); the
   revised plan with the full verdict is `.plans/009_families_wide_eval.md`.
 
+- **Issue 059 REVIVED same day (owner call, hours after the closure): the families DO
+  go on the web — scope REDEFINED from certification to a QUARANTINED our-lanes
+  section.** The REVISED-1 verdict's reasoning is not reversed but ENCODED: a NEW
+  reflex-site section (own page/block, own data file — never touching bench.json's
+  areas/index) renders the six families with ONLY our lanes (Reflex modelless · Rethink
+  hybrid · Rethink encoder — no external lanes, owner call "bench only us"), behind a
+  MANDATORY honesty caveat rendered verbatim on the page (self-authored fixtures;
+  engineering signal, not capability claims; not comparable to the dataset board or the
+  Jev Decision Index). The wide eval is UN-WITHDRAWN as the data substrate for that
+  section (publishable n, gates doubling as fixture hygiene); the specialist-certification
+  purpose stays dead (instinct's covered-set law-exclusion stands, display-only);
+  Rethink (encoder) cells need riir-train heads on the family corpora — owner call
+  pending, absent cells render `not run`. Issue file restored as
+  `.issues/059_harness_families_web_quarantine_bench.md`; plan at REVISED-2.
+
 ## 2026-10-01
 
 - **Issue 057 CLOSED (Bench 102 + reflex-site `8d33e3f` + `2b699f0`, CF
