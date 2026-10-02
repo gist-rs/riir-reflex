@@ -16,7 +16,7 @@
 
 use katgpt_core::decision_wire::{DecisionRequest, DecisionResponse, Question};
 use riir_reflex::embed::{EMBED_DIM, Embedder};
-use riir_reflex::engine::{DecisionEngine, EngineConfig, ExpertSpec, Scratch};
+use riir_reflex::engine::{AbstainCause, DecisionEngine, EngineConfig, ExpertSpec, Scratch};
 
 const OPS_DOC: &str = "Deploy the server to staging and verify the rollout before promoting \
 to production. The staging cluster mirrors production capacity and runs the \
@@ -319,6 +319,92 @@ fn answers_carry_first_class_abstention_shape() {
 }
 
 // ── The HTTP edge contract over a REAL socket ────────────────────────────
+
+#[test]
+fn abstain_cause_classification_is_the_fused_gates_split() {
+    // Issue 060: the per-slot CAUSE must classify exactly why the fused
+    // gate abstained, with score-gate precedence (the distance gate's
+    // reference-row scan is skipped when the score gate already fired —
+    // `DistanceGate` is the marginal cause). Three regimes, one engine:
+    // score-only fires, distance-only fires, both would fire (classified
+    // ScoreGate exactly once).
+    let mut sc = Scratch::<EMBED_DIM>::new();
+
+    // (a) score gate fires, distance gate could not care less: threshold
+    // 1.5 declines every confidence → every cause is ScoreGate.
+    let cfg = EngineConfig {
+        score_threshold: 1.5,
+        ..EngineConfig::default()
+    };
+    let mut eng: DecisionEngine<2, EMBED_DIM> = DecisionEngine::build_specs(specs(), cfg).unwrap();
+    let req = sample_request();
+    sc.prepare(req.questions.len());
+    let resp = eng.decide_with(&req, &mut sc).unwrap();
+    assert_eq!(sc.slots.len(), req.questions.len());
+    for (a, s) in resp.answers.iter().zip(sc.slots.iter()) {
+        assert!(a.outcome.is_none(), "score 1.5 abstains everything");
+        assert_eq!(s.cause, AbstainCause::ScoreGate);
+        assert!(s.abstained && s.cause.abstained());
+    }
+
+    // (b) distance-only: threshold 0.0 passes every score; the off-corpus
+    // state (below the geometry-midpoint distance threshold) fires only
+    // the distance gate.
+    let embed = |s: &str| {
+        let mut v = [0.0f32; EMBED_DIM];
+        Embedder.embed_into(s.as_bytes(), &mut v);
+        v
+    };
+    let base: DecisionEngine<2, EMBED_DIM> =
+        DecisionEngine::build_specs(specs(), EngineConfig::default()).unwrap();
+    let d = |q: &[f32; EMBED_DIM]| {
+        base.gate(0)
+            .abstain_confidence(q)
+            .max(base.gate(1).abstain_confidence(q))
+    };
+    let off = embed("zzz qqq xv wxkjjjf 88271 pw pwmmmm xxvvo");
+    let in_ops = embed("verify the staging rollout and the deploy health endpoints");
+    let mid = (d(&in_ops) + d(&off)) / 2.0;
+    let cfg = EngineConfig {
+        distance_threshold: mid,
+        score_threshold: 0.0, // isolate the distance axis
+        ..EngineConfig::default()
+    };
+    let mut eng: DecisionEngine<2, EMBED_DIM> = DecisionEngine::build_specs(specs(), cfg).unwrap();
+    let off_req = DecisionRequest {
+        state: "zzz qqq xv wxkjjjf 88271 pw pwmmmm xxvvo".to_string(),
+        questions: vec![Question::noul("q0", "proceed or not?")],
+    };
+    sc.prepare(off_req.questions.len());
+    eng.decide_with(&off_req, &mut sc).unwrap();
+    assert_eq!(sc.slots[0].cause, AbstainCause::DistanceGate);
+    assert!(sc.slots[0].abstained);
+
+    // (c) in-corpus + passing thresholds answers (cause Answered).
+    let in_req = DecisionRequest {
+        state: "The staging rollout is verified and the deploy health endpoints are green."
+            .to_string(),
+        questions: vec![Question::noul("q0", "proceed or not?")],
+    };
+    sc.prepare(in_req.questions.len());
+    let resp = eng.decide_with(&in_req, &mut sc).unwrap();
+    assert!(resp.answers[0].outcome.is_some());
+    assert_eq!(sc.slots[0].cause, AbstainCause::Answered);
+    assert!(!sc.slots[0].abstained);
+
+    // (d) BOTH gates would fire (off-corpus state + score 1.5): classified
+    // ScoreGate exactly once — the precedence the harness's per-cause
+    // shares rely on (shares sum to the abstain total).
+    let cfg = EngineConfig {
+        score_threshold: 1.5,
+        distance_threshold: mid,
+        ..EngineConfig::default()
+    };
+    let mut eng: DecisionEngine<2, EMBED_DIM> = DecisionEngine::build_specs(specs(), cfg).unwrap();
+    sc.prepare(off_req.questions.len());
+    eng.decide_with(&off_req, &mut sc).unwrap();
+    assert_eq!(sc.slots[0].cause, AbstainCause::ScoreGate);
+}
 
 fn http_post(port: u16, path: &str, body: &str) -> (u16, String) {
     use std::io::{Read, Write};

@@ -1294,6 +1294,9 @@ mod tests {
             picks: (0..n).map(|_| vec![0usize]).collect(),
             confs: (0..n).map(|_| vec![0.9]).collect(),
             abstained: (0..n).map(|_| vec![false]).collect(),
+            causes: (0..n)
+                .map(|_| vec![crate::engine::AbstainCause::Answered])
+                .collect(),
         };
         let suite = Suite {
             name: "synthetic",

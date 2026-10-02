@@ -1007,3 +1007,40 @@ fn confusion_top_truncates_and_empty() {
     assert!(rows.iter().all(|r| r.count >= 1));
     assert!(confusion_top(&[], 10).is_empty());
 }
+
+// ── Issue 060: the abstain-cause wire field ─────────────────────────────────
+
+use riir_reflex::engine::AbstainCause;
+use riir_reflex::harness::runner::AbstainCauses;
+
+/// The taxonomy is CLOSED: the results.json field is exactly the three keys,
+/// snake_case, in this order — the site parses them positionally-stable and
+/// a fourth key would be a wire change (the issue's law).
+#[test]
+fn abstain_causes_wire_shape_is_the_closed_taxonomy() {
+    let c = AbstainCauses {
+        score_gate: 3,
+        distance_gate: 1,
+        grammar_invalid: 0,
+    };
+    let j = serde_json::to_value(&c).unwrap();
+    assert_eq!(
+        j,
+        serde_json::json!({"score_gate": 3, "distance_gate": 1, "grammar_invalid": 0})
+    );
+}
+
+/// The engine's cause and `abstained` can never disagree (the join the
+/// harness's eval capture asserts in debug — pin the law at unit level too).
+#[test]
+fn abstain_cause_and_abstained_flag_agree_by_construction() {
+    for cause in [
+        AbstainCause::Answered,
+        AbstainCause::ScoreGate,
+        AbstainCause::DistanceGate,
+        AbstainCause::GrammarInvalid,
+    ] {
+        assert_eq!(cause.abstained(), !matches!(cause, AbstainCause::Answered));
+    }
+    assert_eq!(AbstainCause::default(), AbstainCause::Answered);
+}

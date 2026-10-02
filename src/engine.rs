@@ -532,6 +532,31 @@ impl From<WireError> for EngineError {
     }
 }
 
+/// Why a slot abstained — Issue 060's closed taxonomy. The score gate is
+/// evaluated first, so `DistanceGate` means the state PASSED the score
+/// threshold and failed only the corpus-distance gate (the marginal cause;
+/// per-cause shares sum to the abstain total). `GrammarInvalid` is the
+/// serve-lane fall-through arm (game heads) and never occurs on the wire
+/// path — every wire question is grammar-valid by the wire contract — so
+/// the engine never sets it; the harness results field carries it as the
+/// reserved third key of the closed set.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+#[repr(u8)]
+pub enum AbstainCause {
+    #[default]
+    Answered,
+    ScoreGate,
+    DistanceGate,
+    GrammarInvalid,
+}
+
+impl AbstainCause {
+    /// True when the fused gate withheld the answer.
+    pub fn abstained(self) -> bool {
+        !matches!(self, AbstainCause::Answered)
+    }
+}
+
 /// One answered slot — the zero-alloc core's per-question verdict. The
 /// probabilities live flat in [`Scratch::probs`] at `[prob_lo, prob_lo +
 /// prob_len)`.
@@ -539,6 +564,9 @@ impl From<WireError> for EngineError {
 pub struct Slot {
     /// True when the fused gate abstained (wire outcome `None`).
     pub abstained: bool,
+    /// WHY the fused gate abstained (Issue 060's closed taxonomy; `Answered`
+    /// when it did not) — `abstained == cause.abstained()` by construction.
+    pub cause: AbstainCause,
     /// Winner index (option order; `noul` picks 0="yes" / 1="no").
     pub pick: u32,
     /// Calibrated confidence (the readout dispatch, then the calibrator).
@@ -1312,10 +1340,26 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             }
             let raw = readout::confidence_with(self.cfg.readout, &sc.probs[lo..lo + k]);
             let conf = self.calibrator.apply(raw);
-            let abstained = conf < self.cfg.score_threshold
-                || self.experts[di].gate.abstain_confidence(&sc.q) < self.cfg.distance_threshold;
+            // Issue 060: classify WHY the fused gate abstains — same
+            // predicate as the fused OR, with score-gate precedence. The
+            // short-circuit is preserved (the distance gate's reference-row
+            // scan is skipped when the score gate already fired), so
+            // `DistanceGate` means the state PASSED the score threshold and
+            // failed only the corpus-distance gate — the marginal cause; the
+            // shares sum to the abstain total.
+            let score_declined = conf < self.cfg.score_threshold;
+            let cause = if score_declined {
+                AbstainCause::ScoreGate
+            } else if self.experts[di].gate.abstain_confidence(&sc.q) < self.cfg.distance_threshold
+            {
+                AbstainCause::DistanceGate
+            } else {
+                AbstainCause::Answered
+            };
+            let abstained = cause.abstained();
             sc.slots.push(Slot {
                 abstained,
+                cause,
                 pick: best as u32,
                 confidence: conf,
                 prob_lo: lo,

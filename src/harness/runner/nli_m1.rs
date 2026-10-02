@@ -997,6 +997,7 @@ mod tests {
             picks,
             confs: confs.into_iter().map(|c| vec![c]).collect(),
             abstained: Vec::new(),
+            causes: Vec::new(),
         }
     }
 

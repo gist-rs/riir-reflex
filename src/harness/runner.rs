@@ -41,8 +41,8 @@ use serde_json::Value;
 
 use crate::embed::EMBED_DIM;
 use crate::engine::{
-    DecisionEngine, EngineConfig, ExpertSpec, FusedGateRecommendation, GateObservation, Posture,
-    Scratch, recommend_fused_gate,
+    AbstainCause, DecisionEngine, EngineConfig, ExpertSpec, FusedGateRecommendation,
+    GateObservation, Posture, Scratch, recommend_fused_gate,
 };
 use crate::harness::families::SynthData;
 #[cfg(feature = "option_cond")]
@@ -606,6 +606,22 @@ pub struct SelectiveMetrics {
     pub selective_n: usize,
 }
 
+/// Issue 060: per-suite abstain-cause counts over the CLOSED taxonomy
+/// (score gate / distance gate / grammar-invalid). Computed from the
+/// CALIBRATED gate's per-question causes — the gate behind the published
+/// `calibrated_abstain` rate — so the shares sum to that metric's
+/// abstaining-question count. `grammar_invalid` is the reserved serve-lane
+/// arm (the game-heads fall-through): zero on every harness run (each wire
+/// question is grammar-valid by contract), carried so the taxonomy's wire
+/// shape is fixed. Cells that predate the field publish as `None`
+/// (unattributed — the page renders "not recorded", never guessed).
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct AbstainCauses {
+    pub score_gate: usize,
+    pub distance_gate: usize,
+    pub grammar_invalid: usize,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct LaneResult {
     pub lane: &'static str,
@@ -621,6 +637,10 @@ pub struct LaneResult {
     /// Research-562 flaw the wire fixes with first-class abstention).
     pub raw_abstain: Option<SelectiveMetrics>,
     pub calibrated_abstain: Option<SelectiveMetrics>,
+    /// Issue 060: the calibrated gate's abstain-cause shares (the closed
+    /// taxonomy) — the WHY behind `calibrated_abstain`'s rate. `None` when
+    /// the lane cannot abstain (laya) or the cell predates the field.
+    pub abstain_causes: Option<AbstainCauses>,
     /// G1 surfaces (modelless only): ECE over the readout confidence raw vs
     /// sigmoid-gate-calibrated vs the conformal-naive floor.
     pub readout_ece_raw: Option<f64>,
@@ -1744,6 +1764,12 @@ struct Eval {
     picks: Vec<Vec<usize>>,
     confs: Vec<Vec<f64>>,
     abstained: Vec<Vec<bool>>,
+    /// Issue 060: the fused gate's per-question abstain CAUSE (the engine's
+    /// own classification — `Answered` when it did not). Captured from the
+    /// caller-owned scratch right after `decide_with` (the slots survive the
+    /// call and hold exactly the last request's verdicts), so the wire
+    /// stays untouched.
+    causes: Vec<Vec<AbstainCause>>,
 }
 
 impl Eval {
@@ -1777,6 +1803,29 @@ impl Eval {
         }
         pairs.shrink_to_fit();
         pairs
+    }
+
+    /// Issue 060: per-cause counts over the closed taxonomy. Score-gate
+    /// precedence (the engine's classification): `distance_gate` counts
+    /// only the marginal cause (score threshold passed, distance gate
+    /// fired), so the shares sum to the abstaining-question total — the
+    /// same denominator `selective`'s `abstain_rate` uses over the same
+    /// cases.
+    fn abstain_causes(&self) -> AbstainCauses {
+        let mut out = AbstainCauses::default();
+        for ccase in &self.causes {
+            for cause in ccase {
+                match cause {
+                    AbstainCause::ScoreGate => out.score_gate += 1,
+                    AbstainCause::DistanceGate => out.distance_gate += 1,
+                    // The engine never emits the serve-lane arm; the key is
+                    // the reserved third of the closed taxonomy.
+                    AbstainCause::GrammarInvalid => out.grammar_invalid += 1,
+                    AbstainCause::Answered => {}
+                }
+            }
+        }
+        out
     }
 
     fn selective(&self, cases: &[impl AsRef<SuiteCase>]) -> SelectiveMetrics {
@@ -1859,6 +1908,7 @@ fn eval_engine<const N: usize>(
     let mut picks = Vec::with_capacity(cases.len());
     let mut confs = Vec::with_capacity(cases.len());
     let mut abstained = Vec::with_capacity(cases.len());
+    let mut causes = Vec::with_capacity(cases.len());
     let max_q = cases.iter().map(|c| c.questions.len()).max().unwrap_or(1);
     let mut sc: Scratch<EMBED_DIM> = Scratch::new();
     sc.prepare(max_q);
@@ -1889,6 +1939,11 @@ fn eval_engine<const N: usize>(
         let mut cpicks = Vec::with_capacity(case.questions.len());
         let mut cconfs = Vec::with_capacity(case.questions.len());
         let mut cabst = Vec::with_capacity(case.questions.len());
+        // Issue 060: capture the per-question causes from the caller-owned
+        // scratch RIGHT AFTER the first decide — the slots hold exactly this
+        // request's verdicts until the next solve resets them (the determinism
+        // rerun below reuses the same scratch).
+        let ccauses: Vec<AbstainCause> = sc.slots.iter().map(|s| s.cause).collect();
         for (q, ans) in case.questions.iter().zip(resp.answers.iter()) {
             // Engine internal noul order is [yes, no] (wire p_yes only);
             // flip to [no, yes] to match the gold-index convention.
@@ -1909,6 +1964,14 @@ fn eval_engine<const N: usize>(
             cconfs.push(f64::from(ans.confidence));
             cabst.push(ans.outcome.is_none());
         }
+        // The wire's `outcome.is_none()` and the engine's cause must agree
+        // by construction — assert the join so a future gate that abstains
+        // without a cause cannot publish a silent mismatch.
+        debug_assert_eq!(cabst.len(), ccauses.len());
+        for (w, c) in cabst.iter().zip(ccauses.iter()) {
+            debug_assert_eq!(*w, c.abstained());
+        }
+        causes.push(ccauses);
         probs.push(cprobs);
         picks.push(cpicks);
         confs.push(cconfs);
@@ -1921,6 +1984,7 @@ fn eval_engine<const N: usize>(
             picks,
             confs,
             abstained,
+            causes,
         },
         Latency {
             p50_ms: p50 as f64 / 1000.0,
@@ -3099,6 +3163,7 @@ fn run_modelless<const N: usize>(
                 picks: vec![],
                 confs: vec![],
                 abstained: vec![],
+                causes: vec![],
             },
             Latency {
                 p50_ms: 0.0,
@@ -3371,6 +3436,10 @@ fn run_modelless<const N: usize>(
         readout_ece: Some(readout_ece_cal),
         raw_abstain: Some(raw_abstain),
         calibrated_abstain: Some(calibrated_abstain),
+        // Issue 060: the CALIBRATED gate's causes — the why behind the
+        // published abstain rate (the raw engine's own gate runs un-fitted
+        // thresholds; its causes are not the published story).
+        abstain_causes: Some(cal_eval_test.abstain_causes()),
         readout_ece_raw: Some(readout_ece_raw),
         readout_ece_calibrated: Some(readout_ece_cal),
         floor_ece: Some(floor_ece),
@@ -3906,6 +3975,7 @@ fn assemble_laya_lane_result(
         // laya cannot abstain (Research-562 flaw) — the selective metrics
         // report None rather than a fake zero; this field stays empty.
         abstained: Vec::new(),
+        causes: Vec::new(),
     };
     let forced = ev.forced_rows(cases);
     let hard = hard_metrics(&forced);
@@ -3978,6 +4048,8 @@ fn assemble_laya_lane_result(
         readout_ece: Some(ece_of(&readout)),
         raw_abstain: None,
         calibrated_abstain: None,
+        // laya cannot abstain — no causes to attribute (never a fake zero).
+        abstain_causes: None,
         readout_ece_raw: None,
         readout_ece_calibrated: None,
         floor_ece: None,
