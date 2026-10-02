@@ -5,6 +5,30 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-02
+
+- **Issue 059 CLOSED WITHOUT EXECUTION (owner verdict 2026-10-02): the six harness
+  families are INTERNAL TEST FIXTURES, not benchmarks — the wide template-disjoint
+  eval is withdrawn before any build.** The plan (`009`) + the anchor issue were
+  authored as filed at `72c1238` (no code, no evals, no bench record ever landed —
+  verified: no `families_eval_wide.rs`, no landing commits, no `.benchmarks/104_*`).
+  The verdict, in three parts: (a) authored data cannot become a benchmark by
+  self-defined disjointness — the gates would reduce token leakage but question shapes,
+  distractor styles and class balance remain ours, and with corpus/cal unchanged a
+  specialist "win" would prove grammar-fit, not capability, uncitable beside an
+  external index (Jev-style standardization lives on the dataset suites + bench.json,
+  reflex-site Plan 001); (b) the lane had no consumers — instinct Issue 008 T8 already
+  dropped the families from the specialist covered set, the arena law-excludes them,
+  and the site card dropped their cells; (c) the recorded re-open condition ("a larger
+  template-disjoint reflex-side eval") was necessary, not sufficient — it fixes
+  statistical power, not external validity. The families KEEP everything that makes
+  them load-bearing as fixtures: G2/G4 workloads, the engine regression pins
+  (discrimination floor, determinism, anti-pathology, gold-agreement), the existing
+  n = 12–16 evals, and `harness_cache_reuse`'s grounded-posture GATE (Bench 072).
+  riir-train trainer extension: never filed. Issue file removed (full life:
+  `git log --follow -- .issues/059_harness_families_wide_eval_reopen.md`); the
+  revised plan with the full verdict is `.plans/009_families_wide_eval.md`.
+
 ## 2026-10-01
 
 - **Issue 057 CLOSED (Bench 102 + reflex-site `8d33e3f` + `2b699f0`, CF
