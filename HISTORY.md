@@ -7,6 +7,48 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-02
 
+- **thai_sib200 pool floor re-based onto the audited pool-after-cal (560 →
+  400; `slice_guard::MIN_POOL_ROWS`)** (2026-10-02): the 560 was 80% of the
+  RAW pull, but the audit measures the pool AFTER the cal front is removed —
+  and the suite's SOURCE yields only 701 train rows total (re-fetch
+  TRAIN_CAP=20000, proven by the riir-infer Plan-617 A5 board's slice
+  refusal), so pool-after-cal maxes at 501 (701 − 200 cal) and 560 was
+  unsatisfiable at ANY pull. The mispin survived because Bench 100 never
+  exercised sib200 (the floor postdates the 084 run; no run measured the
+  suite between the floor landing and the 617 board). 400 = 80% of 501; both
+  shrink classes stay covered (the cal front is a fixed 200 rows, so
+  pool = raw − 200 and a raw-pull loss >14% still refuses). The justification
+  is the SOURCE MEASUREMENT, not a lane want — this is NOT a gate loosened to
+  admit the 617 board: that lane's re-open is a NEW pre-registered decision
+  (riir-infer issue 034) and stays decoupled from this fix. slice_guard tests
+  16/16.
+
+- **Bench 110 — the OpenThai-SystemOne EXL3 4.0-bpw convert board (riir-infer
+  Plan 617 Phase A5) RECORDED: NO-GO by the pre-registered letter;
+  PROVISIONAL (GPU-shared)** (2026-10-02): the 4090 session's board runs land
+  here (`617_openthai_exl3_4090{,/retry,/thai}`, harness @ `f730497`,
+  determinism pin green every row) — 6/11 suites clean, typed/sst5 exactly at
+  the ±1.0 pt bar, ag_news +1.50 (improvement direction — still divergence on
+  a lossy surface), code_fixtures −3.13 (one question of n=32), ECE bar PASS
+  11/11, sib200 absent (the floor mispin above), semantic_defects unpinned.
+  Verdict: NO-GO stands (owner-delegated Claude verdict, AGREE — even with
+  both breaches excused GO is unreachable: 2 of 13 suites are unmeasurable
+  today); re-open conditions recorded in the record (paired-discordance bar,
+  sib200 measured post-fix, consumer-tied). Latency columns carry no box
+  state (probes unavailable under the sibling training) — unquotable.
+
+- **`.benchmarks/.highwater` normalized to a single-line counter (was
+  `109\n144\n`); `scripts/thai_rerun.sh` reader hardened** (2026-10-02): the
+  144 second line appeared in the f730497 highwater repair with no allocation
+  behind it — nothing on disk or on origin is numbered 110–144 (dual-
+  allocation gate clean at allocation time), so the line was corruption, not
+  a reservation; the true max allocated was 109. The latent hazard was real:
+  thai_rerun.sh read the counter with `tr -d '[:space:]'`, which CONCATENATES
+  a multi-line file ("109144") and would have allocated garbage on the next
+  thai rerun — now `head -n 1` first. Disclosed per the collision law: if a
+  sibling session somewhere allocated 144 in flight, the citation-rewrite
+  repair applies (the 062 precedent).
+
 - **The six harness families RETIRED (owner call, this session):**
   `harness_visibility` · `harness_permissions` · `harness_tool_fit` ·
   `harness_routing` · `harness_sensitivity` · `harness_cache_reuse` are

@@ -106,7 +106,7 @@ printf '   healthz ok after ~%ss (pid %s; log %s)\n' "$((i * 5))" "$SRV_PID" "$S
 
 # ---- 4. the run: next bench number + harness ---------------------------------
 printf '── 4/5 harness run (modelless + laya-multilingual + openthai, thai suites)\n'
-n=$(tr -d '[:space:]' < .benchmarks/.highwater)
+n=$(head -n 1 .benchmarks/.highwater | tr -d '[:space:]')
 case "$n" in
     "" | *[!0-9]*) die "unreadable .benchmarks/.highwater ('$n')" ;;
 esac
