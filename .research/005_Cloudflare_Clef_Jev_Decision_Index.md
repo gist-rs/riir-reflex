@@ -180,5 +180,7 @@ The headline comparison the owner asked for — **Clef vs Rethink** — lands on
 `.plans/011_clef_lane_jdi_protocol.md` — Phase A: the `--clef` lane. Phase B: the JDI metrics
 adapter (macro-F1, chance-corrected skill, coverage disclosure, pinned index.json snapshot).
 Phase C: Rethink-on-JDI cells + the reflex-site comparison publication. Phase D (deferred):
-local Clef serving in riir-infer (prefill-league workload) + the Brier/RLCD recipe note to
-riir-train.
+Phase D (deferred): local Clef serving in riir-infer (prefill-league workload) + the Brier/RLCD recipe note to
+riir-train — D2 LANDED 2026-10-02: riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md`
+(riir-train `115e5690`, verdict-pinged; ADD≡MIX under Adam, λ=1 replacement the honest maximum,
+pick-level-Brier gate).

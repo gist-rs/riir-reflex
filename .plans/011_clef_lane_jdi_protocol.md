@@ -6,7 +6,9 @@ plan a `--clef` run published to reflex.gist.rs/bench like the other lanes). Hos
 are owner-gated; phases run in order, each commits+pushes its own unit.
 **Progress 2026-10-02: Phase A + Phase B LANDED** (lane + wiring + JDI adapter + snapshot + gates;
 A2.5/A6 blocked on owner creds; Phase C blocked on A6 — C1's hosted run needs the forwarder +
-token; Phase D deferred per its own rows).
+token). **D2 LANDED 2026-10-02**: riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md`
+(riir-train `115e5690`) — the recipe note with the pre-registered per-arm gate; the optional plan
+derives when the §3 trigger fires. Phase D's remaining rows stay deferred per their own wording.
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -144,9 +146,20 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       parallel-scoring in our league arch; EXL3 4-bit quants exist). GGUF is NOT sufficient (custom
       scoring head is transformers code — llama.cpp cannot reproduce typed outputs); vLLM + their
       custom-code is the local path. Gated on a GPU window + the prefill league's next cell.
-- [-] D2 riir-train recipe note: Brier calibration term + label-smoothed CE + RLCD partial-credit /
+- [x] D2 riir-train recipe note: Brier calibration term + label-smoothed CE + RLCD partial-credit /
       reference-penalty vs our t608 NLEH v2 per-option head's loss; file as a riir-train research
-      note + optional plan when a typed-head retrain window opens.
+      note + optional plan when a typed-head retrain window opens. **DONE 2026-10-02**:
+      riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md` at `115e5690`
+      (verdict-pinged 3 rounds to AGREE). Key corrections the review survived: ADD vs MIX Brier
+      spellings are the same training run under Adam — the lever is the relative confidence-
+      weighting shape, λ=1 pure-Brier replacement the honest maximum; ordinal partial credit
+      applies to the security_incidents severity question ONLY (action keys nominal; text→rank
+      table, never option index); label smoothing ranks LOW on the v1 teacher arms' every-lane
+      negative; the gate is paired holdout accuracy LB95 ≥ 0 AND paired pick-level Brier LB95 < 0
+      over the consumer's exact read (`score_row_v2` conf = the picked option's raw sigmoid), ECE
+      disclosure-only, NLL printed beside. Cost CPU-minutes/arm — the retrain window is
+      owner-priority-gated, not resource-gated; the plan derives from the note's §3 when the
+      trigger fires (C4 reads Clef ≥ 0.7550 on typed_decisions, or a serving posture appears).
 - [-] D3 submit Rethink to the actual JDI board (typesafe-diffusion-lab suite, their frozen corpus,
       their protocol) — the full "on the board" form. Owner-gated (GPU budget + their submission
       process); only meaningful after C4 shows the crosswalk is worth formalizing.
