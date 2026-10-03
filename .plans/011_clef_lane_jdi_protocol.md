@@ -184,7 +184,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       (the determinism witness), the typed digest == the C2 pin (`fnv1a64-6e37760ee2a5b6c9`),
       and the typed think axes reproduce the --gold-from readings BIT-FOR-BIT (mF1 0.7445 /
       skill 0.6537 / chance 0.2925) — the native path == the join path.
-- [ ] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
+- [-] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
       vs Rethink encoder vs laya vs GLiNER vs CLM vs AgentJev vs the JDI board reference rows) on
       /bench/ + the TL;DR card; caveat text from B5 rendered verbatim; `publish_bench.py` +
       `republish_bench.sh` flow.
@@ -195,10 +195,22 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       macro_f1 + jdi_skill on the same axes as every lane), the clef palette slot + filter chip +
       table rows + hero bars (data-derived smoke arms added: 2 rows, 12 unmeasured-suite not-runs,
       the p50 PRESENCE-row pin re-stated as "names WHO wears it" — clef, acc-only re-read pending);
-      the outgoing 2026-10 table frozen to data/archive. **REMAINS:** the crosswalk TABLE itself
-      (the side-by-side + the JDI board reference rows + the B5 caveat verbatim) and the digest-pin
-      assert at crosswalk-build time (C2's machinery is its input — the clef doc's cases_digest ==
-      the rebuilt-seat digests, live-proven in C2).
+      the outgoing 2026-10 table frozen to data/archive. **REMAINDER DISCHARGED 2026-10-04 (reflex-site
+      `53d518f`, deployed `53515e17`, live-verified): the CROSSWALK TABLE is live** on /bench/#crosswalk —
+      `compute_crosswalk` (the compute_areas precedent) builds the side-by-side per clef-carrying suite:
+      every measured row OUR cell with its `cases_digest` ASSERTED EQUAL to the clef cell's pin at build
+      time (a different population or an unpinnable lane is EXCLUDED with the reason rendered, never
+      silently mixed; derived tier-fallback encoder cells excluded by construction); the JDI axes read
+      both cell spellings (harness cell-level vs instinct-doc hard-level). The JDI board's own rows +
+      Clef's blog banking77 macro-F1 table ride as curated REFERENCE constants (the AREA_CHANCE
+      precedent, provenance-pinned to `.research/005` / the B1 snapshot) under the B5 caveat VERBATIM
+      (publisher-carried; the renderer never re-words it). `stamp_cell` carries suite-level
+      `test_digest` onto the cell as `cases_digest` — the hybrid/encoder cells joined the pin via the
+      C2 doc rebuilds (instinct `0ac9375`: the 0052 rebuild + the 041 surgical stamp). First live
+      read: b77 clef 0.9540/skill 0.9533 vs Instinct 0.8540/0.8519 on pin fnv1a64-dd8ab…; typed clef
+      0.6955/0.5696 vs Rethink encoder 0.7550/0.6537 (record-only) vs Instinct 0.6475/0.5018 on pin
+      fnv1a64-6e37…. Smokes: 3 new data-derived crosswalk arms (tables count / caveat verbatim /
+      pins) + the full gate set green.
 - [ ] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
       typed_decisions + banking77, with the cost + latency posture disclosed. **Reading note
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
