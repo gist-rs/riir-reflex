@@ -9,8 +9,8 @@ this backlog visible as "named in the note, never plotted").
 | lane | clock | quotable cells | verdict breakdown | why |
 |---|---|---|---|---|
 | `bekko` | subprocess | **9 of 9** ✅ (2026-10-03, bench 115 — T1 DONE) | — | landed via **per-suite docs** (each doc's span fits a baseline dip; the 15-min full-run shape cannot pass while the editor is alive — baseline drift 3.2→8.8 measured; banking77 landed via the `[banking77, typed, code_fixtures]` triple whose registry-order tail is code_fixtures' 20 s light run). p50 geomean 231.7 ms published; record `.benchmarks/115_bekko400m_timing/RECORD.md` (issue 067, closed with this T1) |
-| `paw` | http | **0 of 9** | 5 unfit + 4 unjudged | mixed: some cells unfit (box state), some from a doc with no readable probes |
-| `paw_local` (host `4090-win`) | local-runtime | **0 of 4** | 4 unjudged | the 4090 harness has no box-state probes |
+| `paw` | http | **3 of 9** (2026-10-04, bench 116 — partial: their hub outage) | 2 unfit + 4 unjudged | 3 quotable (prompt_injections, code_fixtures, xnli_en; ~1.0–1.2 s/q wall) landed before programasweights.com's `/api/v1/infer` went 502 on every program (~00:10 +0700, their-side outage). Remaining 6 re-run when healthy |
+| `paw_local` (host `4090-win`) | local-runtime | **superseded by the m3 primary lane** — m3 **9 of 9** ✅ (2026-10-04, bench 116) | 0/0 on m3 | the m3 primary `paw_local` lane (p50 geomean 34.2 ms, all bundles cache-hit) replaced the @4090-win host-tagged rollup by design; the 4 4090 cells stay in the per-suite tables (unjudged, 065 T3) |
 | `clm@4090-win` | http | **0 of 8** | 8 unjudged | same — no probes on the 4090 |
 | `gliner@4090-win` | subprocess-python | **0 of 8** | 8 unjudged | same |
 | `agentjev@4090-win` | http | **0 of 8** | 8 unjudged | same |
@@ -38,6 +38,13 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
   `PAW_COMPILER=paw-ft-bs48-20260530` + `PAW_COMPILE_ASYNC=1`, `--paw-local` with `PAW_LOCAL_PYTHON`) —
   preflight green, one window, both postures. Expected: 5 unfit hosted cells + the local posture cells → quotable
   (the 4 unjudged hosted cells become judgable the same way, since the harness itself probes the m3 box).
+  **PARTIAL 2026-10-04 (bench 116): paw_local 9/9 quotable on m3** (p50 geomean 34.2 ms — the m3 primary lane replaced the
+  @4090-win host-tagged rollup by design; the 4090 cells stay in the per-suite tables). **Hosted 3/9** (prompt_injections,
+  code_fixtures, xnli_en quotable, ~1.0–1.2 s/q wall) — then programasweights.com's inference endpoint went down mid-run
+  (HTTP 502 `inference_failed` on EVERY program incl. previously-answered ones; site root still 200 — their-side outage,
+  ~00:10 +0700). Remaining: emotion, ag_news, sst5, massive_intent_en, banking77, typed_decisions — re-run when their hub
+  is healthy (the failed attempts' docs sit beside the good ones in `per_suite/`, the bench-115 pattern). One hosted acc
+  drift disclosed: xnli 0.72 → 0.7233 (+1/300 — their endpoint evolved since Sept 29; honest dated reading).
 - [ ] T3 The 4090-hosted lanes (`clm`, `gliner`, `agentjev`, and the `openthai`/`paw` @4090 extra-host cells) are
   unjudged because the 4090 harness has no box-state probes — two roads, pick one (owner call recorded here):
   - [ ] (a) run the harness FROM the m3-max-metal against the 4090-served endpoints — the probes read the m3 box,
@@ -45,6 +52,11 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
     clock class is `http` either way, the timing table already says which clock each number uses), OR
   - [ ] (b) port the box-state probes (`scripts/bench_preflight.sh` equivalent) into the 4090 runner so 4090-hosted
     runs stamp their own verdict — the honest long-term fix; the Windows-side probe set needs an owner pass.
+  **ASSESSED 2026-10-04 (bench 116 record): (a) has nothing to point at right now** — no lane servers (vLLM/uvicorn/python)
+  running on the 4090 (checked ~00:2x +0700; GPU 0% util but 23.8 GB held by a sibling agent's plan-614 tests — standing
+  servers up would fight sibling work for GPU memory). (b) stays owner-gated. Note the `paw_local`@4090 cells no longer
+  roll up host-tagged (the m3 primary lane superseded them, bench 116) — the remaining @4090 extra-host rollups are
+  clm/gliner/agentjev (+ openthai's 11 cells, which still win the accuracy pick on 4 suites and plot marked-unverified).
 - [ ] T4 After each window: publish the lane-scoped update (`PUBLISH_BENCH_LANES="<lane>" python3
   ../reflex-site/scripts/publish_bench.py <results.json> ../reflex-site` — the update path, never fresh-docs),
   re-run the reflex-site smokes (`chart_render_smoke.cjs` pins the p50-family counts — re-pin when the quotable
