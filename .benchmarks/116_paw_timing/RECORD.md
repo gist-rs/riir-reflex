@@ -1,6 +1,6 @@
 # Bench 116 — paw timing re-run: paw_local 9/9 quotable on m3; hosted 3/9 (their hub outage mid-run)
 
-**Status: MEASURED — paw_local: all 9 m3 cells `latency_quotable: true` (p50 geomean ≈ 33 ms, first quotable paw_local lane on the board). Hosted: 3/9 cells quotable (prompt_injections, code_fixtures, xnli_en) before programasweights.com's inference endpoint went down (HTTP 502 `inference_failed`, every program, site root still 200 — their-side outage, ~00:10 +0700); the 6 remaining hosted suites are 065 T2's open tail.**
+**Status: MEASURED — paw_local: all 9 m3 cells `latency_quotable: true` (p50 geomean ≈ 33 ms, first quotable paw_local lane on the board). Hosted: 3/9 cells quotable (prompt_injections, code_fixtures, xnli_en) before programasweights.com's inference endpoint went down (HTTP 502 `inference_failed`, every program, site root still 200 — their-side outage, ~00:10 +0700); the 6 remaining hosted suites are 065 T2's open tail — re-attempt #2 (bench 117) found it still down and left the faithful health probe (`scripts/paw_hub_probe.sh`).**
 
 Date: 2026-10-04 · host m3-max-metal · reflex `0dc2c20` · publish: reflex-site lane-scoped update (data/bench.json, `PUBLISH_BENCH_LANES="paw,paw_local"`, current bench.json as primary — the bench-115 update path)
 

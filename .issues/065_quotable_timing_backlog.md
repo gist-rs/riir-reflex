@@ -45,6 +45,12 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
   ~00:10 +0700). Remaining: emotion, ag_news, sst5, massive_intent_en, banking77, typed_decisions — re-run when their hub
   is healthy (the failed attempts' docs sit beside the good ones in `per_suite/`, the bench-115 pattern). One hosted acc
   drift disclosed: xnli 0.72 → 0.7233 (+1/300 — their endpoint evolved since Sept 29; honest dated reading).
+  **RE-ATTEMPT #2 2026-10-04 ~01:2x +0700 (bench 117): still down.** Clean quiet window (preflight PASS load 3.89, canary
+  119.8 µs; doc box state 4.04→3.04 quotable both ends), compile cache-hit, warmup infer 502 `inference_failed` ×6
+  retries on the first suite (massive_intent_en) — the outage spans 00:10→01:28+. **Probe lesson:** an invalid-body 422
+  from `/api/v1/infer` only proves the validation layer answers (this session launched on that false healthy read);
+  the faithful probe is `scripts/paw_hub_probe.sh` (the harness's own warmup request against the cached
+  massive_intent_en program) — **re-run gate: probe exit 0 before launching.**
 - [ ] T3 The 4090-hosted lanes (`clm`, `gliner`, `agentjev`, and the `openthai`/`paw` @4090 extra-host cells) are
   unjudged because the 4090 harness has no box-state probes — two roads, pick one (owner call recorded here):
   - [ ] (a) run the harness FROM the m3-max-metal against the 4090-served endpoints — the probes read the m3 box,
