@@ -5,6 +5,22 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-04 — Issue 054 closed (all four parts terminal)
+
+- **Issue 054 (openjev lane + prefix-state handoff)**: Part 1 lane candidate — owner call
+  2026-10-02, TERMINAL (do NOT add to the arena; the 27B model is too huge for the fleet;
+  re-arm would need a smaller Jev-family model, none exists). Part 2 prefix-state handoff —
+  REFUTED for laya 2026-09-30 (measured: the laya encoder is ModernBERT, bidirectional, NOT
+  GDN — no exact prefix state exists; the lead's SHAPE stays valid for causal decoders, a
+  re-file should target the league's GDN surface, not laya). Part 3 serving-technique
+  follow-through — LANDED 2026-10-02 (`.research/006`: prefix-tree root sharing implemented
+  in the modelless engine `solve_sample_into`, bit-identical + regression-gated
+  `per_question_slots_are_independent_of_their_neighbors`; GDN chunked prefill absorbed by
+  riir-infer-gpu v3; the rest not transferable/already adjudicated). Part 4 perch wire intel
+  — recorded (question-batching is a first-class System One wire contract; the
+  `semantic_defects` authoring seed filed via issue 061). Full record: `.research/006` +
+  this entry; the file is removed per the noise-reduction rule.
+
 ## 2026-10-03 — the v0.2.4 release cut
 
 - **Shipped:** tag `v0.2.4` → `e616814` (a docs-only sibling commit landed in the shared
