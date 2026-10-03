@@ -44,6 +44,8 @@ flowchart LR
 The SVG is rendered centrally from the fenced block above —
 `reflex-site/scripts/render_tetris_flows.py` scans every mermaid block
 carrying `%% file:` and `%% aria:` headers and renders the named file. Edit
-the block here; never hand-edit the rendered SVG. No `.svg` is committed in
-this folder — the site mirror produces `assets/reflex_dev_flow.svg` at
-render time.
+the block here; never hand-edit the rendered SVG. The rendered `dev_flow.svg`
+is committed BESIDE this doc (the same both-mirrors law as
+`03_decision_flow/`: doc-adjacent copy + the site's
+`assets/reflex_dev_flow.svg`, byte-identical), and `scripts/sync_mirror.py --check`
+in reflex-site is the drift detector between renders.
