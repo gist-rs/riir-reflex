@@ -150,12 +150,28 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       400) in flight into `.benchmarks/113_clef_lane/full_*` — record doc + provenance + the
       preflight-quated load caveat (latency rows provisional at load 6.36; accuracy
       load-invariant) lands with them. The HOSTED C1 run stays deferred per A6.
-- [ ] C2 the Rethink cells on the same runs come from the instinct arena's published rows
+- [x] C2 the Rethink cells on the same runs come from the instinct arena's published rows
       (hybrid_lane_doc) — add the macro-F1 + skill columns to the lane-doc build so Rethink and
       the lanes read on the same axes (riir-instinct side; small, display-only). **Case-identity
       pin (verdict round 1): the Clef run and the Rethink cell must carry the SAME case-ID set /
       split hash and the same trim cap — asserted before any crosswalk cell is published; without
       the pin, the cell carries the B5 "different corpus" caveat like every other crosswalk row.**
+      **LANDED 2026-10-04 (the hybrid half; instinct `a2112e9` + reflex `8cfc6bc`):** reflex exports
+      `Seat::cases_digest` (the population-identity law, ONE home — the consumer calls it, never
+      re-derives); the arena freezes `test_digest` + per-question `gold` on every run; the
+      lane-doc builder derives `macro_f1`/`jdi_chance`/`jdi_skill` (reflex's laws mirrored —
+      pinned against reflex's OWN harness_units hand-case vectors, 11/15 + 1/3 exact) natively or
+      via a digest-gated `--gold-from` seat_identity dump for legacy records; the `seat_identity`
+      example dumps the pin offline. **Live-proven on real data**: the rebuilt seats' digests ==
+      the clef full-run docs' `cases_digest` (b77 `fnv1a64-dd8ab35333abb82a`, typed
+      `fnv1a64-6e37760ee2a5b6c9`) — the cross-repo pin works end-to-end. First JDI-axis readings
+      for a Rethink cell (the bench-041 typed encoder record via --gold-from): macro_f1 **0.7445**,
+      jdi_skill **0.6537** (chance 0.2925) vs Clef's reflex-computed macro_f1 0.6742 on the same
+      digest. **REMAINS for C2:** the ENCODER lane-doc emitter is an archived hunk in
+      riir-rethink post-split (`bin_hunks/arena_encoder_lane_doc.rs`) — new encoder records gain
+      the axes only when rethink re-activates its emitter (the bench-041 legacy cell already
+      carries them via the --gold-from path, which is what C3 cites). The arena stamping change is
+      in effect for every FUTURE instinct record.
 - [ ] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
       vs Rethink encoder vs laya vs GLiNER vs CLM vs AgentJev vs the JDI board reference rows) on
       /bench/ + the TL;DR card; caveat text from B5 rendered verbatim; `publish_bench.py` +
