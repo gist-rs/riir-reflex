@@ -191,9 +191,11 @@ impl ClefLane {
         let raw = self.decide_raw(&probe)?;
         let model = envelope_model(&raw).unwrap_or_else(|| format!("{}@workers-ai", self.model));
         let posture = format!(
-            "loopback forwarder {}:{} -> Cloudflare Workers AI hosted {} \
-             (the TLS-terminating hop is INCLUDED in the client round-trip)",
-            self.host, self.port, self.model
+            "loopback serving {}:{} -> {} \
+             (the client round-trip includes the loopback hop; operator rig per plan \
+             011 A0: the TLS-terminating forwarder in front of Workers AI, or a local \
+             serve — the envelope's model field carries the serving provenance)",
+            self.host, self.port, model
         );
         Ok((model, posture))
     }

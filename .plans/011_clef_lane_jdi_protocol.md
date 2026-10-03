@@ -16,7 +16,15 @@ AI run (401 code 10000 on `ai/run/clef` and `…/@cf/cloudflare/clef[-flash]`, b
 the riir-dao credential class exactly. Owner unblock: mint a token with **Account → Workers AI →
 Edit/Run** scope into `.env`. The A0 forwarder + probe rig are staged locally, gitignored
 (`.raw/clef_fwd/` — never repo code); rerun is one command from its README once the scoped token
-lands. Phase C stays blocked on A6.
+lands. **Phase C UNBLOCKED the other way the same day (owner call: "download model and run it
+like other"): the LOCAL lane is live** — `mlx-community/clef-flash-4bit` on this M3 behind
+`.raw/clef_srv/clef_lane_server.py` (the list→dict wire translation + the Workers-AI envelope;
+wire contract + rigs: `.research/007`). Smoke (50-case caps, det ✓, box load 6.36 — latency
+provisional): banking77 **acc 0.9800** ECE 0.0585 · typed_decisions **acc 0.6000** ECE 0.0742.
+Full-N comparable runs (banking77 500 + typed 400, `CLEF_SMOKE_MAX_CASES=1000` — the local
+no-spend raise of the ceiling) in flight into `.benchmarks/113_clef_lane/`. The hosted lane stays
+blocked on the AI-scoped token; `clef.rs` info() posture string made posture-neutral (the local
+serve must not read as "Workers AI hosted") in the same change.
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -135,10 +143,13 @@ half-runs; published tables are CI-regenerated, never hand-typed.
 
 ## Phase C — Rethink-on-JDI cells + the site publication
 
-- [ ] C1 run the dataset suites with `--clef` on the 4090 box (smoke: typed_decisions + banking77
-      first, capped by `CLEF_SMOKE_MAX_CASES`; then the 15-suite lane as budget explicitly allows)
-      — record in `.benchmarks/NNN_clef_lane/` (next number per `.benchmarks/.highwater`) with
-      tables + provenance + det probe result + the forwarder posture disclosed.
+- [-] C1 run the dataset suites with `--clef` — **PARTIALLY DONE 2026-10-03 via the LOCAL lane**
+      (owner pivot: no Workers AI creds needed — run the open weights like every other lane):
+      smoke runs landed (`.benchmarks/113_clef_lane/smoke_{banking77,typed}`, 50-case caps,
+      det ✓, envelope+model provenance verified); full-N comparable runs (banking77 500 + typed
+      400) in flight into `.benchmarks/113_clef_lane/full_*` — record doc + provenance + the
+      preflight-quated load caveat (latency rows provisional at load 6.36; accuracy
+      load-invariant) lands with them. The HOSTED C1 run stays deferred per A6.
 - [ ] C2 the Rethink cells on the same runs come from the instinct arena's published rows
       (hybrid_lane_doc) — add the macro-F1 + skill columns to the lane-doc build so Rethink and
       the lanes read on the same axes (riir-instinct side; small, display-only). **Case-identity
