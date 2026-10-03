@@ -66,6 +66,12 @@ pub mod readout;
 #[cfg(feature = "modelless")]
 pub mod engine;
 
+/// The user-corpus loader behind `RIIR_REFLEX_CORPUS` (issue 063):
+/// `<domain>.md` / `<domain>/*.md` per domain, sorted, `1..=8` domains —
+/// the shipped binary's "your first corpus in 5 minutes" path.
+#[cfg(feature = "modelless")]
+pub mod corpus;
+
 /// The localhost HTTP serving edge.
 #[cfg(feature = "modelless")]
 pub mod serve;

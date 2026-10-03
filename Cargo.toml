@@ -259,6 +259,14 @@ required-features = ["laya-riir-ane"]
 name = "serve_cors"
 required-features = ["modelless"]
 
+# Issue 063: the RIIR_REFLEX_CORPUS serve integration — the sample corpus
+# boots, an in-corpus question answers non-null, off-corpus abstains, and
+# /healthz discloses the corpus posture. Whole-file #![cfg(feature =
+# "modelless")]; this row keeps a feature-less selection skipping loudly.
+[[test]]
+name = "serve_corpus"
+required-features = ["modelless"]
+
 # Plan 003 Phase 1 (T1.1 + T1.2): the Thai posture pins — tests only,
 # zero runtime code; the shipped modelless posture's Thai behavior pinned
 # as contract (abstain expected; a confident answer is a FINDING).

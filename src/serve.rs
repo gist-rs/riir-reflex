@@ -542,12 +542,31 @@ pub mod laya_serve {
     }
 }
 
-/// The day-one engine posture: two demo domains over the fixture corpus
-/// (gate semantics: `abstain_confidence = sigmoid(scale·(max_sim − mid))`).
-/// The harness (Plan 603 T1.5) is the real corpus driver; this exists so
-/// the binary is HONEST out of the box (it abstains off-corpus rather
-/// than pretending competence on an empty model).
-pub fn demo_engine() -> DecisionEngine<2, EMBED_DIM> {
+/// What corpus the serve posture booted on — `/healthz` discloses it
+/// (issue 063 T2): `"demo"` for the day-one posture, or the domain list
+/// for a `RIIR_REFLEX_CORPUS` boot.
+#[derive(Clone, Debug, PartialEq)]
+pub enum CorpusInfo {
+    Demo,
+    Domains(Vec<String>),
+}
+
+impl CorpusInfo {
+    /// The `/healthz` JSON fragment: `"demo"` or `{"domains":[...]}`.
+    pub fn as_json(&self) -> String {
+        match self {
+            Self::Demo => "\"demo\"".to_string(),
+            Self::Domains(d) => format!(
+                "{{\"domains\":{}}}",
+                serde_json::to_string(d).unwrap_or_else(|_| "[]".to_string())
+            ),
+        }
+    }
+}
+
+/// The day-one corpus, verbatim — shared by [`demo_engine`] and the boot
+/// dispatch's demo arm (issue 063: one spec source, two consumers).
+fn demo_specs() -> Vec<crate::engine::ExpertSpec> {
     const OPS: &str = "Deploy the server to staging and verify the rollout before promoting \
 to production. The staging cluster mirrors production capacity and runs the \
 same release candidate. Rollback is one command when a deploy regresses the \
@@ -557,19 +576,80 @@ billing account was charged twice. Check the account balance and the payment \
 history, then refund the duplicate charge to the original payment method. \
 Escalate to the billing team when the invoice does not match the account \
 records.";
-    crate::engine::DecisionEngine::build_specs(
-        vec![
-            crate::engine::ExpertSpec::new("ops", &[OPS.to_string()]),
-            crate::engine::ExpertSpec::new("support", &[SUPPORT.to_string()]),
-        ],
-        crate::engine::EngineConfig::default(),
-    )
-    .expect("demo corpus is well-formed")
+    vec![
+        crate::engine::ExpertSpec::new("ops", &[OPS.to_string()]),
+        crate::engine::ExpertSpec::new("support", &[SUPPORT.to_string()]),
+    ]
+}
+
+/// The day-one engine posture: two demo domains over the fixture corpus
+/// (gate semantics: `abstain_confidence = sigmoid(scale·(max_sim − mid))`).
+/// The harness (Plan 603 T1.5) is the real corpus driver; this exists so
+/// the binary is HONEST out of the box (it abstains off-corpus rather
+/// than pretending competence on an empty model).
+pub fn demo_engine() -> DecisionEngine<2, EMBED_DIM> {
+    crate::engine::DecisionEngine::build_specs(demo_specs(), crate::engine::EngineConfig::default())
+        .expect("demo corpus is well-formed")
+}
+
+/// The resolved serve corpus: the healthz disclosure plus the engine's
+/// builder input.
+struct ServeCorpus {
+    info: CorpusInfo,
+    specs: Vec<crate::engine::ExpertSpec>,
+}
+
+/// Resolve the boot corpus (issue 063 T1): `RIIR_REFLEX_CORPUS=<dir>` loads
+/// the user's corpus; absent/empty = the demo engine, unchanged. A named
+/// corpus that refuses to load EXITS — never a silent demo fallback (the
+/// per-lane-claims law).
+fn resolve_serve_corpus() -> ServeCorpus {
+    let dir = std::env::var("RIIR_REFLEX_CORPUS")
+        .ok()
+        .map(|d| d.trim().to_string())
+        .filter(|d| !d.is_empty());
+    match dir {
+        None => ServeCorpus {
+            info: CorpusInfo::Demo,
+            specs: demo_specs(),
+        },
+        Some(dir) => match crate::corpus::load_dir(std::path::Path::new(&dir)) {
+            Ok(loaded) => {
+                let named = loaded
+                    .domains
+                    .iter()
+                    .zip(&loaded.docs_per_domain)
+                    .map(|(d, n)| format!("{d}({n})"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                eprintln!(
+                    "[riir-reflex] corpus: {} domain(s) from {} — {named}",
+                    loaded.domains.len(),
+                    dir
+                );
+                ServeCorpus {
+                    info: CorpusInfo::Domains(loaded.domains),
+                    specs: loaded.specs,
+                }
+            }
+            Err(e) => {
+                eprintln!("[riir-reflex] RIIR_REFLEX_CORPUS={dir} refused: {e}");
+                eprintln!(
+                    "[riir-reflex] fix the corpus directory or unset RIIR_REFLEX_CORPUS — \
+                     a named corpus is never silently swapped for the demo engine"
+                );
+                std::process::exit(2);
+            }
+        },
+    }
 }
 
 /// Bind + serve (blocking). Errors are `io::Error`s from the bind/accept
 /// path; per-connection errors are logged and never kill the loop.
 pub fn run() -> std::io::Result<()> {
+    // The corpus posture resolves FIRST: a malformed RIIR_REFLEX_CORPUS
+    // refuses before anything binds (never a half-booted serve).
+    let corpus = resolve_serve_corpus();
     let addr = bind_addr();
     let listener = TcpListener::bind(&addr)?;
     eprintln!(
@@ -579,6 +659,12 @@ pub fn run() -> std::io::Result<()> {
     eprintln!("[riir-reflex] POST /decide  — DecisionRequest JSON → DecisionResponse JSON");
     eprintln!("[riir-reflex] POST /feedback — {{p, outcome}} → calibrator observe/refit");
     eprintln!("[riir-reflex] GET  /healthz — liveness");
+    if corpus.info == CorpusInfo::Demo {
+        eprintln!(
+            "[riir-reflex] corpus: demo (2 domains: ops, support) — set \
+             RIIR_REFLEX_CORPUS=<dir> to serve your own corpus"
+        );
+    }
     let allow = allowed_origins();
     if allow.is_empty() {
         eprintln!(
@@ -587,7 +673,6 @@ pub fn run() -> std::io::Result<()> {
     } else {
         eprintln!("[riir-reflex] CORS: allowed origins — {}", allow.join(", "));
     }
-    let engine = Arc::new(Mutex::new(demo_engine()));
     let laya = Arc::new(Mutex::new(LayaLane::Off));
     spawn_laya_loader_if_requested(&laya);
     eprintln!(
@@ -624,7 +709,83 @@ pub fn run() -> std::io::Result<()> {
             flappy_n, flappy_lambda, flappy_digest
         );
     }
-    serve_listener_lanes(listener, engine, laya, heads)
+    serve_boot(listener, corpus, laya, heads)
+}
+
+/// The N-dispatched boot (issue 063 option 1): build the corpus engine at
+/// the request's domain count — one monomorphised arm per `N ∈ 1..=8`, the
+/// dispatch happens ONCE per process, and the serve loop below stays
+/// compile-time-shaped (the hot path is untouched). The demo posture
+/// dispatches through the same arms — it is just `N = 2`.
+fn serve_boot(
+    listener: TcpListener,
+    corpus: ServeCorpus,
+    laya: Arc<Mutex<LayaLane>>,
+    heads: Arc<GameHeads>,
+) -> std::io::Result<()> {
+    let ServeCorpus { info, specs } = corpus;
+    let cfg = if info == CorpusInfo::Demo {
+        crate::engine::EngineConfig::default()
+    } else {
+        // The first-corpus posture (measured, issue 063): a first corpus is
+        // too thin for the confidence readout to separate — the k≥3 readout
+        // sits near-uniform (0.33/0.34/0.33, confidence ≈ 0.0002) and
+        // abstains at EVERY default score threshold (the harness's own
+        // finding: the 0.35/0.5 birth thresholds do not transfer to real
+        // corpora). The corpus IS labeled by construction, so the
+        // corpus-distance gate decides: in-corpus answers with the engine's
+        // best pick, off-corpus still abstains (in-corpus distance
+        // confidence ≈ 0.93+, off-corpus ≈ 0.06 — the 0.5 default midpoint
+        // sits in the desert between them).
+        crate::engine::EngineConfig {
+            score_threshold: 0.0,
+            ..crate::engine::EngineConfig::default()
+        }
+    };
+    macro_rules! boot {
+        ($n:literal) => {{
+            match crate::engine::DecisionEngine::<$n, EMBED_DIM>::build_specs(specs, cfg) {
+                Ok(eng) => {
+                    return serve_listener_heads_corpus(
+                        listener,
+                        Arc::new(Mutex::new(eng)),
+                        laya,
+                        allowed_origins(),
+                        heads,
+                        &info,
+                    );
+                }
+                Err(e) => {
+                    eprintln!("[riir-reflex] corpus engine refused: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }};
+    }
+    if info != CorpusInfo::Demo {
+        eprintln!(
+            "[riir-reflex] corpus gates: distance-only (score axis open — a first corpus is \
+             too thin to calibrate the confidence readout; off-corpus still abstains)"
+        );
+    }
+    match specs.len() {
+        1 => boot!(1),
+        2 => boot!(2),
+        3 => boot!(3),
+        4 => boot!(4),
+        5 => boot!(5),
+        6 => boot!(6),
+        7 => boot!(7),
+        8 => boot!(8),
+        n => {
+            eprintln!(
+                "[riir-reflex] {n} domains exceed the shipped 1..={} dispatch — \
+                 split the corpus or use the in-repo harness lane",
+                crate::corpus::MAX_DOMAINS
+            );
+            std::process::exit(2);
+        }
+    }
 }
 
 /// Resolve the serve-time game heads. DEFAULT posture (no
@@ -735,7 +896,9 @@ pub fn serve_listener_with<const N: usize, const D: usize>(
 }
 
 /// Serve on an ALREADY-BOUND listener with an EXPLICIT game-head lane (the
-/// `run()` seam — the boot-fit owns the head; the edge reads it).
+/// `run()` seam — the boot-fit owns the head; the edge reads it). The
+/// corpus posture is the demo one (issue 063: `/healthz` discloses
+/// `"demo"`); a corpus boot goes through [`serve_listener_heads_corpus`].
 pub fn serve_listener_heads<const N: usize, const D: usize>(
     listener: TcpListener,
     engine: Arc<Mutex<DecisionEngine<N, D>>>,
@@ -743,7 +906,23 @@ pub fn serve_listener_heads<const N: usize, const D: usize>(
     allow: Vec<String>,
     heads: Arc<GameHeads>,
 ) -> std::io::Result<()> {
+    serve_listener_heads_corpus(listener, engine, laya, allow, heads, &CorpusInfo::Demo)
+}
+
+/// The corpus-aware funnel (`run()`'s path — issue 063): the same accept
+/// loop, with the boot's corpus posture disclosed on `/healthz`. The legacy
+/// fns delegate with [`CorpusInfo::Demo`], so the demo posture's healthz
+/// stays honest for what it serves.
+pub fn serve_listener_heads_corpus<const N: usize, const D: usize>(
+    listener: TcpListener,
+    engine: Arc<Mutex<DecisionEngine<N, D>>>,
+    laya: Arc<Mutex<LayaLane>>,
+    allow: Vec<String>,
+    heads: Arc<GameHeads>,
+    corpus: &CorpusInfo,
+) -> std::io::Result<()> {
     let allow: Arc<[String]> = allow.into();
+    let corpus: Arc<str> = Arc::from(corpus.as_json().as_str());
     for stream in listener.incoming() {
         match stream {
             Ok(s) => {
@@ -751,8 +930,9 @@ pub fn serve_listener_heads<const N: usize, const D: usize>(
                 let laya = Arc::clone(&laya);
                 let allow = Arc::clone(&allow);
                 let heads = Arc::clone(&heads);
+                let corpus = Arc::clone(&corpus);
                 std::thread::spawn(move || {
-                    if let Err(e) = handle_conn(s, eng, laya, &allow, &heads) {
+                    if let Err(e) = handle_conn(s, eng, laya, &allow, &heads, &corpus) {
                         eprintln!("[riir-reflex] conn error: {e}");
                     }
                 });
@@ -893,6 +1073,7 @@ fn handle_conn<const N: usize, const D: usize>(
     laya: Arc<Mutex<LayaLane>>,
     allow: &[String],
     heads: &GameHeads,
+    corpus: &str,
 ) -> std::io::Result<()> {
     stream.set_read_timeout(Some(READ_TIMEOUT))?;
     let mut writer = stream.try_clone()?;
@@ -942,7 +1123,7 @@ fn handle_conn<const N: usize, const D: usize>(
                 &mut writer,
                 "200 OK",
                 &format!(
-                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}},\"heads\":{{\"tetris\":{},\"lanes\":{},\"flappy\":{}}}}}",
+                    "{{\"status\":\"ok\",\"lanes\":{{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"{laya_state}\"}},\"heads\":{{\"tetris\":{},\"lanes\":{},\"flappy\":{}}},\"corpus\":{corpus}}}",
                     heads.has_tetris(),
                     heads.has_lanes(),
                     heads.has_flappy()

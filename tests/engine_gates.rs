@@ -473,7 +473,7 @@ fn http_edge_contract() {
     assert_eq!(status, 200);
     assert_eq!(
         body,
-        "{\"status\":\"ok\",\"lanes\":{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"off\"},\"heads\":{\"tetris\":true,\"lanes\":true,\"flappy\":true}}"
+        "{\"status\":\"ok\",\"lanes\":{\"modelless\":\"ready\",\"raw\":\"ready\",\"laya\":\"off\"},\"heads\":{\"tetris\":true,\"lanes\":true,\"flappy\":true},\"corpus\":\"demo\"}"
     );
 
     // The full decision path through the edge.

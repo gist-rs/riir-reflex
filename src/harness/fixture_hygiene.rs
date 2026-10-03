@@ -151,6 +151,12 @@ pub fn label_token_violations(bans: &[&str], texts: &[&str]) -> Vec<(usize, Stri
 /// order, insertion, deletion) moves the digest — the consumer pins it
 /// so an edit reds its gate until consciously re-pinned in the same
 /// change.
+///
+/// The one blake3 touchpoint in this otherwise-ungated module — gated to
+/// `modelless` (the dep's enabling feature) so the flag-OFF posture
+/// compiles; every consumer (`tests/harness_families_gates.rs`, the
+/// fleet audit) is modelless-gated too.
+#[cfg(feature = "modelless")]
 #[must_use]
 pub fn fixture_digest(name: &str, eval: &[(usize, &str)]) -> String {
     let mut bytes = Vec::new();
@@ -219,6 +225,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "modelless")]
     fn digest_moves_on_any_edit() {
         let a = fixture_digest("f", &[(0, "one text")]);
         let b = fixture_digest("f", &[(0, "one text")]);
