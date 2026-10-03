@@ -5843,6 +5843,20 @@ pub mod seat {
         Ok(seat)
     }
 
+    impl Seat {
+        /// Population identity of this seat's test cases — the SAME law the
+        /// harness's `SuiteResult.cases_digest` uses ([`cases_digest`]:
+        /// fnv1a64 over the suite name + the canonical serde of the case
+        /// vector). Exposed so a consumer's frozen record can pin
+        /// case-identity against any reflex-side doc (the plan-011 C2
+        /// case-identity pin: a crosswalk cell publishes only on digest
+        /// equality — recomputing the law downstream would drift, so the
+        /// consumer calls THIS).
+        pub fn cases_digest(&self) -> String {
+            cases_digest(self.suite.name, &self.suite.cases)
+        }
+    }
+
     /// Posture-selection knobs (the deployed registry posture: selections
     /// on, cap candidates from the CLI convention). Empty
     /// `cal_select_caps` = the selection is off and the registry default
