@@ -8,7 +8,7 @@ this backlog visible as "named in the note, never plotted").
 
 | lane | clock | quotable cells | verdict breakdown | why |
 |---|---|---|---|---|
-| `bekko` | subprocess | **0 of 9** | 9 unfit | the run's own box state read NOT QUOTABLE (loaded box at run time) |
+| `bekko` | subprocess | **9 of 9** ✅ (2026-10-03, bench 115 — T1 DONE) | — | landed via **per-suite docs** (each doc's span fits a baseline dip; the 15-min full-run shape cannot pass while the editor is alive — baseline drift 3.2→8.8 measured; banking77 landed via the `[banking77, typed, code_fixtures]` triple whose registry-order tail is code_fixtures' 20 s light run). p50 geomean 231.7 ms published; record `.benchmarks/115_bekko400m_timing/RECORD.md` (issue 067, closed with this T1) |
 | `paw` | http | **0 of 9** | 5 unfit + 4 unjudged | mixed: some cells unfit (box state), some from a doc with no readable probes |
 | `paw_local` (host `4090-win`) | local-runtime | **0 of 4** | 4 unjudged | the 4090 harness has no box-state probes |
 | `clm@4090-win` | http | **0 of 8** | 8 unjudged | same — no probes on the 4090 |
@@ -31,12 +31,9 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
 
 ## Tasks
 
-- [ ] T1 Re-run `bekko` on a quiet M3: `scripts/bench_preflight.sh` green first (quote its `PROVENANCE:` line in
-  the bench record), then `cargo run --release --bin harness -- --bekko --skip-laya --out .benchmarks/<n>_bekko_tables`.
-  Expected: 9 cells flip unfit → quotable. **Priced in `.issues/067`** (filed 2026-10-03): ≈21 min of lane wall
-  (run 1 15.0 min + run 2 6.3 min, Bench 107's measured per-suite seconds); the gate that failed in Bench 107 was
+- [x] T1 Re-run `bekko` on a quiet M3: **DONE 2026-10-03 — bench 115, 9/9 cells quotable, published**. What actually worked was NOT one quiet 15-min window (none exists while the editor runs; two full-run attempts + the light-tail pairing went start-quotable → end-unfit) but per-suite docs with retries, plus the triple doc for banking77 (registry order puts banking77 last in ANY doc, so its tail is always the heavy suite — the triple ends on code_fixtures). **Priced in `.issues/067`** (filed 2026-10-03, closed same day with this T1): ≈21 min of lane wall (run 1 15.0 min + run 2 6.3 min, Bench 107's measured per-suite seconds); the gate that failed in Bench 107 was
   the box going LOADED mid-run after a green launch preflight (load 3.89 → 9.05), so the quiet-box check must hold
-  at BOTH ends — 067 carries the verbatim re-run protocol.
+  at BOTH ends — 067 carried the verbatim re-run protocol; bench 115's RECORD carries the measured post-mortem and the doc shapes that pass.
 - [ ] T2 Re-run `paw` hosted + `paw_local` the same way (`--paw` with the tier env
   `PAW_COMPILER=paw-ft-bs48-20260530` + `PAW_COMPILE_ASYNC=1`, `--paw-local` with `PAW_LOCAL_PYTHON`) —
   preflight green, one window, both postures. Expected: 5 unfit hosted cells + the local posture cells → quotable
