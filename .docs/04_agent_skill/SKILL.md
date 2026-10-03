@@ -269,9 +269,12 @@ refit → better-calibrated confidences → your §6 threshold keeps its meaning
    `temperature: 1.0` means you are consuming the raw posture; feed the loop
    (§7) before publishing accuracy claims.
 7. **Empty `questions` is legal.** `{"state": "", "questions": []}` validates
-   and answers `[]` — request validation is per-question; a 400 means
-   malformed JSON or a question-level violation (empty prompt, `noul` with
-   options, `< 2` options on choice/score, duplicate ids).
+   and answers `[]` — request validation is per-question. A **400** means
+   malformed JSON or an unknown `X-Reflex-Lane`; a **422** means the JSON
+   parsed but a question breaks a rule (empty prompt, `noul` with options,
+   `< 2` options on choice/score, duplicate ids) — measured against 0.2.3.
+   Every error body is `{"error": "…"}`; the full table, captured live, is at
+   <https://reflex.gist.rs/docs/api/#errors>.
 
 ## 10. Measured basis (do not cite unmeasured)
 
