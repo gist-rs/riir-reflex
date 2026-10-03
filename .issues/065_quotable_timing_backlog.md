@@ -16,10 +16,13 @@ this backlog visible as "named in the note, never plotted").
 | `agentjev@4090-win` | http | **0 of 8** | 8 unjudged | same |
 | `openthai` | http | **9 of 9** | — (index clean) | its m3 index is fully quotable (Bench 085 re-read), BUT its 11 `@4090-win` extra-host cells are unjudged, and on 4 suites (typed, emotion, sst5, xnli) those unjudged cells outrank the m3 cells on accuracy — so the reflex-site home summary's pick drops those 4 suites from the openthai row (7/14) |
 
-Consequence: the site's Issue-021 law ("unfit timing is shown in the tables, never plotted") is now ENFORCED on
-the home summary chart too (reflex-site `6ed8f8a`), so bekko / paw / clm / gliner / agentjev render on the
-accuracy metrics but carry no p50 bar, and the note names them every render. openthai plots 7/14 instead of its
-full coverage for the same reason one layer down (unjudged 4090 cells winning the accuracy pick).
+Consequence: the site's Issue-021 law ("unfit timing is shown in the tables, never plotted") is enforced on the
+reflex-site home summary too — unfit cells never plot there, and since reflex-site `4b7fe65` a lane left with
+nothing plottable keeps a PRESENCE row with the reason in place (bekko, currently) instead of vanishing, while
+UNJUDGED cells (no probes) plot again marked ⚠ unverified and fallback cells plot as the served product (↩).
+What remains true: none of these lanes' timing is verified, so the home chart's latency story for them is
+thin-to-absent until the re-runs below land. openthai plots 11/14 with 4 of them unverified for the same reason
+one layer down (unjudged 4090 cells winning the accuracy pick).
 
 The publisher's walls are already in place and stay: a doc whose box state says NOT QUOTABLE refuses to publish
 timing unless `PUBLISH_BENCH_ALLOW_UNQUOTABLE` names the host; an `:acc-only` suffix publishes accuracy while
