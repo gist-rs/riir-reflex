@@ -1,6 +1,5 @@
 /target
 Cargo.lock.bak
-.heal/
 .benchmarks/data/
 /dist
 /.raw/
