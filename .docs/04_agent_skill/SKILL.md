@@ -242,7 +242,8 @@ refit → better-calibrated confidences → your §6 threshold keeps its meaning
   shipped binary serves.
 - **laya (opt-in)** — the accuracy heavyweight — the laya decision model
   (a ModernBERT-large encoder port) with downloadable weights (default cache
-  `~/.cache/riir-reflex/laya`). Any laya number you cite must be preceded by
+  `$HOME/.cache/riir-reflex/laya`; `LAYA_WEIGHTS_DIR` or `LAYA_HOME` override it —
+  verified against reflex 0.2.3). Any laya number you cite must be preceded by
   its parity gate (top-1 agreement vs the reference checkpoint) — a lane that
   has not passed parity is PROVISIONAL, and its numbers are not citable.
 - The response's `routing.lane` tells you which lane served (`modelless` |
