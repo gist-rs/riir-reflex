@@ -24,6 +24,7 @@ every folder, and this file as the top-level index.
 | [`02_protocols/`](02_protocols/) | The laya comparison lane's contracts: benchmark task protocols, checkpoint provenance pin, fetched-dataset manifest |
 | [`03_decision_flow/`](03_decision_flow/) | The end-to-end decision flow narrative + its SVG diagram (the diagram is mirrored to the arena site) |
 | [`04_agent_skill/`](04_agent_skill/) | The `reflex-integration` agent skill (SKILL.md) — the in-repo source of truth; published on reflex.gist.rs through a mirror |
+| [`05_resources/`](05_resources/) | Teaching docs for the /resources education page: the lane explainer + the dev build-flow figure (DRY sources mirrored to the site) |
 
 ## Mirrors
 

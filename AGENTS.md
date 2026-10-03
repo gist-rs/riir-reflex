@@ -899,6 +899,7 @@ the reference): numbered folders for sort order, bare slugs inside, a
 | `02_protocols/` | The laya lane's contracts: bench protocols, reference pin, dataset manifest |
 | `03_decision_flow/` | The decision-flow narrative + SVG diagram |
 | `04_agent_skill/` | The `reflex-integration` agent skill (source of truth) |
+| `05_resources/` | The /resources education sources: the lane explainer + the dev build-flow figure (mirrored to the site) |
 
 - Files inside numbered folders have **no number prefix** — bare slugs
   (`sibling_layout.md`). Add a doc by dropping `slug.md` in the right folder
