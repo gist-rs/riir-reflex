@@ -101,6 +101,7 @@ for target in "$@"; do
     rm -rf "$STAGE"; mkdir -p "$STAGE"
     cp "$SRC_BIN" "$STAGE/$EXE"
     cp "$LICENSES" "$STAGE/THIRD_PARTY_LICENSES.md"
+    cp "$REPO_ROOT/LICENSE" "$STAGE/LICENSE"   # the binary's own licence (MIT)
 
     ARCHIVE="$PKG_DIR/$BIN_NAME-v$VERSION-$target.$ARCHIVE_EXT"
     rm -f "$ARCHIVE"
@@ -108,8 +109,8 @@ for target in "$@"; do
     # `bin.install` both expect `<binary>` + THIRD_PARTY_LICENSES.md at top
     # level — found by the G1 clean-install smoke, Plan 606 T2.5).
     case "$ARCHIVE_EXT" in
-        tar.gz) tar -czf "$ARCHIVE" -C "$STAGE" "$EXE" THIRD_PARTY_LICENSES.md ;;
-        zip) (cd "$STAGE" && zip -q "$ARCHIVE" "$EXE" THIRD_PARTY_LICENSES.md) ;;
+        tar.gz) tar -czf "$ARCHIVE" -C "$STAGE" "$EXE" LICENSE THIRD_PARTY_LICENSES.md ;;
+        zip) (cd "$STAGE" && zip -q "$ARCHIVE" "$EXE" LICENSE THIRD_PARTY_LICENSES.md) ;;
     esac
     echo "   packaged: $ARCHIVE"
 done
