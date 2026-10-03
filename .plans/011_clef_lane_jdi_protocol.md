@@ -191,7 +191,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       (the determinism witness), the typed digest == the C2 pin (`fnv1a64-6e37760ee2a5b6c9`),
       and the typed think axes reproduce the --gold-from readings BIT-FOR-BIT (mF1 0.7445 /
       skill 0.6537 / chance 0.2925) — the native path == the join path.
-- [-] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
+- [x] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
       vs Rethink encoder vs laya vs GLiNER vs CLM vs AgentJev vs the JDI board reference rows) on
       /bench/ + the TL;DR card; caveat text from B5 rendered verbatim; `publish_bench.py` +
       `republish_bench.sh` flow.
@@ -217,7 +217,16 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       read: b77 clef 0.9540/skill 0.9533 vs Instinct 0.8540/0.8519 on pin fnv1a64-dd8ab…; typed clef
       0.6955/0.5696 vs Rethink encoder 0.7550/0.6537 (record-only) vs Instinct 0.6475/0.5018 on pin
       fnv1a64-6e37…. Smokes: 3 new data-derived crosswalk arms (tables count / caveat verbatim /
-      pins) + the full gate set green.
+      pins) + the full gate set green. **TL;DR CARD LANDED 2026-10-04 (reflex-site `dd5409d`, deployed
+      `6bee75de`, live asset verified):** one verdict line per suite under the caveat — the leader by
+      accuracy (rec tag when record-only) with skill axes, plus clef's own p50 posture from its lane
+      cell (`at 3.37 s p50 (clef-flash-4bit)` / `1.69 s`). Everything data-derived from the crosswalk
+      block + the clef lane cell, never typed (the site law); OUR rows only — the board/blog reference
+      numbers never enter it, so the B5 caveat governs what it excludes by construction. First live
+      lines: `typed_decisions — Rethink [rec] leads at 0.7550 acc / 0.6537 skill over Clef 0.6955 /
+      0.5696 at 1.69 s p50` · `banking77 — Clef 0.9540 acc / 0.9533 skill at 3.37 s p50 leads every
+      measured lane (best other: Instinct 0.8540)`. Smoke arm pins the leaders against the data's
+      argmax (clef-led suites read the fixed `— Clef` phrasing; record-only leaders carry the rec tag).
 - [ ] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
       typed_decisions + banking77, with the cost + latency posture disclosed. **Reading note
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
