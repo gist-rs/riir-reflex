@@ -1,6 +1,7 @@
 # Plan 010 — the S1MB lane: bench our three lanes on the System One Mosaic Benchmark, publish a site section
 
-**Status:** IN FLIGHT — owner directive 2026-10-02 ("bench s1mb against only
+**Status:** COMPLETE 2026-10-03 — all tasks landed (T5 as a measured
+EARN-NO). Owner directive 2026-10-02 ("bench s1mb against only
 Reflex, Instinct, Rethink and promote to new section after
 reflex.gist.rs/bench/#timing"). Opens the riir-train Issue 607 gate for THIS
 scope (our lanes, our metric) — NOT the 607 repro path (their eval code,
@@ -70,28 +71,58 @@ banking77, massive, snli, ...).
       **s1mb_choice 0.2296** (p50 0.399 ms; 842-domain by-name posture,
       464 starved-key self-doc fallbacks disclosed; wall 547 s). Tables in
       /tmp/smokes — RE-RUN into .benchmarks/105 at record time (T7).
-- [ ] T4 Instinct row: riir-train `instinct_arm_b` gold-only path
+- [x] T4 Instinct row: riir-train `instinct_arm_b` gold-only path
       (`--arm-a-only`, the teacher dump optional) → winner artifacts for the
       3 suites → instinct arena runs (`--datasets-dir .raw/datasets_s1mb`,
       the 3 suites are SEATABLE — prepare_seat reads the registry) → A1/H1/
       H2 best per suite. instinct .benchmarks record (next number).
-- [ ] T5 Rethink row: laya-typed encodes of the corpus half → lenc cache →
+      **DONE — instinct `.benchmarks/0057_s1mb_hybrid/`: a0_stands on all
+      three (noul instrument pick A1 refused, paired LB95 −0.0169; choice
+      instrument registered A0 outright — A0 wins the cal front; score has
+      no winner artifact → A0-only). Winners:
+      `data/demo_specialists/s1mb_{choice,noul}_winner_v1`. Re-run with the
+      case-id freeze reproduced every arm byte-exactly.**
+- [x] T5 Rethink row: laya-typed encodes of the corpus half → lenc cache →
       the NLEH v2 per-option head trained over the S1MB label space
       (riir-train encoder trainer; may need an S1MB adapter — coordinate
       with the Lane E owner session, instinct Issue 018, which cites this
       exact intel) → sealed artifact → arena `--encoder-art` replay over the
       test half. Record-only, `serve: ✗`.
-- [ ] T6 site: `reflex-site` — publish_bench.py + the /bench/ page render a
+      **DONE AS EARN-NO — three recipes (default; h256×30ep; per-suite)
+      all failed the earn bar vs the backbone's zero-shot reference logits
+      (disclosed diagnostics: noul 0.44 vs 0.58 · score 0.21 vs 0.29 ·
+      choice 0.11 vs 0.39; h256 retry 0.4387 vs 0.58). Probes
+      read-reserved — no artifact sealed, no arena replay, no site cell;
+      the lane's site row carries the fallback answer + the gap note.
+      Cases maker tracked: riir-train `scripts/plan010_make_s1mb_cases.py`;
+      probes + caches in riir-train `.raw/s1mb/` (blake3-sidecarred,
+      weights-never-committed). Issue 607 carries the verdict.**
+- [x] T6 site: `reflex-site` — publish_bench.py + the /bench/ page render a
       new S1MB section positioned after the #timing section (per-lane rows ×
       3 suites + overall; disclosure line: our-metric, not leaderboard-
       comparable; corpus-half split disclosed). Self-tests + smokes + commit;
       wrangler deploy is manual. ⚠ COORDINATION: a sibling session is active
       in reflex-site (bench.json areas v3) — read the tree first, commit only
       this section's files.
-- [ ] T7 records: reflex `.benchmarks/105_s1mb_lane/` (all three lanes'
+      **DONE — `compute_s1mb` derives `d["s1mb"]` (one row per lane × 3
+      suites + avg + disclosures; the Rethink row shows the fallback answer
+      marked + the gap note; the laya choice gap named); the #s1mb section
+      renders it after #timing (reflex.gist.rs/bench/#s1mb). Published from
+      this record + the instinct doc (build_hybrid_doc) + the two Bench-111
+      laya docs; acc-only for the loaded-box lanes (12 slots stripped).
+      En-route fix: `stamp_cell` no longer stamps a latency verdict onto a
+      timing-stripped cell. test_publish_bench 84/84; bench_page/chart/
+      public-copy/legibility/home smokes PASS. wrangler deploy manual
+      (pending).**
+- [x] T7 records: reflex `.benchmarks/105_s1mb_lane/` (all three lanes'
       numbers + the domain-vs-generalization split + full disclosure) +
       riir-train Issue 607 updated (the our-lanes scope executed; the repro
       path still deferred) + cross-refs.
+      **DONE — renumbered `.benchmarks/114_s1mb_lane.md` per the numbering
+      discipline (105 was taken by the families wide-eval; 114 is the
+      allocated highwater). The split lives in
+      `114_s1mb_lane/group_split.json` (arena case-id freeze × converter
+      groups; 0 unjoined; blends exact). Issue 607 updated.**
 
 ## Gates / honesty
 

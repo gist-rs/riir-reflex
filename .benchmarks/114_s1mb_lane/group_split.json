@@ -1,0 +1,58 @@
+{
+ "s1mb_choice": {
+  "A0": {
+   "domain": {
+    "n": 4221,
+    "acc": 0.2305
+   },
+   "generalization": {
+    "n": 108,
+    "acc": 0.1944
+   }
+  },
+  "A1": {
+   "domain": {
+    "n": 4221,
+    "acc": 0.3068
+   },
+   "generalization": {
+    "n": 108,
+    "acc": 0.1296
+   }
+  }
+ },
+ "s1mb_noul": {
+  "A0": {
+   "domain": {
+    "n": 6085,
+    "acc": 0.7091
+   },
+   "generalization": {
+    "n": 88,
+    "acc": 0.4545
+   }
+  },
+  "A1": {
+   "domain": {
+    "n": 6085,
+    "acc": 0.7067
+   },
+   "generalization": {
+    "n": 88,
+    "acc": 0.4091
+   }
+  }
+ },
+ "s1mb_score": {
+  "A0": {
+   "domain": {
+    "n": 2474,
+    "acc": 0.5081
+   },
+   "generalization": {
+    "n": 97,
+    "acc": 0.2062
+   }
+  }
+ }
+}
