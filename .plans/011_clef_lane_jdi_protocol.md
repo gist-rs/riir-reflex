@@ -143,7 +143,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
 
 ## Phase C — Rethink-on-JDI cells + the site publication
 
-- [-] C1 run the dataset suites with `--clef` — **PARTIALLY DONE 2026-10-03 via the LOCAL lane**
+- [x] C1 run the dataset suites with `--clef` — **PARTIALLY DONE 2026-10-03 via the LOCAL lane**
       (owner pivot: no Workers AI creds needed — run the open weights like every other lane):
       smoke runs landed (`.benchmarks/113_clef_lane/smoke_{banking77,typed}`, 50-case caps,
       det ✓, envelope+model provenance verified); full-N comparable runs (banking77 500 + typed
@@ -157,6 +157,20 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       accuracy/ECE/macro-F1 and the population digests reproducing 113 EXACTLY. The site cells
       graduated from acc-only (reflex-site `4297d32`, deployed `d1997b32`); the p50 presence-row
       pin retired with the state (clef plots a real bar).
+      **THE DATASET-SUITE TAIL LANDED 2026-10-04 (bench 119, the time-not-money remainder):**
+      the standing local rig answered the remaining 7 suites as per-suite docs on a quiet box
+      (every doc quotable both ends, loads 1.1–2.7; modelless controls == board on all seven —
+      the drift guard). code_fixtures 0.5938/673 ms · prompt 0.5862/330 ms · xnli 0.8133/351 ms ·
+      massive **0.9333**/903 ms · emotion 0.5925/416 ms · ag_news **0.9000**/456 ms · sst5
+      0.6033/409 ms. `areas.timing.clef` = **9/0/0** (p50 geomean 680 ms) over the lane's full
+      9-suite index (the bekko/openthai/paw comparison population — thai/s1mb stay out per lane
+      consistency). The crosswalk auto-grew to 9 suites (the publisher's clef-carrying
+      population; the digest-pin excludes unpinned hybrid/encoder rows loudly) and the TL;DR
+      card now covers every suite with honest TIE phrasing (code_fixtures: clef/openthai/bekko
+      all 0.5938 — “ties”, never a false “leads”; renderer fix + smoke arm). Clef leads
+      sst5/massive/banking77; is led against on typed (Rethink rec), ag_news (bekko 0.915),
+      emotion + prompt (Instinct), xnli (openthai 0.8967). Published (reflex-site `365d0a0`,
+      deployed `fd9515a3`, live-verified).
 - [x] C2 the Rethink cells on the same runs come from the instinct arena's published rows
       (hybrid_lane_doc) — add the macro-F1 + skill columns to the lane-doc build so Rethink and
       the lanes read on the same axes (riir-instinct side; small, display-only). **Case-identity
