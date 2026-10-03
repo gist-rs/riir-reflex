@@ -150,6 +150,13 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       400) in flight into `.benchmarks/113_clef_lane/full_*` — record doc + provenance + the
       preflight-quated load caveat (latency rows provisional at load 6.36; accuracy
       load-invariant) lands with them. The HOSTED C1 run stays deferred per A6.
+      **The latency caveat CLOSED 2026-10-04 (bench 118, the quiet-box re-read):** both full-N
+      cells re-measured on a preflight-clean box (load 2.57→1.07 / 1.22→2.80, AC, High Power;
+      the 29 GB swap drained across the runs) — **latency QUOTABLE both ends both suites**:
+      b77 p50 3368 ms (was 3901 provisional, −14%) · typed 1690 ms (was 2377, −29%), with
+      accuracy/ECE/macro-F1 and the population digests reproducing 113 EXACTLY. The site cells
+      graduated from acc-only (reflex-site `4297d32`, deployed `d1997b32`); the p50 presence-row
+      pin retired with the state (clef plots a real bar).
 - [x] C2 the Rethink cells on the same runs come from the instinct arena's published rows
       (hybrid_lane_doc) — add the macro-F1 + skill columns to the lane-doc build so Rethink and
       the lanes read on the same axes (riir-instinct side; small, display-only). **Case-identity
