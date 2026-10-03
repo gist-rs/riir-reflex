@@ -1,7 +1,7 @@
 # Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)
 
-- run: `e45c828` on `m3` (2026-10-03T20:38:17Z) · profile release · laya feature false
-- box state (Issue 021): start power=AC Power mode=high load=2.26 swap=16660M · end power=AC Power mode=high load=2.04 swap=16652M — latency QUOTABLE
+- run: `e45c828` on `m3` (2026-10-03T21:54:51Z) · profile release · laya feature false
+- box state (Issue 021): start power=AC Power mode=high load=4.16 swap=16604M · end power=AC Power mode=high load=2.35 swap=16580M — latency QUOTABLE
 - laya device posture: n/a (compiled without laya-riir)
 - laya-python lane: off (pass --laya-python to add the reference lane)
 - clm lane: off (pass --clm to add the comparison lane; .issues/027)
@@ -27,47 +27,55 @@
 - divergence: engine context = state + prompt (wire criteria None) — the modelless serving path
 - divergence: synthetic fixtures (semantic_defects, code_fixtures): in-process fixtures with programmatic gold; the six Issue-004 harness families were retired 2026-10-02 (owner call — at-chance on the modelless lane at the honest populations)
 
-## massive_intent_en — 300 cases / 300 questions
+## typed_decisions — 400 cases / 2000 questions
 
-**slice-integrity: test 300 (fnv1a64-328f111f90d7a0c1) · cal 200 (fnv1a64-74b76416cdd836d5) · pool 11314 (fnv1a64-fb5a4f0d9147dc0d) · OK**
+**slice-integrity: test 400 (fnv1a64-287d5f73a11932cd) · cal 100 (fnv1a64-0b6e8426558b0d1e) · pool 1100 (fnv1a64-a1679de56e9278b1) · OK**
 
 **corpus cap:** 48 (registry)
 
-**count tables:** cal-selected scale 4 α observed-laplace view bag (promotion bar +5 pt over off)
+**count tables:** cal-selected scale 0 α off view bag (promotion bar +5 pt over off)
 
 | nb scale | α | noul yes→domain | view | cal acc |
 |---|---|---|---|---|
-| 0 | off | — | bag | 0.4500 |
-| 1 | observed-laplace | — | bag | 0.5850 |
-| 4 ← selected | observed-laplace | — | bag | 0.6050 |
-| 16 | observed-laplace | — | bag | 0.5950 |
-| 32 | observed-laplace | — | bag | 0.5950 |
-| 64 | observed-laplace | — | bag | 0.5950 |
-| 1 | fixed-1 | — | bag | 0.5500 |
-| 4 | fixed-1 | — | bag | 0.5850 |
-| 16 | fixed-1 | — | bag | 0.5650 |
-| 32 | fixed-1 | — | bag | 0.5650 |
-| 64 | fixed-1 | — | bag | 0.5650 |
+| 0 ← selected | off | — | bag | 0.3600 |
+| 1 | observed-laplace | — | bag | 0.3600 |
+| 4 | observed-laplace | — | bag | 0.3600 |
+| 16 | observed-laplace | — | bag | 0.3600 |
+| 32 | observed-laplace | — | bag | 0.3600 |
+| 64 | observed-laplace | — | bag | 0.3600 |
+| 1 | fixed-1 | — | bag | 0.3600 |
+| 4 | fixed-1 | — | bag | 0.3600 |
+| 16 | fixed-1 | — | bag | 0.3600 |
+| 32 | fixed-1 | — | bag | 0.3600 |
+| 64 | fixed-1 | — | bag | 0.3600 |
 
-**transductive column (NOT the headline):** acc 0.7833 vs honest 0.7800 (+0.3 pt; 300 pseudo-labelled test docs) — TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc
+**readout (report-only):** best-on-cal `max_prob` NOT armed — the margin pick overfits cal (Bench 052 demotion); cal in-sample calibrated ECE: dispatch 0.4823 · max_prob 0.1156 · inv_entropy 0.4823
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 300 | 0.7800 | 0.7698 | 0.6352 | 0.7856 | 2.0599 | 0.0553 | 0.9667 | 0.0796 | 0.94/0.31 | 0.7670 | 0.109 ms | 0.133 ms (4) | ✓ | s 0.2008 / d 0.5259 (n 200) |
-| paw · paw-ft-bs48-20260530 | 300 | 0.5133 | — | — | — | — | — | — | — | — / — | — | 1049.4 ms | 2345.3 ms (4) | ✗ | — |
+| modelless | 2000 | 0.5725 | 0.5429 | 0.0993 | 0.5634 | 0.9993 | 0.2967 | 0.6760 | 0.0496 | 1.00/0.72 | 0.6537 | 0.763 ms | 1.851 ms (5) | ✓ | s 0.5785 / d 0.9122 (n 100) |
+| paw · paw-ft-bs48-20260530 | 2000 | 0.5925 | — | — | — | — | — | — | — | — / — | — | 1123.1 ms | 2108.0 ms (21) | ✓ | — |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
-**PAW lane:** refusals **118/300** (39.3%) · answered-acc 0.8462 · quote-stripped 0 · program `1b5d4b654f60b508602c` (paw-ft-bs48-20260530, hosted-anonymous) · compile 88.6 s (cached) · server p50 91.0 ms
-refusal samples: ["qa_factoid", "iot_hue_lightchange", "iot_hue_sound", "ui_status", "iot_hue_lightdown", "iot_hue_lightoff", "iot_hub_power", "toaster_query"]
+**PAW lane:** refusals **2/2000** (0.1%) · answered-acc 0.5931 · quote-stripped 0 · program `73c963ebfd40a8d25288,f1d08b30f8c84c2fec6c,04a3b05698d9f7afc8cd,3f8d28006aa102c9df04,0189d0989f5222454bea,5c74a4fca552e2471669,0c366580689869c1f689,0522b1a4023281b00c19,c4bf7c8af208cf4374af,19114692867411036ed5,3466ab136a4aa4ae6bdf,84d32e31a96917d47a0b,eeecbb0dbfd3bba96bdb,d8564cd360417f43590c,492c5669e60b7b07a7db` (paw-ft-bs48-20260530, hosted-anonymous) · compile 2645.5 s (cached) · server p50 94.6 ms · score MAE (answered) 0.6464 · within-1 0.7963
+refusal samples: ["data", "observe"]
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
 
 | lane · model | n | acc | macro F1 | chance | skill | det |
 |---|---|---|---|---|---|---|
-| modelless · modelless | 300 | 0.7800 | 0.7698 | 0.0867 | 0.7591 | ✓ |
+| modelless · modelless | 2000 | 0.5725 | 0.5429 | 0.2925 | 0.3958 | ✓ |
 
 
-**G1 (modelless readout ECE):** raw 0.6352 · calibrated 0.0796 · conformal-naive floor 0.1209 → **PASS** (beats both the uncalibrated output AND the floor)
+**G1 (modelless readout ECE):** raw 0.4837 · calibrated 0.0496 · conformal-naive floor 0.1818 → **PASS** (beats both the uncalibrated output AND the floor)
+
+**typed-decisions extras (modelless):** soft_acc 0.3827 · brier_soft 0.1676 · score MAE 0.5718 · within_1 0.8163
+
+| model | type | n | acc | ECE(maxp) | mean conf |
+|---|---|---|---|---|---|
+| modelless | choice | 600 | 0.5483 | 0.1482 | 0.4001 |
+| modelless | noul | 600 | 0.7300 | 0.0682 | 0.6618 |
+| modelless | score | 800 | 0.4725 | 0.0974 | 0.3865 |
 
 ## Landscape — published specialist rows (NOT measured by this harness)
 

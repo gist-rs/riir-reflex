@@ -1,8 +1,8 @@
 # Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)
 
-- run: `e45c828` on `m3` (2026-10-03T20:38:17Z) · profile release · laya feature false
-- box state (Issue 021): start power=AC Power mode=high load=2.26 swap=16660M · end power=AC Power mode=high load=2.04 swap=16652M — latency QUOTABLE
-- laya device posture: n/a (compiled without laya-riir)
+- run: `652ddae` on `m3` (2026-10-03T18:28:28Z) · profile release · laya feature true
+- box state (Issue 021): start power=AC Power mode=high load=4.06 swap=29452M · end power=AC Power mode=high load=3.04 swap=29452M — latency QUOTABLE
+- laya device posture: cpu (LAYA_DEVICE or the no-backend default)
 - laya-python lane: off (pass --laya-python to add the reference lane)
 - clm lane: off (pass --clm to add the comparison lane; .issues/027)
 - gliner lane: off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)
@@ -26,6 +26,10 @@
 - divergence: banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable
 - divergence: engine context = state + prompt (wire criteria None) — the modelless serving path
 - divergence: synthetic fixtures (semantic_defects, code_fixtures): in-process fixtures with programmatic gold; the six Issue-004 harness families were retired 2026-10-02 (owner call — at-chance on the modelless lane at the honest populations)
+
+## Absences / errors (honest — never silently dropped)
+
+- massive_intent_en (paw): paw warmup: POST /api/v1/infer -> HTTP 502: {"detail":{"error":"inference_failed","message":"Inference failed. Please try again.","request_id":"f8206374-dad"}}
 
 ## massive_intent_en — 300 cases / 300 questions
 
@@ -53,12 +57,8 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 300 | 0.7800 | 0.7698 | 0.6352 | 0.7856 | 2.0599 | 0.0553 | 0.9667 | 0.0796 | 0.94/0.31 | 0.7670 | 0.109 ms | 0.133 ms (4) | ✓ | s 0.2008 / d 0.5259 (n 200) |
-| paw · paw-ft-bs48-20260530 | 300 | 0.5133 | — | — | — | — | — | — | — | — / — | — | 1049.4 ms | 2345.3 ms (4) | ✗ | — |
+| modelless | 300 | 0.7800 | 0.7698 | 0.6352 | 0.7856 | 2.0599 | 0.0553 | 0.9667 | 0.0796 | 0.94/0.31 | 0.7670 | 0.107 ms | 0.127 ms (4) | ✓ | s 0.2008 / d 0.5259 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
-
-**PAW lane:** refusals **118/300** (39.3%) · answered-acc 0.8462 · quote-stripped 0 · program `1b5d4b654f60b508602c` (paw-ft-bs48-20260530, hosted-anonymous) · compile 88.6 s (cached) · server p50 91.0 ms
-refusal samples: ["qa_factoid", "iot_hue_lightchange", "iot_hue_sound", "ui_status", "iot_hue_lightdown", "iot_hue_lightoff", "iot_hub_power", "toaster_query"]
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
 

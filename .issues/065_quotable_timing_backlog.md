@@ -9,7 +9,7 @@ this backlog visible as "named in the note, never plotted").
 | lane | clock | quotable cells | verdict breakdown | why |
 |---|---|---|---|---|
 | `bekko` | subprocess | **9 of 9** ✅ (2026-10-03, bench 115 — T1 DONE) | — | landed via **per-suite docs** (each doc's span fits a baseline dip; the 15-min full-run shape cannot pass while the editor is alive — baseline drift 3.2→8.8 measured; banking77 landed via the `[banking77, typed, code_fixtures]` triple whose registry-order tail is code_fixtures' 20 s light run). p50 geomean 231.7 ms published; record `.benchmarks/115_bekko400m_timing/RECORD.md` (issue 067, closed with this T1) |
-| `paw` | http | **3 of 9** (2026-10-04, bench 116 — partial: their hub outage) | 2 unfit + 4 unjudged | 3 quotable (prompt_injections, code_fixtures, xnli_en; ~1.0–1.2 s/q wall) landed before programasweights.com's `/api/v1/infer` went 502 on every program (~00:10 +0700, their-side outage). Remaining 6 re-run when healthy |
+| `paw` | http | **9 of 9** ✅ (2026-10-04, bench 117 re-attempt #3 — T2 DONE) | — | probe-gated launch (`paw_hub_probe.sh` exit 0), preflight PASS, 6 per-suite docs quick→slow (typed last, 39 min); all quotable both ends; p50 geomean 1057.24 ms published. One disclosure: massive_intent_en `determinism_ok: false` (their endpoint answered differently on one re-ask — the lane's first det ✗; refusals/acc unaffected). Three real smoke defects fixed at the publish (hero break-sign derivation must mirror the page's per-lane-key pick — ag_news+typed pick paw LOCAL on acc; the unfit-cells enumeration missed clef/encoder; changes.json carried internal ids past the copy gate) |
 | `paw_local` (host `4090-win`) | local-runtime | **superseded by the m3 primary lane** — m3 **9 of 9** ✅ (2026-10-04, bench 116) | 0/0 on m3 | the m3 primary `paw_local` lane (p50 geomean 34.2 ms, all bundles cache-hit) replaced the @4090-win host-tagged rollup by design; the 4 4090 cells stay in the per-suite tables (unjudged, 065 T3) |
 | `clm@4090-win` | http | **0 of 8** | 8 unjudged | same — no probes on the 4090 |
 | `gliner@4090-win` | subprocess-python | **0 of 8** | 8 unjudged | same |
@@ -34,23 +34,19 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
 - [x] T1 Re-run `bekko` on a quiet M3: **DONE 2026-10-03 — bench 115, 9/9 cells quotable, published**. What actually worked was NOT one quiet 15-min window (none exists while the editor runs; two full-run attempts + the light-tail pairing went start-quotable → end-unfit) but per-suite docs with retries, plus the triple doc for banking77 (registry order puts banking77 last in ANY doc, so its tail is always the heavy suite — the triple ends on code_fixtures). **Priced in `.issues/067`** (filed 2026-10-03, closed same day with this T1): ≈21 min of lane wall (run 1 15.0 min + run 2 6.3 min, Bench 107's measured per-suite seconds); the gate that failed in Bench 107 was
   the box going LOADED mid-run after a green launch preflight (load 3.89 → 9.05), so the quiet-box check must hold
   at BOTH ends — 067 carried the verbatim re-run protocol; bench 115's RECORD carries the measured post-mortem and the doc shapes that pass.
-- [ ] T2 Re-run `paw` hosted + `paw_local` the same way (`--paw` with the tier env
+- [x] T2 Re-run `paw` hosted + `paw_local` the same way (`--paw` with the tier env
   `PAW_COMPILER=paw-ft-bs48-20260530` + `PAW_COMPILE_ASYNC=1`, `--paw-local` with `PAW_LOCAL_PYTHON`) —
   preflight green, one window, both postures. Expected: 5 unfit hosted cells + the local posture cells → quotable
   (the 4 unjudged hosted cells become judgable the same way, since the harness itself probes the m3 box).
-  **PARTIAL 2026-10-04 (bench 116): paw_local 9/9 quotable on m3** (p50 geomean 34.2 ms — the m3 primary lane replaced the
-  @4090-win host-tagged rollup by design; the 4090 cells stay in the per-suite tables). **Hosted 3/9** (prompt_injections,
-  code_fixtures, xnli_en quotable, ~1.0–1.2 s/q wall) — then programasweights.com's inference endpoint went down mid-run
-  (HTTP 502 `inference_failed` on EVERY program incl. previously-answered ones; site root still 200 — their-side outage,
-  ~00:10 +0700). Remaining: emotion, ag_news, sst5, massive_intent_en, banking77, typed_decisions — re-run when their hub
-  is healthy (the failed attempts' docs sit beside the good ones in `per_suite/`, the bench-115 pattern). One hosted acc
-  drift disclosed: xnli 0.72 → 0.7233 (+1/300 — their endpoint evolved since Sept 29; honest dated reading).
-  **RE-ATTEMPT #2 2026-10-04 ~01:2x +0700 (bench 117): still down.** Clean quiet window (preflight PASS load 3.89, canary
-  119.8 µs; doc box state 4.04→3.04 quotable both ends), compile cache-hit, warmup infer 502 `inference_failed` ×6
-  retries on the first suite (massive_intent_en) — the outage spans 00:10→01:28+. **Probe lesson:** an invalid-body 422
-  from `/api/v1/infer` only proves the validation layer answers (this session launched on that false healthy read);
-  the faithful probe is `scripts/paw_hub_probe.sh` (the harness's own warmup request against the cached
-  massive_intent_en program) — **re-run gate: probe exit 0 before launching.**
+  **DONE 2026-10-04 across three windows (benches 116 + 117):** paw_local 9/9 quotable on m3 (bench 116, p50
+  geomean 34.2 ms — the m3 primary lane replaced the @4090-win host-tagged rollup by design); paw hosted 3/9
+  in bench 116 before their hub outage (~00:10 +0700), re-attempt #2 (bench 117) found it still down and left
+  `scripts/paw_hub_probe.sh` as the launch gate; **re-attempt #3 (~03:35 +0700, probe exit 0, preflight PASS
+  after the AC settle) landed all 6 remaining suites** — every doc quotable at both ends, modelless controls
+  == board on all six, p50 geomean 1057.24 ms, `areas.timing.paw` = 9/0/0. Published (T4) with the smoke
+  fixes the publish surfaced (all recorded in bench 117's RECORD). Disclosures: xnli hosted drifted +1/300
+  vs Sept 29 (bench 116, their endpoint evolved); massive_intent_en `determinism_ok: false` (their endpoint,
+  one re-ask differed — first det ✗ on this lane).
 - [ ] T3 The 4090-hosted lanes (`clm`, `gliner`, `agentjev`, and the `openthai`/`paw` @4090 extra-host cells) are
   unjudged because the 4090 harness has no box-state probes — two roads, pick one (owner call recorded here):
   - [ ] (a) run the harness FROM the m3-max-metal against the 4090-served endpoints — the probes read the m3 box,
