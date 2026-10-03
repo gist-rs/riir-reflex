@@ -9,6 +9,14 @@ A2.5/A6 blocked on owner creds; Phase C blocked on A6 — C1's hosted run needs 
 token). **D2 LANDED 2026-10-02**: riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md`
 (riir-train `115e5690`) — the recipe note with the pre-registered per-arm gate; the optional plan
 derives when the §3 trigger fires. Phase D's remaining rows stay deferred per their own wording.
+**A6 probe 2026-10-03: the provided tokens DON'T carry Workers AI scope** — `CF_API_TOKEN` and
+`CF_DEPLOY_API_TOKEN` (both in the gitignored local `.env`) are valid CF tokens for account
+`7e11517c4dd4f6e9cede7da9b60d66eb` but fail AI read (403 code 10000 on `ai/models/search`) and
+AI run (401 code 10000 on `ai/run/clef` and `…/@cf/cloudflare/clef[-flash]`, both spellings) —
+the riir-dao credential class exactly. Owner unblock: mint a token with **Account → Workers AI →
+Edit/Run** scope into `.env`. The A0 forwarder + probe rig are staged locally, gitignored
+(`.raw/clef_fwd/` — never repo code); rerun is one command from its README once the scoped token
+lands. Phase C stays blocked on A6.
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -74,6 +82,13 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       ceiling: `CLEF_SMOKE_MAX_CASES` (default 50) — a run above the ceiling REFUSES unless
       explicitly overridden (pricing is undisclosed; no unbounded spend). The ceiling + override
       enforcement SHIPPED with the lane (A1/A3); only the creds themselves are owner-gated.
+      **Probed 2026-10-03 (m3):** the two provided tokens (`CF_API_TOKEN`, `CF_DEPLOY_API_TOKEN`)
+      are valid CF tokens (accounts list 200, one account visible) with **no Workers AI scope** —
+      403 code 10000 on `ai/models/search`, 401 code 10000 on `ai/run` for `clef` AND the full
+      `@cf/cloudflare/clef[-flash]` spellings. Account id for the run path:
+      `7e11517c4dd4f6e9cede7da9b60d66eb`. The scoped token (Account → Workers AI → Edit/Run) is
+      the remaining owner act; local rig in gitignored `.raw/clef_fwd/` (probe + A0 forwarder +
+      runbook README).
 
 ## Phase B — the JDI protocol adapter (riir-reflex)
 
