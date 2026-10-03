@@ -120,8 +120,10 @@ pub struct SynthPerLabel {
     pub allocated: usize,
     pub accepted: usize,
     pub veto_rejected: usize,
-    /// Rows the minimal-deviation density gate rejected after the veto
-    /// passed (0 unless the gate is armed — Issue 064 task 2).
+    /// Rows the minimal-deviation density gate rejected BEFORE the teacher
+    /// forward (density-first, the order-invariant AND: a rejected row never
+    /// spends a teacher call; the accepted set is identical either order).
+    /// 0 unless the gate is armed — Issue 064 task 2.
     #[serde(default)]
     pub density_rejected: usize,
     pub weight: f64,
@@ -974,6 +976,27 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
             if slot.accepted >= alloc {
                 continue 'labels;
             }
+            // The ascent leg (Issue 064), DENSITY-FIRST: the minimal-deviation
+            // gate runs BEFORE the teacher forward. Both filters are pure
+            // functions of the candidate, so the accepted SET is
+            // order-invariant (the first N candidates passing BOTH, in
+            // iteration order — identical artifact bytes either order), but
+            // the cost is not: the loop forwards until the budget fills, so
+            // a post-veto gate would spend a teacher call on every
+            // density-rejected row (~2.5× the forwards at the p50 pass rate
+            // — measured ~10 h vs ~4 h). Density-first also mirrors the
+            // paper's own operator (the learner-density check runs on the
+            // proposal; the privileged constraint is the second gate). The
+            // gate can only reject, never rescue — unchanged.
+            if let Some(gates) = &density_gates
+                && !gates
+                    .get(label)
+                    .is_none_or(|g| g.accepts(&embedder, &c.text, c.src))
+            {
+                let slot = per_label.get_mut(label).expect("seeded above");
+                slot.density_rejected += 1;
+                continue;
+            }
             let (case, gold_key) = veto_case(
                 &shape,
                 &labels_sorted,
@@ -984,22 +1007,6 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
             let (keyed, ms) = teacher.forward(&case)?;
             durs_ms.push(ms);
             let is_accept = veto_accept(&keyed, &gold_key);
-            // The ascent leg (Issue 064): AND-ed AFTER the veto — the
-            // density gate can only reject a veto-passing row, never
-            // rescue one. A rejected row does not consume the accept
-            // budget (the loop keeps forwarding).
-            if is_accept
-                && let Some(gates) = &density_gates
-            {
-                let pass = gates
-                    .get(label)
-                    .is_none_or(|g| g.accepts(&embedder, &c.text, c.src));
-                if !pass {
-                    let slot = per_label.get_mut(label).expect("seeded above");
-                    slot.density_rejected += 1;
-                    continue;
-                }
-            }
             {
                 let slot = per_label.get_mut(label).expect("seeded above");
                 if is_accept {

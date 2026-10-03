@@ -121,6 +121,7 @@ mod corpus_ab;
 pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
 
 mod density_pilot;
+mod echo_gates;
 pub use density_pilot::{
     render_density_pilot_markdown, run_density_pilot, DensityPilotMeta, DensityPilotOutput,
     DensityPilotSuite, DensityRung,

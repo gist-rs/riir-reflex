@@ -35,6 +35,7 @@ use super::{
 use crate::embed::EMBED_DIM;
 use crate::engine::{DecisionEngine, ExpertSpec};
 use crate::harness::suites::{QKind, SuiteCase, TrainDoc};
+use super::echo_gates::{self, AbstentionGateBlock, OodBlock, OodRungRow};
 use super::synth::load_synth_corpus;
 
 /// The published massive modelless row (Bench 052 / the arena re-baseline
@@ -65,6 +66,10 @@ pub struct CorpusAbSuite {
     /// The instrument-aliveness note (the 0.7800 reproduction).
     pub aliveness: String,
     pub verdict: String,
+    /// The Issue-064 mandatory gates: abstention-entropy preservation +
+    /// the OOD word-dropout ladder (computed on every run).
+    pub abstention: AbstentionGateBlock,
+    pub ood: OodBlock,
     pub seconds: f64,
 }
 
@@ -345,6 +350,56 @@ fn corpus_ab_suite<const N: usize>(
     let acc_b = ok_b.iter().filter(|&&b| b).count() as f64 / ok_b.len() as f64;
     let lb95 = paired_lb95(&ok_b, &ok_a);
 
+    // ── Issue-064 mandatory gates (every run; modelless reads are µs-class).
+
+    // (1) Abstention-entropy preservation: the calibrated fused gate's
+    // fitted thresholds stay valid only if the answer-entropy shape and
+    // abstain rate do not drift when the corpus gains synth docs.
+    let abstention = echo_gates::abstention_gate(&eval_a, &eval_b);
+
+    // (2) OOD word-dropout ladder: re-read both engines on corrupted
+    // state strings (seeded per case+rung — byte-reproducible). The
+    // corrupted reads share the SAME engines and posture; only the state
+    // text degrades. Determinism is already asserted on the clean read;
+    // the corrupted reads are accuracy-only, so the per-arm rerun probe
+    // stays off.
+    let mut ood_rungs = Vec::with_capacity(echo_gates::OOD_RUNGS.len());
+    for &p in echo_gates::OOD_RUNGS.iter() {
+        let corrupted: Vec<String> = prepared
+            .suite
+            .cases
+            .iter()
+            .enumerate()
+            .map(|(ci, c)| {
+                echo_gates::corrupt_state(
+                    &prepared.state_strs[ci],
+                    p,
+                    echo_gates::state_seed(&c.id, p),
+                )
+            })
+            .collect();
+        let (ea, _) = eval_engine(&mut eng_a, &prepared.suite.cases, &corrupted, false)?;
+        let (eb, _) = eval_engine(&mut eng_b, &prepared.suite.cases, &corrupted, false)?;
+        let mut ok_ca = Vec::with_capacity(prepared.suite.cases.len());
+        let mut ok_cb = Vec::with_capacity(prepared.suite.cases.len());
+        for (ci, case) in prepared.suite.cases.iter().enumerate() {
+            ok_ca.push(ea.picks[ci][0] == case.gold[0].idx);
+            ok_cb.push(eb.picks[ci][0] == case.gold[0].idx);
+        }
+        let racc_a = ok_ca.iter().filter(|&&b| b).count() as f64 / ok_ca.len() as f64;
+        let racc_b = ok_cb.iter().filter(|&&b| b).count() as f64 / ok_cb.len() as f64;
+        let rdelta = racc_b - racc_a;
+        let rlb = paired_lb95(&ok_cb, &ok_ca);
+        ood_rungs.push(OodRungRow {
+            dropout_p: p,
+            acc_gold: racc_a,
+            acc_synth: racc_b,
+            delta: rdelta,
+            delta_lb95: rlb,
+        });
+    }
+    let ood = echo_gates::ood_block(ood_rungs, acc_b - acc_a, lb95);
+
     // Instrument aliveness: arm A must reproduce the published massive
     // row — same 300 frozen rows, same build path. (Other suites: the
     // anchor is whatever run() publishes; no hard pin here.)
@@ -388,6 +443,37 @@ fn corpus_ab_suite<const N: usize>(
          doc(s) · verdict: {verdict}",
         spec.name, extra_used,
     );
+    let gate_rung = ood
+        .rungs
+        .iter()
+        .find(|r| (r.dropout_p - ood.gate_rung_p).abs() < 1e-9)
+        .expect("the ladder always carries the gate rung");
+    eprintln!(
+        "  [corpus-ab {}] abstention gate: KL {:.4} (≤ {:.2}) · abstain {:.3} → {:.3} · {}",
+        spec.name,
+        abstention.entropy_kl_gold_to_synth,
+        echo_gates::KL_EPS,
+        abstention.abstain_rate_gold,
+        abstention.abstain_rate_synth,
+        if abstention.pass { "PASS" } else { "FAIL" },
+    );
+    eprintln!(
+        "  [corpus-ab {}] OOD ladder (word-dropout): {} · gate p={:.2} Δ {:+.4} LB95 {:+.4} · \
+         retention {} · {}",
+        spec.name,
+        ood.rungs
+            .iter()
+            .map(|r| format!("p={:.2} Δ {:+.4}", r.dropout_p, r.delta))
+            .collect::<Vec<_>>()
+            .join(" · "),
+        gate_rung.dropout_p,
+        gate_rung.delta,
+        gate_rung.delta_lb95,
+        ood.retention_at_gate
+            .map(|r| format!("{r:.2}"))
+            .unwrap_or_else(|| "n/a".into()),
+        ood.echo_verdict,
+    );
     Ok(CorpusAbSuite {
         suite: spec.name.to_string(),
         synth_artifact: synth_path.display().to_string(),
@@ -409,6 +495,8 @@ fn corpus_ab_suite<const N: usize>(
             && lat_b.determinism_ok.unwrap_or(false),
         aliveness,
         verdict: verdict.to_string(),
+        abstention,
+        ood,
         seconds: t_start.elapsed().as_secs_f64(),
     })
 }
@@ -448,6 +536,44 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
             v.b_only_cases.len(),
             v.a_only_cases.len(),
             v.determinism_ok
+        ));
+        // Issue-064 gates — always rendered beside the V5 verdict.
+        s.push_str(&format!(
+            "## Issue-064 gates — abstention {} · OOD {}\n\n",
+            if v.abstention.pass { "PASS" } else { "FAIL" },
+            v.ood.echo_verdict,
+        ));
+        s.push_str(&format!(
+            "- abstention-entropy: KL(gold‖synth) {:.4} · reverse {:.4} · abstain {:.4} → \
+             {:.4}\n",
+            v.abstention.entropy_kl_gold_to_synth,
+            v.abstention.entropy_kl_synth_to_gold,
+            v.abstention.abstain_rate_gold,
+            v.abstention.abstain_rate_synth,
+        ));
+        s.push_str("- OOD word-dropout ladder:\n\n| p | acc gold | acc synth | Δ | paired LB95 |\n|---|---|---|---|---|\n");
+        for r in &v.ood.rungs {
+            s.push_str(&format!(
+                "| {:.2}{} | {:.4} | {:.4} | {:+.4} | {:+.4} |\n",
+                r.dropout_p,
+                if (r.dropout_p - v.ood.gate_rung_p).abs() < 1e-9 { " (gate)" } else { "" },
+                r.acc_gold,
+                r.acc_synth,
+                r.delta,
+                r.delta_lb95
+            ));
+        }
+        s.push_str(&format!(
+            "\n- retention @ gate {:.2} · rule: {}\n- {}\n- {}\n\n",
+            v.ood.retention_at_gate.map(|r| r.to_string()).unwrap_or_else(|| "n/a".into()),
+            v.ood.rule,
+            v.abstention.rule,
+            if v.ood.echo_verdict == "echo-suspect" {
+                "⚠ ECHO-SUSPECT: the clean V5 win does not survive word-dropout — recorded \
+                 NEGATIVE per the issue's law; the lane dies"
+            } else {
+                "no echo verdict fired"
+            },
         ));
         if !v.flips.is_empty() {
             s.push_str("| label | gained | lost | net |\n|---|---|---|---|\n");
