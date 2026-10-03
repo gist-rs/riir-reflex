@@ -277,6 +277,26 @@ fn a_fixture_question_is_answered_from_the_head() {
             .unwrap_or("")
             .starts_with("game-head/")
     );
+    assert_public_reason(resp.routing.reason.as_deref().unwrap_or(""));
+}
+
+/// The routing reason is public wire text (reflex.gist.rs renders it
+/// verbatim): it must never carry an internal record id — `Bench N`,
+/// `Plan N`, `Issue N`, `Proposal N` (riir-reflex Issue 062).
+fn assert_public_reason(reason: &str) {
+    let words: Vec<&str> = reason
+        .split(|c: char| !c.is_ascii_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .collect();
+    for pair in words.windows(2) {
+        assert!(
+            !(matches!(pair[0], "Bench" | "Plan" | "Issue" | "Proposal")
+                && pair[1].bytes().all(|b| b.is_ascii_digit())),
+            "internal record id {} {} in public routing reason {reason:?}",
+            pair[0],
+            pair[1]
+        );
+    }
 }
 
 #[test]
@@ -488,6 +508,7 @@ fn the_wire_serves_the_lanes_joined_turn() {
             .unwrap_or("")
             .starts_with("game-head/lanes")
     );
+    assert_public_reason(resp.routing.reason.as_deref().unwrap_or(""));
 
     // Protocol strictness: wrong question count, a lane sentence out of its
     // pinned position, and off-grammar lines all fall through.
@@ -662,6 +683,7 @@ fn the_wire_serves_the_flappy_pair() {
                 .unwrap_or("")
                 .starts_with("game-head/flappy")
         );
+        assert_public_reason(resp.routing.reason.as_deref().unwrap_or(""));
         let _ = i;
     }
 

@@ -1227,7 +1227,7 @@ impl GameHeads {
             return Some(head_response(
                 req,
                 &ps,
-                "game-head/tetris (corpus-fitted, Bench 881 decoded arm)",
+                "game-head/tetris (corpus-fitted, decoded arm)",
             ));
         }
         // Lanes: the joined-state protocol — three lane sentences, one per
@@ -1240,7 +1240,7 @@ impl GameHeads {
             return Some(head_response(
                 req,
                 &ps,
-                "game-head/lanes (corpus-fitted, Bench 880 lossless decoded arm)",
+                "game-head/lanes (corpus-fitted, lossless decoded arm)",
             ));
         }
         // Flappy: the (state, option) pair — exactly two lines, exactly
@@ -1255,7 +1255,7 @@ impl GameHeads {
             return Some(head_response(
                 req,
                 &[p],
-                "game-head/flappy (corpus-fitted, Bench 882 v3 decoded arm)",
+                "game-head/flappy (corpus-fitted, v3 decoded arm)",
             ));
         }
         None
