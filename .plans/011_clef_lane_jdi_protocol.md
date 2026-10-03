@@ -241,7 +241,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       0.5696 at 1.69 s p50` · `banking77 — Clef 0.9540 acc / 0.9533 skill at 3.37 s p50 leads every
       measured lane (best other: Instinct 0.8540)`. Smoke arm pins the leaders against the data's
       argmax (clef-led suites read the fixed `— Clef` phrasing; record-only leaders carry the rec tag).
-- [ ] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
+- [-] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
       typed_decisions + banking77, with the cost + latency posture disclosed. **Reading note
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
       0.7550 is record-only and AgentJev's 0.7715 is det ✗ — so CLEF'S HOSTED RUN ON THE SAME
