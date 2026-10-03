@@ -1,6 +1,6 @@
 # Issue 062 — the game-head `routing.reason` carried internal record ids onto the public wire
 
-**Status:** OPEN — source fix LANDED (this commit); waiting on the next release cut, after which reflex-site re-captures its wire examples and drops its allow row.
+**Status:** CLOSED — shipped in reflex **v0.2.4** (release `a386119`-lineage: tag `v0.2.4`, bump commit `4bea9fc`, gist-rs/reflex release published with 6 assets). Verified against the SHIPPED binary: the head reason reads `game-head/tetris (corpus-fitted, decoded arm)`, and reflex-site re-captured (`cce66a5`) + deleted the `Bench 881` allow row — `public_copy_gate.cjs` is green with an EMPTY allowlist.
 
 ## Evidence
 
@@ -28,7 +28,7 @@ rendered copy, and it went red on both pages. The lanes head (`Bench 880`) and f
   pair in any served head reason, asserted on all three heads. Canary: restoring
   `Bench 881` reds `a_fixture_question_is_answered_from_the_head` with
   `internal record id Bench 881 in public routing reason …`.
-- [ ] T3 ships in the next release. Then, in reflex-site: `node scripts/capture_wire.mjs &&
-  node scripts/render_wire.mjs`, and delete the `Bench 881` row from
-  `WIRE_ID_ALLOW` in `scripts/public_copy_gate.cjs` (a stale row reds that gate, so the
-  recapture forces it).
+- [x] T3 shipped in **v0.2.4**. reflex-site re-captured (mint-only demo heads — the capture
+  now mints throwaway vessels) + re-rendered + deleted the `Bench 881` row from
+  `WIRE_ID_ALLOW` in `scripts/public_copy_gate.cjs`; the gate is green with an empty allowlist.
+  Live-verified: reflex.gist.rs renders `reflex 0.2.4` and zero `Bench 881` occurrences.

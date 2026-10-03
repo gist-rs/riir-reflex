@@ -1,6 +1,6 @@
 # Issue 063 — the shipped binary cannot serve a user's corpus, so no "first corpus" walkthrough can run
 
-**Status:** LANDED (source, this commit) — T1–T4 done; T5 waits on the next release cut, after which reflex-site 006 T4 writes the walkthrough from captured output.
+**Status:** CLOSED — shipped in reflex **v0.2.4** (tag `v0.2.4`, bump commit `4bea9fc`); reflex-site 006 T4 LANDED (`cce66a5`, deployed): the walkthrough renders the captured corpus bytes, the sample corpus downloads at `/first-corpus.tar.gz`, and the copy gate is green.
 
 ## Evidence
 
@@ -54,7 +54,9 @@ Recommendation: option 1. It keeps the gated hot path byte-identical.
   `benches/decision_set_goat.rs` drives `engine` directly and does not import `serve` — the
   dispatch is per-process at boot (one monomorphised arm per `N ∈ 1..=8`), the hot path is
   untouched by construction, and G4's zero-alloc core is asserted green on this exact tree.
-- [ ] T5 release; then reflex-site 006 T4 writes the walkthrough from captured output.
+- [x] T5 SHIPPED in v0.2.4; reflex-site 006 T4 wrote the walkthrough from captured output
+  (`first-corpus.tar.gz` download + the three-command walkthrough + the captured
+  `corpus_answered` / `corpus_off` bytes rendered on the home page and `/docs/api/#corpus`).
 
 ## The measured posture decision (the part the plan did not spell out)
 

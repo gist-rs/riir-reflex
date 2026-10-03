@@ -5,6 +5,35 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-03 — the v0.2.4 release cut
+
+- **Shipped:** tag `v0.2.4` (bump commit `4bea9fc` on top of the Issue-063 lane
+  `e305302`), GitHub release with 6 assets (5 target archives + SHA256SUMS),
+  brew tap `813cb68` (fetch-verified 0.2.4) + scoop bucket `596e156`. The
+  first-corpus lane (Issue 063: `RIIR_REFLEX_CORPUS`, the distance-gated
+  first-corpus posture, the `/healthz` corpus disclosure) and the wire id fix
+  (Issue 062) are the headline lanes; the game heads are MINT-ONLY now (the
+  boot-fit retirement ships), the archives carry LICENSE (MIT).
+- **Measured release posture (the wire diff v0.2.3 → v0.2.4):** the out-of-box
+  tetris answer is GONE (heads abstain without a minted dir — the release
+  notes' breaking change), `healthz` gained `"corpus":…`, the unknown-lane
+  message lists `laya-ane`, question-level violations are 422, noul
+  probability tails shifted (route-term polarity + option-name routing).
+- **Gates:** full `ci_feature_guard.sh` PASSED (9/9 — including the flag-OFF
+  layer this cut UNBLOCKED: `fixture_digest`'s blake3 touchpoint was ungated
+  since the 2026-10-02 hygiene landing, red at HEAD, fixed modelless-gated);
+  G2 PASS p99 44 µs ≤ 1000 µs / G4 PASS alloc-free with the box state quoted
+  (`PROVENANCE: power=AC load=5.27 powermode=2(high) canary=113.9us/best5`,
+  preflight PASSED); leak scan PASS ×5; no tag/PR collisions at the pre-push
+  check. Disclosed: the darwin binaries embed two id-shaped strings inside
+  Metal-kernel source COMMENTS (`Issue 020`, `Plan 616` — the laya lane's MSL
+  strings; wire-inert, page-inert, same class shipped in v0.2.3; stripped in
+  the laya substrate, not patched here).
+- **Site half:** reflex-site `cce66a5`+`dfdd6d5` (CF `15bd631f`→`c345c993`):
+  the capture mints throwaway demo vessels and boots a second engine on the
+  vendored first-corpus sample; the walkthrough is live (`/first-corpus.tar.gz`,
+  the home block, `/docs/api/#corpus`); `WIRE_ID_ALLOW` is EMPTY.
+
 ## 2026-10-02
 
 - **thai_sib200 pool floor re-based onto the audited pool-after-cal (560 →

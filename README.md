@@ -214,14 +214,15 @@ ALWAYS disclosed in the reason, never silently substituted.
 
 The modelless lane answers Plan 607's three game questions from the
 **decoded corpus-fitted heads**. SINCE THE VESSEL EXTRACTION (instinct
-Proposal 001 T4, develop) the fit runs at MINT time — `reflex mint-heads`
-through the format repo's public writer — and the serve path loads the
-signed PUBLIC-RELEASE vessels (see the game-lanes section above; each
-head's published fit is asserted in `tests/game_heads_serve.rs` and the
-vessel round trip is pinned byte-identical in `tests/game_heads_vessels.rs`
-— no serving from an unmeasured fit). ⚠ Ships with the NEXT release: the
-current archives (≤ v0.2.3) boot-fit from verbatim BLAKE3-pinned fixture
-copies and carry no `mint-heads` subcommand.
+Proposal 001 T4, and SHIPPING as of **v0.2.4**) the fit runs at MINT time —
+`reflex mint-heads` through the format repo's public writer — and the serve
+path loads the signed PUBLIC-RELEASE vessels (see the game-lanes section
+above; each head's published fit is asserted in `tests/game_heads_serve.rs`
+and the vessel round trip is pinned byte-identical in
+`tests/game_heads_vessels.rs` — no serving from an unmeasured fit). The
+boot-fit-from-fixtures posture is RETIRED: archives ≥ v0.2.4 carry
+`mint-heads` and load vessels only — out of the box the boards abstain
+loudly and name the mint command.
 
 | head | published fit | request shape |
 |---|---|---|
