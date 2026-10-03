@@ -5866,6 +5866,18 @@ pub mod seat {
         /// The genome acceptance bar; `<= 0` = the house arming bar.
         pub genome_accept_margin: f64,
         pub cal_select_caps: Vec<usize>,
+        /// The fused-gate RATE levers (issue 042 levers 1–2, Benches
+        /// 063/066): fit the gate thresholds on the stratified selection
+        /// slice (`gate_fit_selection`) and disable the score axis
+        /// (`gate_distance_only`). DEFAULT OFF — the seat's shipped face
+        /// is the T1.6 cal-slice fused fit, byte-identical for every
+        /// existing caller. Rethink's ESC lane (Rethink Issue 017 T1)
+        /// arms these: the shipped gate abstains ~100% at the deployed
+        /// postures (the measured Bench-066 pathology — H1 escalation
+        /// 1.000 in the arena records), so a SELECTIVE escalation set
+        /// needs the rate-axis posture.
+        pub gate_fit_selection: bool,
+        pub gate_distance_only: bool,
     }
 
     /// The deployed modelless posture for one suite: the effective corpus
@@ -5902,14 +5914,17 @@ pub mod seat {
         let inp = ModellessInput {
             spec,
             cascade_worthiness: false,
-            // The seat keeps the shipped posture for the LEVERS (the arena's
-            // published face is the T1.6 cal-slice fused fit, never a lever
-            // arm) — but the Issue-056 scale-coherence fit stopped being a
-            // lever at its 2026-09-30 promotion (verdict round 2: the
-            // fit-on-raw / apply-on-calibrated mismatch is a units bug). The
-            // seat carries the fix like every other deployed surface.
-            gate_fit_selection: false,
-            gate_distance_only: false,
+            // The seat keeps the SHIPPED posture by default (the arena's
+            // published face is the T1.6 cal-slice fused fit, never a
+            // lever arm) — but the rate levers are CALLER-CHOICE now
+            // (Rethink Issue 017 T1's ESC gate; the defaults preserve
+            // every existing caller byte-identically). The Issue-056
+            // scale-coherence fit stopped being a lever at its
+            // 2026-09-30 promotion (verdict round 2: the fit-on-raw /
+            // apply-on-calibrated mismatch is a units bug). The seat
+            // carries the fix like every other deployed surface.
+            gate_fit_selection: knobs.gate_fit_selection,
+            gate_distance_only: knobs.gate_distance_only,
             gate_fit_calibrated: true,
             suite: &s.suite,
             train: &s.train,

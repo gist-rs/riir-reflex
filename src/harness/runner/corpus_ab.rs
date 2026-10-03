@@ -256,6 +256,10 @@ fn corpus_ab_suite<const N: usize>(
             // cap ladder is OFF — the registry cap holds. The seat's cal
             // face is the fitted fused gate, never a cap selection.
             cal_select_caps: vec![],
+            // Shipped gate face (never the rate levers) — byte-identical
+            // with the pre-knob lane.
+            gate_fit_selection: false,
+            gate_distance_only: false,
         },
     )?;
     if posture.cfg.oc_scale > 0.0 {
