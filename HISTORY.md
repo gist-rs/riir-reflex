@@ -7,8 +7,11 @@ work lives in `.issues/` and `.plans/`, never here.
 
 ## 2026-10-03 — the v0.2.4 release cut
 
-- **Shipped:** tag `v0.2.4` (bump commit `4bea9fc` on top of the Issue-063 lane
-  `e305302`), GitHub release with 6 assets (5 target archives + SHA256SUMS),
+- **Shipped:** tag `v0.2.4` → `e616814` (a docs-only sibling commit landed in the shared
+  worktree over the bump commit `4bea9fc`; `git diff 4bea9fc e616814` touches only
+  `.benchmarks/` + `.plans/` — the shipped code is identical, and the published tag
+  was deliberately NOT force-moved over it), GitHub release with 6 assets (5 target
+  archives + SHA256SUMS),
   brew tap `813cb68` (fetch-verified 0.2.4) + scoop bucket `596e156`. The
   first-corpus lane (Issue 063: `RIIR_REFLEX_CORPUS`, the distance-gated
   first-corpus posture, the `/healthz` corpus disclosure) and the wire id fix
