@@ -176,6 +176,17 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       vs Rethink encoder vs laya vs GLiNER vs CLM vs AgentJev vs the JDI board reference rows) on
       /bench/ + the TL;DR card; caveat text from B5 rendered verbatim; `publish_bench.py` +
       `republish_bench.sh` flow.
+      **PARTIAL 2026-10-04 (reflex-site `5c31fa6`, deployed `4cdaa395`, live-verified): the LANE is
+      published** — edition **2026-10-2** (the lane-set basis bump, the ledger's second row):
+      publisher support (LANE_CLASSES/DISPLAY/KIND/TIMING/AREA_LANES + the merge carry block),
+      `clef:acc-only` cells live on /bench/ (banking77 **0.9540** / typed **0.6955**, carrying
+      macro_f1 + jdi_skill on the same axes as every lane), the clef palette slot + filter chip +
+      table rows + hero bars (data-derived smoke arms added: 2 rows, 12 unmeasured-suite not-runs,
+      the p50 PRESENCE-row pin re-stated as "names WHO wears it" — clef, acc-only re-read pending);
+      the outgoing 2026-10 table frozen to data/archive. **REMAINS:** the crosswalk TABLE itself
+      (the side-by-side + the JDI board reference rows + the B5 caveat verbatim) and the digest-pin
+      assert at crosswalk-build time (C2's machinery is its input — the clef doc's cases_digest ==
+      the rebuilt-seat digests, live-proven in C2).
 - [ ] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
       typed_decisions + banking77, with the cost + latency posture disclosed. **Reading note
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
