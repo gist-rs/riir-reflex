@@ -258,6 +258,7 @@ fn harness_main() {
     let mut synth_per_label = 128usize;
     let mut synth_span = 4usize;
     let mut synth_extra_cap = 128usize;
+    let mut synth_density_gate: Option<runner::DensityRung> = None;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -427,6 +428,16 @@ fn harness_main() {
                     .and_then(|v| v.parse().ok())
                     .filter(|&v| v > 0)
                     .unwrap_or_else(|| die("--synth-extra-cap needs a number > 0"));
+            }
+            "--synth-density-gate" => {
+                i += 1;
+                let tok = args
+                    .get(i)
+                    .cloned()
+                    .unwrap_or_else(|| die("--synth-density-gate needs a rung (p50 | p75 | p90)"));
+                synth_density_gate = Some(runner::DensityRung::from_token(&tok).unwrap_or_else(|| {
+                    die("--synth-density-gate needs a rung (p50 | p75 | p90)")
+                }));
             }
             "--corpus-ab" => {
                 i += 1;
@@ -727,6 +738,7 @@ fn harness_main() {
             max_per_label: synth_per_label,
             max_span_len: synth_span,
             out_dir: synth_out.clone(),
+            density_gate: synth_density_gate,
         };
         if synth_plan {
             println!(
@@ -794,6 +806,7 @@ fn harness_main() {
             max_per_label: synth_per_label,
             max_span_len: synth_span,
             out_dir: synth_out.clone(),
+            density_gate: synth_density_gate,
         };
         println!(
             "harness --synth-density-pilot: datasets {} · suites {:?} · span ≤ {} · out {}",

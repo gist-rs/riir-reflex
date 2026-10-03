@@ -53,6 +53,7 @@ use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 
 use super::{
+    density_pilot::{DensityGate, DensityRung},
     distill::{argmax_lowest_pos, construct_teacher},
     git_sha, hostname_refusing_unknown, iso8601_utc, percentile_us, prepare, RunOptions,
     SuiteSpec, SUITES,
@@ -93,6 +94,10 @@ pub struct SynthOptions {
     pub max_span_len: usize,
     /// Output directory for the artifact + sidecar.
     pub out_dir: std::path::PathBuf,
+    /// The Issue-064 ascent leg, OPT-IN: the minimal-deviation density gate
+    /// AND-ed with the teacher veto (acceptance can only REJECT, never
+    /// inject). `None` = the shipped veto-only posture, byte-identical.
+    pub density_gate: Option<DensityRung>,
 }
 
 /// One generated candidate (pre-veto). `src` is the LABEL-LOCAL pool
@@ -115,6 +120,10 @@ pub struct SynthPerLabel {
     pub allocated: usize,
     pub accepted: usize,
     pub veto_rejected: usize,
+    /// Rows the minimal-deviation density gate rejected after the veto
+    /// passed (0 unless the gate is armed — Issue 064 task 2).
+    #[serde(default)]
+    pub density_rejected: usize,
     pub weight: f64,
 }
 
@@ -141,6 +150,9 @@ pub struct SynthSuite {
     /// First 16 hex of the artifact's BLAKE3 (the sidecar carries the
     /// full one).
     pub blake3: String,
+    /// The ascent-leg disclosure (mirrors the artifact meta; `None` =
+    /// veto-only).
+    pub density_rule: Option<String>,
     pub per_label: BTreeMap<String, SynthPerLabel>,
 }
 
@@ -177,6 +189,13 @@ pub struct SynthArtifactMeta {
     pub host: String,
     pub accepted: usize,
     pub pool_rows: usize,
+    /// The Issue-064 ascent-leg disclosure: `None` = veto-only (the
+    /// shipped posture); `Some(rule)` = the density gate was armed.
+    /// Additive + `serde(default)` — version stays 2 (the ROWS' semantics
+    /// are unchanged; the field says how the set was filtered, the way
+    /// `weighting_rule` already does).
+    #[serde(default)]
+    pub density_rule: Option<String>,
 }
 
 // ── the veto shape ───────────────────────────────────────────────────────
@@ -869,14 +888,61 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
     if let Some(case) = prepared.suite.cases.first() {
         teacher.warmup(case)?;
     }
+
+    // The Issue-064 ascent leg, OPT-IN: per-label density gates built from
+    // the SAME pool the veto scores against (the Embedder's own projection;
+    // ε at the label's control-quantile |Δ| — Bench 120's instrument).
+    // `None` = the shipped posture: no kernel is built, nothing changes.
+    let embedder = crate::embed::Embedder;
+    let density_gates: Option<BTreeMap<String, DensityGate>> = sopts.density_gate.map(|rung| {
+        let mut pool_emb: Vec<[f32; crate::embed::EMBED_DIM]> = prepared
+            .train
+            .iter()
+            .map(|d| {
+                let mut v = [0.0f32; crate::embed::EMBED_DIM];
+                embedder.embed_into(d.text.as_bytes(), &mut v);
+                v
+            })
+            .collect();
+        let mut by_label: BTreeMap<String, Vec<usize>> = BTreeMap::new();
+        for (idx, d) in prepared.train.iter().enumerate() {
+            by_label.entry(d.label.clone()).or_default().push(idx);
+        }
+        let mut gates = BTreeMap::new();
+        for label in plan.buckets.keys() {
+            if let Some(idxs) = by_label.get(label) {
+                let pool: Vec<[f32; crate::embed::EMBED_DIM]> =
+                    idxs.iter().map(|&g| pool_emb[g]).collect();
+                gates.insert(label.clone(), DensityGate::new(pool, rung));
+            }
+        }
+        // Free the scratch embeddings (moved out of above; a no-op drop).
+        pool_emb.clear();
+        if !gates.is_empty() {
+            let mut bands: Vec<f64> = gates.values().map(|g| g.eps()).collect();
+            bands.sort_by(|a, b| a.partial_cmp(b).expect("finite by construction"));
+            eprintln!(
+                "  [synth {}] density gates: {} label(s) · ε_nat band {:.3}..{:.3} (median \
+                 {:.3})",
+                spec.name,
+                gates.len(),
+                bands[0],
+                bands[bands.len() - 1],
+                bands[bands.len() / 2]
+            );
+        }
+        gates
+    });
+    let density_rule: Option<String> = sopts.density_gate.map(|r| r.rule());
     eprintln!(
-        "  [synth {}] teacher {}/{} · {} candidate(s) across {} label(s) · budget {}",
+        "  [synth {}] teacher {}/{} · {} candidate(s) across {} label(s) · budget {}{}",
         spec.name,
         teacher.name(),
         teacher.provenance(),
         plan.buckets.values().map(Vec::len).sum::<usize>(),
         plan.buckets.len(),
         plan.alloc.values().sum::<usize>(),
+        if let Some(r) = &density_rule { format!(" · density gate: {r}") } else { String::new() },
     );
 
     let mut accepted: Vec<SynthCand> = Vec::new();
@@ -890,6 +956,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
                 allocated: plan.alloc.get(label).copied().unwrap_or(0),
                 accepted: 0,
                 veto_rejected: 0,
+                density_rejected: 0,
                 weight: plan.weights.get(label).copied().unwrap_or(0.0),
             },
         );
@@ -917,6 +984,22 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
             let (keyed, ms) = teacher.forward(&case)?;
             durs_ms.push(ms);
             let is_accept = veto_accept(&keyed, &gold_key);
+            // The ascent leg (Issue 064): AND-ed AFTER the veto — the
+            // density gate can only reject a veto-passing row, never
+            // rescue one. A rejected row does not consume the accept
+            // budget (the loop keeps forwarding).
+            if is_accept
+                && let Some(gates) = &density_gates
+            {
+                let pass = gates
+                    .get(label)
+                    .is_none_or(|g| g.accepts(&embedder, &c.text, c.src));
+                if !pass {
+                    let slot = per_label.get_mut(label).expect("seeded above");
+                    slot.density_rejected += 1;
+                    continue;
+                }
+            }
             {
                 let slot = per_label.get_mut(label).expect("seeded above");
                 if is_accept {
@@ -961,6 +1044,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         host: hostname_refusing_unknown(),
         accepted: accepted.len(),
         pool_rows: prepared.train.len(),
+        density_rule: density_rule.clone(),
     };
     let (path, seal_hex) =
         write_artifact(sopts.out_dir.as_path(), spec.name, &meta, &per_label, &accepted)?;
@@ -991,6 +1075,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         seconds: t_start.elapsed().as_secs_f64(),
         path: path.display().to_string(),
         blake3: seal_hex[..16].to_string(),
+        density_rule,
         per_label,
     })
 }
@@ -1235,6 +1320,7 @@ mod tests {
             max_per_label,
             max_span_len: 4,
             out_dir: std::env::temp_dir().join(format!("rfx_synth_test_{}", std::process::id())),
+            density_gate: None,
         }
     }
 
@@ -1371,6 +1457,7 @@ mod tests {
                 allocated: 8,
                 accepted: 2,
                 veto_rejected: 1,
+                density_rejected: 0,
                 weight: 0.5,
             },
         );
@@ -1386,6 +1473,7 @@ mod tests {
             host: "test".into(),
             accepted: accepted.len(),
             pool_rows: 4,
+            density_rule: None,
         };
         let (path, _hex) =
             write_artifact(&dir, "fixture", &meta, &per_label, &accepted).expect("write");

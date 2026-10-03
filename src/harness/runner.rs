@@ -123,7 +123,7 @@ pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
 mod density_pilot;
 pub use density_pilot::{
     render_density_pilot_markdown, run_density_pilot, DensityPilotMeta, DensityPilotOutput,
-    DensityPilotSuite,
+    DensityPilotSuite, DensityRung,
 };
 
 /// Where the fetch layer leaves the row files.

@@ -243,6 +243,87 @@ fn quantile_sorted(vals: &mut [f64], p: f64) -> f64 {
     }
 }
 
+// ── the ascent-leg gate (Issue 064 task 2 — armed by `--synth-density-gate`) ──
+
+/// The ε rung: which quantile of the label's NN-control |Δ| distribution
+/// sets the accept band (Bench 120's ladder: p50 = the natural-median
+/// minimal-deviation signature; p75/p90 the looser rungs).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DensityRung {
+    P50,
+    P75,
+    P90,
+}
+
+impl DensityRung {
+    /// The quantile fraction.
+    fn q(self) -> f64 {
+        match self {
+            DensityRung::P50 => 0.50,
+            DensityRung::P75 => 0.75,
+            DensityRung::P90 => 0.90,
+        }
+    }
+    /// The parse token (the CLI flag's vocabulary).
+    pub fn from_token(tok: &str) -> Option<Self> {
+        match tok {
+            "p50" => Some(DensityRung::P50),
+            "p75" => Some(DensityRung::P75),
+            "p90" => Some(DensityRung::P90),
+            _ => None,
+        }
+    }
+    /// The artifact/report disclosure string.
+    pub fn rule(self) -> String {
+        format!(
+            "minimal-deviation vMF density gate at the label's own control-{} |Δ| \
+             (Bench 120; τ = mean same-label cos deficit, LOO pool rows)",
+            self.token()
+        )
+    }
+    fn token(self) -> &'static str {
+        match self {
+            DensityRung::P50 => "p50",
+            DensityRung::P75 => "p75",
+            DensityRung::P90 => "p90",
+        }
+    }
+}
+
+/// One label's armed gate: the kernel, its pool, and the ε band at the
+/// chosen rung. `accepts` is the ONLY consumer-facing call — acceptance
+/// can only REJECT (the provenance discipline: the density leg never
+/// writes, never injects).
+pub(crate) struct DensityGate {
+    pool: Vec<[f32; EMBED_DIM]>,
+    kernel: LabelKernel,
+    eps: f64,
+}
+
+impl DensityGate {
+    /// Build the gate for one label's pool rows (label-local order —
+    /// `src` indexes into it, the miner's law).
+    pub(crate) fn new(pool: Vec<[f32; EMBED_DIM]>, rung: DensityRung) -> Self {
+        let kernel = build_kernel(&pool);
+        let mut ctrl = kernel.ctrl_abs.clone();
+        let eps = quantile_sorted(&mut ctrl, rung.q());
+        DensityGate { pool, kernel, eps }
+    }
+
+    /// The minimal-deviation accept test: |ℓ(text) − ℓ_loo(src)| ≤ ε.
+    pub(crate) fn accepts(&self, embedder: &Embedder, text: &str, src_local: usize) -> bool {
+        let mut v = [0.0f32; EMBED_DIM];
+        embedder.embed_into(text.as_bytes(), &mut v);
+        let delta = self.kernel.cand_delta(&self.pool, &[v], &[src_local])[0];
+        delta.abs() <= self.eps
+    }
+
+    /// The ε band (disclosure/telemetry).
+    pub(crate) fn eps(&self) -> f64 {
+        self.eps
+    }
+}
+
 // ── the report types ─────────────────────────────────────────────────────
 
 /// The accept-rate ladder row (per label; the pooled row reuses the shape).
@@ -737,5 +818,50 @@ mod tests {
         assert!(accept < 0.05, "3% must read KILL");
         let accept = 5.0 / 100.0;
         assert!(accept >= 0.05, "exactly 5% must read PASS");
+    }
+
+    #[test]
+    fn density_gate_accepts_a_transplant_and_rejects_a_foreign_text() {
+        // Real Embedder over a tiny shared-frame pool (the miner's own
+        // shape: rows sharing a prefix+suffix frame with differing spans).
+        use crate::embed::Embedder;
+        let pool_texts = [
+            "wake me up at nine am on friday",
+            "wake me up at six pm sharp on friday",
+            "wake me up at noon on friday",
+            "wake me up at three thirty pm on friday",
+            "wake me up at ten am on friday",
+            "wake me up just before midnight on friday",
+        ];
+        let embedder = Embedder;
+        let pool: Vec<[f32; EMBED_DIM]> = pool_texts
+            .iter()
+            .map(|t| {
+                let mut v = [0.0f32; EMBED_DIM];
+                embedder.embed_into(t.as_bytes(), &mut v);
+                v
+            })
+            .collect();
+        let gate = DensityGate::new(pool.clone(), DensityRung::P50);
+        let loose = DensityGate::new(pool.clone(), DensityRung::P90);
+        // A TRANSPLANT-shaped text: the frame + an attested-STYLE span (a
+        // fresh time token in the frame's slot — what the miner generates).
+        let transplant = "wake me up at five am on friday";
+        let foreign = "the quarterly budget review is scheduled for march";
+        // The foreign text is rejected at EVERY rung (far outside support).
+        assert!(
+            !gate.accepts(&embedder, foreign, 0) && !loose.accepts(&embedder, foreign, 0),
+            "the foreign text must be rejected at every rung"
+        );
+        // The headroom property (Bench 120's measured fact, reproduced on
+        // the fixture): an in-frame transplant passes at the loose rung.
+        // (Its P50 verdict is NOT asserted — a 6-row fixture's control band
+        // is not the corpus-scale band the pilot measured.)
+        assert!(
+            loose.accepts(&embedder, transplant, 0),
+            "the in-frame transplant must pass the p90 gate"
+        );
+        // Monotone ε ladder.
+        assert!(loose.eps() >= gate.eps());
     }
 }
