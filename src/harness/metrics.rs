@@ -99,28 +99,7 @@ pub fn hard_metrics(rows: &[(usize, Vec<f64>)]) -> HardMetrics {
 
     let accuracy = correct.iter().filter(|&&c| c).count() as f64 / n;
 
-    // classes = sorted(set(gold) | set(pred)); F1_c = 2tp / max(1, 2tp+fp+fn)
-    let mut classes: Vec<usize> = golds.iter().chain(preds.iter()).copied().collect();
-    classes.sort_unstable();
-    classes.dedup();
-    let f1_sum: f64 = classes
-        .iter()
-        .map(|&c| {
-            let mut tp = 0.0_f64;
-            let mut fp = 0.0_f64;
-            let mut fnegative = 0.0_f64;
-            for (&g, &p) in golds.iter().zip(preds.iter()) {
-                match (g == c, p == c) {
-                    (true, true) => tp += 1.0,
-                    (false, true) => fp += 1.0,
-                    (true, false) => fnegative += 1.0,
-                    (false, false) => {}
-                }
-            }
-            2.0 * tp / 1.0_f64.max(2.0 * tp + fp + fnegative)
-        })
-        .sum();
-    let macro_f1 = f1_sum / classes.len() as f64;
+    let macro_f1 = macro_f1_of(&golds, &preds);
 
     let pairs: Vec<(f64, bool)> = confs.iter().copied().zip(correct.iter().copied()).collect();
     let ece = ece_of(&pairs);
@@ -657,6 +636,40 @@ mod subset_accuracy_tests {
     fn flag_and_case_count_mismatch_refuses() {
         let _ = subset_accuracy(&rows(), &[false, false, false], &[1, 2]);
     }
+}
+
+/// Plan 011 C2 — the macro-F1 law over `(gold, pick)` index vectors, the
+/// ONE home of the computation `hard_metrics` uses (§5.1: classes =
+/// sorted(set(gold) | set(pred)); F1_c = 2tp / max(1, 2tp+fp+fn); the mean
+/// over classes). Exported because consumer-side lane records freeze picks
+/// WITHOUT probability vectors (the encoder/ESC lanes) yet still owe the
+/// crosswalk the same axis every lane carries — riir-rethink's lane-doc
+/// emitter consumes this, never a mirror (the seam law).
+#[must_use]
+pub fn macro_f1_of(golds: &[usize], preds: &[usize]) -> f64 {
+    assert!(!golds.is_empty(), "macro_f1_of: non-empty golds required");
+    assert_eq!(golds.len(), preds.len(), "macro_f1_of: picks must pair with gold");
+    let mut classes: Vec<usize> = golds.iter().chain(preds.iter()).copied().collect();
+    classes.sort_unstable();
+    classes.dedup();
+    let f1_sum: f64 = classes
+        .iter()
+        .map(|&c| {
+            let mut tp = 0.0_f64;
+            let mut fp = 0.0_f64;
+            let mut fnegative = 0.0_f64;
+            for (&g, &p) in golds.iter().zip(preds.iter()) {
+                match (g == c, p == c) {
+                    (true, true) => tp += 1.0,
+                    (false, true) => fp += 1.0,
+                    (true, false) => fnegative += 1.0,
+                    (false, false) => {}
+                }
+            }
+            2.0 * tp / 1.0_f64.max(2.0 * tp + fp + fnegative)
+        })
+        .sum();
+    f1_sum / classes.len() as f64
 }
 
 /// Plan 011 §B3 — the JDI chance level for one evaluated slice: the

@@ -1083,3 +1083,23 @@ fn chance_corrected_skill_known_answers() {
     // chance = 1 (single-class slice): 0, not NaN.
     approx(chance_corrected_skill(1.0, 1.0), 0.0);
 }
+
+/// The macro-F1 law on picks alone (plan 011 C2 — the one home
+/// `hard_metrics` uses, exported for the consumer-side lane records).
+/// Hand vector — the SAME one instinct's lane-doc builder pins its Python
+/// mirror with ([0,0,1,2] gold, [0,1,1,2] picks): correct on q0,q2,q3;
+/// F1_0 = 2·1/(2·1+0+1) = 2/3; F1_1 = 2·1/(2·1+1+0) = 2/3; F1_2 = 1 →
+/// macro-F1 = (2/3 + 2/3 + 1)/3 = 7/9. Cross-media pin: if either side
+/// moves, this pair of tests names the mover.
+#[test]
+fn macro_f1_of_known_answer() {
+    use riir_reflex::harness::metrics::macro_f1_of;
+    approx(macro_f1_of(&[0, 0, 1, 2], &[0, 1, 1, 2]), 7.0 / 9.0);
+    // Perfect single class: F1 = 1 (the class set is {1}).
+    approx(macro_f1_of(&[1, 1], &[1, 1]), 1.0);
+    // All-wrong on two classes: every F1 = 0.
+    approx(macro_f1_of(&[0, 1], &[1, 0]), 0.0);
+    // A predicted class gold never carries still joins the class set
+    // (F1_c = 0 for it): gold [0], picks [1] → classes {0,1}, mean = 0.
+    approx(macro_f1_of(&[0], &[1]), 0.0);
+}

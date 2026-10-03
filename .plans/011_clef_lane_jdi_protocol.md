@@ -170,8 +170,20 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       digest. **REMAINS for C2:** the ENCODER lane-doc emitter is an archived hunk in
       riir-rethink post-split (`bin_hunks/arena_encoder_lane_doc.rs`) — new encoder records gain
       the axes only when rethink re-activates its emitter (the bench-041 legacy cell already
-      carries them via the --gold-from path, which is what C3 cites). The arena stamping change is
-      in effect for every FUTURE instinct record.
+      carry them via the --gold-from path, which is what C3 cites). The arena stamping change is
+      in effect for every FUTURE instinct record. **REMAINDER DISCHARGED 2026-10-04 (the rethink
+      half; reflex `macro_f1_of` + rethink's emitter re-activation):** reflex exports the
+      macro-F1 law as `harness::metrics::macro_f1_of` (the ONE home `hard_metrics` itself
+      consumes — picked against the SAME 7/9 hand vector instinct's Python builder pins with,
+      cross-media); rethink's active emitter (`esc_margin_refit.rs`, the post-split home of the
+      lane-doc laws) stamps every record NATIVELY — `test_digest` (the seat's own
+      `cases_digest`, consumed), per-question `gold`, and `jdi_test` (cheap/think/composed
+      macro_f1+jdi_chance+jdi_skill, reflex's laws consumed, never mirrored) on BOTH records
+      (0057 predictions.json + 0058 esc_lane_doc.json + its RESULTS.md JDI table). **Live-proven
+      by re-run:** all four suites reproduce the prior accuracy AND escalation rates EXACTLY
+      (the determinism witness), the typed digest == the C2 pin (`fnv1a64-6e37760ee2a5b6c9`),
+      and the typed think axes reproduce the --gold-from readings BIT-FOR-BIT (mF1 0.7445 /
+      skill 0.6537 / chance 0.2925) — the native path == the join path.
 - [ ] C3 reflex-site publication (owner-adjacent repo): the crosswalk table (Clef vs Rethink hybrid
       vs Rethink encoder vs laya vs GLiNER vs CLM vs AgentJev vs the JDI board reference rows) on
       /bench/ + the TL;DR card; caveat text from B5 rendered verbatim; `publish_bench.py` +
