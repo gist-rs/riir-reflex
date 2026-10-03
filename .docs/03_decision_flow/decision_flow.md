@@ -22,6 +22,8 @@ Two LR bands, the flywheel shape: the question in on top, the answer
 out under it, the fit loop dotted underneath.
 
 ```mermaid
+%% file: decision_flow.svg
+%% aria: The Reflex decision flow: state plus a typed question (choice, score, or yes/no) is embedded, routed to a domain, options scored corpus-is-the-model, calibrated by a sigmoid gate, then answered in microseconds with confidence or an honest abstain — loopback only, thresholds fitted offline from your own labeled data
 flowchart TB
     subgraph IN["the question in"]
         direction LR
@@ -114,20 +116,22 @@ flowchart TB
 
 ## Re-rendering the hero SVG
 
-The SVG is rendered from the COMPACT source above with mermaid.ink
-(JSON-state URL), theme `base` with the site's dark palette —
-`primaryColor #241410` node fill, `#ff8a4c` ember borders,
-`#f2e6dd` text, `#b99f8f` lines, `#1d110c` clusters on a TRANSPARENT
-background (the site's surfaces are `#140b08`/`#1d110c`; transparent
-lets one render sit on both) — then post-processed per the Issue-131
-conventions: every `@import` stripped, every CSS selector scoped to
-`#mermaid-svg`, `role="img"` + an explicit `aria-label` sentence. The
-doc block is the source of truth — re-render from it, never hand-edit
-the SVG.
+The SVG is rendered from the COMPACT source above (the block carrying the
+`%% file:` / `%% aria:` headers) by reflex-site's
+`scripts/render_tetris_flows.py`, which writes BOTH mirrors in one run —
+this directory's `decision_flow.svg` and `reflex-site/assets/decision_flow.svg`.
+Palette: the gist.rs web family (riir-ai `.docs/13_web_family/family.css`,
+adopted 2026-10-03) — `#1c212c` node fill, the Reflex orange `#ff8a3d` on
+node borders, `#e9ecf2` text, `#9299ab` edges, `#161a23` clusters with
+`#343b4b` borders, on a TRANSPARENT background — then post-processed per the
+Issue-131 conventions: every `@import` stripped, every CSS selector scoped to
+the SVG's own id, `role="img"` + the explicit `aria-label` sentence from the
+header. The doc block is the source of truth — re-render from it, never
+hand-edit the SVG.
 
-**The mirror law (the Issue-131/132 one):** re-render HERE, then copy
-the result over `../reflex-site/assets/decision_flow.svg` in the SAME
-commit as this doc — the site embeds the bytes, the doc owns the
+**The mirror law (the Issue-131/132 one):** re-render with the reflex-site
+script (it writes both copies byte-identically), and commit this doc + its
+SVG together — the site embeds the bytes, the doc owns the
 source, and the two must move together.
 
 ## Refs

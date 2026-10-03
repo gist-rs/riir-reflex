@@ -12,9 +12,10 @@ error. The default lane is modelless (µs-tier, bit-deterministic, zero weights,
 no network). Everything below is the HTTP wire only — that is the public
 surface; the Rust crate is private and never required.
 
-Skill version 1 · 2026-09-22 · tested against `riir-reflex` 0.1.1 (release set
-`modelless+laya`) · wire examples captured live against the binary at commit
-`2c6acb9`.
+Skill version 2 · 2026-10-03 · tested against the `reflex` binary 0.2.3 (the
+release binary is named `reflex` since 0.2.2; the package/formula is still
+`riir-reflex`) · wire examples re-captured live against 0.2.3 installed from
+the Homebrew tap (byte-identical to the 0.1.1 capture).
 
 ## Install this skill for your agent
 
@@ -41,20 +42,22 @@ curl -fsSL https://raw.githubusercontent.com/gist-rs/reflex/main/install.sh | sh
 # Windows (PowerShell)
 iwr -useb https://raw.githubusercontent.com/gist-rs/reflex/main/install.ps1 | iex
 
-# Homebrew (macOS / Linux)
-brew tap gist-rs/tap && brew install riir-reflex
+# Homebrew (macOS / Linux) — Homebrew 6+ loads a third-party tap only once trusted
+brew tap gist-rs/tap && brew trust gist-rs/tap && brew install riir-reflex
 
 # Scoop (Windows)
 scoop bucket add gist-rs https://github.com/gist-rs/scoop-bucket && scoop install riir-reflex
 ```
 
+Every channel installs one command: `reflex`.
+
 Then check the build stamp — it prints the compiled feature set and refuses to
 hide an incomplete one:
 
 ```console
-$ riir-reflex --version
-riir-reflex 0.1.1
-compiled features: default modelless laya
+$ reflex --version
+reflex 0.2.3
+compiled features: default laya-riir laya-riir-metal modelless
 ```
 
 A build missing the shipped release set prints a `release set: STALE — missing
@@ -66,8 +69,8 @@ binary" — re-install or rebuild before citing any measured number.
 Bare invocation serves; there is no daemon framework, no config file:
 
 ```sh
-riir-reflex            # serves http://127.0.0.1:7331
-RIIR_REFLEX_BIND=127.0.0.1:9400 riir-reflex   # override host:port
+reflex            # serves http://127.0.0.1:7331
+RIIR_REFLEX_BIND=127.0.0.1:9400 reflex   # override host:port
 ```
 
 Three routes:
@@ -76,7 +79,7 @@ Three routes:
 |---|---|
 | `POST /decide` | `DecisionRequest` JSON → `DecisionResponse` JSON |
 | `POST /feedback` | `{"p": 0.74, "outcome": true}` → `{"refit": false}` — online calibration |
-| `GET /healthz` | liveness (`ok`) |
+| `GET /healthz` | liveness + lane readiness JSON (`{"status":"ok","lanes":{…},"heads":{…}}`) |
 
 CORS is closed by default — no browser page can reach the engine. Agents on
 loopback need nothing; open `RIIR_REFLEX_ALLOWED_ORIGIN` only when a web page
@@ -294,7 +297,7 @@ all engine constants, all cited in their sections above.
 
 This skill carries the version stamps at the top. The curl one-liner for THIS
 file is re-verified on every release-matrix cut (fetch what we claim to fetch —
-the v0.1.0 nested-archive lesson). If `riir-reflex --version` reports a newer
+the v0.1.0 nested-archive lesson). If `reflex --version` reports a newer
 engine than the stamp above, re-check the measured table at
 <https://reflex.gist.rs/#bench> — numbers there regenerate from harness runs;
 the ones here are the snapshot the skill was tested against.
