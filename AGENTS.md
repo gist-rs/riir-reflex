@@ -458,6 +458,28 @@ OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
 # (gold-only vs +synth over ONE frozen test read, paired LB95 + the
 # per-label flip table + latency both arms; the arm-A 0.7800 aliveness
 # anchor). Exclusive early-exit modes — never run beside a bench.
+#
+# The Issue-064 ascent leg (Bench 120 pilot + the density gate + the echo
+# gates; `src/harness/runner/{density_pilot,echo_gates}.rs`):
+# --synth-density-pilot — REPORT-ONLY density measurement (vMF kernel over
+#   the engine's own hashed embedding, LOO pool scoring, NN-pair control;
+#   the minimal-deviation accept ladder; no teacher, no artifact);
+# --synth-density-gate <p50|p75|p90> — arm the minimal-deviation gate on
+#   --synth-corpus. DENSITY-FIRST: the gate runs BEFORE the teacher forward
+#   (both filters pure → the accepted set is order-invariant, but the
+#   teacher calls drop ~2.5× vs post-veto gating at the p50 pass rate);
+#   rejected rows never spend a teacher call; `density_rejected` counts
+#   pre-forward rejects; `density_rule` rides the report + artifact header.
+# EVERY --corpus-ab pass also computes the two mandatory echo gates
+#   (output `abstention` + `ood` blocks, additive):
+#   - abstention-entropy: KL(gold‖synth) ≤ 0.05 nats over the 10-bin
+#     normalized answer-entropy histogram; the abstain-rate pair is
+#     disclosure, never a gate leg;
+#   - OOD word-dropout ladder p∈{.10,.20,.30} (gate rung .20, seeded
+#     blake3(case_id‖p) → splitmix64, byte-reproducible): a clean V5 PASS
+#     whose gate-rung paired LB95 < 0 reads ECHO — recorded NEGATIVE, the
+#     lane dies (Issue 064's law). First reading (2026-10-04): the SEATED
+#     ungated artifact reads transfer-ok, retention 1.00.
 cargo run --release --bin harness -- --synth-plan --help
 cargo run --release --bin harness -- --corpus-ab --help
 ```
