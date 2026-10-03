@@ -120,6 +120,12 @@ pub use synth::{
 mod corpus_ab;
 pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
 
+mod density_pilot;
+pub use density_pilot::{
+    render_density_pilot_markdown, run_density_pilot, DensityPilotMeta, DensityPilotOutput,
+    DensityPilotSuite,
+};
+
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";
 

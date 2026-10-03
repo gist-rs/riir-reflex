@@ -1,6 +1,6 @@
 # Issue 064 — Learner-density ascent leg for the corpus-synthesis lane (projection-sampling accept rule)
 
-**Status:** OPEN — fusion idea from [katgpt-rs Research 603](../../katgpt-rs/.research/603_Projection_Sampling_MCMC_SFT_Data_Shaping.md) (arXiv:2610.02140, "Finetuning with Sampling"); pairs with riir-train Plan 438 Phase 2 (the training-side RIDT v2 consumer). Novelty of the *fusion* verified: no shipped code gates rewrites by a learner-density score (workspace grep 2026-10-03); the technique itself is the paper's prior art — we distill, not claim.
+**Status:** OPEN — task 1 (pilot) DONE 2026-10-04, kill gate PASS ([Bench 120](../.benchmarks/120_synth_density_pilot/RECORD.md)): massive_intent_en 38.3% / banking77 41.5% accept at ε_nat — the minimal-deviation signature holds (median |Δ| at 0.66×/0.30× the natural-neighbour scale), 7.7–8.3× the 5% bar, both suites src-misses 0. Task 2 (flag + corpus-ab V5 + OOD rig) is the live task. Fusion idea from [katgpt-rs Research 603](../../katgpt-rs/.research/603_Projection_Sampling_MCMC_SFT_Data_Shaping.md) (arXiv:2610.02140, "Finetuning with Sampling"); pairs with riir-train Plan 438 Phase 2 (the training-side RIDT v2 consumer). Novelty of the *fusion* verified: no shipped code gates rewrites by a learner-density score (workspace grep 2026-10-03); the technique itself is the paper's prior art — we distill, not claim.
 
 ## The gap
 
@@ -29,6 +29,6 @@ Add an I-projection ascent leg **alongside** (AND-ed with, never replacing) the 
 
 ## Tasks
 
-- [ ] Pilot: density-scored transplant candidates on one suite (massive — the published 0.7800 anchor) measuring accept-rate + Δdensity + the minimal-deviation signature; kill gate on < 5% accept-rate.
+- [x] Pilot: density-scored transplant candidates on one suite (massive — the published 0.7800 anchor) measuring accept-rate + Δdensity + the minimal-deviation signature; kill gate on < 5% accept-rate. **DONE 2026-10-04 — Bench 120, kill gate PASS with wide margin** (38.3% accept@ε_nat on massive + 41.5% on the banking77 control; instrument = the new `harness --synth-density-pilot` report-only mode — vMF kernel over the engine's own hashed embedding, τ data-derived per label, LOO pool scoring, NN-pair control; two runs bit-identical). En-route find: `SynthCand.src` is LABEL-LOCAL, not a global pool index — the doc comment said "pool row index" and the first pilot run mapped it globally (205,604 src-misses, all numbers discarded); doc clarified, mapping fixed, src-misses 0.
 - [ ] If pilot passes: wire the ascent leg behind a flag; run corpus-ab V5 + OOD rig + abstention-entropy gate.
 - [ ] Coordinate with riir-train Plan 438 Phase 2 so the training-side RIDT v2 and this lane share the operator (extract the scorer/accept core into shared substrate only when this second consumer lands — DRY, no parallel substrate).

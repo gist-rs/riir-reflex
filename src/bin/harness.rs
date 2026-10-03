@@ -250,6 +250,7 @@ fn harness_main() {
     // --e0/--distill).
     let mut synth_corpus = false;
     let mut synth_plan = false;
+    let mut synth_density_pilot = false;
     let mut corpus_ab: Option<std::path::PathBuf> = None;
     let mut synth_out = std::path::PathBuf::from(".raw/corpus_synth");
     let mut synth_teacher = "openthai".to_string();
@@ -380,6 +381,7 @@ fn harness_main() {
             }
             "--synth-corpus" => synth_corpus = true,
             "--synth-plan" => synth_plan = true,
+            "--synth-density-pilot" => synth_density_pilot = true,
             "--synth-teacher" => {
                 i += 1;
                 synth_teacher = args
@@ -578,12 +580,13 @@ fn harness_main() {
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 6] = [
+        let modes: [(&str, bool); 7] = [
             ("--e0", e0),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),
             ("--synth-plan", synth_plan),
+            ("--synth-density-pilot", synth_density_pilot),
             ("--corpus-ab", corpus_ab.is_some()),
         ];
         let active: Vec<&str> = modes
@@ -771,6 +774,57 @@ fn harness_main() {
         }
         println!(
             "harness --synth-corpus: DONE — {} suite(s), {} absence(s); wrote {} + {}",
+            out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    if synth_density_pilot {
+        // Issue 064 pilot — the learner-density ascent-leg MEASUREMENT
+        // (report-only, no artifact, no teacher): score the transplant
+        // candidates with the vMF corpus-density proxy over the engine's
+        // own embedding and read the minimal-deviation accept ladder + the
+        // <5% kill gate. Shares the synth family's knobs; only the span
+        // bound affects the measurement.
+        let sopts = runner::SynthOptions {
+            teacher: synth_teacher.clone(),
+            max_accepted: synth_max,
+            max_per_label: synth_per_label,
+            max_span_len: synth_span,
+            out_dir: synth_out.clone(),
+        };
+        println!(
+            "harness --synth-density-pilot: datasets {} · suites {:?} · span ≤ {} · out {}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            synth_span,
+            synth_out.display()
+        );
+        let out = match runner::run_density_pilot(&opts, &sopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&synth_out) {
+            die(&format!("create {}: {e}", synth_out.display()));
+        }
+        let json_path = synth_out.join("density_pilot.json");
+        let md_path = synth_out.join("DENSITY_PILOT.md");
+        let json = serde_json::to_string_pretty(&out).expect("density pilot serialize");
+        let md = runner::render_density_pilot_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --synth-density-pilot: absence: {e}");
+        }
+        println!(
+            "harness --synth-density-pilot: DONE — {} suite(s), {} absence(s); wrote {} + {}",
             out.suites.len(),
             out.skipped.len(),
             json_path.display(),

@@ -95,8 +95,9 @@ pub struct SynthOptions {
     pub out_dir: std::path::PathBuf,
 }
 
-/// One generated candidate (pre-veto). `src` is the pool row index whose
-/// pair first attested the FRAME (the provenance anchor); `span` is
+/// One generated candidate (pre-veto). `src` is the LABEL-LOCAL pool
+/// row index whose pair first attested the FRAME (the provenance anchor —
+/// label-local because mining iterates the label's own rows); `span` is
 /// `(prefix_len, span_len)` in tokens.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct SynthCand {
@@ -796,7 +797,7 @@ pub fn load_synth_corpus(
 // ── the run entries ─────────────────────────────────────────────────────
 
 /// The synth mode's suites: explicit `--suites`, else the V5 board suite.
-fn synth_suites(opts: &RunOptions) -> (Vec<&'static SuiteSpec>, bool) {
+pub(crate) fn synth_suites(opts: &RunOptions) -> (Vec<&'static SuiteSpec>, bool) {
     let defaulted = opts.suites.is_empty();
     let names: Vec<&str> = if defaulted {
         vec!["massive_intent_en"]
