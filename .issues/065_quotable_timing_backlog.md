@@ -33,7 +33,10 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
 
 - [ ] T1 Re-run `bekko` on a quiet M3: `scripts/bench_preflight.sh` green first (quote its `PROVENANCE:` line in
   the bench record), then `cargo run --release --bin harness -- --bekko --skip-laya --out .benchmarks/<n>_bekko_tables`.
-  Expected: 9 cells flip unfit → quotable.
+  Expected: 9 cells flip unfit → quotable. **Priced in `.issues/067`** (filed 2026-10-03): ≈21 min of lane wall
+  (run 1 15.0 min + run 2 6.3 min, Bench 107's measured per-suite seconds); the gate that failed in Bench 107 was
+  the box going LOADED mid-run after a green launch preflight (load 3.89 → 9.05), so the quiet-box check must hold
+  at BOTH ends — 067 carries the verbatim re-run protocol.
 - [ ] T2 Re-run `paw` hosted + `paw_local` the same way (`--paw` with the tier env
   `PAW_COMPILER=paw-ft-bs48-20260530` + `PAW_COMPILE_ASYNC=1`, `--paw-local` with `PAW_LOCAL_PYTHON`) —
   preflight green, one window, both postures. Expected: 5 unfit hosted cells + the local posture cells → quotable
