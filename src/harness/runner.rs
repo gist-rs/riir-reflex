@@ -7269,20 +7269,22 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .unwrap_or_else(|_| crate::lanes::clef::DEFAULT_SERVE_URL.into());
             format!(
                 "on — Cloudflare Clef decision models (Cloudflare/clef + clef-flash, \
-                 Apache-2.0, not affiliated) served on Workers AI, measured over HTTP \
-                 via {url} (comparison lane, never a product lane): same cases, the \
+                 Apache-2.0, not affiliated) behind a loopback endpoint, measured over \
+                 HTTP via {url} (comparison lane, never a product lane): same cases, the \
                  Jev-shaped wire per the vendor (the wire fixture is plan 011 A2.5 — \
-                 captured before any published cell), gold-label scoring; the \
-                 TLS-terminating forwarder hop is INCLUDED in the client round-trip \
-                 and disclosed here (plan 011 A0 — the JDI's hosted rows disclose the \
-                 same class); env: CLEF_SERVE_URL, CLEF_ACCOUNT_ID/CLEF_RUN_PATH, \
+                 captured before any published cell), gold-label scoring; the loopback \
+                 hop is INCLUDED in the client round-trip; the SERVING PROVENANCE is the \
+                 reply envelope's model field (plan 011 A0: the TLS-terminating forwarder \
+                 in front of Workers AI, or a local serve — quote the model id + quant in \
+                 the record); env: CLEF_SERVE_URL, CLEF_ACCOUNT_ID/CLEF_RUN_PATH, \
                  CLEF_API_TOKEN, CLEF_MODEL, CLEF_TIMEOUT_MS, spend ceiling \
                  CLEF_SMOKE_MAX_CASES (default 50; CLEF_ALLOW_UNCAPPED=1 overrides); \
                  plan 011 Phase A"
             )
         } else {
-            "off (pass --clef to add the comparison lane; needs the owner's Workers AI \
-             creds behind the loopback forwarder — plan 011 Phase A)"
+            "off (pass --clef to add the comparison lane; the hosted posture needs the \
+             owner's Workers AI creds behind the loopback forwarder, or serve the open \
+             weights locally — plan 011 Phase A + .research/007)"
                 .to_string()
         },
         openthai_lane: if opts.openthai {
