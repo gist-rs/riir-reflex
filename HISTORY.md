@@ -5,7 +5,39 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-04 — Issue 064 closed (the projection-ascent density gate: works as designed, buys no accuracy)
+
+- **Issue 064 (projection-ascent corpus synthesis)**: task 1 pilot — kill gate PASS with
+  wide margin ([Bench 120](../.benchmarks/120_synth_density_pilot/RECORD.md): 38.3%/41.5%
+  accept at ε_nat, the minimal-deviation signature at 0.66×/0.30× natural-neighbour scale,
+  src-misses 0). Task 2 — the flag + corpus-ab V5 + the pre-registered echo-gate rig
+  (abstention-entropy KL + the OOD word-dropout ladder) landed, then the teacher-gated
+  dose-response pair: **p50** ([Bench 121](../.benchmarks/121_synth_density_p50_corpus_ab/RECORD.md),
+  1,859 rows: V5 PASS marginal LB95 +0.0016, all echo gates green, ~7× weaker lift than
+  ungated) and **p75** ([Bench 122](../.benchmarks/122_synth_density_p75_dose_response/RECORD.md),
+  1,980 rows: V5 PASS LB95 +0.0062, OOD gate-rung +0.0117 ≈ ungated's +0.0130, **zero
+  gold-only regressions**). **The verdict: the lift tracks row count — p50's deficit was
+  walk starvation (quantity), not selection; and UNGATED (0.8133 / +0.0110) beats every
+  gate strength at every accuracy cell — the fusion's premise (density-gated selection
+  improves corpus quality for the frozen consumer) measures NO gain where ungated
+  synthesis already transfers cleanly. Corpus health is IDENTICAL at every strength
+  (KL 0.0000, retention 1.0) — the gate neither helps nor hurts health, it only shrinks
+  the corpus. A remedy without a disease on this suite.** The SEATED production corpus
+  stays the ungated artifact. The code stays (`--synth-density-gate`, `DensityGate`, the
+  echo-gate rig — zero-cost instruments for any future gate experiment). En-route
+  production proof: **density-first ordering** (the gate before the teacher forward) —
+  6,982 + 2,965 pre-forward rejects ≈ **11 h of teacher calls not spent** across the
+  pair. Task 3 (share the operator with riir-train Plan 438 Phase 2's RIDT v2) stays
+  deferred-DRY: the second consumer has not landed, and the measured negative weakens
+  the pull — re-open only if the training side lands and wants the gate. Ops notes: the
+  p75 run was interrupted at ~505/2048 by an owner silent-rig call and resumed same-day
+  via the recorded protocol; the rerun reproduced the interrupted trajectory
+  block-for-block (the determinism witness). The issue file is removed per the
+  noise-reduction rule.
+
 ## 2026-10-04 — Issue 054 closed (all four parts terminal)
+
+- **Issue 054 (openjev lane + prefix-state handoff)**
 
 - **Issue 054 (openjev lane + prefix-state handoff)**: Part 1 lane candidate — owner call
   2026-10-02, TERMINAL (do NOT add to the arena; the 27B model is too huge for the fleet;

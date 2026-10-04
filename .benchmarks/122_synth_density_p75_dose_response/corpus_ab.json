@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "date_utc": "2026-10-04T15:31:05Z",
+    "git_sha": "16eb594",
+    "datasets_dir": ".raw/datasets_t20k",
+    "corpus_cap_per_label": 48,
+    "synth_extra_cap": 128,
+    "read_rule": "one frozen test read; two engine builds differing ONLY in corpus content; forced-pick hard accuracy; paired LB95 (synth − gold) > 0 is the V5 gate; both arms reported (C3)"
+  },
+  "suites": [
+    {
+      "suite": "massive_intent_en",
+      "synth_artifact": ".raw/corpus_synth_dens75/massive_intent_en_synth.jsonl",
+      "synth_rows_total": 1980,
+      "synth_rows_in_scope": 1980,
+      "gold_corpus_docs": 11314,
+      "synth_corpus_docs": 13294,
+      "acc_gold": 0.78,
+      "acc_synth": 0.8033333333333333,
+      "delta_lb95": 0.006222070876653232,
+      "flips": [
+        {
+          "label": "audio_volume_mute",
+          "gained": 2,
+          "lost": 0
+        },
+        {
+          "label": "audio_volume_down",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "audio_volume_other",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "general_greet",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "iot_hue_lighton",
+          "gained": 1,
+          "lost": 0
+        },
+        {
+          "label": "music_likeness",
+          "gained": 1,
+          "lost": 0
+        }
+      ],
+      "b_only_cases": [
+        "massive_intent_en:7",
+        "massive_intent_en:12",
+        "massive_intent_en:120",
+        "massive_intent_en:176",
+        "massive_intent_en:233",
+        "massive_intent_en:256",
+        "massive_intent_en:257"
+      ],
+      "a_only_cases": [],
+      "lat_p50_gold_us": 112,
+      "lat_p99_gold_us": 135,
+      "lat_p50_synth_us": 113,
+      "lat_p99_synth_us": 200,
+      "determinism_ok": true,
+      "aliveness": "arm A reproduces the published 0.78 exactly — the instrument is alive (the seat posture, selected knobs + fitted gate)",
+      "verdict": "V5 PASS — synthesis lifts the modelless row (paired LB95 > 0)",
+      "abstention": {
+        "abstain_rate_gold": 0.9366666666666666,
+        "abstain_rate_synth": 0.88,
+        "entropy_hist_gold": [
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.9709677419354839
+        ],
+        "entropy_hist_synth": [
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.0032258064516129032,
+          0.9709677419354839
+        ],
+        "entropy_kl_gold_to_synth": 0.0,
+        "entropy_kl_synth_to_gold": 0.0,
+        "pass": true,
+        "rule": "KL(gold‖synth) ≤ 0.05 nats over the 10-bin normalized answer-entropy histogram (Laplace-smoothed) — the issue's own wording gates the KL alone; the abstain-rate drift is a DISCLOSURE column, not a gate leg (first real reading, 2026-10-04: corpus growth raises answer confidence BY DESIGN — a 6pp rate drop at a 0.93 baseline with KL 0.0000 is the system working, not a collapse; an absolute-rate leg would mis-fire at high-abstain baselines and under-bind at low ones)"
+      },
+      "ood": {
+        "rungs": [
+          {
+            "dropout_p": 0.1,
+            "acc_gold": 0.7566666666666667,
+            "acc_synth": 0.7866666666666666,
+            "delta": 0.029999999999999916,
+            "delta_lb95": 0.010663985116578303
+          },
+          {
+            "dropout_p": 0.2,
+            "acc_gold": 0.7566666666666667,
+            "acc_synth": 0.7933333333333333,
+            "delta": 0.036666666666666625,
+            "delta_lb95": 0.01166397903707191
+          },
+          {
+            "dropout_p": 0.3,
+            "acc_gold": 0.6766666666666666,
+            "acc_synth": 0.6966666666666667,
+            "delta": 0.020000000000000018,
+            "delta_lb95": 0.004131038266846385
+          }
+        ],
+        "gate_rung_p": 0.2,
+        "clean_delta": 0.023333333333333317,
+        "clean_lb95": 0.006222070876653232,
+        "retention_at_gate": 1.5714285714285707,
+        "echo_verdict": "transfer-ok",
+        "rule": "deterministic seeded word-dropout ladder p∈{0.10,0.20,0.30}; gate rung p=0.20; a clean V5 PASS whose gate-rung paired LB95 < 0 reads ECHO (recorded NEGATIVE, the lane dies); a non-negative gate-rung LB95 reads transfer-ok; retention = corrupted Δ / clean Δ"
+      },
+      "seconds": 42.777165875
+    }
+  ]
+}
