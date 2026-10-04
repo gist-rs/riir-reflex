@@ -79,6 +79,14 @@ def main() -> int:
         print(f"laya-python lane: unknown checkpoint {ck!r} "
               f"(expected one of {', '.join(CKPTS)})", file=sys.stderr)
         return 2
+    # UTF-8 pipes (the cp874 class; stdin included — the gliner_lane fix,
+    # 2026-10-05: a cp874-locale pipe mis-decodes the harness's UTF-8 JSON
+    # case text into mojibake/lone surrogates).
+    for stream in (sys.stdout, sys.stderr, sys.stdin):
+        try:
+            stream.reconfigure(encoding="utf-8", errors="backslashreplace")
+        except (AttributeError, ValueError):
+            pass
     repo = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     sys.path.insert(0, os.path.join(repo, ".raw", "laya"))
     import laya  # noqa: E402

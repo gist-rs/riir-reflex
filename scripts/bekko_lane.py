@@ -160,11 +160,18 @@ def main() -> int:
     revision = os.environ.get("BEKKO_REVISION", DEFAULT_REVISION)
 
     # UTF-8 pipes before any import side effect prints a glyph (cp874 class).
+    # stdin TOO — the gliner_lane fix (2026-10-05): the harness writes UTF-8
+    # JSON; a cp874-locale pipe mis-decodes case text into mojibake/lone
+    # surrogates and can kill the oracle mid-suite.
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         except (AttributeError, ValueError):
             pass
+    try:
+        sys.stdin.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
     from transformers.dynamic_module_utils import get_class_from_dynamic_module
 

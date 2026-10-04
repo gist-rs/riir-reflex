@@ -5,6 +5,51 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-05 — Issue 065 CLOSED (the quotable-timing backlog: every comparison lane now plots)
+
+**[Bench 123](.benchmarks/123_lanes_rerun_4090_boxstate/RECORD.md)** — the four 4090 lane
+re-runs, one window, all self-judged quotable by the T3(b) Windows probes (`00bedc0`'s first
+production proof: four real harness results carrying `BoxState` from the PowerShell
+single-spawn, two honest load-refusals on the way — 7.44/8.16 end-captures against
+sibling+staging load, both re-run clean):
+
+| lane | cells | p50 geomean | notes |
+|---|---|---|---|
+| openthai @4090 | 11/11 | (extra-host rollup) | every cell == the published lane; the home row's 4-suite accuracy-pick drop resolves |
+| clm @4090 | 8/8 | 44.46 ms | vLLM stack re-staged from the surviving docker image + HF cache (no 16 GB re-download) |
+| agentjev @4090 | 8/8 | 45.17 ms | their repo @ `a965ca8f` + step-600 tensors re-wrapped; typed 0.7720 (the one-question bf16 wobble class) |
+| gliner @4090 | 8/8 | 22.85 ms | 6 cells reproduce bench-037 exactly; massive 0.7267 / banking77 0.7100 are the corrected-decode cells (below) |
+
+Every run's modelless control cells bit-identical to the published board (the drift guard's
+premise, all four docs). Posture: the board-canonical `--nb-select --oc-select --ridge-select`
+over the canonical `.raw/datasets`; `--skip-laya` (the laya@4090 cells were never the backlog).
+Publish: `PUBLISH_BENCH_LANES="openthai,agentjev,gliner,clm"` update publish, publisher
+self-test 84/84 first, all site gates green afterward (the `clm@4090-win` lane profile view
+renders on /bench).
+
+**The window's one real product find — the cp874 STDIN decode (fixed, landed with the
+close):** the gliner oracle crashed on typed_decisions + prompt_injections with first an
+`IndexError` inside gliner2's schema-embedding extraction and then, under the crash-capture
+instrument, `UnicodeEncodeError: '\udc99' surrogates not allowed` — the JSONL lane scripts
+(`gliner_lane.py`, `bekko_lane.py`) reconfigured stdout/stderr to UTF-8 but NOT stdin, so on
+this box Python decoded the harness's UTF-8 JSON pipe with the ANSI codepage: case text
+mojibake'd, some bytes surfacing as lone surrogates, and the mis-decoded text's token/schema
+misalignment read upstream as the package's IndexError. Fix:
+`sys.stdin.reconfigure(encoding="utf-8", errors="backslashreplace")` in all three
+subprocess-lane scripts (gliner + bekko + laya_python — the family's missing half of the
+cp874 law). **Consequence:** every gliner/bekko cell previously measured through a cp874
+stdin pipe carried mojibake'd non-ASCII text — the ASCII-majority suites reproduce their old
+cells exactly, and massive_intent_en (0.8233 → 0.7267) + banking77 (0.7060 → 0.7100) MOVED on
+the corrected decode; the new numbers are the honest ones (the oracle finally reads the
+dataset's actual text) and are what the publish landed.
+
+Re-stage ledger (Bench 123's RECORD carries the full notes): fresh `uv venv`s on Windows pull
+CPU-only torch — the CUDA build needs `--index-url https://download.pytorch.org/whl/cu124`
+(measured: the agentjev boot died with "Torch not compiled with CUDA enabled" until the
+index pin); the agentjev torch-wrap is `torch.save({'state_dict': load_file(...)})` (343
+tensors, re-runnable); the CLM pin `cca045ffd…` resolves via the GitHub API when the
+abbreviated ref fetch refuses.
+
 ## 2026-10-04 — Issue 064 closed (the projection-ascent density gate: works as designed, buys no accuracy)
 
 - **Issue 064 (projection-ascent corpus synthesis)**: task 1 pilot — kill gate PASS with

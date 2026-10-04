@@ -159,12 +159,21 @@ def main() -> int:
     model_id = os.environ.get("GLINER_MODEL", DEFAULT_MODEL)
 
     # torch needs UTF-8 pipes on Windows-class consoles before any import
-    # side effect prints a glyph (the cp874 class).
+    # side effect prints a glyph (the cp874 class). stdin TOO: the harness
+    # writes UTF-8 JSON; on a cp874-locale box Python decodes the pipe with
+    # the ANSI codepage, silently mojibake-ing every non-ASCII byte of case
+    # text (measured 2026-10-05: typed/prompt text carried \udc99-class
+    # lone surrogates from the mis-decode and killed the oracle — the
+    # bench-123 re-run's crash capture).
     for stream in (sys.stdout, sys.stderr):
         try:
             stream.reconfigure(encoding="utf-8", errors="backslashreplace")
         except (AttributeError, ValueError):
             pass
+    try:
+        sys.stdin.reconfigure(encoding="utf-8", errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
     from gliner2.classification.engine import Classifier
 
