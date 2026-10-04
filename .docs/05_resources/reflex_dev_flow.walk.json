@@ -1,0 +1,155 @@
+{
+ "gfflow_walk": 1,
+ "generated_by": "reflex-site scripts/render_flows.py",
+ "file": "reflex_dev_flow.svg",
+ "title": "Reflex: author a lane — grammar, labels, refit, serve, ship",
+ "accent": "#ff8a3d",
+ "intro": "Press play to walk the dev loop one step at a time, or click a dot to jump. Each step shows what goes in and what comes out where a wire exists — captured from the real release binary.",
+ "steps": {
+  "author": {
+   "n": "1",
+   "title": "Author the grammar",
+   "lane": "desk",
+   "color": "#ff8a3d"
+  },
+  "label": {
+   "n": "2",
+   "title": "Label a slice",
+   "lane": "desk",
+   "color": "#ff8a3d"
+  },
+  "refit": {
+   "n": "3",
+   "title": "Refit the gates",
+   "lane": "desk",
+   "color": "#ff8a3d"
+  },
+  "serve": {
+   "n": "4",
+   "title": "Serve on loopback",
+   "lane": "run",
+   "color": "#ff8a3d"
+  },
+  "decide": {
+   "n": "5",
+   "title": "Decide",
+   "lane": "run",
+   "color": "#ff8a3d"
+  },
+  "bin": {
+   "n": "6",
+   "title": "Ship the binary",
+   "lane": "ship",
+   "color": "#ff8a3d"
+  }
+ },
+ "edges": [
+  {
+   "id": "author->label",
+   "back": false
+  },
+  {
+   "id": "label->refit",
+   "back": false
+  },
+  {
+   "id": "refit->serve",
+   "back": false
+  },
+  {
+   "id": "serve->decide",
+   "back": false
+  },
+  {
+   "id": "decide->bin",
+   "back": false
+  }
+ ],
+ "walk": [
+  {
+   "title": "Author the grammar",
+   "text": "Write the domain as sentences: a state sentence and option sentences in a closed grammar. The grammar bounds what can be asked — nothing outside it is ever answered.",
+   "steps": [
+    "author"
+   ],
+   "edges": [],
+   "illustrative": false
+  },
+  {
+   "title": "Label a slice",
+   "text": "A small set of your own labeled examples, kept offline. This is the only data the fit consumes — no telemetry feeds it.",
+   "steps": [
+    "label"
+   ],
+   "edges": [
+    "author->label"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "Refit the gates",
+   "text": "Fit the gate thresholds from your labels, offline, one-off. The calibrator stays bit-identical until you refit it.",
+   "steps": [
+    "refit"
+   ],
+   "edges": [
+    "label->refit"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "Serve on loopback",
+   "text": "Run the edge on your machine with one allowed origin. The health read is the loopback edge answering: which lanes are ready, which heads are fitted.",
+   "steps": [
+    "serve"
+   ],
+   "edges": [
+    "refit->serve"
+   ],
+   "illustrative": false,
+   "out": {
+    "lang": "json",
+    "src": "data/flows/reflex_dev_flow/04_out.json",
+    "label": "GET /healthz — the edge is up",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · GET /healthz (healthz response)",
+    "body": "{\n  \"status\": \"ok\",\n  \"lanes\": {\n    \"modelless\": \"ready\",\n    \"raw\": \"ready\",\n    \"laya\": \"off\"\n  },\n  \"heads\": {\n    \"tetris\": true,\n    \"lanes\": true,\n    \"flappy\": true\n  },\n  \"corpus\": \"demo\"\n}"
+   }
+  },
+  {
+   "title": "Decide",
+   "text": "The live path: an answer with calibrated confidence, or an honest abstain when the evidence is thin. This runbook question is answered by the corpus the loop just authored.",
+   "steps": [
+    "decide"
+   ],
+   "edges": [
+    "serve->decide"
+   ],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/reflex_dev_flow/05_in.json",
+    "label": "POST /decide — a question your corpus covers",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (corpus_answered request)",
+    "body": "{\n  \"state\": \"our deploy regressed the error budget after the rollout — run the rollback and verify the health endpoints\",\n  \"questions\": [\n    {\n      \"id\": \"route\",\n      \"kind\": \"choice\",\n      \"prompt\": \"Which runbook applies?\",\n      \"options\": [\n        \"billing\",\n        \"deploy\",\n        \"onboarding\"\n      ]\n    }\n  ]\n}"
+   },
+   "out": {
+    "lang": "json",
+    "src": "data/flows/reflex_dev_flow/05_out.json",
+    "label": "the corpus's answer",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (corpus_answered response)",
+    "body": "{\n  \"answers\": [\n    {\n      \"question_id\": \"route\",\n      \"outcome\": {\n        \"choice\": {\n          \"index\": 1\n        }\n      },\n      \"probabilities\": [0.3341486, 0.3407357, 0.32511574],\n      \"confidence\": 0.00016820431\n    }\n  ],\n  \"routing\": {\n    \"lane\": \"modelless\",\n    \"reason\": \"modelless corpus routing: billing=0 deploy=1 onboarding=0; fused abstain (score+distance) armed\"\n  },\n  \"calibration\": {\n    \"method\": \"none\",\n    \"temperature\": 1.0\n  }\n}"
+   }
+  },
+  {
+   "title": "Ship the binary",
+   "text": "One static release per platform; the corpus and the fitted thresholds ride with it. Same binary, same answers, on every host.",
+   "steps": [
+    "bin"
+   ],
+   "edges": [
+    "decide->bin"
+   ],
+   "illustrative": false
+  }
+ ]
+}

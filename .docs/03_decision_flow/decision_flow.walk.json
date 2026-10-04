@@ -1,0 +1,204 @@
+{
+ "gfflow_walk": 1,
+ "generated_by": "reflex-site scripts/render_flows.py",
+ "file": "decision_flow.svg",
+ "title": "Reflex: the decision flow — state in, calibrated answer or honest abstain out",
+ "accent": "#ff8a3d",
+ "intro": "Press play to walk the flow one step at a time, or click a dot to jump.",
+ "steps": {
+  "ask": {
+   "n": "1",
+   "title": "Your question",
+   "lane": "you",
+   "color": "#ff8a3d"
+  },
+  "emb": {
+   "n": "2",
+   "title": "Embed + route",
+   "lane": "eng",
+   "color": "#ff8a3d"
+  },
+  "score": {
+   "n": "3",
+   "title": "Score every option",
+   "lane": "eng",
+   "color": "#ff8a3d"
+  },
+  "cal": {
+   "n": "4",
+   "title": "Calibrate",
+   "lane": "eng",
+   "color": "#ff8a3d"
+  },
+  "yes": {
+   "n": "5a",
+   "title": "Answer",
+   "lane": "ans",
+   "color": "#ff8a3d"
+  },
+  "no": {
+   "n": "5b",
+   "title": "Abstain",
+   "lane": "abst",
+   "color": "#ff8a3d"
+  },
+  "fit": {
+   "n": "6",
+   "title": "Refit the gate",
+   "lane": "you",
+   "color": "#ff8a3d"
+  }
+ },
+ "edges": [
+  {
+   "id": "ask->emb",
+   "back": false
+  },
+  {
+   "id": "emb->score",
+   "back": false
+  },
+  {
+   "id": "score->cal",
+   "back": false
+  },
+  {
+   "id": "cal->yes",
+   "back": false
+  },
+  {
+   "id": "cal->no",
+   "back": false
+  },
+  {
+   "id": "fit->cal",
+   "back": true
+  }
+ ],
+ "walk": [
+  {
+   "title": "You ask",
+   "text": "Your app sends a state plus typed questions over loopback — choice, score or yes-no. Nothing leaves your machine.",
+   "steps": [
+    "ask"
+   ],
+   "edges": [],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/01_in.json",
+    "label": "POST /decide",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered request)",
+    "body": "{\n  \"state\": \"The piece leaves no holes under it on the left edge, sits flat on the surface, and the stack stays low.\",\n  \"questions\": [\n    {\n      \"id\": \"clean\",\n      \"kind\": \"noul\",\n      \"prompt\": \"Does the stack look clean?\"\n    }\n  ]\n}"
+   }
+  },
+  {
+   "title": "Embed and route",
+   "text": "The state is hashed into features and the domain argmax picks your corpus — the corpus IS the model here; no neural weights, no AI service.",
+   "steps": [
+    "emb"
+   ],
+   "edges": [
+    "ask->emb"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "Score every option",
+   "text": "Each option is scored against the corpus: the drafter's compressed-length delta blended with the query's cosine to the option's corpus centroid — the cosine is the signal that ranks.",
+   "steps": [
+    "score"
+   ],
+   "edges": [
+    "emb->score"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "Calibrate",
+   "text": "A sigmoid gate turns the signal into confidence. The calibrator starts bit-identical to the raw readout and refits only from outcome evidence you supply — offline, one-off, yours.",
+   "steps": [
+    "cal"
+   ],
+   "edges": [
+    "score->cal"
+   ],
+   "illustrative": false
+  },
+  {
+   "title": "Signal — the answer",
+   "text": "With signal, one pick per question goes back with calibrated confidence and the full distribution riding beside it. This game-head question is one the engine is sure on.",
+   "steps": [
+    "yes"
+   ],
+   "edges": [
+    "cal->yes"
+   ],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/01_in.json",
+    "label": "POST /decide",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered request)",
+    "body": "{\n  \"state\": \"The piece leaves no holes under it on the left edge, sits flat on the surface, and the stack stays low.\",\n  \"questions\": [\n    {\n      \"id\": \"clean\",\n      \"kind\": \"noul\",\n      \"prompt\": \"Does the stack look clean?\"\n    }\n  ]\n}"
+   },
+   "out": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/05a_out.json",
+    "label": "sure: outcome yes",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (answered response)",
+    "body": "{\n  \"answers\": [\n    {\n      \"question_id\": \"clean\",\n      \"outcome\": {\n        \"noul\": {\n          \"yes\": true\n        }\n      },\n      \"probabilities\": [0.51943666],\n      \"confidence\": 0.51943666\n    }\n  ],\n  \"routing\": {\n    \"lane\": \"modelless\",\n    \"reason\": \"game-head/tetris (corpus-fitted, decoded arm)\"\n  },\n  \"calibration\": {\n    \"method\": \"none\",\n    \"temperature\": 1.0\n  }\n}"
+   }
+  },
+  {
+   "title": "No signal — the honest abstain",
+   "text": "Off-corpus or low confidence yields outcome null: the engine declines instead of guessing, and the full distribution still rides for risk-coverage analysis. This kitchen question is nowhere near the corpus — the distance gate catches it.",
+   "steps": [
+    "no"
+   ],
+   "edges": [
+    "cal->no"
+   ],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/05b_in.json",
+    "label": "POST /decide · off-corpus",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (off_corpus request)",
+    "body": "{\n  \"state\": \"My sourdough starter stopped rising after I moved it to a colder kitchen.\",\n  \"questions\": [\n    {\n      \"id\": \"route\",\n      \"kind\": \"choice\",\n      \"prompt\": \"Route this ticket to the team that owns it.\",\n      \"options\": [\n        \"deploy-ops\",\n        \"billing-support\"\n      ]\n    }\n  ]\n}"
+   },
+   "out": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/05b_out.json",
+    "label": "not sure: outcome null",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /decide (off_corpus response)",
+    "body": "{\n  \"answers\": [\n    {\n      \"question_id\": \"route\",\n      \"outcome\": null,\n      \"probabilities\": [0.52577484, 0.47422513],\n      \"confidence\": 0.0019177794\n    }\n  ],\n  \"routing\": {\n    \"lane\": \"modelless\",\n    \"reason\": \"modelless corpus routing: ops=0 support=1; fused abstain (score+distance) armed\"\n  },\n  \"calibration\": {\n    \"method\": \"none\",\n    \"temperature\": 1.0\n  }\n}"
+   }
+  },
+  {
+   "title": "Refit from your data",
+   "text": "Thresholds are fitted offline from labeled outcomes — never telemetry. The feedback wire is where outcome labels come back: report whether a past answer was right, and the engine recalibrates once it has enough reports.",
+   "steps": [
+    "fit"
+   ],
+   "edges": [
+    "fit->cal"
+   ],
+   "illustrative": false,
+   "in": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/06_in.json",
+    "label": "POST /feedback · an outcome label",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /feedback (feedback request)",
+    "body": "{\n  \"p\": 0.51943666,\n  \"outcome\": true\n}"
+   },
+   "out": {
+    "lang": "json",
+    "src": "data/flows/decision_flow/06_out.json",
+    "label": "not enough reports yet — no refit",
+    "from": "captured from the reflex 0.2.4 release binary, 2026-10-03 · POST /feedback (feedback response)",
+    "body": "{\n  \"refit\": false\n}"
+   }
+  }
+ ]
+}
