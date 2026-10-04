@@ -4,7 +4,7 @@
 
 Date: 2026-10-02 · host m3 (M3 Max, CPU — the author's reference posture) · reflex `8ca8770` · box load 5.0→9.1 across the two runs (a sibling session active on the box)
 
-**Plan home:** [riir-infer Plan 617 task A6](../../riir-infer/.plans/617_exl3_openthai_convert_and_infer.md) — the reflex-side, EXL3-independent board seat recorded there as "the natural 4090-box follow-up"; run here on the M3 under the plan's own "(or any box that meets the wall)" clause — the box met the wall (19 min total for 4,648 questions, see Latency).
+**Plan home:** [riir-infer Plan 617 task A6](../../../riir-infer/.plans/617_exl3_openthai_convert_and_infer.md) — the reflex-side, EXL3-independent board seat recorded there as "the natural 4090-box follow-up"; run here on the M3 under the plan's own "(or any box that meets the wall)" clause — the box met the wall (19 min total for 4,648 questions, see Latency).
 
 ## Comparator posture (the Bench-103 law, applied first)
 

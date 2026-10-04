@@ -1,7 +1,7 @@
 # Bench 095 — the LLW-solver re-baseline: the true MLEs restore real temperatures, the AUC regression stays fixed 15/15, and the `--gate-fit-calibrated` lever question is LIVE again (percentile coherence ≡ the raw gate's decisions)
 
 **Status:** RECORD (2026-09-30; PROMOTION LANDED same-day — see the tail) — the final evidence for the Issue-056 owner gate; **corrects Bench 094's "simplified owner gate" framing** (that framing depended on the constant-map outcome the LLW solver superseded).
-**Issue:** [056](../../.issues/056_calibrated_confidence_ranking_regression.md); substrate: katgpt-rs Issues 909 + 910 (closed; commits `74e9d192d` → `b0d80979d`)
+**Issue:** `056`; substrate: katgpt-rs Issues 909 + 910 (closed; commits `74e9d192d` → `b0d80979d`)
 **Supersedes:** nothing in 094's Finding 1 (the AUC fix holds); **replaces** 094's Finding 2 posture table + its "belt-and-suspenders" conclusion.
 
 ## What ran

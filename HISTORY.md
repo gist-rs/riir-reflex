@@ -91,13 +91,13 @@ abbreviated ref fetch refuses.
 ## 2026-10-04 — Issue 064 closed (the projection-ascent density gate: works as designed, buys no accuracy)
 
 - **Issue 064 (projection-ascent corpus synthesis)**: task 1 pilot — kill gate PASS with
-  wide margin ([Bench 120](../.benchmarks/120_synth_density_pilot/RECORD.md): 38.3%/41.5%
+  wide margin ([Bench 120](.benchmarks/120_synth_density_pilot/RECORD.md): 38.3%/41.5%
   accept at ε_nat, the minimal-deviation signature at 0.66×/0.30× natural-neighbour scale,
   src-misses 0). Task 2 — the flag + corpus-ab V5 + the pre-registered echo-gate rig
   (abstention-entropy KL + the OOD word-dropout ladder) landed, then the teacher-gated
-  dose-response pair: **p50** ([Bench 121](../.benchmarks/121_synth_density_p50_corpus_ab/RECORD.md),
+  dose-response pair: **p50** ([Bench 121](.benchmarks/121_synth_density_p50_corpus_ab/RECORD.md),
   1,859 rows: V5 PASS marginal LB95 +0.0016, all echo gates green, ~7× weaker lift than
-  ungated) and **p75** ([Bench 122](../.benchmarks/122_synth_density_p75_dose_response/RECORD.md),
+  ungated) and **p75** ([Bench 122](.benchmarks/122_synth_density_p75_dose_response/RECORD.md),
   1,980 rows: V5 PASS LB95 +0.0062, OOD gate-rung +0.0117 ≈ ungated's +0.0130, **zero
   gold-only regressions**). **The verdict: the lift tracks row count — p50's deficit was
   walk starvation (quantity), not selection; and UNGATED (0.8133 / +0.0110) beats every

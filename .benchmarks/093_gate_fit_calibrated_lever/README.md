@@ -1,7 +1,7 @@
 # Bench 093 — `--gate-fit-calibrated` (Issue 056 repair direction 0): fit the score-axis threshold on the scale the gate applies
 
 **Status:** RECORD (2026-09-30) — **the lever works as designed; stays opt-in** (promotion is owner-gated alongside the substrate saturation guard — the two repairs compose)
-**Issue:** [056](../../.issues/056_calibrated_confidence_ranking_regression.md) (severity-elevation section — the fit-on-raw / apply-on-calibrated scale mismatch)
+**Issue:** `056` (severity-elevation section — the fit-on-raw / apply-on-calibrated scale mismatch)
 **Baseline:** Bench 092's run (identical posture, lever off)
 
 ## What ran

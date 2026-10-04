@@ -1,7 +1,7 @@
 # Plan 008: Distributional Decision Layer — Seeded MC Bagging over the Deterministic Engine (Issue 055)
 
 **Status:** COMPLETE — T1–T7 (T5–T7 landed 2026-09-30: the `--mc-ab` arm + Bench 092 + the verdict ping-pong; **the null path FIRED — the feature stays opt-in**, one per-suite carve-out recorded)
-**Issue:** [055](../.issues/055_distributional_decision_layer.md) (filed from the DRM distill, riir-train Research 462 / Plan 429; arXiv:2609.33803)
+**Issue:** `055` (filed from the DRM distill, riir-train Research 462 / Plan 429; arXiv:2609.33803)
 **Bench:** `.benchmarks/092_distributional_layer_poc/` (allocated)
 **Source paper:** arXiv:2609.33803 "Diffusion Reward Models" (thunlp) — the decision-layer findings only (U_pair/U_BoN rejection +2.81 avg @70% coverage; LCB_λ=0.4 ranking beats mean-only BoN; sample-count reward-axis scaling).
 

@@ -1,7 +1,7 @@
 # Bench 092 — the Issue-055 distributional-layer PoC (`--mc-ab`)
 
 **Status:** RECORD (Bench closed 2026-09-30) — **the pre-registered null path FIRED, and the null is STRONGER than first recorded; the feature stays opt-in** (verdict round-1 revision applied: the initial banking77 carve-out was an artifact of the calibrated baseline key — see the calibration finding)
-**Plan:** [`.plans/008_issue055_distributional_decision_layer.md`](../.plans/008_issue055_distributional_decision_layer.md) T5+T6
+**Plan:** [`.plans/008_issue055_distributional_decision_layer.md`](../../.plans/008_issue055_distributional_decision_layer.md) T5+T6
 **Issue:** 055 (closed by this bench — record in `HISTORY.md`); **spun off Issue 056** (the calibrated-vs-raw ranking regression this bench's baseline columns exposed)
 **Source paper:** arXiv:2609.33803 (DRM) — the decision-layer findings only.
 
