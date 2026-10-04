@@ -2,6 +2,8 @@
 
 **Status:** OPEN — task 1 (pilot) DONE 2026-10-04, kill gate PASS ([Bench 120](../.benchmarks/120_synth_density_pilot/RECORD.md)): massive_intent_en 38.3% / banking77 41.5% accept at ε_nat — the minimal-deviation signature holds (median |Δ| at 0.66×/0.30× the natural-neighbour scale), 7.7–8.3× the 5% bar, both suites src-misses 0. Task 2 (flag + corpus-ab V5 + OOD rig) is the live task. Fusion idea from [katgpt-rs Research 603](../../katgpt-rs/.research/603_Projection_Sampling_MCMC_SFT_Data_Shaping.md) (arXiv:2610.02140, "Finetuning with Sampling"); pairs with riir-train Plan 438 Phase 2 (the training-side RIDT v2 consumer). Novelty of the *fusion* verified: no shipped code gates rewrites by a learner-density score (workspace grep 2026-10-03); the technique itself is the paper's prior art — we distill, not claim.
 
+Runbook + the md/svg flow (landed 2026-10-04): [`.docs/02_protocols/corpus_synthesis.md`](../.docs/02_protocols/corpus_synthesis.md) — the how-to-run (all four verbs), the gate laws, and the flow figure (`corpus_synthesis.svg`, rendered via the fleet renderer; the reflex-site mirror rows are the recorded follow-up).
+
 ## The gap
 
 `src/harness/runner/synth.rs` already has two of the three legs of arXiv:2610.02140's projection-sampling operator:
