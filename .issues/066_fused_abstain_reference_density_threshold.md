@@ -1,6 +1,6 @@
 # Issue 066: Fused-abstain reference-density threshold (LSL gate)
 
-**Status:** OPEN — PRE-CHECK DONE 2026-10-04 (verdict: raw hashed-bag space REJECTS Gaussianity universally — 0/154 label pools; the JL-projected space (k ≈ 32-64) accepts broadly — 253/254 pools; the GMM pair must be fit PROJECTED, never raw). POC substrate-blocked on katgpt-rs Plan 618 (`gmm_support` — not landed, grep 2026-10-04). Filed 2026-10-03 from katgpt-rs Research 604 (arXiv:2610.02126 "Local Support Learning"). POC/optimization task; consumer of the katgpt-rs `gmm_support` primitive (Plan 618).
+**Status:** OPEN — PRE-CHECK DONE 2026-10-04 (verdict: raw hashed-bag space REJECTS Gaussianity universally — 0/154 label pools; the JL-projected space (k ≈ 32-64) accepts broadly — 253/254 pools; the GMM pair must be fit PROJECTED, never raw). POC substrate-blocked on katgpt-rs Plan 618 (`gmm_support` — not landed, grep 2026-10-04). **The fit-space rider LANDED in Plan 618 2026-10-05 (katgpt-rs `8ebe97a1c` — the "Measured constraint" section: T1/T2 fit post-projection only, T6/T7/T9 validators must project, T12 handoffs carry the law).** Filed 2026-10-03 from katgpt-rs Research 604 (arXiv:2610.02126 "Local Support Learning"). POC/optimization task; consumer of the katgpt-rs `gmm_support` primitive (Plan 618).
 
 ## The gap
 
