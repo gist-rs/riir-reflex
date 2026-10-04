@@ -8,35 +8,80 @@
 
 Two renders exist:
 
-- **The hero SVG** — `decision_flow.svg`, rendered from the COMPACT
-  source below (short labels: it must read at landing-page scale on
-  `reflex.gist.rs`).
+- **The hero SVG** — `decision_flow.svg` (+ the 390 px card list `decision_flow_m.svg`),
+  rendered from the ` ```gfflow ` block below (short labels: it must read at
+  landing-page scale on `reflex.gist.rs`). The family flow-figure shape:
+  numbered steps in path order (branch alternatives share a number with
+  letters), grouped into swimlanes — the reference figure is the Reflex ↔
+  Reflexer relation flow (design guide §8, riir-ai Plan 620).
 - **The annotated diagram** — the full mermaid in this doc, with the
   honest edge-by-edge reading. The source of truth for what the engine
   actually does (`crates/../src/engine.rs` module doc is the code-level
   authority; this doc is the picture).
 
-## The compact hero source (renders `decision_flow.svg`)
+## The hero source (renders `decision_flow.svg`) — the gfflow block
 
-Two LR bands, the flywheel shape: the question in on top, the answer
-out under it, the fit loop dotted underneath.
+Four lanes group the stages: your machine (the question in, the fit
+loop), the modelless engine, and the two outcomes — answered and
+abstained. The main path counts 1→5; the calibrated gate's two outcomes
+share 5 (`5a` answers, `5b` abstains); the offline threshold fit is step
+6 looping back to the calibrator (a back edge never consumes a number).
 
-```mermaid
-%% file: decision_flow.svg
-%% aria: The Reflex decision flow: state plus a typed question (choice, score, or yes/no) is embedded, routed to a domain, options scored corpus-is-the-model, calibrated by a sigmoid gate, then answered in microseconds with confidence or an honest abstain — loopback only, thresholds fitted offline from your own labeled data
-flowchart TB
-    subgraph IN["the question in"]
-        direction LR
-        ASK["state + typed question<br/>choice · score · yes/no"] --> EMB["embed<br/>hashed features"] --> ROUTE["route<br/>domain argmax"] --> SCORE["score options<br/>corpus-is-the-model"]
-    end
-    subgraph OUT["the answer out — calibrated, honest"]
-        direction LR
-        CAL["calibrate<br/>sigmoid gate"] --> DEC{"fused gate"}
-        DEC -->|"signal"| ANS["answer + confidence<br/>microseconds · loopback only<br/>zero-alloc"]
-        DEC -->|"no signal"| ABST["abstain<br/>decline, don't guess"]
-    end
-    SCORE --> CAL
-    FIT["thresholds fitted from YOUR labeled data<br/>offline · one-off"] -.-> CAL
+```gfflow
+file  = "decision_flow.svg"
+title = "Reflex: the decision flow — state in, calibrated answer or honest abstain out"
+accent = "reflex"
+
+[[lane]]
+id = "you"; label = "Your machine"; note = "private · free · loopback only"; color = "reflex"
+[[lane]]
+id = "eng"; label = "The modelless engine"; note = "corpus-is-the-model · no training run"; color = "reflex"
+[[lane]]
+id = "ans"; label = "Answered"; note = "calibrated · microseconds"; color = "reflex"
+[[lane]]
+id = "abst"; label = "Abstained"; note = "a designed output, never an error"; color = "reflex"
+
+[[step]]
+id = "ask"; n = "1"; lane = "you"; col = 0
+title = "Your question"; body = "a state plus typed questions — choice, score or yes-no"
+status = "live"
+[[step]]
+id = "emb"; n = "2"; lane = "eng"; col = 1
+title = "Embed + route"; body = "hashed features; the domain argmax picks your corpus"
+status = "live"
+[[step]]
+id = "score"; n = "3"; lane = "eng"; col = 2
+title = "Score every option"; body = "corpus-is-the-model — drafter + centroid cosine"
+status = "live"
+[[step]]
+id = "cal"; n = "4"; lane = "eng"; col = 3
+title = "Calibrate"; body = "a sigmoid gate turns the signal into confidence"
+status = "live"
+[[step]]
+id = "yes"; n = "5a"; lane = "ans"; col = 4
+title = "Answer"; body = "one pick per question + calibrated confidence"
+status = "live"
+[[step]]
+id = "no"; n = "5b"; lane = "abst"; col = 4
+title = "Abstain"; body = "decline, don't guess — the full distribution still rides"
+status = "live"
+[[step]]
+id = "fit"; n = "6"; lane = "you"; col = 5
+title = "Refit the gate"; body = "offline, one-off, from your labeled data"
+status = "live"
+
+[[edge]]
+from = "ask"; to = "emb"
+[[edge]]
+from = "emb"; to = "score"
+[[edge]]
+from = "score"; to = "cal"
+[[edge]]
+from = "cal"; to = "yes"; label = "signal"
+[[edge]]
+from = "cal"; to = "no"; label = "no signal → off-corpus"
+[[edge]]
+from = "fit"; to = "cal"; back = true; label = "your data only"
 ```
 
 ## The annotated source (full detail)
@@ -116,18 +161,15 @@ flowchart TB
 
 ## Re-rendering the hero SVG
 
-The SVG is rendered from the COMPACT source above (the block carrying the
-`%% file:` / `%% aria:` headers) by reflex-site's
-`scripts/render_tetris_flows.py`, which writes BOTH mirrors in one run —
-this directory's `decision_flow.svg` and `reflex-site/assets/decision_flow.svg`.
-Palette: the gist.rs web family (riir-ai `.docs/13_web_family/family.css`,
-adopted 2026-10-03) — `#1c212c` node fill, the Reflex orange `#ff8a3d` on
-node borders, `#e9ecf2` text, `#9299ab` edges, `#161a23` clusters with
-`#343b4b` borders, on a TRANSPARENT background — then post-processed per the
-Issue-131 conventions: every `@import` stripped, every CSS selector scoped to
-the SVG's own id, `role="img"` + the explicit `aria-label` sentence from the
-header. The doc block is the source of truth — re-render from it, never
-hand-edit the SVG.
+The SVGs are rendered from the ` ```gfflow ` block above by reflex-site's
+`scripts/render_flows.py`, which writes BOTH mirrors in one run — this
+directory's `decision_flow.svg` + `decision_flow_m.svg` and
+`reflex-site/assets/decision_flow.svg` + `_m`. Palette: the gist.rs web
+family tokens (riir-ai `.docs/13_web_family/family.css`, adopted
+2026-10-03), the Reflex orange lane accents, transparent-safe `--bg-2`
+figure ground; the root `<svg>` carries `data-gfflow="1"`, `role="img"`,
+`<title>` and a generated `<desc>`. The doc block is the source of truth
+— re-render from it, never hand-edit the SVGs.
 
 **The mirror law (the Issue-131/132 one):** re-render with the reflex-site
 script (it writes both copies byte-identically), and commit this doc + its
