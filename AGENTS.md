@@ -907,7 +907,16 @@ a bench file's numbers ARE its artifact.
   `SETTLE_MIN` minutes since plug-in, or over `MAX_LOAD`. Power source is a
   first-order arm on this laptop and was recorded by nothing until
   2026-09-24 (Bench 006 Addendum 1). General rule: katgpt-rs AGENTS.md
-  §Feature Flag Discipline G2 box-state bullet.
+  §Feature Flag Discipline G2 box-state bullet. **On a Windows box (the 4090
+  lane host) the sibling gate is `scripts/bench_preflight.ps1`** (Issue 065
+  T3(b), owner call 2026-10-04): same law, same exit contract — power source
+  via .NET `PowerLineStatus` (NOT the ambiguous `Win32_Battery` charge-level
+  enum), the active power scheme (Power saver refuses), CPU utilization
+  converted to loadavg-equivalent units so the shared `MAX_LOAD` ceiling
+  holds, GPU state DISCLOSURE-only (a lane server is legitimately busy while
+  serving timed requests), no canary yet (the .sh one is laya-Metal).
+  `box_state::capture()` carries the same normalization in-process, so
+  4090-hosted harness runs stamp their own verdict instead of UNJUDGED.
 
 ## Documentation Shape
 

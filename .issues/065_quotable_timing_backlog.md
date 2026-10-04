@@ -1,8 +1,10 @@
 # Issue 065 — every comparison lane except openthai carries zero quotable latency, so the charts can never plot them
 
-**Status:** OPEN — awaiting quiet-box re-run windows (filed 2026-10-03 from the reflex-site home-chart
+**Status:** OPEN — T3(b) LANDED 2026-10-04 (owner call: Windows probe port — `box_state.rs` Windows arm +
+`bench_preflight.ps1`, live-smoked on the 4090); remaining: the 4090 lane RE-RUNS (need the lane servers standing —
+separate window) + T4/T5 close-out. Filed 2026-10-03 from the reflex-site home-chart
 quotable-latency work; ref reflex-site `6ed8f8a` — the home summary now plots quotable runs only, which made
-this backlog visible as "named in the note, never plotted").
+this backlog visible as "named in the note, never plotted".
 
 ## Evidence — the published verdict counts (data/bench.json areas.timing, 2026-10-03)
 
@@ -52,11 +54,40 @@ timing when the box is quiet so the cells earn `latency_quotable: true` on their
   - [ ] (a) run the harness FROM the m3-max-metal against the 4090-served endpoints — the probes read the m3 box,
     the cells become quotable; caveat to disclose in the record: the p50 then includes the network hop (the
     clock class is `http` either way, the timing table already says which clock each number uses), OR
-  - [ ] (b) port the box-state probes (`scripts/bench_preflight.sh` equivalent) into the 4090 runner so 4090-hosted
+  - [x] (b) port the box-state probes (`scripts/bench_preflight.sh` equivalent) into the 4090 runner so 4090-hosted
     runs stamp their own verdict — the honest long-term fix; the Windows-side probe set needs an owner pass.
+  **OWNER CALL RECORDED 2026-10-04 (this session, verbatim rationale): road (b) — "Local probes give clean, judged
+  timing for the 4090 lanes; option (a) would contaminate p50 with network-hop latency, so recording the proper
+  fix is most defensible."** **(b) LANDED same session — `src/harness/box_state.rs` Windows arm +
+  `scripts/bench_preflight.ps1`:**
+  - `box_state::capture()` is platform-dispatched; the Windows arm runs ONE PowerShell spawn emitting `KEY=value`
+    lines (single-spawn: CIM probes cost ~1 s each, `capture()` fires twice per run). Power source = .NET
+    `PowerLineStatus` (Online/Offline/Unknown — NOT `Win32_Battery.BatteryStatus`, an ambiguous charge-LEVEL enum);
+    power mode = active scheme (`powercfg`, Power saver → `low`, Balanced → `auto`, High/Ultimate → `high`, known-GUID
+    fallback when the friendly name is localized away); load = CIM `LoadPercentage` converted to loadavg-equivalent
+    (`pct × cores / 100`) so the SHARED `MAX_LOAD` ceiling keeps its runnable-thread meaning, disclosed via the new
+    additive `load_source` field; `nvidia-smi` GPU util/mem as new additive DISCLOSURE-only fields (`gpu_util_pct`/
+    `gpu_mem_mib` — a lane server is legitimately busy while serving the timed requests, so GPU state must never be
+    a refusal axis). Fields normalize into the macOS vocabulary ("AC Power"/"Battery Power"; "high"/"auto"/"low")
+    so the shared `judge()` decides both platforms — ONE verdict path, nothing to drift.
+  - Parsers are pure + fixture-pinned to REAL output captured from the 4090 over ssh (2026-10-04, Windows PowerShell
+    5.1.26100.9444: `POWERLINE=Online`, `SCHEME=…(High performance)`, `LOAD=15`, `CORES=24`, `SWAP=1443`,
+    `GPU=19 %, 586 MiB`) — never an invented shape. The windows arm is platform-independent Rust (no `#[cfg]` body),
+    so the m3 compile+tests cover it; lib 284/284, clippy `-D warnings` clean.
+  - `scripts/bench_preflight.ps1` (the human/agent refusal gate): same exit contract as the .sh (0 pass / 1 refused /
+    2 instrument-blind, never a green zero); swap warn at 4096 MB not the .sh's 1024 (this box idles at ~1.4 GB
+    pagefile usage on a 40 GB allocation — a 1 GB warn fires on every healthy run, the cries-wolf law); canary
+    SKIPPED with disclosure (the .sh canary times a laya-Metal kernel; no pinned Windows canary exists yet).
+  - **Live-smoked on the real box (ssh, 2026-10-04)**: the .ps1 → `OK preflight PASSED` with `PROVENANCE:
+    power=AC scheme=high load=1.44 swap=1427MB gpu=26 %, 657 MiB canary=skipped`; the EXACT Rust-side probe script
+    content → the precise `KEY=value` lines the parsers consume. The end-to-end in-process proof (Command-spawn →
+    parsed `BoxState` in a results.json) rides the FIRST 4090-hosted harness run after this lands on the box.
+  - What this does NOT do: the unjudged cells do not become quotable until the lanes are RE-RUN on the 4090 (still
+    needs the lane servers standing — vLLM/uvicorn/python — which fights sibling GPU work; the 2026-10-04 assessment
+    stands). The port removes the blocker, not the backlog.
   **ASSESSED 2026-10-04 (bench 116 record): (a) has nothing to point at right now** — no lane servers (vLLM/uvicorn/python)
   running on the 4090 (checked ~00:2x +0700; GPU 0% util but 23.8 GB held by a sibling agent's plan-614 tests — standing
-  servers up would fight sibling work for GPU memory). (b) stays owner-gated. Note the `paw_local`@4090 cells no longer
+  servers up would fight sibling work for GPU memory). Note the `paw_local`@4090 cells no longer
   roll up host-tagged (the m3 primary lane superseded them, bench 116) — the remaining @4090 extra-host rollups are
   clm/gliner/agentjev (+ openthai's 11 cells, which still win the accuracy pick on 4 suites and plot marked-unverified).
 - [ ] T4 After each window: publish the lane-scoped update (`PUBLISH_BENCH_LANES="<lane>" python3
