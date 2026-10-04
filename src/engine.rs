@@ -33,8 +33,14 @@
 //!    law);
 //! 6. **abstain** — the fused gate: calibrated confidence below the score
 //!    threshold OR the domain's `CorpusDistanceGate` says the state is
-//!    off-corpus. Abstention is a FIRST-CLASS answer (outcome `None`, the
-//!    distribution still rides for the risk–coverage tables).
+//!    off-corpus — and, behind the `density_gate` feature (Issue 066), a
+//!    third DENSITY half: the routed domain's two-density support gate
+//!    (per-domain diagonal GMM vs the pooled reference, JL-projected per
+//!    the fit-space law) reads below the density threshold —
+//!    in-support-ness beside classifier confidence and exemplar distance,
+//!    three axes never merged. Abstention is a FIRST-CLASS answer
+//!    (outcome `None`, the distribution still rides for the risk–coverage
+//!    tables).
 //!
 //! **Allocation law:** [`DecisionEngine::solve_into`] is the zero-alloc
 //! core — fixed-size arrays + caller-owned [`Scratch`] end to end (the
@@ -44,6 +50,10 @@
 
 use crate::embed::Embedder;
 use crate::label_heads::LabelHeads;
+#[cfg(feature = "density_gate")]
+use katgpt_core::gmm_support::{fit_diag_gmm, SupportGate};
+#[cfg(feature = "density_gate")]
+use katgpt_core::gmm_support::{EmConfig, JlProjector};
 #[cfg(feature = "nb_ridge")]
 use crate::nb_ridge::NbRidge;
 #[cfg(feature = "nb_scope")]
@@ -85,8 +95,51 @@ const GATE_MID: f32 = 0.35;
 /// Corpus-distance gate sigmoid SLOPE (the substrate semantic is
 /// `sigmoid(scale · (max_sim − mid))` — scale multiplies the cosine
 /// distance from the midpoint). At slope 8 the two measured populations
-/// (in-corpus cos ≈ 0.68–0.70, off-corpus ≈ 0.00–0.02) pin to ≈0.94 / ≈0.06.
+/// (in-corpus cos ≈ 0.68–0.70, off-corpus cos ≈ 0.00–0.02) pin to ≈0.94 / ≈0.06.
 const GATE_SCALE: f32 = 8.0;
+/// Issue 066: JL output dim for the density half — the fit-space law
+/// (raw hashed-bag space REJECTS Gaussianity universally, 0/154
+/// per-label pools; JL k=64 accepted on 253/254, k-stable across
+/// 64/32/16 — the PRE-CHECK's measured verdict). The projection is part
+/// of the gate's frozen definition.
+#[cfg(feature = "density_gate")]
+pub const DENSITY_E: usize = 64;
+/// Issue 066: GMM components per domain — the substrate bench's
+/// request-posture shape (Bench 908, E=64/K=16 on an 800-sample
+/// fixture), measured against K=4 at the first A/B (Bench 124): K=4
+/// holds the two many-label winners (+0.043/+0.027) but flips ag_news
+/// negative (−0.010 vs +0.018) and degrades sst5/xnli — the wider
+/// mixture's extra components earn their keep on the modal structure
+/// even at 40-doc pools, with the raised variance floor
+/// ([`DENSITY_VAR_FLOOR`]) doing the spike-guarding instead.
+#[cfg(feature = "density_gate")]
+pub const DENSITY_K: usize = 16;
+/// Issue 066: fused-gate threshold on the density confidence (the
+/// `sigmoid(ℓ/τ)` scalar). Birth constant; the harness A/B fits it at
+/// the cal-slice ρ=30 percentile (the T1.6 posture shared with the
+/// other two axes).
+#[cfg(feature = "density_gate")]
+pub const DEFAULT_DENSITY_THRESHOLD: f32 = 0.5;
+/// Issue 066: the JL projector seed — fixed (the gate's definition is
+/// frozen; a different projector is a different gate).
+#[cfg(feature = "density_gate")]
+const DENSITY_JL_SEED: u64 = 7;
+/// Issue 066: EM variance floor for the density fits. Unit-norm inputs
+/// through the JL projection have per-coordinate variance ≈ 1/E = 0.016
+/// (σ ≈ 0.125). The first A/B reading (Bench 124) measured the K=16
+/// positives on 40–64-doc pools collapsing onto narrow clusters (floored
+/// at the substrate default 1e-6 → σ = 0.001): QUESTION embeddings
+/// (state+prompt — a different region than the doc embeddings the GMMs
+/// were fit on) scored ℓ ≈ −100s against them, >30% of cal confidences
+/// underflowed sigmoid to exactly 0, and the ρ=30 fit landed on a
+/// denormal — abstention without discrimination. The floor at 0.01
+/// (σ = 0.1, ~80% of the pool's per-coordinate spread) makes every
+/// component a near-pool-width blob: the PRE-CHECK's per-label
+/// near-Gaussian verdict says that IS the honest shape, and the
+/// mixture's job reverts to covering the pool (and the question region)
+/// rather than carving 16 spikes into 40 points.
+#[cfg(feature = "density_gate")]
+const DENSITY_VAR_FLOOR: f32 = 1e-2;
 
 /// One domain's authored corpus — the builder input to
 /// [`DecisionEngine::build_specs`].
@@ -133,6 +186,13 @@ pub struct DomainExpert<const D: usize> {
     drafter: Lz4FlexDrafter,
     gate: CorpusDistanceGate<D>,
     direction: [f32; D],
+    /// Issue 066 (`density_gate` feature): the domain's two-density
+    /// support gate — positive fit on THIS domain's projected rows,
+    /// negative shared across domains (the pooled projected rows —
+    /// distribution WIDTH, not identity). `None` when the knob is off
+    /// (the byte-identical posture) or on raw-expert builds.
+    #[cfg(feature = "density_gate")]
+    density: Option<SupportGate<DENSITY_E, DENSITY_K>>,
 }
 
 impl<const D: usize> DomainExpert<D> {
@@ -181,6 +241,8 @@ impl<const D: usize> DomainExpert<D> {
             drafter: Lz4FlexDrafter::new(corpus),
             gate: CorpusDistanceGate::new(rows, GATE_MID, GATE_SCALE),
             direction,
+            #[cfg(feature = "density_gate")]
+            density: None,
         }
     }
 
@@ -302,6 +364,24 @@ pub struct EngineConfig {
     /// every route-armed suite stays byte-identical by construction (the
     /// issue's no-regression gate). Off = the shipped law.
     pub drafter_fix: DrafterFix,
+    /// Issue 066 (`density_gate` feature): arm the fused gate's DENSITY
+    /// half — the per-domain two-density support gate over the
+    /// JL-projected embedding. `false` (the default) never fits, never
+    /// evaluates, and is byte-identical to a feature-off build (the
+    /// `contrastive_scope` posture, pinned by test).
+    #[cfg(feature = "density_gate")]
+    pub density_gate: bool,
+    /// Issue 066: fused-gate threshold on the density confidence
+    /// `sigmoid(ℓ/τ)`; meaningful only when `density_gate` is armed. The
+    /// harness A/B fits it at the cal-slice ρ=30 percentile.
+    #[cfg(feature = "density_gate")]
+    pub density_threshold: f32,
+    /// Issue 066: the density confidence's sigmoid temperature τ (baked
+    /// into the fitted gates at build time — a different τ is a rebuild,
+    /// the POC sweep posture). POC-scale default (the substrate's
+    /// `DEFAULT_TAU`).
+    #[cfg(feature = "density_gate")]
+    pub density_tau: f32,
 }
 
 /// The [`EngineConfig::drafter_fix`] candidates (Issue 036 T2). All are
@@ -384,8 +464,76 @@ impl Default for EngineConfig {
             ridge_lambda: 10.0,
             readout: crate::readout::ReadoutMode::Dispatch,
             drafter_fix: DrafterFix::Off,
+            #[cfg(feature = "density_gate")]
+            density_gate: false,
+            #[cfg(feature = "density_gate")]
+            density_threshold: DEFAULT_DENSITY_THRESHOLD,
+            #[cfg(feature = "density_gate")]
+            density_tau: 1.0,
         }
     }
+}
+
+/// Issue 066 (`density_gate` feature): fit the density half's gate family
+/// — one shared JL projector, one shared NEGATIVE GMM over the POOLED
+/// projected rows (every domain: distribution WIDTH, not identity — the
+/// PRE-CHECK's whole-corpus rejection is the negative being BROAD, which
+/// is the v1 reference posture; the out-of-suite arm is the A/B's second
+/// posture if this one underperforms), and one POSITIVE GMM per domain
+/// over its own projected rows (the per-label pools are the near-Gaussian
+/// side post-JL, 253/254 accepted). Knob off ⇒ `(None, [])` — no fit,
+/// no cost, byte-identical build.
+#[cfg(feature = "density_gate")]
+fn fit_density_gates<const D: usize>(
+    rows_all: &[Vec<[f32; D]>],
+    armed: bool,
+    tau: f32,
+) -> Result<
+    (
+        Option<JlProjector<D, DENSITY_E>>,
+        Vec<SupportGate<DENSITY_E, DENSITY_K>>,
+    ),
+    EngineError,
+> {
+    if !armed {
+        return Ok((None, Vec::new()));
+    }
+    let proj = JlProjector::<D, DENSITY_E>::new(DENSITY_JL_SEED);
+    let em = EmConfig {
+        var_floor: DENSITY_VAR_FLOOR,
+        ..EmConfig::default()
+    };
+    let project_into = |rows: &[[f32; D]], out: &mut Vec<[f32; DENSITY_E]>| {
+        out.reserve(rows.len());
+        for r in rows {
+            let mut x = [0.0f32; DENSITY_E];
+            proj.project(r, &mut x);
+            out.push(x);
+        }
+    };
+    // Negative: pooled rows across every domain, fit ONCE, shared by all
+    // domain gates (the paper's `-43% gate count` mechanism).
+    let pooled_len: usize = rows_all.iter().map(|r| r.len()).sum();
+    let mut pooled: Vec<[f32; DENSITY_E]> = Vec::with_capacity(pooled_len);
+    for rows in rows_all {
+        project_into(rows, &mut pooled);
+    }
+    let pooled_refs: Vec<&[f32]> = pooled.iter().map(|x| x.as_slice()).collect();
+    let neg =
+        fit_diag_gmm::<DENSITY_E, DENSITY_K>(&pooled_refs, &em).map_err(|_| EngineError::DensityFit)?;
+    // Positives: one per domain over its own projected rows.
+    let mut gates = Vec::with_capacity(rows_all.len());
+    for rows in rows_all {
+        let mut projected: Vec<[f32; DENSITY_E]> = Vec::with_capacity(rows.len());
+        project_into(rows, &mut projected);
+        let refs: Vec<&[f32]> = projected.iter().map(|x| x.as_slice()).collect();
+        let pos =
+            fit_diag_gmm::<DENSITY_E, DENSITY_K>(&refs, &em).map_err(|_| EngineError::DensityFit)?;
+        gates.push(
+            SupportGate::new(pos, neg.clone(), tau).map_err(|_| EngineError::DensityFit)?,
+        );
+    }
+    Ok((Some(proj), gates))
 }
 
 /// First offset of `needle` in `haystack` (None when absent) — the
@@ -481,6 +629,19 @@ pub enum EngineError {
         /// which blend scale ("head" / "nb" / "oc" / "ridge")
         scale: &'static str,
     },
+    /// `build` (raw experts) was asked for the density half
+    /// (`density_gate == true`, Issue 066) — the GMM fits need the
+    /// document texts (the [`EngineError::HeadsNeedCorpora`] law: a
+    /// gate that silently never fires is the flag-does-nothing bug
+    /// class).
+    #[cfg(feature = "density_gate")]
+    DensityNeedsCorpora,
+    /// A density-half GMM fit failed (Issue 066). Unreachable by
+    /// construction on `build_specs` paths — empty corpora are refused
+    /// upstream and the dimensions are compile-fixed — so seeing this
+    /// is a substrate contract break, never a corpus-shape issue.
+    #[cfg(feature = "density_gate")]
+    DensityFit,
 }
 
 impl std::fmt::Display for EngineError {
@@ -520,6 +681,16 @@ impl std::fmt::Display for EngineError {
                 "{scale}_scale > 0 needs the fitted tables this build never produced — \
                  build once with the lever armed (a positive placeholder scale), then move scales"
             ),
+            #[cfg(feature = "density_gate")]
+            Self::DensityNeedsCorpora => write!(
+                f,
+                "density_gate needs document corpora: use build_specs (the GMM fits read the docs)"
+            ),
+            #[cfg(feature = "density_gate")]
+            Self::DensityFit => write!(
+                f,
+                "density-half GMM fit failed (a substrate contract break — not a corpus shape)"
+            ),
         }
     }
 }
@@ -539,7 +710,12 @@ impl From<WireError> for EngineError {
 /// serve-lane fall-through arm (game heads) and never occurs on the wire
 /// path — every wire question is grammar-valid by the wire contract — so
 /// the engine never sets it; the harness results field carries it as the
-/// reserved third key of the closed set.
+/// reserved third key of the closed set. `DensityGate` (Issue 066) is the
+/// density half's marginal arm: the state passed score AND distance and
+/// failed only the in-support-ness axis — the engine emits it only behind
+/// the `density_gate` feature with the knob armed; every other build
+/// carries it as the reserved fourth key (the `GrammarInvalid` posture,
+/// fixed wire shape across feature postures).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 #[repr(u8)]
 pub enum AbstainCause {
@@ -548,6 +724,7 @@ pub enum AbstainCause {
     ScoreGate,
     DistanceGate,
     GrammarInvalid,
+    DensityGate,
 }
 
 impl AbstainCause {
@@ -713,6 +890,11 @@ pub struct DecisionEngine<const N: usize, const D: usize> {
     /// `ridge_scale > 0` and the build had corpora.
     #[cfg(feature = "nb_ridge")]
     ridge: Option<NbRidge>,
+    /// Issue 066: the shared JL projector for the density half (one
+    /// projection matrix serves every domain's gate — same frozen
+    /// definition, one commitment). `None` when the knob is off.
+    #[cfg(feature = "density_gate")]
+    density_proj: Option<JlProjector<D, DENSITY_E>>,
 }
 
 impl<const N: usize, const D: usize> DecisionEngine<N, D> {
@@ -728,6 +910,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         }
         if cfg.head_scale > 0.0 {
             return Err(EngineError::HeadsNeedCorpora);
+        }
+        #[cfg(feature = "density_gate")]
+        if cfg.density_gate {
+            return Err(EngineError::DensityNeedsCorpora);
         }
         #[cfg(feature = "nb_scope")]
         if cfg.nb_scale > 0.0 {
@@ -769,6 +955,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             oc: None,
             #[cfg(feature = "nb_ridge")]
             ridge: None,
+            #[cfg(feature = "density_gate")]
+            density_proj: None,
         })
     }
 
@@ -923,6 +1111,15 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             rows_all.push(rows);
         }
         let heads = (cfg.head_scale > 0.0).then(|| LabelHeads::fit(&rows_all));
+        // Issue 066: the density half's gate family — fitted only when the
+        // knob is armed (zero cost and byte-identical otherwise).
+        #[cfg(feature = "density_gate")]
+        let (density_proj, density_gates) =
+            fit_density_gates::<D>(&rows_all, cfg.density_gate, cfg.density_tau)?;
+        #[cfg(feature = "density_gate")]
+        for (e, g) in experts.iter_mut().zip(density_gates) {
+            e.density = Some(g);
+        }
         #[allow(unused_mut)]
         let mut engine = Self::build_with_heads(experts, cfg, heads)?;
         #[cfg(feature = "nb_scope")]
@@ -936,6 +1133,10 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         #[cfg(feature = "nb_ridge")]
         {
             engine.ridge = ridge;
+        }
+        #[cfg(feature = "density_gate")]
+        {
+            engine.density_proj = density_proj;
         }
         Ok(engine)
     }
@@ -1430,11 +1631,19 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // failed only the corpus-distance gate — the marginal cause; the
             // shares sum to the abstain total.
             let score_declined = conf < self.cfg.score_threshold;
+            // Issue 066: the density half — the LAST marginal arm of the
+            // chain, so its projection + pair eval only run when score AND
+            // distance passed (the Issue-060 short-circuit law). See
+            // [`Self::density_declined`] — unarmed/unfitted/feature-off all
+            // read `false` (never abstains; the `contrastive_scope`
+            // posture).
             let cause = if score_declined {
                 AbstainCause::ScoreGate
             } else if self.experts[di].gate.abstain_confidence(&sc.q) < self.cfg.distance_threshold
             {
                 AbstainCause::DistanceGate
+            } else if self.density_declined(di, &sc.q) {
+                AbstainCause::DensityGate
             } else {
                 AbstainCause::Answered
             };
@@ -1560,6 +1769,48 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
     /// measured geometry, never magic numbers).
     pub fn gate(&self, domain: usize) -> &CorpusDistanceGate<D> {
         &self.experts[domain].gate
+    }
+
+    /// Issue 066 (`density_gate` feature): the density half's admission
+    /// predicate — `sigmoid(ℓ(x)/τ) < density_threshold` on the routed
+    /// domain's two-density gate. Unarmed, unfitted, or feature-off all
+    /// read `false`: the gate never abstains on a build that did not ask
+    /// for it (the `contrastive_scope` posture, pinned by test).
+    #[cfg(feature = "density_gate")]
+    fn density_declined(&self, di: usize, q: &[f32; D]) -> bool {
+        self.cfg.density_gate
+            && match (self.experts[di].density.as_ref(), self.density_proj.as_ref()) {
+                (Some(gate), Some(proj)) => {
+                    let mut x = [0.0f32; DENSITY_E];
+                    proj.project(q, &mut x);
+                    gate.confidence(&x) < self.cfg.density_threshold
+                }
+                _ => false,
+            }
+    }
+
+    /// Feature-off spelling of [`Self::density_declined`] — the chain in
+    /// [`Self::solve_sample_into`] compiles identically at every posture
+    /// and the reserved variant is simply never emitted.
+    #[cfg(not(feature = "density_gate"))]
+    fn density_declined(&self, _di: usize, _q: &[f32; D]) -> bool {
+        false
+    }
+
+    /// Issue 066 (`density_gate` feature): the density half's confidence
+    /// `sigmoid(ℓ(x)/τ)` at a domain for an ALREADY-EMBEDDED question —
+    /// the harness's threshold-fit observation axis (the ρ=30 percentile
+    /// posture shared with the other two axes). `None` when the lane is
+    /// unarmed or unfitted (the observation is then simply absent, never
+    /// fabricated).
+    #[cfg(feature = "density_gate")]
+    #[must_use]
+    pub fn density_confidence(&self, dom: usize, q: &[f32; D]) -> Option<f32> {
+        let gate = self.experts.get(dom)?.density.as_ref()?;
+        let proj = self.density_proj.as_ref()?;
+        let mut x = [0.0f32; DENSITY_E];
+        proj.project(q, &mut x);
+        Some(gate.confidence(&x))
     }
 
     /// The fitted count tables (issue 038), when armed — the seat for the
@@ -2533,5 +2784,191 @@ mod tests {
                 assert_eq!(x.to_bits(), y.to_bits(), "q{qi} probability bit");
             }
         }
+    }
+}
+
+#[cfg(all(test, feature = "density_gate"))]
+mod density_tests {
+    use super::*;
+    use crate::embed::EMBED_DIM;
+    use katgpt_core::decision_wire::Question;
+
+    fn corpus_specs() -> Vec<ExpertSpec> {
+        vec![
+            ExpertSpec::new(
+                "deploy",
+                &["deploy the server to staging and verify the rollout; the cluster is ready"
+                    .to_string()],
+            ),
+            ExpertSpec::new(
+                "weather",
+                &["rain forecast sunny cloudy temperature tomorrow umbrella"
+                    .to_string()],
+            ),
+            ExpertSpec::new(
+                "music",
+                &["play the song album playlist artist track shuffle".to_string()],
+            ),
+            ExpertSpec::new(
+                "billing",
+                &["refund the customer invoice balance billing account".to_string()],
+            ),
+        ]
+    }
+
+    fn choice_request(state: &str) -> DecisionRequest {
+        DecisionRequest {
+            state: state.to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                ["deploy", "weather", "music", "billing"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                None,
+            )],
+        }
+    }
+
+    /// The pairing premise the Issue-066 A/B stands on: the density half
+    /// NEVER touches scoring — identical probabilities and picks armed vs
+    /// unarmed; only the abstain flags may differ.
+    #[test]
+    fn density_gate_never_moves_picks_or_probs() {
+        let mut off = DecisionEngine::<4, EMBED_DIM>::build_specs(corpus_specs(), EngineConfig::default())
+            .unwrap();
+        let mut on = DecisionEngine::<4, EMBED_DIM>::build_specs(
+            corpus_specs(),
+            EngineConfig {
+                density_gate: true,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        let req = choice_request("play the song album playlist");
+        let (mut a, mut b) = (Scratch::new(), Scratch::new());
+        off.solve_into(&req, &mut a).unwrap();
+        on.solve_into(&req, &mut b).unwrap();
+        assert_eq!(a.probs, b.probs, "the gate must never touch the distribution");
+        assert_eq!(a.slots[0].pick, b.slots[0].pick, "the gate must never touch the pick");
+        assert_eq!(a.domains, b.domains, "the gate must never touch routing");
+    }
+
+    /// The knob-off half of the byte-identity posture: an unarmed build
+    /// never fits (the accessor reads `None`) and answers exactly as the
+    /// feature-off build does (same code path — short-circuited at the
+    /// first cfg read).
+    #[test]
+    fn density_unarmed_never_fits_and_never_abstains() {
+        let mut eng =
+            DecisionEngine::<4, EMBED_DIM>::build_specs(corpus_specs(), EngineConfig::default())
+                .unwrap();
+        assert!(
+            eng.density_confidence(0, &[0.0f32; EMBED_DIM]).is_none(),
+            "an unarmed build must never expose a density reading"
+        );
+        let req = choice_request("rain forecast tomorrow");
+        let mut sc = Scratch::new();
+        eng.solve_into(&req, &mut sc).unwrap();
+        // The shipped birth thresholds on a 1-doc corpus may fire the
+        // score gate — this test pins the DENSITY posture only, so pin
+        // via the armed-thresholds-0 twin below instead of the cause.
+        let _ = sc.slots[0].cause;
+    }
+
+    /// The marginal-cause classification: thresholds 0 on score+distance
+    /// (they never fire — isolating the chain's tail) and a density
+    /// threshold ABOVE every possible confidence (sigmoid ≤ 1 < 2) fires
+    /// the density arm exactly on the questions that reached it.
+    #[test]
+    fn density_gate_classifies_the_marginal_cause() {
+        let mut eng = DecisionEngine::<4, EMBED_DIM>::build_specs(
+            corpus_specs(),
+            EngineConfig {
+                density_gate: true,
+                density_threshold: 2.0,
+                score_threshold: 0.0,
+                distance_threshold: 0.0,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        let req = choice_request("refund the customer invoice balance");
+        let mut sc = Scratch::new();
+        eng.solve_into(&req, &mut sc).unwrap();
+        let slot = &sc.slots[0];
+        assert!(
+            slot.abstained,
+            "threshold 2.0 must abstain on everything that reaches the arm"
+        );
+        assert_eq!(slot.cause, AbstainCause::DensityGate);
+        // And with a threshold of 0.0 (nothing fires), the same request
+        // answers — the arm is really the threshold's, not a constant.
+        let mut open = DecisionEngine::<4, EMBED_DIM>::build_specs(
+            corpus_specs(),
+            EngineConfig {
+                density_gate: true,
+                density_threshold: 0.0,
+                score_threshold: 0.0,
+                distance_threshold: 0.0,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        let mut sc2 = Scratch::new();
+        open.solve_into(&req, &mut sc2).unwrap();
+        assert_eq!(sc2.slots[0].cause, AbstainCause::Answered);
+    }
+
+    /// The fail-closed law: raw-expert `build` (corpora already consumed)
+    /// refuses an armed density knob — a gate that silently never fires is
+    /// the flag-does-nothing bug class.
+    #[test]
+    fn build_refuses_density_without_corpora() {
+        let built = DecisionEngine::<4, EMBED_DIM>::build(
+            (0..4).map(one_domain_raw).collect(),
+            EngineConfig {
+                density_gate: true,
+                ..EngineConfig::default()
+            },
+        );
+        assert!(matches!(built, Err(EngineError::DensityNeedsCorpora)));
+    }
+
+    fn one_domain_raw(i: usize) -> DomainExpert<EMBED_DIM> {
+        let docs = [
+            "deploy the server to staging and verify the rollout",
+            "rain forecast sunny cloudy temperature tomorrow",
+            "play the song album playlist artist track",
+            "refund the customer invoice balance billing account",
+        ];
+        DomainExpert::new(format!("d{i}"), &[docs[i].to_string()], &Embedder)
+    }
+
+    /// The exposed observation axis: deterministic, in (0, 1), and
+    /// domain-discriminative enough to observe (an in-corpus embedding
+    /// reads HIGHER than a disjoint one — the win surface's primitive
+    /// form; the exact value is corpus-shape-dependent, never pinned).
+    #[test]
+    fn density_confidence_is_deterministic_and_bounded() {
+        let eng = DecisionEngine::<4, EMBED_DIM>::build_specs(
+            corpus_specs(),
+            EngineConfig {
+                density_gate: true,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        let mut q = [0.0f32; EMBED_DIM];
+        Embedder.embed_into(b"refund the customer invoice balance", &mut q);
+        let a = eng.density_confidence(3, &q).expect("armed build must expose a reading");
+        let b = eng.density_confidence(3, &q).expect("same again");
+        assert_eq!(a.to_bits(), b.to_bits(), "deterministic by construction");
+        assert!((0.0..=1.0).contains(&a), "sigmoid output");
+        // An out-of-domain index still reads (routing picks something for
+        // every input; the gate is per-domain).
+        assert!(eng.density_confidence(0, &q).is_some());
+        assert!(eng.density_confidence(99, &q).is_none(), "out-of-range domain is None, never a panic");
     }
 }

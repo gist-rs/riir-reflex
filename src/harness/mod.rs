@@ -30,6 +30,10 @@ pub mod latency;
 pub mod mc_ab;
 pub mod metrics;
 pub mod pair_heads;
+// Issue 066 — the `--density-gate` fused-abstain density-half A/B arm
+// (report-only; rides the engine feature).
+#[cfg(feature = "density_gate")]
+pub mod density_ab;
 // Issue 058 — the slice-integrity guard: hard assertions over the
 // test/cal/pool slices (overlaps, test-sample label coverage) + the raw
 // slice-identity digests the board publish path compares. Ungated + pure.

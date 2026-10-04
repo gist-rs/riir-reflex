@@ -15,6 +15,9 @@
 //!                                      [--mc-p-drop P] [--mc-lambda L]
 //!                                      (mc_* need --features mc_ensemble; absent
 //!                                       build → the flags refuse as unknown)
+//!                                      [--density-gate] (needs --features
+//!                                       density_gate; absent build → the flag
+//!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--paw]
 //!                                      [--paw-local] [--cascade]
@@ -230,6 +233,7 @@ fn harness_main() {
         ridge_select: false,
         genome_select: false,
         genome_accept_margin: 0.05,
+        density_gate: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -349,6 +353,10 @@ fn harness_main() {
             "--oc-select" => opts.oc_select = true,
             "--ridge-select" => opts.ridge_select = true,
             "--genome-select" => opts.genome_select = true,
+            // Issue 066: the fused-abstain density-half A/B (report-only;
+            // needs the density_gate feature — run() refuses loud without
+            // it, never a silent skip).
+            "--density-gate" => opts.density_gate = true,
             "--genome-accept-margin" => {
                 i += 1;
                 opts.genome_accept_margin = args

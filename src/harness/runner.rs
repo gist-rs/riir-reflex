@@ -597,19 +597,33 @@ pub struct SelectiveMetrics {
 }
 
 /// Issue 060: per-suite abstain-cause counts over the CLOSED taxonomy
-/// (score gate / distance gate / grammar-invalid). Computed from the
-/// CALIBRATED gate's per-question causes — the gate behind the published
-/// `calibrated_abstain` rate — so the shares sum to that metric's
-/// abstaining-question count. `grammar_invalid` is the reserved serve-lane
-/// arm (the game-heads fall-through): zero on every harness run (each wire
-/// question is grammar-valid by contract), carried so the taxonomy's wire
-/// shape is fixed. Cells that predate the field publish as `None`
-/// (unattributed — the page renders "not recorded", never guessed).
+/// (score gate / distance gate / density gate / grammar-invalid).
+/// Computed from the CALIBRATED gate's per-question causes — the gate
+/// behind the published `calibrated_abstain` rate — so the shares sum to
+/// that metric's abstaining-question count. `grammar_invalid` is the
+/// reserved serve-lane arm (the game-heads fall-through): zero on every
+/// harness run (each wire question is grammar-valid by contract),
+/// carried so the taxonomy's wire shape is fixed. `density_gate`
+/// (Issue 066) counts the density half's marginal arm — nonzero only on
+/// a `--density-gate` armed read, and SERIALIZED ONLY THEN (skip at
+/// zero): every shipped row's wire shape stays the three-key closed
+/// taxonomy byte-identically (the Issue-060 law — a fourth key would be
+/// a wire change, so the fourth key rides only the arm that produces
+/// it). Cells that predate a field publish as `None` (unattributed —
+/// the page renders "not recorded", never guessed).
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct AbstainCauses {
     pub score_gate: usize,
     pub distance_gate: usize,
+    /// Issue 066 — see the struct docs for the skip-at-zero wire law.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub density_gate: usize,
     pub grammar_invalid: usize,
+}
+
+/// `true` when `n == 0` — the `density_gate` key's serde skip predicate.
+fn is_zero(n: &usize) -> bool {
+    *n == 0
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -732,6 +746,17 @@ pub struct LaneResult {
     #[cfg(feature = "mc_ensemble")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mc_ab: Option<super::mc_ab::McAbRecord>,
+    /// Issue 066 (`--density-gate`, `density_gate` feature): the fused-
+    /// abstain DENSITY half's paired A/B record — the density-armed gate
+    /// vs the shipped calibrated gate over ONE frozen test read, with the
+    /// marginal-slice decomposition (what the new axis removed) and the
+    /// two-proportion LCB95 on Δ selective accuracy. Report-only: the
+    /// published row stays the shipped posture's; adoption is a separate
+    /// flip gated on the paired verdict. None = the arm did not run (flag
+    /// off / the feature compiled out / the laya lanes).
+    #[cfg(feature = "density_gate")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub density_ab: Option<super::density_ab::DensityAbRecord>,
     /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
     /// the same forced-row walk `hard` reads, restricted to the unflagged
     /// cases. None = feature off / suite out of scope / every row flagged
@@ -1777,11 +1802,11 @@ pub fn engine_request(
 /// A lane evaluation over one case set: per case, per question probabilities
 /// in LABEL space ([p_no, p_yes] for noul — gold idx 1 = true), forced picks
 /// in label space, readout confidences, abstain flags.
-struct Eval {
+pub(crate) struct Eval {
     probs: Vec<Vec<Vec<f64>>>,
-    picks: Vec<Vec<usize>>,
-    confs: Vec<Vec<f64>>,
-    abstained: Vec<Vec<bool>>,
+    pub(crate) picks: Vec<Vec<usize>>,
+    pub(crate) confs: Vec<Vec<f64>>,
+    pub(crate) abstained: Vec<Vec<bool>>,
     /// Issue 060: the fused gate's per-question abstain CAUSE (the engine's
     /// own classification — `Answered` when it did not). Captured from the
     /// caller-owned scratch right after `decide_with` (the slots survive the
@@ -1829,13 +1854,17 @@ impl Eval {
     /// fired), so the shares sum to the abstaining-question total — the
     /// same denominator `selective`'s `abstain_rate` uses over the same
     /// cases.
-    fn abstain_causes(&self) -> AbstainCauses {
+    pub(crate) fn abstain_causes(&self) -> AbstainCauses {
         let mut out = AbstainCauses::default();
         for ccase in &self.causes {
             for cause in ccase {
                 match cause {
                     AbstainCause::ScoreGate => out.score_gate += 1,
                     AbstainCause::DistanceGate => out.distance_gate += 1,
+                    // Issue 066: the density half's marginal arm — nonzero
+                    // only on an armed `--density-gate` run (the engine
+                    // emits it only behind the feature + knob).
+                    AbstainCause::DensityGate => out.density_gate += 1,
                     // The engine never emits the serve-lane arm; the key is
                     // the reserved third of the closed taxonomy.
                     AbstainCause::GrammarInvalid => out.grammar_invalid += 1,
@@ -1878,7 +1907,7 @@ impl Eval {
     }
 }
 
-struct Latency {
+pub(crate) struct Latency {
     p50_ms: f64,
     p99_ms: f64,
     tail_support: usize,
@@ -1920,7 +1949,7 @@ fn argmax(p: &[f64]) -> usize {
 
 // ── the modelless lane ──────────────────────────────────────────────────
 
-fn eval_engine<const N: usize>(
+pub(crate) fn eval_engine<const N: usize>(
     engine: &mut DecisionEngine<N, EMBED_DIM>,
     cases: &[SuiteCase],
     state_strs: &[String],
@@ -2104,6 +2133,11 @@ struct ModellessInput<'a> {
     /// the arm is off.
     #[cfg(feature = "mc_ensemble")]
     pub mc_ab: Option<&'a super::mc_ab::McAbConfig>,
+    /// Issue 066: run the `--density-gate` fused-abstain density-half A/B
+    /// (report-only; the density-armed gate vs the shipped calibrated
+    /// gate over one frozen read).
+    #[cfg_attr(not(feature = "density_gate"), allow(dead_code))]
+    pub density_gate: bool,
     /// Issue 024 T3: one leak flag per eval case (true = the case has an
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
@@ -3596,6 +3630,33 @@ fn run_modelless<const N: usize>(
         } else {
             None
         },
+        // Issue 066 (`--density-gate`): the density half's paired A/B —
+        // report-only, over the SAME frozen test read the row publishes
+        // (the shipped arm IS this row's calibrated gate; the density arm
+        // rebuilds at the same posture + knob, calibrator re-fit on the
+        // same cal pairs).
+        #[cfg(feature = "density_gate")]
+        density_ab: if inp.density_gate {
+            let shipped = super::density_ab::ShippedArm {
+                abstained: &cal_eval_test.abstained,
+                picks: &cal_eval_test.picks,
+                confs: &cal_eval_test.confs,
+            };
+            let build = |dcfg: EngineConfig| build_at_posture(dcfg);
+            Some(super::density_ab::density_ab_pass::<N>(
+                spec.name,
+                &build,
+                &fitted_cfg_for_transductive,
+                &cal_pairs,
+                &cal_cases,
+                cal_state_strs,
+                &suite.cases,
+                state_strs,
+                shipped,
+            )?)
+        } else {
+            None
+        },
     },
         modelless_questions,
     ))
@@ -4140,6 +4201,8 @@ fn assemble_laya_lane_result(
         nli_m1: None,
         #[cfg(feature = "mc_ensemble")]
         mc_ab: None,
+        #[cfg(feature = "density_gate")]
+        density_ab: None, // the laya lanes run no fused gate
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
         corpus_digest: None, // laya reads no train rows (Issue 057)
@@ -5980,6 +6043,7 @@ pub mod seat {
             nli_m1: false,
             #[cfg(feature = "mc_ensemble")]
             mc_ab: None,
+            density_gate: false,
             leak_flags: None,
         };
         let fp = super::fit_posture_inner::<N>(&inp)?;
@@ -6371,6 +6435,11 @@ pub struct RunOptions {
     /// (a 0 margin would accept any +1-question wiggle — never a default).
     /// Default 0.05.
     pub genome_accept_margin: f64,
+    /// Issue 066: run the fused-abstain DENSITY-half A/B (report-only;
+    /// `--density-gate`). Needs the `density_gate` feature — an explicit
+    /// flag without it is a LOUD error, never a silent skip. Default off
+    /// = the shipped fused gate, byte-identical.
+    pub density_gate: bool,
     /// Also run the CLM comparison lane (Issue 019 T3 / `.issues/027`):
     /// the external Contrastive-LM reference answered over HTTP
     /// (`clm-serve` at `CLM_SERVE_URL`, default `http://127.0.0.1:8700`)
@@ -6411,6 +6480,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         return Err(
             "--oc-select needs the option_cond feature (issue 038 T7b): rebuild with \
              --features option_cond"
+                .to_string(),
+        );
+    }
+    if opts.density_gate && !cfg!(feature = "density_gate") {
+        return Err(
+            "--density-gate needs the density_gate feature (issue 066): rebuild with \
+             --features density_gate"
                 .to_string(),
         );
     }
@@ -6609,6 +6685,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 nli_m1: opts.nli_m1,
                 #[cfg(feature = "mc_ensemble")]
                 mc_ab: opts.mc_ab.then_some(&mc_cfg),
+                density_gate: opts.density_gate,
                 head_scale: opts.head_scale,
                 head_select: opts.head_select,
                 nb_select: opts.nb_select,

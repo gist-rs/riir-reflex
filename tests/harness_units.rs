@@ -1013,20 +1013,38 @@ fn confusion_top_truncates_and_empty() {
 use riir_reflex::engine::AbstainCause;
 use riir_reflex::harness::runner::AbstainCauses;
 
-/// The taxonomy is CLOSED: the results.json field is exactly the three keys,
-/// snake_case, in this order — the site parses them positionally-stable and
-/// a fourth key would be a wire change (the issue's law).
+/// The taxonomy is CLOSED on shipped rows: the results.json field is
+/// exactly the three keys, snake_case, in this order — the site parses
+/// them positionally-stable and a fourth key would be a wire change
+/// (the issue's law). The Issue-066 density arm is the ONE sanctioned
+/// extension, and only conditionally: its key serializes IFF the arm
+/// fired (skip at zero), so every shipped row keeps the three-key shape
+/// byte-identically and the fourth key rides only the armed read that
+/// produced it.
 #[test]
 fn abstain_causes_wire_shape_is_the_closed_taxonomy() {
     let c = AbstainCauses {
         score_gate: 3,
         distance_gate: 1,
+        density_gate: 0,
         grammar_invalid: 0,
     };
     let j = serde_json::to_value(&c).unwrap();
     assert_eq!(
         j,
         serde_json::json!({"score_gate": 3, "distance_gate": 1, "grammar_invalid": 0})
+    );
+    // The armed shape: the fourth key appears exactly when the arm fired.
+    let armed = AbstainCauses {
+        score_gate: 2,
+        distance_gate: 0,
+        density_gate: 5,
+        grammar_invalid: 0,
+    };
+    let ja = serde_json::to_value(&armed).unwrap();
+    assert_eq!(
+        ja,
+        serde_json::json!({"score_gate": 2, "distance_gate": 0, "density_gate": 5, "grammar_invalid": 0})
     );
 }
 
@@ -1039,6 +1057,7 @@ fn abstain_cause_and_abstained_flag_agree_by_construction() {
         AbstainCause::ScoreGate,
         AbstainCause::DistanceGate,
         AbstainCause::GrammarInvalid,
+        AbstainCause::DensityGate,
     ] {
         assert_eq!(cause.abstained(), !matches!(cause, AbstainCause::Answered));
     }

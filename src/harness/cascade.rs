@@ -198,8 +198,10 @@ const PROBE_LCB_Z95: f64 = 1.644_934;
 /// data: the two-proportion SE is ≥ the paired McNemar SE whenever the
 /// two per-question reads are positively correlated (same questions), so
 /// a probe clearing this bound clears the exact test harder. Never a
-/// p-value — the gate compares the BOUND to a floor.
-fn probe_delta_lcb95(laya_acc: f64, ml_acc: f64, probe_n: usize) -> f64 {
+/// p-value — the gate compares the BOUND to a floor. `pub(crate)`: the
+/// Issue-066 density A/B reuses the exact statistic (one home — a second
+/// copy is a second thing to drift).
+pub(crate) fn probe_delta_lcb95(laya_acc: f64, ml_acc: f64, probe_n: usize) -> f64 {
     let n = probe_n as f64;
     let se = ((laya_acc * (1.0 - laya_acc) + ml_acc * (1.0 - ml_acc)) / n).sqrt();
     (laya_acc - ml_acc) - PROBE_LCB_Z95 * se

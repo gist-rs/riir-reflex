@@ -108,6 +108,19 @@ nb_ridge = ["nb_scope", "option_cond"]
 # call site still compiles. The HOSTED reader is NOT selectable here —
 # the public repo never compiles it (the moat).
 vessel_public_read = ["modelless", "dep:reflexer-vessel", "reflexer-vessel/vessel_public_read"]
+# Issue 066: the fused-abstain DENSITY half — katgpt-core `gmm_support`
+# (Plan 618 / Bench 908 GOAT; LSL App-E, arXiv:2610.02126). A per-domain
+# diagonal-GMM pair in the JL-PROJECTED space (the fit-space law — raw
+# hashed-bag space rejects Gaussianity universally, 0/154 per-label
+# pools; JL k=64 accepted on 253/254) whose log-ratio confidence
+# `sigmoid(ℓ/τ)` gates admission as a THIRD fused axis beside the score
+# (classifier confidence) and distance (exemplar max-cosine) halves —
+# in-support-ness, never merged with the other axes' semantics. The
+# engine knob `density_gate` stays false (byte-identical serving
+# posture, the `contrastive_scope` posture) unless the harness's
+# `--density-gate` A/B arm builds an armed engine (report-only POC; the
+# adoption verdict rides the paired A/B, never a default flip).
+density_gate = ["modelless", "katgpt-core/gmm_support"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane

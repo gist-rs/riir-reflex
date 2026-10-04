@@ -5,6 +5,44 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-05 — Issue 066 CLOSED (the fused-abstain density half: wired, measured, not certified — the many-label signal recorded)
+
+**[Bench 124](.benchmarks/124_density_gate_ab/RECORD.md)** — the LSL App-E density half
+(`arXiv:2610.02126`) landed as the fused gate's THIRD axis behind the `density_gate`
+feature, over the katgpt-rs `gmm_support` substrate (Plan 618 `1d8da4862`, Bench 908):
+per-domain `SupportGate<64,16>` (positive = the domain's JL-projected rows; negative = the
+POOLED projected rows, shared) + the engine-level `JlProjector<256,64>`, fitted in
+`build_specs_impl`, `AbstainCause::DensityGate` as the cause chain's LAST marginal arm (the
+Issue-060 short-circuit law preserved), `EngineConfig {density_gate, density_threshold,
+density_tau}` (default false — byte-identical unarmed, pinned), fail-closed
+`DensityNeedsCorpora` on raw-expert builds, and the report-only `--density-gate` A/B
+(`harness/density_ab.rs`): the density engine at the SAME fitted posture (calibrator re-fit
+on the same cal pairs), the density threshold at the cal ρ=30 percentile, ONE frozen test
+read, per-question pairing with `pick_disagreements` as the void tripwire (0 everywhere).
+Five engine unit tests pin the pairing premise (picks/probs/domains never move), the
+unarmed posture, the marginal-cause classification, the fail-closed refusal, and the
+accessor's determinism.
+
+**Verdict: NOT CERTIFIED — opt-in/report-only stays.** LCB95 < 0 on all six suites at the
+ρ=30 per-axis posture (+8–18pp union abstention nowhere certifiably paid back). The
+directional signal splits exactly along the PRE-CHECK's whole-corpus line:
+massive_intent_en **+0.0408** / banking77 **+0.0344** selective accuracy (marginal slices
+49%/37% correct vs base 61%/55% — the gate removes genuine errors) on the many-label
+multimodal side; ag_news +0.0177; sst5 flat; emotion −0.0110 / xnli_en −0.0202 (the
+few-label near-unimodal suites REMOVE better-than-average slices — per-label ≈ pooled ⇒
+ratio ≈ noise there). Two en-route findings worth keeping: **(1)** the consumer var-floor
+re-pin (`DENSITY_VAR_FLOOR = 1e-2`) — the substrate default let K=16 positives spike on
+40–64-doc pools (question embeddings read ℓ ≈ −100s, >30% of cal confidences underflowed
+sigmoid, the ρ=30 fit landed on a denormal — abstention without discrimination); K=16 +
+floor 1e-2 beat K=4 and floor 2e-2 on the full board. **(2)** τ is PROVABLY inert under
+percentile threshold fitting (`sigmoid(ℓ/τ)` strictly monotone ⇒ same rank set for every
+τ>0 — the sweep task closed by argument). The wire-shape law held: the shipped rows'
+`abstain_causes` keep the three-key closed taxonomy (the `density_gate` key serializes
+only when nonzero — pinned both shapes). Re-open triggers in Bench 124 §Verdict (per-suite
+arming with cal-side selection; the out-of-suite negative reference; a consumer at the
+800-sample regime). The issue file is removed with this record per the noise-reduction
+rule; its full life: `git log --follow -- .issues/066_fused_abstain_reference_density_threshold.md`.
+
 ## 2026-10-05 — Issue 065 CLOSED (the quotable-timing backlog: every comparison lane now plots)
 
 **[Bench 123](.benchmarks/123_lanes_rerun_4090_boxstate/RECORD.md)** — the four 4090 lane
