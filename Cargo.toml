@@ -192,6 +192,13 @@ mc_ensemble = ["modelless", "katgpt-core/perturbation_ensemble"]
 # + the T2(b) stub-HTTP wire-shape test live in-module; the determinism
 # pin + the harness column ride T3 (`.issues/027`, the 4090 window).
 clm-lane = ["katgpt-core/decision_wire"]
+# Issue 066 PRE-CHECK: forward katgpt-core's sketched-gaussianity probe
+# (the `gaussianity_probe` feature there) so the LSL-gate model-class
+# question is answered BEFORE any A/B number is read — a diagonal-Gaussian
+# fit on sparse hashed-bag features can only be adjudicated on the real
+# embedding populations. Measurement-only (the example); never a product
+# lane, never in the release set.
+gaussianity_probe = ["modelless", "katgpt-core/gaussianity_probe"]
 
 [[bin]]
 name = "reflex"
@@ -389,6 +396,14 @@ required-features = ["laya-riir-metal"]
 [[example]]
 name = "gen_code_frozen"
 required-features = ["modelless"]
+
+# Issue 066 PRE-CHECK — the LSL-gate model-class probe (measurement only,
+# never a gate): sketched-gaussianity on the REAL seat-corpus embedding
+# populations (whole-corpus + per-label, raw 256-d and JL-projected), so
+# the diagonal-GMM question is answered before any A/B number is read.
+[[example]]
+name = "gaussianity_probe"
+required-features = ["gaussianity_probe"]
 
 # The laya parity test is GEMM-bound inside the substrate lane's `gemm`
 # calls; the local code is only orchestration. Optimizing DEPENDENCIES in
