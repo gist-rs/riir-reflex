@@ -57,7 +57,8 @@ use crate::harness::pair_heads::{
     ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
 };
 use crate::harness::suites::{
-    QKind, Suite, SuiteCase, TrainDoc, build_ag_news, build_banking77_mteb, build_emotion,
+    QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc, build_ag_news, build_banking77_mteb,
+    build_emotion,
     build_massive_intent_en, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
     build_s1mb_score, build_sst5, build_thai_sib200,
     build_thai_wisesight, build_typed_decisions,
@@ -1760,41 +1761,148 @@ pub fn engine_request(
     case: &SuiteCase,
     state_str: &str,
 ) -> Result<katgpt_core::decision_wire::DecisionRequest, String> {
-    use katgpt_core::decision_wire::Question;
     let mut questions = Vec::with_capacity(case.questions.len());
     for q in &case.questions {
-        let q = match q.kind {
-            QKind::Choice => {
-                let keys: Vec<String> = q
-                    .criteria
-                    .as_object()
-                    .map(|m| m.keys().cloned().collect())
-                    .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
-                Question::choice(q.qid.as_str(), q.instructions.as_str(), keys, None)
-            }
-            QKind::Score => {
-                let levels: Vec<String> = q
-                    .criteria
-                    .as_array()
-                    .map(|a| {
-                        a.iter()
-                            .map(|v| match v {
-                                Value::String(s) => s.clone(),
-                                other => other.to_string(),
-                            })
-                            .collect()
-                    })
-                    .ok_or_else(|| format!("case {}: score criteria must be an array", q.qid))?;
-                Question::score(q.qid.as_str(), q.instructions.as_str(), levels)
-            }
-            QKind::Noul => Question::noul(q.qid.as_str(), q.instructions.as_str()),
-        };
-        questions.push(q);
+        questions.push(fresh_question(q)?);
     }
     Ok(katgpt_core::decision_wire::DecisionRequest {
         state: state_str.to_string(),
         questions,
     })
+}
+
+/// The scratch refill form of [`engine_request`] (reflex issue 070, lead
+/// 2): writes the same request into a caller-owned buffer, reusing every
+/// `String`/`Vec` capacity it already holds. A slot whose KIND changes
+/// between requests is rebuilt fresh (the shape-change path — one
+/// allocation, then stable for the suite's request shape).
+fn engine_request_into(
+    case: &SuiteCase,
+    state_str: &str,
+    req: &mut katgpt_core::decision_wire::DecisionRequest,
+) -> Result<(), String> {
+    req.state.clear();
+    req.state.push_str(state_str);
+    for (slot, q) in req.questions.iter_mut().zip(case.questions.iter()) {
+        refill_question_slot(slot, q)?;
+    }
+    req.questions.truncate(case.questions.len());
+    for q in &case.questions[req.questions.len()..] {
+        req.questions.push(fresh_question(q)?);
+    }
+    Ok(())
+}
+
+/// The fresh-build half of [`engine_request`] — the owned path's
+/// constructor and [`engine_request_into`]'s shape-change path.
+fn fresh_question(
+    q: &SuiteQuestion,
+) -> Result<katgpt_core::decision_wire::Question, String> {
+    use katgpt_core::decision_wire::Question;
+    Ok(match q.kind {
+        QKind::Choice => {
+            let keys: Vec<String> = q
+                .criteria
+                .as_object()
+                .map(|m| m.keys().cloned().collect())
+                .ok_or_else(|| {
+                    format!("case {}: choice criteria must be an object", q.qid)
+                })?;
+            Question::choice(q.qid.as_str(), q.instructions.as_str(), keys, None)
+        }
+        QKind::Score => {
+            let levels: Vec<String> = q
+                .criteria
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .map(|v| match v {
+                            Value::String(s) => s.clone(),
+                            other => other.to_string(),
+                        })
+                        .collect()
+                })
+                .ok_or_else(|| format!("case {}: score criteria must be an array", q.qid))?;
+            Question::score(q.qid.as_str(), q.instructions.as_str(), levels)
+        }
+        QKind::Noul => Question::noul(q.qid.as_str(), q.instructions.as_str()),
+    })
+}
+
+/// Same-kind in-place refill of one question slot (reflex issue 070,
+/// lead 2): strings clear+rewrite (capacity kept), the option list
+/// refills per slot and only grows/shrinks when the request shape
+/// changes. The wire bytes match [`fresh_question`]'s construction
+/// exactly — same map iteration order, same value spellings.
+fn refill_question_slot(
+    slot: &mut katgpt_core::decision_wire::Question,
+    q: &SuiteQuestion,
+) -> Result<(), String> {
+    use katgpt_core::decision_wire::QuestionKind;
+    let kind = match q.kind {
+        QKind::Choice => QuestionKind::Choice,
+        QKind::Score => QuestionKind::Score,
+        QKind::Noul => QuestionKind::Noul,
+    };
+    if slot.kind != kind {
+        *slot = fresh_question(q)?;
+        return Ok(());
+    }
+    refill_string(&mut slot.id, &q.qid);
+    refill_string(&mut slot.prompt, &q.instructions);
+    slot.criteria = None;
+    match q.kind {
+        QKind::Choice => {
+            let obj = q.criteria.as_object().ok_or_else(|| {
+                format!("case {}: choice criteria must be an object", q.qid)
+            })?;
+            refill_strings(&mut slot.options, obj.keys().map(String::as_str));
+        }
+        QKind::Score => {
+            let arr = q
+                .criteria
+                .as_array()
+                .ok_or_else(|| format!("case {}: score criteria must be an array", q.qid))?;
+            for (i, v) in arr.iter().enumerate() {
+                let spelled = match v {
+                    Value::String(s) => {
+                        if i < slot.options.len() {
+                            refill_string(&mut slot.options[i], s);
+                            continue;
+                        }
+                        s.clone()
+                    }
+                    other => other.to_string(),
+                };
+                if i < slot.options.len() {
+                    refill_string(&mut slot.options[i], &spelled);
+                } else {
+                    slot.options.push(spelled);
+                }
+            }
+            slot.options.truncate(arr.len());
+        }
+        QKind::Noul => {} // options MUST stay empty (the wire law)
+    }
+    Ok(())
+}
+
+fn refill_string(dst: &mut String, src: &str) {
+    dst.clear();
+    dst.push_str(src);
+}
+
+fn refill_strings<'a>(dst: &mut Vec<String>, src: impl Iterator<Item = &'a str>) {
+    let mut n = 0usize;
+    for s in src {
+        if n < dst.len() {
+            refill_string(&mut dst[n], s);
+        } else {
+            dst.push(s.to_string());
+        }
+        n += 1;
+    }
+    dst.truncate(n);
 }
 
 // ── evaluation record ───────────────────────────────────────────────────
@@ -1947,6 +2055,34 @@ fn argmax(p: &[f64]) -> usize {
     best
 }
 
+/// Label-space probabilities + the forced pick for one wire answer — the
+/// ONE copy of the flip/argmax law (reflex issue 070 lead 2): the
+/// engine's internal noul order is [p_yes] (wire p_yes only), flipped to
+/// [no, yes] to match the gold-index convention; an abstained answer's
+/// pick is the argmax (the metrics' forced pick). Writes `out` in place
+/// (clear + extend — the scratch path reuses the capacity) and returns
+/// the pick.
+fn answer_probs_pick(
+    kind: QKind,
+    ans: &katgpt_core::decision_wire::Answer,
+    out: &mut Vec<f64>,
+) -> usize {
+    out.clear();
+    if kind == QKind::Noul {
+        let p_yes = f64::from(ans.probabilities[0]);
+        out.push(1.0 - p_yes);
+        out.push(p_yes);
+    } else {
+        out.extend(ans.probabilities.iter().map(|p| f64::from(*p)));
+    }
+    match &ans.outcome {
+        Some(katgpt_core::decision_wire::Outcome::Choice { index }) => *index as usize,
+        Some(katgpt_core::decision_wire::Outcome::Score { level }) => *level as usize,
+        Some(katgpt_core::decision_wire::Outcome::Noul { yes }) => usize::from(*yes),
+        None => argmax(out),
+    }
+}
+
 // ── the modelless lane ──────────────────────────────────────────────────
 
 pub(crate) fn eval_engine<const N: usize>(
@@ -1998,20 +2134,8 @@ pub(crate) fn eval_engine<const N: usize>(
         // rerun below reuses the same scratch).
         let ccauses: Vec<AbstainCause> = sc.slots.iter().map(|s| s.cause).collect();
         for (q, ans) in case.questions.iter().zip(resp.answers.iter()) {
-            // Engine internal noul order is [yes, no] (wire p_yes only);
-            // flip to [no, yes] to match the gold-index convention.
-            let p: Vec<f64> = if q.kind == QKind::Noul {
-                let p_yes = f64::from(ans.probabilities[0]);
-                vec![1.0 - p_yes, p_yes]
-            } else {
-                ans.probabilities.iter().map(|p| f64::from(*p)).collect()
-            };
-            let pick = match &ans.outcome {
-                Some(katgpt_core::decision_wire::Outcome::Choice { index }) => *index as usize,
-                Some(katgpt_core::decision_wire::Outcome::Score { level }) => *level as usize,
-                Some(katgpt_core::decision_wire::Outcome::Noul { yes }) => usize::from(*yes),
-                None => argmax(&p), // abstained — forced pick for the metrics
-            };
+            let mut p = Vec::new();
+            let pick = answer_probs_pick(q.kind, ans, &mut p);
             cprobs.push(p);
             cpicks.push(pick);
             cconfs.push(f64::from(ans.confidence));
@@ -6191,6 +6315,10 @@ pub mod seat {
     /// flags are `eval_seat`'s own `abstained` field verbatim
     /// (case-major, question-minor); only the dropped probs/pick/conf
     /// copies and the duration vector differ.
+    ///
+    /// Serve consumers should prefer [`eval_case_into`] (lead 2) — the
+    /// scratch-refill face that also reuses the engine scratch, the wire
+    /// request and the result vecs across requests.
     pub fn eval_seat_abstained<const N: usize>(
         engine: &mut DecisionEngine<N, EMBED_DIM>,
         cases: &[SuiteCase],
@@ -6198,6 +6326,109 @@ pub mod seat {
     ) -> Result<Vec<Vec<bool>>, String> {
         let (ev, _lat) = super::eval_engine(engine, cases, state_strs, false)?;
         Ok(ev.abstained)
+    }
+
+    /// The eval path's reusable frame (reflex issue 070, lead 2): the
+    /// engine solve scratch, the wire request, and the per-question
+    /// answers in ONE caller-owned buffer. A serve consumer holds it
+    /// across requests — [`eval_case_into`] refills every `String`/`Vec`
+    /// in place (keep-when-equal shape), so a warm frame pays zero
+    /// eval-path allocation per request. The result fields hold the LAST
+    /// eval's answers and stay readable until the next call.
+    ///
+    /// The take/replace idiom keeps the frame out of `&mut self` methods
+    /// while its answers are read:
+    ///
+    /// ```ignore
+    /// let mut frame = std::mem::take(&mut self.eval_frame);
+    /// eval_case_into(&mut self.engine, case, state, &mut frame)?;
+    /// // … read frame.picks / frame.abstained …
+    /// self.eval_frame = frame;
+    /// ```
+    pub struct CaseEvalScratch {
+        sc: Scratch<EMBED_DIM>,
+        req: katgpt_core::decision_wire::DecisionRequest,
+        /// Per-question label-space probabilities (noul is [no, yes]).
+        pub probs: Vec<Vec<f64>>,
+        /// Per-question picks (forced argmax when abstained).
+        pub picks: Vec<usize>,
+        pub confs: Vec<f64>,
+        pub abstained: Vec<bool>,
+    }
+
+    impl CaseEvalScratch {
+        pub fn new() -> Self {
+            Self::default()
+        }
+    }
+
+    impl Default for CaseEvalScratch {
+        fn default() -> Self {
+            Self {
+                sc: Scratch::new(),
+                req: katgpt_core::decision_wire::DecisionRequest {
+                    state: String::new(),
+                    questions: Vec::new(),
+                },
+                probs: Vec::new(),
+                picks: Vec::new(),
+                confs: Vec::new(),
+                abstained: Vec::new(),
+            }
+        }
+    }
+
+    /// The scratch refill face of the eval path (reflex issue 070, lead
+    /// 2): evaluates ONE case into the frame — the same request
+    /// construction, noul flip, forced pick and confidence reads as
+    /// [`eval_seat`] — minus every per-call allocation the frame can
+    /// reuse. The determinism probe and the latency tail stay the arena
+    /// path's job (the caller times the request itself).
+    ///
+    /// Byte-parity contract: the answers equal [`eval_seat`]'s over the
+    /// one-case slice — the frozen-picks replays (instinct serve gates,
+    /// rethink esc gates) assert it.
+    pub fn eval_case_into<const N: usize>(
+        engine: &mut DecisionEngine<N, EMBED_DIM>,
+        case: &SuiteCase,
+        state_str: &str,
+        frame: &mut CaseEvalScratch,
+    ) -> Result<(), String> {
+        super::engine_request_into(case, state_str, &mut frame.req)?;
+        frame.sc.prepare(case.questions.len().max(1));
+        frame.picks.clear();
+        frame.confs.clear();
+        frame.abstained.clear();
+        for slot in &mut frame.probs {
+            slot.clear();
+        }
+
+        let resp = engine
+            .decide_with(&frame.req, &mut frame.sc)
+            .map_err(|e| format!("engine decide ({}): {e}", case.id))?;
+
+        for (qi, (q, ans)) in case.questions.iter().zip(resp.answers.iter()).enumerate() {
+            if frame.probs.len() <= qi {
+                frame.probs.push(Vec::new());
+            }
+            let slot = &mut frame.probs[qi];
+            let pick = super::answer_probs_pick(q.kind, ans, slot);
+            frame.picks.push(pick);
+            frame.confs.push(f64::from(ans.confidence));
+            frame.abstained.push(ans.outcome.is_none());
+        }
+        // A longer PREVIOUS request leaves stale tail slots (the request
+        // shape changed) — drop them so the next reader never sees them.
+        frame.probs.truncate(frame.abstained.len());
+
+        // The wire's `outcome.is_none()` and the engine's cause must agree
+        // by construction (issue 060) — asserted against the frame's own
+        // solve scratch, no Vec<AbstainCause> copy.
+        debug_assert_eq!(frame.abstained.len(), frame.sc.slots.len());
+        for (w, c) in frame.abstained.iter().zip(frame.sc.slots.iter()) {
+            debug_assert_eq!(*w, c.cause.abstained());
+        }
+        Ok(())
     }
 
     /// The laya escalation face of G2 (cfg `laya-riir`): per-question

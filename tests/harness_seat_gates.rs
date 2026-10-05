@@ -220,3 +220,56 @@ fn dataset_suites_seat_unmarked_when_data_is_present() {
         "dataset seat carries its cases"
     );
 }
+
+#[test]
+fn eval_case_into_matches_eval_seat_case_by_case() {
+    // Reflex issue 070 lead 2's byte-parity contract: the scratch face
+    // (`eval_case_into`) answers EXACTLY `eval_seat`'s per-case slice —
+    // probabilities, picks, confidences, abstain flags — across the whole
+    // synthetic family, through ONE frame REUSED across cases (the refill
+    // path, not the fresh-build path: a stale-slot or capacity bug shows
+    // up from the second case on).
+    const NAME: &str = "semantic_defects";
+    const N: usize = 6;
+    let seat = prepare_seat(NAME, std::path::Path::new(".raw/datasets")).expect("seat");
+    let posture = fit_posture::<N>(NAME, &seat, &PostureKnobs::default()).expect("posture");
+    let (mut engine, _) = riir_reflex::harness::runner::seat::build_seat_engine::<N>(
+        NAME,
+        &seat,
+        posture.effective_cap,
+        posture.cfg.clone(),
+    )
+    .expect("seat engine");
+    let eval = riir_reflex::harness::runner::seat::eval_seat::<N>(
+        &mut engine,
+        &seat.suite.cases,
+        &seat.state_strs,
+    )
+    .expect("seat eval");
+
+    let mut frame = riir_reflex::harness::runner::seat::CaseEvalScratch::new();
+    for (ci, (case, state)) in seat.suite.cases.iter().zip(&seat.state_strs).enumerate() {
+        riir_reflex::harness::runner::seat::eval_case_into::<N>(
+            &mut engine,
+            case,
+            state,
+            &mut frame,
+        )
+        .unwrap_or_else(|e| panic!("{NAME} case {ci}: scratch eval failed: {e}"));
+        let outs = &eval.cases[ci];
+        assert_eq!(
+            outs.len(),
+            frame.abstained.len(),
+            "{NAME} case {ci}: question count drifted"
+        );
+        for (qi, qo) in outs.iter().enumerate() {
+            assert_eq!(qo.probs, frame.probs[qi], "{NAME} case {ci} q{qi}: probs drifted");
+            assert_eq!(qo.pick, frame.picks[qi], "{NAME} case {ci} q{qi}: pick drifted");
+            assert_eq!(qo.conf, frame.confs[qi], "{NAME} case {ci} q{qi}: conf drifted");
+            assert_eq!(
+                qo.abstained, frame.abstained[qi],
+                "{NAME} case {ci} q{qi}: abstention drifted"
+            );
+        }
+    }
+}
