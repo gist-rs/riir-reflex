@@ -5,6 +5,46 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-05 — Issue 068 CLOSED (the lane HTTP micro-client extraction: one `parse_http_response`, chunked handling for every lane)
+
+The substrate-first mode-2 drift audit's finding — four diverged per-lane copies of
+`parse_http_response` plus per-lane `request()` (openthai/agentjev/clef/clm, all four
+hash-different; openthai's own module doc recorded the extraction as its DEFERRED
+T4.1) — resolved by the extraction the issue proposed, on the owner's "fix this"
+call rather than the recorded next-lane-change trigger: `src/lanes/http_mini.rs`,
+the shared std-only HTTP/1.1 micro-client (fix `d12e5d6`).
+
+- `request(host, port, method, path, body, timeout, extra_headers)` + one
+  `parse_http_response`; the per-lane knobs are parameters and the per-lane error
+  conversion stays at the call site — clm keeps `ClmError` via `From<LaneHttpError>`,
+  clef keeps its connect-failure forwarder hint by matching `LaneHttpError::Connect`.
+- **The clef variant's chunked decoding folded in for EVERY lane**: a content-length-
+  only parser silently mis-truncates when a forwarder chunks (the clef law, now
+  everyone's); `decode_chunked` moved verbatim.
+- `LaneHttpError`'s Display preserves the historical message formats byte-for-byte
+  (`connect {host}:{port}: {e}` / `set timeout` / `write` / `read` / the parser
+  messages) — those strings flow into run logs and operator refusals.
+- G-ISO-4 import law amended (openthai/agentjev/clef): imports now include the
+  std-only `crate::lanes::http_mini` sibling — the law's intent (the lanes compile
+  ungated with zero feature surface) is unaffected; a std-only sibling cannot pull
+  a feature in. **paw stays deliberately NOT a consumer** (curl subprocess
+  transport; its `-i` parser must fold redirect chains — a different shape).
+- Regression gates: the parser goldens consolidated into http_mini's own battery
+  (split-head, chunked+truncate, malformed arms incl. bad-chunk-size/truncated-
+  chunk, connect-Display, a stub-listener pin of the REQUEST wire — extra-header
+  knob, POST body headers, GET bare, chunked reply on the GET path); the lanes'
+  stub round trips — openthai 10, agentjev 7, clef 10, clm 12 — all green THROUGH
+  the shared client (the clm wire pin proves request line + body shape + the
+  `X-CLM-Latency-Ms` header read survive the extraction).
+- Validation: clippy `-D warnings` at default / `clm-lane` / `--no-default-features`
+  / `--all-features`; full `cargo test` (16 targets) + `--features clm-lane` (302);
+  wasm32 `--no-default-features` check clean (the ungated lanes + http_mini compile
+  there; the modelless-on-wasm32 failures are pre-existing harness-runner breakage,
+  why the site ships a separate `wasm-head` crate).
+- Known unrelated red the guard still carries: layer 9 site-mirror drift on
+  `.docs/05_resources/dev_flow.md` — PRE-EXISTING (reflex-site `3baffcc` edited the
+  mirror side only); not touched by this change.
+
 ## 2026-10-05 — Issue 066 CLOSED (the fused-abstain density half: wired, measured, not certified — the many-label signal recorded)
 
 **[Bench 124](.benchmarks/124_density_gate_ab/RECORD.md)** — the LSL App-E density half
