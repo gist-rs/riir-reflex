@@ -16,8 +16,9 @@
 //!
 //! 2. **The `/v1/systemone` HTTP adapter** ([`ClmLane`]) — their stack
 //!    serves (vLLM Qwen3-8B pooling + `clm-serve` heads), our Rust
-//!    measures. Thin localhost HTTP client over std (`serve.rs`'s
-//!    hand-rolled posture; no new deps), request built from a
+//!    measures. Thin localhost HTTP client over std (the shared
+//!    `crate::lanes::http_mini` micro-client since Issue 068; no new
+//!    deps), request built from a
 //!    [`DecisionRequest`], response mapped into a
 //!    [`DecisionResponse`] with distribution + confidence columns and NO
 //!    abstain mapping (CLM has none — the inherited Jev flaw; the wire's
@@ -34,9 +35,6 @@
 //! server, so we compute their own `top − mean(rest)` law over the two
 //! probabilities.
 
-use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use katgpt_core::decision_wire::{
@@ -44,6 +42,8 @@ use katgpt_core::decision_wire::{
     QuestionKind, Routing,
 };
 use serde_json::{json, Map, Value};
+
+use crate::lanes::http_mini::{self, HttpReply, LaneHttpError};
 
 /// Their model id for the reference head (`engine.DEFAULT_MODEL`).
 pub const DEFAULT_MODEL: &str = "clm-latest";
@@ -318,6 +318,15 @@ impl std::fmt::Display for ClmError {
 
 impl std::error::Error for ClmError {}
 
+impl From<LaneHttpError> for ClmError {
+    /// The shared micro-client's failures keep the lane's error surface
+    /// (Issue 068): the historical message formats, verbatim — only the
+    /// `clm lane: ` prefix the outer Display adds is new to them.
+    fn from(e: LaneHttpError) -> Self {
+        Self(e.to_string())
+    }
+}
+
 fn err<T>(msg: impl Into<String>) -> Result<T, ClmError> {
     Err(ClmError(msg.into()))
 }
@@ -457,9 +466,6 @@ pub fn map_response(req: &DecisionRequest, body: &Value) -> Result<DecisionRespo
 
 // ────────────────────────────────────────────────── the lane
 
-/// One parsed HTTP/1.1 reply: `(status, lowercased headers, body bytes)`.
-type HttpReply = (u16, HashMap<String, String>, Vec<u8>);
-
 /// Per-decision measurement record (Issue 019: "record latency +
 /// `usage.input_tokens`").
 #[derive(Debug, Clone, PartialEq)]
@@ -546,60 +552,21 @@ impl ClmLane {
         ))
     }
 
-    /// The hand-rolled HTTP/1.1 POST (`Connection: close`), mirroring
-    /// `serve.rs`'s min-envelope posture from the client side.
+    /// The HTTP/1.1 POST over the shared std-only micro-client (Issue
+    /// 068): `Connection: close`, min envelope; failures keep the lane's
+    /// `ClmError` surface via `From`.
     fn post(&self, body: &[u8]) -> Result<HttpReply, ClmError> {
-        let mut stream = TcpStream::connect((self.host.as_str(), self.port))
-            .map_err(|e| ClmError(format!("connect {}:{}: {e}", self.host, self.port)))?;
-        stream
-            .set_read_timeout(Some(self.timeout))
-            .and_then(|_| stream.set_write_timeout(Some(self.timeout)))
-            .map_err(|e| ClmError(format!("set timeout: {e}")))?;
-        let head = format!(
-            "POST {} HTTP/1.1\r\nHost: {}:{}\r\nContent-Type: application/json\r\n\
-             Content-Length: {}\r\nConnection: close\r\n\r\n",
-            self.path,
-            self.host,
+        http_mini::request(
+            &self.host,
             self.port,
-            body.len()
-        );
-        stream
-            .write_all(head.as_bytes())
-            .and_then(|_| stream.write_all(body))
-            .and_then(|_| stream.flush())
-            .map_err(|e| ClmError(format!("write: {e}")))?;
-        let mut raw = Vec::new();
-        stream
-            .read_to_end(&mut raw)
-            .map_err(|e| ClmError(format!("read: {e}")))?;
-        parse_http_response(&raw)
+            "POST",
+            &self.path,
+            Some(body),
+            self.timeout,
+            &[],
+        )
+        .map_err(ClmError::from)
     }
-}
-
-/// Split a raw HTTP/1.1 response into `(status, lowercased-headers, body)`.
-fn parse_http_response(raw: &[u8]) -> Result<HttpReply, ClmError> {
-    let text = String::from_utf8_lossy(raw);
-    let (head, body) = text
-        .split_once("\r\n\r\n")
-        .ok_or_else(|| ClmError("response has no header/body separator".into()))?;
-    let mut lines = head.split("\r\n");
-    let status_line = lines.next().unwrap_or_default();
-    let status: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .ok_or_else(|| ClmError(format!("malformed status line: {status_line}")))?;
-    let mut headers = HashMap::new();
-    for line in lines {
-        if let Some((k, v)) = line.split_once(':') {
-            headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
-        }
-    }
-    let mut body_bytes = body.as_bytes().to_vec();
-    if let Some(len) = headers.get("content-length").and_then(|v| v.parse::<usize>().ok()) {
-        body_bytes.truncate(len);
-    }
-    Ok((status, headers, body_bytes))
 }
 
 // ───────────────────────────────────────────────────────────────── tests
@@ -608,6 +575,7 @@ fn parse_http_response(raw: &[u8]) -> Result<HttpReply, ClmError> {
 mod tests {
     use super::*;
     use katgpt_core::decision_wire::Question;
+    use std::io::{Read, Write};
 
     fn obj(pairs: &[(&str, Value)]) -> Value {
         let mut m = Map::new();

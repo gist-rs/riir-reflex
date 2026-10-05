@@ -26,9 +26,10 @@
 //! an unverified shape (plan 011 A4; implement it from the fixture, not
 //! from the guess).
 //!
-//! Transport (plan 011 A0): the harness lanes are deliberately std-only
-//! plaintext HTTP (`TcpStream`, zero TLS deps — the clm-lane law), so the
-//! hosted HTTPS endpoint is reached through an OPERATOR-RUN loopback
+//! Transport (plan 011 A0, Issue 068): the harness lanes are deliberately
+//! std-only plaintext HTTP (the shared `crate::lanes::http_mini`
+//! micro-client — `TcpStream`, zero TLS deps), so the hosted HTTPS
+//! endpoint is reached through an OPERATOR-RUN loopback
 //! TLS-terminating forwarder (a ~20-line process OUTSIDE this repo — the
 //! no-sidecar repo law; it injects the bearer token and forwards the
 //! Workers-AI route verbatim). The extra hop is part of serving latency
@@ -55,13 +56,12 @@
 //! (plan 011 A5), never a half-run.
 
 use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
+use crate::lanes::http_mini::{self, HttpReply, LaneHttpError};
 
 /// The env var naming the (forwarder) base URL.
 pub const SERVE_URL_ENV: &str = "CLEF_SERVE_URL";
@@ -84,9 +84,6 @@ pub const MAX_CASES_ENV: &str = "CLEF_SMOKE_MAX_CASES";
 pub const DEFAULT_MAX_CASES: usize = 50;
 /// The explicit uncapped override (`=1`).
 pub const UNCAPPED_ENV: &str = "CLEF_ALLOW_UNCAPPED";
-
-/// One parsed HTTP/1.1 reply: `(status, lowercased headers, body bytes)`.
-type HttpReply = (u16, HashMap<String, String>, Vec<u8>);
 
 /// The per-question answer triple every comparison lane feeds the metrics
 /// tail: `(probabilities in OUR option order, picked index, confidence)`.
@@ -235,114 +232,32 @@ impl ClefLane {
     }
 
     fn post(&self, body: &str) -> Result<HttpReply, String> {
-        self.request(self.run_path.as_str(), body.as_bytes())
-    }
-
-    /// The hand-rolled HTTP/1.1 exchange (`Connection: close`), mirroring
-    /// the agentjev lane's min-envelope posture + the bearer header when a
-    /// token is configured.
-    fn request(&self, path: &str, body: &[u8]) -> Result<HttpReply, String> {
-        let mut stream = TcpStream::connect((self.host.as_str(), self.port))
-            .map_err(|e| {
-                format!(
-                    "connect {}:{}: {e} — is the loopback TLS forwarder serving at \
-                     {SERVE_URL_ENV} (default {DEFAULT_SERVE_URL})? plan 011 A0: the \
-                     forwarder is operator-run, outside this repo",
-                    self.host, self.port
-                )
-            })?;
-        stream
-            .set_read_timeout(Some(self.timeout))
-            .and_then(|_| stream.set_write_timeout(Some(self.timeout)))
-            .map_err(|e| format!("set timeout: {e}"))?;
-        let mut head = format!(
-            "POST {path} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\nContent-Type: \
-             application/json\r\n",
-            self.host, self.port
-        );
-        if let Some(t) = &self.token {
-            head.push_str("Authorization: Bearer ");
-            head.push_str(t);
-            head.push_str("\r\n");
-        }
-        head.push_str(&format!("Content-Length: {}\r\n\r\n", body.len()));
-        stream
-            .write_all(head.as_bytes())
-            .and_then(|_| stream.write_all(body))
-            .and_then(|_| stream.flush())
-            .map_err(|e| format!("write: {e}"))?;
-        let mut raw = Vec::new();
-        stream
-            .read_to_end(&mut raw)
-            .map_err(|e| format!("read: {e}"))?;
-        parse_http_response(&raw)
-    }
-}
-
-/// Split a raw HTTP/1.1 response into `(status, lowercased-headers, body)`,
-/// decoding `Transfer-Encoding: chunked` when the reply is chunked (a
-/// forwarder is free to chunk; the agentjev parser's content-length-only
-/// shape would silently mis-truncate there).
-fn parse_http_response(raw: &[u8]) -> Result<HttpReply, String> {
-    let text = String::from_utf8_lossy(raw);
-    let (head, body) = text
-        .split_once("\r\n\r\n")
-        .ok_or_else(|| "response has no header/body separator".to_string())?;
-    let mut lines = head.split("\r\n");
-    let status_line = lines.next().unwrap_or_default();
-    let status: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .ok_or_else(|| format!("malformed status line: {status_line}"))?;
-    let mut headers = HashMap::new();
-    for line in lines {
-        if let Some((k, v)) = line.split_once(':') {
-            headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
-        }
-    }
-    let body_bytes = body.as_bytes().to_vec();
-    let body_bytes = if headers
-        .get("transfer-encoding")
-        .is_some_and(|v| v.to_ascii_lowercase().contains("chunked"))
-    {
-        decode_chunked(&body_bytes)?
-    } else if let Some(len) = headers.get("content-length").and_then(|v| v.parse::<usize>().ok()) {
-        let mut b = body_bytes;
-        b.truncate(len);
-        b
-    } else {
-        body_bytes
-    };
-    Ok((status, headers, body_bytes))
-}
-
-/// RFC 7230 chunked decoding: `size CRLF data CRLF` repeats, terminated by
-/// a `0 CRLF` chunk (trailer section consumed to the end).
-fn decode_chunked(body: &[u8]) -> Result<Vec<u8>, String> {
-    let text = String::from_utf8_lossy(body);
-    let mut out = Vec::with_capacity(body.len());
-    let mut rest = text.as_ref();
-    loop {
-        let Some((size_line, after)) = rest.split_once("\r\n") else {
-            return Err("chunked body: missing chunk-size line".into());
-        };
-        let size = usize::from_str_radix(
-            size_line.split(';').next().unwrap_or_default().trim(),
-            16,
+        // The per-lane knobs ride the shared micro-client (Issue 068):
+        // the bearer when a token is configured, and the connect-failure
+        // hint — this lane's own operator guidance (plan 011 A0), which
+        // is why the error match lives here and not in http_mini.
+        let auth = self.token.as_ref().map(|t| format!("Bearer {t}"));
+        let extra: Vec<(&str, &str)> = auth
+            .as_deref()
+            .map(|a| vec![("Authorization", a)])
+            .unwrap_or_default();
+        http_mini::request(
+            &self.host,
+            self.port,
+            "POST",
+            self.run_path.as_str(),
+            Some(body.as_bytes()),
+            self.timeout,
+            &extra,
         )
-        .map_err(|_| format!("chunked body: bad chunk size {size_line:?}"))?;
-        if size == 0 {
-            return Ok(out);
-        }
-        if after.len() < size {
-            return Err("chunked body: truncated chunk data".into());
-        }
-        let (data, tail) = after.split_at(size);
-        out.extend_from_slice(data.as_bytes());
-        rest = tail
-            .strip_prefix("\r\n")
-            .ok_or_else(|| "chunked body: chunk data not CRLF-terminated".to_string())?;
+        .map_err(|e| match e {
+            LaneHttpError::Connect { .. } => format!(
+                "{e} — is the loopback TLS forwarder serving at \
+                 {SERVE_URL_ENV} (default {DEFAULT_SERVE_URL})? plan 011 A0: the \
+                 forwarder is operator-run, outside this repo"
+            ),
+            other => other.to_string(),
+        })
     }
 }
 
@@ -760,18 +675,6 @@ mod tests {
         assert!(ClefLane::parse_url("https://nope").is_err());
     }
 
-    #[test]
-    fn chunked_body_decodes_and_plain_truncates() {
-        let raw =
-            b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n4\r\n{\"a\"\r\n3\r\n:1}\r\n0\r\n\r\n";
-        let (status, headers, body) = parse_http_response(raw).unwrap();
-        assert_eq!(status, 200);
-        assert_eq!(body, b"{\"a\":1}");
-        assert!(headers.contains_key("transfer-encoding"));
-        let raw2 =
-            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{} plus bytes a keep-alive peer \
-              would still have in flight";
-        let (_, _, body2) = parse_http_response(raw2).unwrap();
-        assert_eq!(body2, b"{}");
-    }
+    // (The chunked/plain parser golden that lived here moved to
+    // `http_mini` with the Issue 068 extraction.)
 }

@@ -10,9 +10,15 @@
 //! Python-oracle subprocess (the gliner-lane shape).
 
 pub mod agentjev;
+// Issue 068: the lanes' shared std-only HTTP/1.1 micro-client — the
+// extraction the four TcpStream lanes (openthai/agentjev/clef/clm) each
+// deferred at their own landing. Ungated (std-only, the agentjev/clef
+// import surface). paw is NOT a consumer (curl subprocess transport).
+pub(crate) mod http_mini;
 // Plan 011 Phase A: the Cloudflare Clef comparison lane — agentjev-shaped
-// (ungated: imports only `crate::harness::suites` + std + serde_json, the
-// G-ISO-4 import law); the hosted Workers-AI route behind an operator-run
+// (ungated: imports only `crate::harness::suites` + the std-only
+// `crate::lanes::http_mini` + std + serde_json, the G-ISO-4 import law as
+// amended by Issue 068); the hosted Workers-AI route behind an operator-run
 // loopback TLS forwarder (plan 011 A0). The no-creds refusal is the lane's
 // own construction gate.
 pub mod clef;

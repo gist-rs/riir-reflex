@@ -40,28 +40,25 @@
 //!   their 400, not as silent misalignment.
 
 use std::collections::HashMap;
-use std::io::{Read, Write};
-use std::net::TcpStream;
 use std::time::{Duration, Instant};
 
 use serde_json::{json, Map, Value};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
+use crate::lanes::http_mini::{self, HttpReply};
 
 /// The env var naming their service's base URL.
 pub const SERVE_URL_ENV: &str = "AGENTJEV_SERVE_URL";
 /// The default posture: loopback, their server's default port 8149.
 pub const DEFAULT_SERVE_URL: &str = "http://127.0.0.1:8149";
 
-/// One parsed HTTP/1.1 reply: `(status, lowercased headers, body bytes)`.
-type HttpReply = (u16, HashMap<String, String>, Vec<u8>);
-
 /// The per-question answer triple every comparison lane feeds the metrics
 /// tail: `(probabilities in OUR option order, picked index, confidence)`.
 pub type AnswerTriple = (Vec<f64>, usize, f64);
 
 /// The lane: a thin loopback HTTP/1.1 client to their `jev_service`.
-/// std-only (the clm lane's hand-rolled posture; no new deps).
+/// std-only (the shared `crate::lanes::http_mini` micro-client since
+/// Issue 068; no new deps).
 #[derive(Debug, Clone)]
 pub struct AgentJevLane {
     host: String,
@@ -177,73 +174,22 @@ impl AgentJevLane {
     }
 
     fn post(&self, body: &str) -> Result<HttpReply, String> {
-        self.request("POST", "/api/evaluate", Some(body.as_bytes()))
+        http_mini::request(
+            &self.host,
+            self.port,
+            "POST",
+            "/api/evaluate",
+            Some(body.as_bytes()),
+            self.timeout,
+            &[],
+        )
+        .map_err(|e| e.to_string())
     }
 
     fn get(&self, path: &str) -> Result<HttpReply, String> {
-        self.request("GET", path, None)
+        http_mini::request(&self.host, self.port, "GET", path, None, self.timeout, &[])
+            .map_err(|e| e.to_string())
     }
-
-    /// The hand-rolled HTTP/1.1 exchange (`Connection: close`), mirroring
-    /// the clm lane's min-envelope posture.
-    fn request(&self, method: &str, path: &str, body: Option<&[u8]>) -> Result<HttpReply, String> {
-        let mut stream = TcpStream::connect((self.host.as_str(), self.port))
-            .map_err(|e| format!("connect {}:{}: {e}", self.host, self.port))?;
-        stream
-            .set_read_timeout(Some(self.timeout))
-            .and_then(|_| stream.set_write_timeout(Some(self.timeout)))
-            .map_err(|e| format!("set timeout: {e}"))?;
-        let head = format!(
-            "{method} {path} HTTP/1.1\r\nHost: {}:{}\r\nConnection: close\r\n",
-            self.host, self.port
-        );
-        let head = match body {
-            Some(b) => format!(
-                "{head}Content-Type: application/json\r\nContent-Length: {}\r\n\r\n",
-                b.len()
-            ),
-            None => format!("{head}\r\n"),
-        };
-        stream
-            .write_all(head.as_bytes())
-            .and_then(|_| match body {
-                Some(b) => stream.write_all(b),
-                None => Ok(()),
-            })
-            .and_then(|_| stream.flush())
-            .map_err(|e| format!("write: {e}"))?;
-        let mut raw = Vec::new();
-        stream
-            .read_to_end(&mut raw)
-            .map_err(|e| format!("read: {e}"))?;
-        parse_http_response(&raw)
-    }
-}
-
-/// Split a raw HTTP/1.1 response into `(status, lowercased-headers, body)`.
-fn parse_http_response(raw: &[u8]) -> Result<HttpReply, String> {
-    let text = String::from_utf8_lossy(raw);
-    let (head, body) = text
-        .split_once("\r\n\r\n")
-        .ok_or_else(|| "response has no header/body separator".to_string())?;
-    let mut lines = head.split("\r\n");
-    let status_line = lines.next().unwrap_or_default();
-    let status: u16 = status_line
-        .split_whitespace()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .ok_or_else(|| format!("malformed status line: {status_line}"))?;
-    let mut headers = HashMap::new();
-    for line in lines {
-        if let Some((k, v)) = line.split_once(':') {
-            headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
-        }
-    }
-    let mut body_bytes = body.as_bytes().to_vec();
-    if let Some(len) = headers.get("content-length").and_then(|v| v.parse::<usize>().ok()) {
-        body_bytes.truncate(len);
-    }
-    Ok((status, headers, body_bytes))
 }
 
 // ───────────────────────────────────────────────────────── the request wire
@@ -575,12 +521,7 @@ mod tests {
         assert_eq!(bare.port, 8149);
     }
 
-    #[test]
-    fn http_response_splits_head_and_body() {
-        let raw = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}";
-        let (status, headers, body) = parse_http_response(raw).unwrap();
-        assert_eq!(status, 200);
-        assert_eq!(headers.get("content-type").map(String::as_str), Some("application/json"));
-        assert_eq!(body, b"{}");
-    }
+    // (The parser golden that lived here moved to `http_mini` with the
+    // Issue 068 extraction; the shared client path is pinned end-to-end
+    // by http_mini's stub round trip plus the openthai lane's own.)
 }
