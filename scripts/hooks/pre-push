@@ -1,0 +1,75 @@
+#!/usr/bin/env bash
+# The tracked pre-push hook — the PREVENTIVE half of the artifact-class law
+# (Plan 623 T1 / Proposal 054 §7).
+#
+# ⛔ NOT ENROLLED: this file ships tracked so box enrollment (Plan 623 T8,
+# owner) is one `git config core.hooksPath scripts/hooks` away, but it is
+# deliberately NOT wired by T1. It fails CLOSED when the private manifests
+# it reads are absent (a partial clone must not scan an empty hash set and
+# green) — enrolling it in a shared-worktree checkout before T8 would block
+# every sibling agent's push. The workstation half reports UNSEN until then.
+#
+# What it does when enrolled: reads the workspace manifests for the FULL
+# hash set (blake3_plain ∪ blake3_cipher), walks the refs about to be
+# pushed (`git rev-list --objects <oids> --not --remotes` — the range form
+# covers a first push of a NEW branch), prefilters by exact size, matches
+# BLAKE3 (the name-independent catch for heads committed under innocent
+# names), sniffs age headers, and flags >256 KiB blobs not on the
+# membership allowlist. No-CI repos (instinct, rethink, train) additionally
+# run the CI-half checks INSIDE this hook — it is their only automatic lane.
+#
+# Bypass (`git push --no-verify`) is BANNED for agents by the workspace
+# rules (Proposal 054 §10).
+
+set -eu
+
+HOOK_DONE=""
+cleanup() {
+    rc=$?
+    if [ -n "$HOOK_DONE" ]; then
+        exit "$rc"
+    fi
+    echo "✗ artifact pre-push hook: INCOMPLETE — died before its own verdict (treated as a refusal)" >&2
+    exit 1
+}
+trap cleanup EXIT
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+# Locate the gate core: the canonical home is this repo's scripts/ (riir-ai,
+# where the py lives beside this hook); a seeded copy in any OTHER workspace
+# repo resolves the workspace sibling riir-ai/scripts/ instead — the hook
+# file is byte-identical everywhere (install_everywhere.sh seeds it; the
+# workstation half drift-checks the bytes), and a copy that can find no core
+# REFUSES (fail-closed) rather than silently skipping the scan.
+GATE_PY=""
+for cand in \
+    "$SCRIPT_DIR/artifact_boundary.py" \
+    "$SCRIPT_DIR/../../../riir-ai/scripts/artifact_boundary.py"; do
+    if [ -f "$cand" ]; then
+        GATE_PY="$cand"
+        break
+    fi
+done
+if [ -z "$GATE_PY" ]; then
+    echo "✗ artifact pre-push hook: gate core not found (expected scripts/artifact_boundary.py here, or the workspace sibling riir-ai/) — refusing (fail-closed)" >&2
+    exit 1
+fi
+
+# No-CI repos: the hook is their only automatic lane, so the CI-half runs
+# here too (schema lint + the tracked-blob backstop). Matches the proposal's
+# no-CI set exactly (instinct, rethink carry no workflows; train's push
+# trigger is budget-stripped).
+REPO_NAME="$(basename "$(git rev-parse --show-toplevel)")"
+case "$REPO_NAME" in
+    riir-instinct|riir-rethink|riir-train)
+        python3 "$GATE_PY" --ci || {
+            echo "✗ artifact pre-push hook: the in-hook CI half refused (the only automatic lane this repo has)" >&2
+            exit 1
+        }
+        ;;
+esac
+
+python3 "$GATE_PY" --hook
+
+HOOK_DONE=1
