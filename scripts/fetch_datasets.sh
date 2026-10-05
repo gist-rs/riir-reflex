@@ -5,7 +5,9 @@
 # .raw/datasets/<suite>/<split>-<NNN>.json — one file per 100-row page, offset
 # paging until a page returns fewer than 100 rows or the suite's row cap is
 # hit. Companion probes (/splits, /size) land beside the pages as splits.json
-# / size.json. .raw/ is gitignored; re-running regenerates the files (the
+# / size.json, and the hub licence probe (riir-rethink Issue 023 T1) lands as
+# license.json — the drift tripwire beside the manifest's VERIFIED licence
+# table. .raw/ is gitignored; re-running regenerates the files (the
 # committed manifest .docs/02_protocols/dataset_manifest.md records their blake3 digests,
 # byte sizes and row counts).
 #
@@ -321,6 +323,52 @@ probe_size() {
     sleep "$SLEEP"
 }
 
+# probe_license <suite> <urlencoded-dataset> — save the HUB metadata's
+# licence signal (riir-rethink Issue 023 T1: the licence ledger's fetch-side
+# tripwire). The hub API carries the licence as a TAG (`license:xxx`) for
+# most datasets and as the top-level `license` field for some; the probe
+# records BOTH plus the cardData license when present. The VERIFIED table
+# in .docs/02_protocols/dataset_manifest.md §Licences stays AUTHORITATIVE
+# (a card saying only `license:other` — e.g. dair-ai/emotion's
+# research-only terms — is resolved by the human read, never guessed);
+# this file exists so a hub-side licence CHANGE surfaces at refetch time
+# (diff the probe against the manifest row).
+HUB="https://huggingface.co/api/datasets"
+probe_license() {
+    suite=$1; ds=$2
+    dir="$OUT/$suite"
+    mkdir -p "$dir"
+    file="$dir/license.json"
+    if [ "$FORCE" != "1" ] && [ -s "$file" ]; then
+        log "  skip   $suite/license.json (cached)"
+        return 0
+    fi
+    url="$HUB/$ds"
+    ok=0
+    if http_get "$url" "$file.tmp"; then
+        ok=1
+    fi
+    if [ "$ok" -eq 0 ]; then
+        sleep 5
+        if http_get "$url" "$file.tmp"; then
+            ok=1
+        fi
+    fi
+    if [ "$ok" -eq 1 ]; then
+        mv "$file.tmp" "$file"
+        log "  probe  $suite/license.json"
+        if have jq; then
+            lic=$(jq -r '([.license] + [.tags[]? | select(startswith("license:"))]) | map(select(. != null and . != "")) | join(", ")' "$file" 2>/dev/null)
+            log "         licence signal: ${lic:-none — hub tags absent, the manifest licence table is authoritative}"
+        fi
+    else
+        rm -f "$file.tmp"
+        log "  FAIL   $suite/license.json probe"
+        FAILED=$((FAILED + 1))
+    fi
+    sleep "$SLEEP"
+}
+
 # dedupe_train <suite> — the Issue-058 slice-integrity law at the fetch
 # plane: a train pull is de-duplicated against itself and against the test
 # split at EXACT-row identity, dropping only TRAIN-side copies (the test
@@ -406,6 +454,41 @@ main() {
     if want_suite thai_sib200; then
         log "[probe] thai_sib200 /splits"
         probe_splits thai_sib200 "Davlan%2Fsib200"
+    fi
+
+    # Licence probes (riir-rethink Issue 023 T1): one hub call per selected
+    # suite — the drift tripwire beside the manifest's VERIFIED table.
+    # NOTE: the hub API takes the dataset id with a LITERAL slash (unlike
+    # the datasets-server endpoints, which take %2F).
+    if want_suite typed_decisions; then
+        probe_license typed_decisions "LocalLLaMA/typed-decisions"
+    fi
+    if want_suite ag_news; then
+        probe_license ag_news "fancyzhx/ag_news"
+    fi
+    if want_suite emotion; then
+        probe_license emotion "dair-ai/emotion"
+    fi
+    if want_suite sst5; then
+        probe_license sst5 "SetFit/sst5"
+    fi
+    if want_suite banking77; then
+        probe_license banking77 "mteb/banking77"
+    fi
+    if want_suite prompt_injections; then
+        probe_license prompt_injections "deepset/prompt-injections"
+    fi
+    if want_suite massive_intent_en; then
+        probe_license massive_intent_en "mteb/amazon_massive_intent"
+    fi
+    if want_suite xnli_en; then
+        probe_license xnli_en "facebook/xnli"
+    fi
+    if want_suite thai_wisesight; then
+        probe_license thai_wisesight "pythainlp/wisesight_sentiment"
+    fi
+    if want_suite thai_sib200; then
+        probe_license thai_sib200 "Davlan/sib200"
     fi
 
     # 1. typed_decisions — test: ALL rows; train: ALL 1200 rows (Issue 052:

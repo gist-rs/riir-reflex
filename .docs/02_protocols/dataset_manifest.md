@@ -17,6 +17,37 @@ on 2026-09-22 into `.raw/datasets/<suite>/<split>-<NNN>.json` — one file per
   300/1000), `train` splits capped at 4000 (typed_decisions train 1200);
   `cap=all` suites page until the API returns fewer than 100 rows.
 
+## Licences (riir-rethink Issue 023 T1 — the ledger)
+
+Verified 2026-10-04 against the HF dataset API + the source LICENSE files
+/cards (human reads, not hub-tag echoes — `license:other` and absent tags
+are resolved by the file/card, never guessed). The fetch script's
+`license.json` probe (the hub metadata tripwire) re-surfaces the hub-side
+signal at every refetch; THIS table stays authoritative.
+
+**Paid-lane law:** a suite marked ⛔ cannot back a paid lane — no served or
+leased artifact trained on it, benchmark/record-only use only (research
+use is fine). ⚠ rows must be cleared (or the suite demoted likewise)
+before ANY paid mint names them; the mint-side refusal gate lands with
+the mint surface (riir-rethink Issue 023 tracker).
+
+| Suite | Source | Licence (verified) | Attribution | Paid lane |
+|---|---|---|---|---|
+| typed_decisions | `LocalLLaMA/typed-decisions` | Apache-2.0 | the dataset card | ✓ |
+| massive_intent_en | `mteb/amazon_massive_intent` | Apache-2.0 (the MASSIVE licence) | the MASSIVE citation (FitzGerald et al., 2022) | ✓ |
+| banking77 | `mteb/banking77` (mirror of PolyAI) | MIT (the mirror — the copy we fetch) | Casanueva et al., 2020 | ✓ |
+| prompt_injections | `deepset/prompt-injections` | Apache-2.0 | the dataset card | ✓ |
+| thai_wisesight | `pythainlp/wisesight_sentiment` | CC0 | the pythainlp card | ✓ |
+| thai_sib200 | `Davlan/sib200` | CC BY-SA 4.0 (share-alike — ⚠ may reach redistributed derivatives; v2 leases) | Etxaniz et al., 2023 | ⚠ share-alike review before v2 |
+| ag_news | `fancyzhx/ag_news` | unknown (no licence on the card or the mirror; the original AG News source carries none) | the original AG News corpus citation | ⚠ clear or demote |
+| sst5 | `SetFit/sst5` | none on card (derived from SST-2/Stanford SST — the original's terms apply) | Socher et al., 2013 | ⚠ clear or demote |
+| xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
+| emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
+
+Attribution page for the ✓ rows before the hosted lane opens: Issue 023 T5
+(lands with the lane). Re-sourcing candidates for the ⛔ lanes (an
+Apache/CC-BY NLI + emotion set) are tracked there too.
+
 ## Suites
 
 ### 1. typed_decisions — `LocalLLaMA/typed-decisions` (config `all`)
