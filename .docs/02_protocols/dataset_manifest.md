@@ -39,14 +39,19 @@ the mint surface (riir-rethink Issue 023 tracker).
 | prompt_injections | `deepset/prompt-injections` | Apache-2.0 | the dataset card | ✓ |
 | thai_wisesight | `pythainlp/wisesight_sentiment` | CC0 | the pythainlp card | ✓ |
 | thai_sib200 | `Davlan/sib200` | CC BY-SA 4.0 (share-alike — ⚠ may reach redistributed derivatives; v2 leases) | Etxaniz et al., 2023 | ⚠ share-alike review before v2 |
-| ag_news | `fancyzhx/ag_news` | unknown (no licence on the card or the mirror; the original AG News source carries none) | the original AG News corpus citation | ⚠ clear or demote |
-| sst5 | `SetFit/sst5` | none on card (derived from SST-2/Stanford SST — the original's terms apply) | Socher et al., 2013 | ⚠ clear or demote |
+| ag_news | `fancyzhx/ag_news` | **none exists to clear** (verified 2026-10-05, T3: Antonio Gulli's 2004/05 "AG's corpus of news articles" — ~496k articles from 2000+ publishers; no licence on the card, the mirror, or any original hosting — the corpus predates the mirrors and was distributed without terms) | the original AG News corpus citation (Zhang et al., 2015 / Gulli, 2004) | ⛔ benchmark-only (demoted 2026-10-05, T3 — no grant exists to clear) |
+| sst5 | `SetFit/sst5` | **none exists to clear** (verified 2026-10-05, T3 against the PRIMARY source: the Stanford SST zip's own README — `nlp.stanford.edu/~socherr/stanfordSentimentTreebank.zip` — carries NO licence terms, only a citation request; content = "10,605 processed snippets from the original pool of Rotten Tomatoes HTML files" — third-party copyrighted review text, no permission grant; the HF cards carry nothing) | Socher et al., 2013 | ⛔ benchmark-only (demoted 2026-10-05, T3 — no grant exists to clear) |
 | xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
 | emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
 
 Attribution page for the ✓ rows before the hosted lane opens: Issue 023 T5
-(lands with the lane). Re-sourcing candidates for the ⛔ lanes (an
-Apache/CC-BY NLI + emotion set) are tracked there too.
+(lands with the lane). Re-sourcing candidates for the ⛔ lanes (permissive
+NLI + sentiment + news-classification sets) are tracked there too. The
+2026-10-05 T3 verification settled both ⚠ rows to ⛔ by PRIMARY source
+(the SST zip README fetched and read; the AG corpus provenance traced) —
+"clear before charging" was measured-impossible for both, so they were
+demoted alongside the T2 pair (riir-rethink `arsenal.toml` is now the
+five permissive rows).
 
 ## Suites
 
