@@ -6185,6 +6185,21 @@ pub mod seat {
         })
     }
 
+    /// The abstain-flags face of [`eval_seat`] (reflex issue 070, lead 1):
+    /// the SAME eval path with no `SeatEval` copy layer — for consumers
+    /// that read only the gate's abstain flags (the ESC gate leg). The
+    /// flags are `eval_seat`'s own `abstained` field verbatim
+    /// (case-major, question-minor); only the dropped probs/pick/conf
+    /// copies and the duration vector differ.
+    pub fn eval_seat_abstained<const N: usize>(
+        engine: &mut DecisionEngine<N, EMBED_DIM>,
+        cases: &[SuiteCase],
+        state_strs: &[String],
+    ) -> Result<Vec<Vec<bool>>, String> {
+        let (ev, _lat) = super::eval_engine(engine, cases, state_strs, false)?;
+        Ok(ev.abstained)
+    }
+
     /// The laya escalation face of G2 (cfg `laya-riir`): per-question
     /// wall latency of the pinned english checkpoint over the given
     /// cases (one discarded warmup forward first — the pre-ramp law),
