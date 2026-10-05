@@ -5,6 +5,46 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-05 — Issue 070 CLOSED (the eval path's allocation surface: the scratch-refill face `eval_case_into`; serve-path pins 83 → 42 and 157 → 79)
+
+Filed from instinct Issue 021's close-out: the bag serve path's per-decision
+allocation was dominated by the eval path (~69 of 83) — `eval_engine`'s
+per-case machinery (the engine scratch, the wire request, the result Vecs)
+plus the `SeatEval` copy layer, rebuilt on every serve request. Two leads,
+both landed:
+
+- **Lead 1** (`1701f82`): `eval_seat_abstained` — the gate's flags face with
+  no `SeatEval` copy layer. Rethink's gate leg adopted it the same day; its
+  composed pin read 161 → 157.
+- **Lead 2** (fix `e0c43c7`): `eval_case_into` +
+  `CaseEvalScratch` (in `harness::runner::seat`) — the scratch-refill face.
+  ONE caller-owned frame holds the engine solve scratch, the wire request
+  and the per-question answers; `engine_request_into` refills the request
+  in place (strings clear+rewrite, kind-change slots rebuilt once), and
+  `answer_probs_pick` is the ONE copy of the noul-flip/forced-argmax law,
+  shared with `eval_engine` so the two faces cannot diverge. The arena path
+  (`eval_seat`/`eval_engine`) is byte-unchanged (measurement path).
+- **Consumer adoptions** (same day): instinct `9ac84c8` — `decide_multi`
+  takes/replaces the frame around the receipt loop; the serve-path pin read
+  **83 → 42** (deterministic ×3; the remaining surface is dominated by the
+  synth case build, 21 of 42 — a different class, instinct-owned). Rethink
+  `c46ef1a` — `EscGate::flags` on the frame; the gate-leg pin read
+  **157 → 79** (measured ×2). Both consumers' frozen-picks replays
+  (instinct serve_gates 24/24, rethink esc_gates 17/17) prove the
+  byte-parity contract.
+- **Reflex-side parity gate**: `tests/harness_seat_gates.rs::
+  eval_case_into_matches_eval_seat_case_by_case` — the scratch face answers
+  `eval_seat`'s per-case slice EXACTLY through ONE frame reused across all
+  cases (a stale-slot or capacity bug shows from the second case on).
+- **Validation**: clippy `-D warnings` default `--all-targets` +
+  `--all-features`; lib 287; G2/G4 GOAT bench PASS (p99 50 µs ≤ 1000 µs,
+  `solve_into` alloc-free post-warmup, canary live — the engine layer is
+  below the harness surface this issue touched).
+- The eval path's remaining per-request allocation is the engine's own wire
+  response (`DecisionResponse`/`Answer.probabilities` — katgpt-core's
+  boundary, by design) plus the consumers' receipt/case construction — the
+  issue's scope (reflex-owned eval classes) is complete.
+
 ## 2026-10-05 — Issue 068 CLOSED (the lane HTTP micro-client extraction: one `parse_http_response`, chunked handling for every lane)
 
 The substrate-first mode-2 drift audit's finding — four diverged per-lane copies of
