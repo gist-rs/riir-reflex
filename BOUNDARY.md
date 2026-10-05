@@ -113,3 +113,5 @@ a row + its open issue, never with silence).
 
 | ID | Surface | Target | Actual (verified) | Workaround | Issue | Disposition |
 |----|---------|--------|-------------------|------------|-------|-------------|
+| A1 | the workspace artifacts convention (Plan 623 T6 / Proposal 054) | `artifacts/{weights,corpora}/public/` + `artifacts/manifest.toml` (public rows only) + `fetch_artifacts.sh` | unmigrated — today's lanes keep their homes: `assets/game_heads/` is committed signed fixtures (OUT of scope by Proposal 054's own non-goal), datasets under `.raw/` stay the BLAKE3-pinned `fetch_datasets.sh` lane | old homes keep working until T6 lands the migration + the public fetch half; the pre-push leak-scan hook borrows the private hash sets (fail-closed) until then | .issues/069 | fixable |
+|----|---------|--------|-------------------|------------|-------|-------------|
