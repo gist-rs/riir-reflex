@@ -5,6 +5,25 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-06 — Issue 069 LANDED (the public artifact fetch lane, Plan 623 T6)
+
+- `scripts/fetch_artifacts.sh` — the self-contained public distribution
+  channel: pulls public-class assets from `hf://gist-rs/<repo>-artifacts`
+  into `artifacts/cache/<name>`, BLAKE3 + exact-size verified against the
+  manifest's `blake3_plain`/`plain_bytes` BEFORE use; a fresh download
+  verifies at `<name>.new` and promotes only on a match (never a silent
+  unverified cache). A protected row in this manifest is refused loud
+  (the workspace gate's public-only law re-checked at fetch time).
+  Self-contained by design — no sibling checkouts (a fresh clone of this
+  PUBLIC repo is the acceptance environment); the workspace-internal
+  power tool is riir-deployer's `artifact-sync` (Plan 623 T7), this lane
+  is the standalone public half. Six postures proven on a synthetic tree;
+  with no manifest the lane is an honest no-op statement (the committed
+  fixtures stay the default path — no public-class asset is minted for
+  this repo yet, so the publish half of issue 069 stays closed). README
+  quick-start wired.
+
+
 ## 2026-10-05 — Issue 070 CLOSED (the eval path's allocation surface: the scratch-refill face `eval_case_into`; serve-path pins 83 → 42 and 157 → 79)
 
 Filed from instinct Issue 021's close-out: the bag serve path's per-decision

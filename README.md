@@ -44,6 +44,12 @@ cargo test                                     # the gates
   `scripts/fetch_datasets.sh`) and, for the laya lane, `--features
   laya-riir` with the weights root (`LAYA_WEIGHTS_DIR` or the default
   cache; weights download + SHA-256 verify on first use).
+- Public artifact fetch lane: `scripts/fetch_artifacts.sh` pulls any
+  public-class assets the repo's `artifacts/manifest.toml` declares from
+  the org HF dataset lane into `artifacts/cache/`, BLAKE3 + exact-size
+  verified before use (`CHECK=1` = verify cached bytes only, no network).
+  With no manifest the lane is an honest no-op — the committed fixtures
+  are the default path (Plan 623 T6 / issue 069).
 - `harness --laya-python` ADDS the original torch reference as a
   measurement-only subprocess oracle lane (needs python3 + torch/
   transformers; the published tables carry both `laya (rust)` and
