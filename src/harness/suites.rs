@@ -464,41 +464,22 @@ pub fn build_prompt_injections(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
-/// Deterministic SplitMix64 — NO `rand` crate.
-///
-/// ⚠ NOT CPython's MT19937: the same `option_seed` reproduces THIS suite
-/// byte-identically on every run and every machine, but the option layouts
-/// differ from the reference Python run's. The fairness property that
-/// matters survives (both lanes of this harness see byte-identical
-/// questions); only the comparison against the recorded Python option
-/// layouts is not reproduced.
-pub(crate) struct SplitMix64(pub u64);
-
-impl SplitMix64 {
-    pub(crate) fn new(seed: u64) -> Self {
-        Self(seed)
-    }
-
-    pub(crate) fn next_u64(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-
-    /// Uniform-ish in [0, n) via Lemire's multiply-shift on a 53-bit draw
-    /// (unbiased for the option counts here, and fully deterministic).
-    pub(crate) fn below(&mut self, n: usize) -> usize {
-        ((((self.next_u64() >> 11) as u128) * (n as u128)) >> 53) as usize
-    }
-
-    /// Uniform f64 in [0, 1) — 53 random mantissa bits as a VALUE (never
-    /// `from_bits`, which would read the integer as a raw IEEE pattern).
-    pub(crate) fn next_f64(&mut self) -> f64 {
-        (self.next_u64() >> 11) as f64 / 9_007_199_254_740_992.0
-    }
-}
+// Deterministic SplitMix64 — NO `rand` crate. DELEGATED (Issue 071 substrate
+// path): the type lives in `katgpt_types::rng` — the substrate home for the
+// stream (`next_u64` / Lemire-53 `below` / 53-mantissa VALUE `next_f64`) and
+// the one-shot finalizer (`splitmix64_finalize(x + SPLITMIX64_GAMMA)`, the
+// spelling Rng::new and the seal-view hash mixers use) — and arrives via the
+// ungated `katgpt_core::types` re-export. The substrate pins the same frozen
+// known-answer stream this crate pins in echo_gates, so the two repos'
+// tests cross-check the delegation.
+//
+// ⚠ NOT CPython's MT19937: the same `option_seed` reproduces THIS suite
+// byte-identically on every run and every machine, but the option layouts
+// differ from the reference Python run's. The fairness property that
+// matters survives (both lanes of this harness see byte-identical
+// questions); only the comparison against the recorded Python option
+// layouts is not reproduced.
+pub(crate) use katgpt_core::types::rng::SplitMix64;
 
 /// Fisher–Yates shuffle (high → low, swap with a random j <= i).
 fn shuffle<T>(xs: &mut [T], rng: &mut SplitMix64) {

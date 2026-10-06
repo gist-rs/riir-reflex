@@ -43,9 +43,11 @@
 
 use serde::Serialize;
 
-// The ONE SplitMix64 home (Issue 071): the crate-internal type from the
-// dataset shuffler, not a second transcription — the corruption stream and
-// the option-shuffle stream are the same deterministic primitive.
+// The ONE SplitMix64 home (Issue 071, substrate path): the type lives in
+// `katgpt_types::rng` and arrives through the `crate::harness::suites`
+// re-export — the corruption stream and the option-shuffle stream are the
+// same deterministic primitive, and the substrate pins the same frozen
+// known-answer stream beside this test.
 use crate::harness::suites::SplitMix64;
 
 /// Answer-entropy histogram bins over normalized entropy [0,1].
