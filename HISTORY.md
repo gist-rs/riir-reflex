@@ -9,9 +9,9 @@ file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 
 Duplicate SplitMix64 (`suites.rs` + `echo_gates.rs`) consolidated: minimal `479b042` + substrate half katgpt-rs `514989664` exporting `katgpt_types::rng` + reflex `147309c` re-exporting `katgpt_core::types::rng::SplitMix64`; frozen-golden bit-identity pin, lib 288/288. seal-view/seal-node copies adjudicated the one-shot-hash-mix class (NOT delegated); the entry carries the 070→071 renumber record (`66a195e`, first holder keeps the number).
 
-## 2026-10-06 — Issue 069 CLOSED (the public artifact fetch lane, Plan 623 T6)
+## 2026-10-06 — Issue 069 CLOSED (the public artifact fetch lane, riir-ai Plan 623 T6)
 
-`scripts/fetch_artifacts.sh` — pulls public-class assets from `hf://gist-rs/<repo>-artifacts` into `artifacts/cache/`, BLAKE3 + exact-size verified before use; protected rows refused; self-contained (a fresh public clone is the acceptance env); the workspace-internal power tool is riir-deployer's `artifact-sync` (Plan 623 T7). No manifest = honest no-op; AGENTS.md/BOUNDARY.md wired, drift row A1 closed WITH the issue.
+`scripts/fetch_artifacts.sh` — pulls public-class assets from `hf://gist-rs/<repo>-artifacts` into `artifacts/cache/`, BLAKE3 + exact-size verified before use; protected rows refused; self-contained (a fresh public clone is the acceptance env); the workspace-internal power tool is riir-deployer's `artifact-sync` (riir-ai Plan 623 T7). No manifest = honest no-op; AGENTS.md/BOUNDARY.md wired, drift row A1 closed WITH the issue.
 
 ## 2026-10-05 — Issue 070 CLOSED (the eval path's allocation surface: the scratch-refill face `eval_case_into`; serve-path pins 83 → 42 and 157 → 79)
 

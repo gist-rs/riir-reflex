@@ -120,7 +120,7 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
 
-# The public artifact fetch lane (Plan 623 T6 / Issue 069): public-class
+# The public artifact fetch lane (riir-ai Plan 623 T6 / Issue 069): public-class
 # assets from hf://gist-rs/<repo>-artifacts into artifacts/cache/, BLAKE3 +
 # exact-size verified BEFORE use; protected rows refused; CHECK=1 = cache
 # verify only. No manifest = honest no-op (committed fixtures are the default):
