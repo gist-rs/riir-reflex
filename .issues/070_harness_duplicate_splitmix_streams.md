@@ -1,6 +1,6 @@
 # Issue 070 — the harness carries TWO identical inline SplitMix64 streams (suites.rs `pub(crate)` + echo_gates.rs private); the substrate exports no reusable form
 
-**Status:** OPEN (detection-only — substrate-first Mode 2 audit 2026-10-06, the 10-03 16:00→10-06 wave; no fix in this commit per the skill law)
+**Status:** CLOSED — FIXED 2026-10-06, commit `479b042` (the minimal path: echo_gates consumes `crate::harness::suites::SplitMix64`; `next_f64` on the single type; frozen-golden bit-identity pin `splitmix_stream_matches_the_frozen_golden_draws` — stream bytes unchanged). Substrate export (`katgpt_types::rng::{splitmix64_finalize, SplitMix64}`) stays the recorded copy-gate consolidation path at next touch.
 
 ## What
 
