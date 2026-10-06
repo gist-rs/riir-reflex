@@ -5,6 +5,46 @@ issue file is removed from `.issues/`; its record lands here, hash-pinned).
 A removed file's full life: `git log --follow -- .issues/<file>`. Open work
 work lives in `.issues/` and `.plans/`, never here.
 
+## 2026-10-06 — Issue 071 CLOSED (the harness's duplicate SplitMix64 streams → one substrate home)
+
+Two structurally-identical inline SplitMix64 streams in one crate
+(`suites.rs` `pub(crate)` + `echo_gates.rs` private — the echo-gate arrival
+`0b4a351` duplicated the `pub(crate)` type one module over). Determinism
+load-bearing: corpus-synthesis artifacts + echo-gate seeds are frozen-read
+commitments, and two copies of the stream primitive can drift independently.
+Landed in two halves the same day:
+
+- **Minimal** (`479b042`): echo_gates consumes
+  `crate::harness::suites::SplitMix64`; `next_f64` on the single type;
+  frozen-golden bit-identity pin
+  (`splitmix_stream_matches_the_frozen_golden_draws` — seed 42's first six
+  draws + `below(7)` + `next_f64`, cross-checked against the reference
+  finalizer).
+- **Substrate** (the copy-gate consolidation path): katgpt-rs `514989664`
+  exports `katgpt_types::rng::{SPLITMIX64_GAMMA, splitmix64_finalize,
+  SplitMix64}` (the `rng` module made pub, consistent with math/simd;
+  `Rng::new`'s seed decorrelation delegates to the same finalizer — one
+  home for the mixing math; known-answer tests pin the seed-42 stream AND
+  the finalize vectors substrate-side), and reflex `147309c` replaces the
+  local struct with `pub(crate) use katgpt_core::types::rng::SplitMix64`
+  through the ungated `katgpt_core::types` re-export — zero new deps, the
+  one-foreign-code-dep law holds, and the stream bytes are unchanged BY
+  TEST: the frozen golden pin replays against the delegated type (lib
+  288/288 green).
+
+Adjudicated NOT delegated: the seal-view/seal-node finalizer copies are the
+ONE-SHOT HASH-MIX class (`mix(seed)` = finalize(seed + γ)), incident-pinned
+locals in a repo that treats katgpt-core as transitive — a direct dep would
+be a BOUNDARY.md contract edit for a 4-line dedup; delegation is recorded
+for their next touch of those files. `examples/gaussianity_probe.rs`'s
+local `splitmix64` fn is a measurement-only probe lane, left as-is.
+
+(The issue also carries the 070→071 renumber record: 070 was already
+allocated by `1d2befe` — eval-seat alloc surface, closed `e0c43c7` — and
+the filing session re-used it instead of reading highwater 70 → 71;
+remediated at `66a195e` per the collision rule, first holder keeps the
+number.)
+
 ## 2026-10-06 — Issue 069 LANDED (the public artifact fetch lane, Plan 623 T6)
 
 - `scripts/fetch_artifacts.sh` — the self-contained public distribution
