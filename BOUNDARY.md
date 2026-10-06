@@ -37,6 +37,18 @@ Phase 1 deliverable (Plan 603):
   (frozen fixture corpus + expected capture — a lane number is only
   published from a posture this gate greened), the harness + honest
   tables, and the Python-JSON writer's reflex-side re-export
+- the PUBLIC artifact fetch lane (`scripts/fetch_artifacts.sh`, Plan 623
+  T6 / Issue 069): the standalone public distribution channel — org HF
+  dataset lane (`gist-rs/<repo>-artifacts`) → `artifacts/cache/`, BLAKE3
+  + exact-size verified against `artifacts/manifest.toml` BEFORE use
+  (public rows only; a protected row is refused loud — the lane never
+  fetches the moat). Self-contained by design: a fresh clone of this
+  public repo has no sibling checkouts, so the lane is shell + python3
+  + b3sum + the `hf` CLI; the workspace-internal pull/push power tool
+  stays riir-deployer's `artifact-sync`. The committed fixtures remain
+  the default path (Proposal 054's non-goal) — the manifest appears only
+  when a public-class asset is actually minted for this repo, and with
+  no manifest the lane is an honest no-op
 
 **Domain test:** is this **decision-engine serving + comparison +
 contribution** (NOT game runtime, NOT code healing)? NO → it belongs in
@@ -108,10 +120,10 @@ any profile** (the reference lane's deletion is contract, not cleanup;
 
 ## Drift ledger (target vs actual)
 
-None at birth — seeded empty by Plan 603 T1.8 (the ledger fills only with
-a row + its open issue, never with silence).
-
-| ID | Surface | Target | Actual (verified) | Workaround | Issue | Disposition |
-|----|---------|--------|-------------------|------------|-------|-------------|
-| A1 | the workspace artifacts convention (Plan 623 T6 / Proposal 054) | `artifacts/{weights,corpora}/public/` + `artifacts/manifest.toml` (public rows only) + `fetch_artifacts.sh` | unmigrated — today's lanes keep their homes: `assets/game_heads/` is committed signed fixtures (OUT of scope by Proposal 054's own non-goal), datasets under `.raw/` stay the BLAKE3-pinned `fetch_datasets.sh` lane | old homes keep working until T6 lands the migration + the public fetch half; the pre-push leak-scan hook borrows the private hash sets (fail-closed) until then | .issues/069 | fixable |
-|----|---------|--------|-------------------|------------|-------|-------------|
+None — seeded empty by Plan 603 T1.8 (the ledger fills only with a row +
+its open issue, never with silence). Issue 069's row closed WITH the
+issue (2026-10-06): the committed fixtures stay the default path BY
+DESIGN (Proposal 054's non-goal) and `artifacts/manifest.toml` appears
+only when a public-class asset is minted for this repo — the fetch lane
+answers that state with the honest no-manifest statement, not a finding.
+The record: `HISTORY.md` (2026-10-06, Issue 069).

@@ -152,6 +152,15 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
 
+# The public artifact fetch lane (Plan 623 T6 / Issue 069): pulls any
+# public-class assets the repo's artifacts/manifest.toml declares from the
+# org HF dataset lane (gist-rs/<repo>-artifacts) into artifacts/cache/,
+# BLAKE3 + exact-size verified against the manifest BEFORE use (public rows
+# only — a protected row is refused loud); CHECK=1 verifies cached bytes
+# only, no network. With no manifest the lane is an honest no-op — the
+# committed fixtures are the default path:
+scripts/fetch_artifacts.sh
+
 # The corpus-cap levers (Issue 013 lever 1): --corpus-cap N pins every
 # dataset suite's per-label cap (measurement-only); --cal-select-cap [LIST]
 # is the protocol-clean alternative — accuracy per candidate on a

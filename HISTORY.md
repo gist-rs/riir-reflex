@@ -45,7 +45,7 @@ the filing session re-used it instead of reading highwater 70 → 71;
 remediated at `66a195e` per the collision rule, first holder keeps the
 number.)
 
-## 2026-10-06 — Issue 069 LANDED (the public artifact fetch lane, Plan 623 T6)
+## 2026-10-06 — Issue 069 CLOSED (the public artifact fetch lane, Plan 623 T6)
 
 - `scripts/fetch_artifacts.sh` — the self-contained public distribution
   channel: pulls public-class assets from `hf://gist-rs/<repo>-artifacts`
@@ -62,6 +62,14 @@ number.)
   fixtures stay the default path — no public-class asset is minted for
   this repo yet, so the publish half of issue 069 stays closed). README
   quick-start wired.
+- Close follow-through (issue file removed per the noise-reduction rule):
+  AGENTS.md Build Commands carries the lane beside `fetch_datasets.sh`;
+  BOUNDARY.md owns it (the fetch-lane bullet) and the drift ledger row A1
+  closed WITH the issue (row ⟺ open issue) — the by-design statement
+  lives in the ledger's empty note: committed fixtures stay the default
+  path (Proposal 054's non-goal), `artifacts/manifest.toml` appears only
+  when a public-class asset is minted, and the conditional publish half
+  is a trigger, not deferred work.
 
 
 ## 2026-10-05 — Issue 070 CLOSED (the eval path's allocation surface: the scratch-refill face `eval_case_into`; serve-path pins 83 → 42 and 157 → 79)
