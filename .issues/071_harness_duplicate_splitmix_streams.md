@@ -1,6 +1,8 @@
-# Issue 070 — the harness carries TWO identical inline SplitMix64 streams (suites.rs `pub(crate)` + echo_gates.rs private); the substrate exports no reusable form
+# Issue 071 — the harness carries TWO identical inline SplitMix64 streams (suites.rs `pub(crate)` + echo_gates.rs private); the substrate exports no reusable form
 
 **Status:** CLOSED — FIXED 2026-10-06, commit `479b042` (the minimal path: echo_gates consumes `crate::harness::suites::SplitMix64`; `next_f64` on the single type; frozen-golden bit-identity pin `splitmix_stream_matches_the_frozen_golden_draws` — stream bytes unchanged). Substrate export (`katgpt_types::rng::{splitmix64_finalize, SplitMix64}`) stays the recorded copy-gate consolidation path at next touch.
+
+**RENUMBERED 070→071 2026-10-06 (dual allocation):** the file first landed as `070_harness_duplicate_splitmix_streams.md` — number 070 was ALREADY allocated by `1d2befe` (`070_eval_seat_alloc_surface.md`, closed + removed at `e0c43c7`, HISTORY 2026-10-05 row; ~10 cross-repo inbound mentions in the instinct-021/rethink-ESC adoption arcs), and the filing session re-used it instead of reading highwater 70 → allocating 71. Renumbered per the collision rule (first holder keeps the number; renumber + citation rewrite, never silent reuse); highwater bumped 70→71; in-code comments in `echo_gates.rs` repointed in the same commit.
 
 ## What
 

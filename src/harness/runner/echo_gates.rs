@@ -43,7 +43,7 @@
 
 use serde::Serialize;
 
-// The ONE SplitMix64 home (Issue 070): the crate-internal type from the
+// The ONE SplitMix64 home (Issue 071): the crate-internal type from the
 // dataset shuffler, not a second transcription — the corruption stream and
 // the option-shuffle stream are the same deterministic primitive.
 use crate::harness::suites::SplitMix64;
@@ -271,7 +271,7 @@ mod tests {
         assert_ne!(a.next_u64(), c.next_u64());
     }
 
-    /// Bit-identity pin (Issue 070): the consolidated type reproduces the
+    /// Bit-identity pin (Issue 071): the consolidated type reproduces the
     /// pre-consolidation stream byte-for-byte — these are the FIRST draws
     /// of the frozen implementation, cross-checked against the reference
     /// splitmix64 algorithm. Any transcription change reds here.
