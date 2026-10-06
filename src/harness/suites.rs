@@ -492,6 +492,12 @@ impl SplitMix64 {
     pub(crate) fn below(&mut self, n: usize) -> usize {
         ((((self.next_u64() >> 11) as u128) * (n as u128)) >> 53) as usize
     }
+
+    /// Uniform f64 in [0, 1) — 53 random mantissa bits as a VALUE (never
+    /// `from_bits`, which would read the integer as a raw IEEE pattern).
+    pub(crate) fn next_f64(&mut self) -> f64 {
+        (self.next_u64() >> 11) as f64 / 9_007_199_254_740_992.0
+    }
 }
 
 /// Fisher–Yates shuffle (high → low, swap with a random j <= i).

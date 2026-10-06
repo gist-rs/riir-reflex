@@ -43,6 +43,11 @@
 
 use serde::Serialize;
 
+// The ONE SplitMix64 home (Issue 070): the crate-internal type from the
+// dataset shuffler, not a second transcription — the corruption stream and
+// the option-shuffle stream are the same deterministic primitive.
+use crate::harness::suites::SplitMix64;
+
 /// Answer-entropy histogram bins over normalized entropy [0,1].
 pub(crate) const ENTROPY_BINS: usize = 10;
 /// Pre-registered KL ceiling, gold→synth direction (nats). Provisional:
@@ -52,27 +57,6 @@ pub(crate) const KL_EPS: f64 = 0.05;
 pub(crate) const OOD_RUNGS: [f64; 3] = [0.10, 0.20, 0.30];
 /// The pre-registered gate rung (must be one of `OOD_RUNGS`).
 pub(crate) const OOD_GATE_RUNG: f64 = 0.20;
-
-/// Deterministic splitmix64 — integer ops only, platform-stable.
-struct SplitMix64(u64);
-
-impl SplitMix64 {
-    fn new(seed: u64) -> Self {
-        Self(seed)
-    }
-    fn next_u64(&mut self) -> u64 {
-        self.0 = self.0.wrapping_add(0x9E37_79B9_7F4A_7C15);
-        let mut z = self.0;
-        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
-        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
-        z ^ (z >> 31)
-    }
-    /// Uniform f64 in [0, 1) — 53 random mantissa bits as a VALUE (never
-    /// `from_bits`, which would read the integer as a raw IEEE pattern).
-    fn next_f64(&mut self) -> f64 {
-        (self.next_u64() >> 11) as f64 / 9_007_199_254_740_992.0
-    }
-}
 
 /// The corruption seed for one (case, rung): blake3 over the case id and
 /// the rung spelled at fixed precision — byte-stable across runs/boxes.
@@ -285,6 +269,35 @@ mod tests {
         }
         let mut c = SplitMix64::new(43);
         assert_ne!(a.next_u64(), c.next_u64());
+    }
+
+    /// Bit-identity pin (Issue 070): the consolidated type reproduces the
+    /// pre-consolidation stream byte-for-byte — these are the FIRST draws
+    /// of the frozen implementation, cross-checked against the reference
+    /// splitmix64 algorithm. Any transcription change reds here.
+    #[test]
+    fn splitmix_stream_matches_the_frozen_golden_draws() {
+        let mut rng = SplitMix64::new(42);
+        for expected in [
+            0xbdd7_3226_2feb_6e95u64,
+            0x28ef_e333_b266_f103,
+            0x4752_6757_130f_9f52,
+            0x581c_e1ff_0e4a_e394,
+            0x09bc_585a_2448_23f2,
+            0xde44_31fa_3c80_db06,
+        ] {
+            assert_eq!(rng.next_u64(), expected);
+        }
+        // `below` consumes the same stream (Lemire on the 53 high bits).
+        let mut rng = SplitMix64::new(42);
+        assert_eq!(rng.below(7), 5);
+        assert_eq!(rng.below(7), 1);
+        assert_eq!(rng.below(7), 1);
+        // `next_f64` is a VALUE read of the 53 mantissa bits.
+        let mut rng = SplitMix64::new(42);
+        for expected in [0.7415648787718233, 0.1599103928769201, 0.27860113025513866] {
+            assert_eq!(rng.next_f64(), expected);
+        }
     }
 
     #[test]
