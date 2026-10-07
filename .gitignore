@@ -38,3 +38,13 @@ scripts/out/
 # there and the ONE index the boundary gate adjudicates.
 artifacts/**
 !artifacts/manifest.toml
+
+# 4090 bench/build artifacts (sync pass 2026-10-07)
+.target-cuda-w2/
+target-cuda-w2/
+/benchmarks/x/
+x/
+.scratch/
+.benchmarks/082_cuda_full_harness/
+.benchmarks/pool_fix_4090/
+.benchmarks/smoke_4090/
