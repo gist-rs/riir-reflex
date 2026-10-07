@@ -25,6 +25,16 @@ Full-N comparable runs (banking77 500 + typed 400, `CLEF_SMOKE_MAX_CASES=1000` �
 no-spend raise of the ceiling) in flight into `.benchmarks/113_clef_lane/`. The hosted lane stays
 blocked on the AI-scoped token; `clef.rs` info() posture string made posture-neutral (the local
 serve must not read as "Workers AI hosted") in the same change.
+**Progress 2026-10-07 (doc-sync repair — the body outran the header): C1 + C2 + C3 ALL COMPLETE.**
+The header's 10-03 "in flight" runs landed as bench 113 (full-N, accuracy-first), the quiet-box
+re-read made latency QUOTABLE both ends both suites (bench 118: b77 p50 3368 ms / typed 1690 ms;
+site cells graduated, reflex-site `4297d32`), and the 7-suite dataset tail reached the lane's
+9-suite index with modelless controls == board on all seven (bench 119, p50 geomean 680 ms;
+reflex-site `365d0a0`). The site carries the lane cells (edition 2026-10-2, `5c31fa6`), the JDI
+crosswalk (`53d518f`), and the TL;DR card (`dd5409d`) — all live-verified. C4 stays deferred
+(owner-gated: the HOSTED Clef run) and its reading note is updated below — rethink issue 021
+re-seated the typed encoder cell QUOTABLE on the same C2 pin. A2.5/A6 (Workers-AI-scoped
+token), D1 (GPU window), D3 (board submission) stay deferred per their own wording.
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -246,6 +256,17 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
       0.7550 is record-only and AgentJev's 0.7715 is det ✗ — so CLEF'S HOSTED RUN ON THE SAME
       CASE SET (the C2 pin) is the cell that decides the comparison.**
+      **Update 2026-10-07 (rethink issue 021 / Bench 061 / reflex-site `260705a`): the Rethink-side
+      disqualifier is HALF-GONE — the typed encoder cell is re-seated QUOTABLE** (fresh live Metal
+      encode over the IDENTICAL pin `fnv1a64-6e37760ee2a5b6c9`: acc 0.7550 byte-consistent,
+      p50 47.335 ms / p99 74.193 ms, both-ends box_state quotable; the prior 364 ms read was
+      ambient load, 7.7×). "Record-only" now names the SERVE posture only (the 014 class-wide
+      refusal — the incumbent arm serves), never an unfit timing. Quotable local-posture picture:
+      typed — Rethink 0.7550/0.6537 skill @ 47 ms vs Clef-local 0.6955/0.5696 @ 1690 ms (Rethink
+      leads +6.0 pt at ~36× lower p50); banking77 — Clef-local 0.9540/0.9533 leads every measured
+      lane (the Rethink encoder's b77 row is tier-fallback, excluded by construction — rethink
+      issue 016 D1 seating, owner-gated). The cell that still decides the HEADLINE (the blog's own
+      hosted posture) remains Clef's HOSTED 27B run — A6 owner-gated.
 
 ## Phase D — deferred (lane-intel follow-ons, each its own session)
 
