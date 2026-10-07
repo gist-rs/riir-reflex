@@ -1,0 +1,32 @@
+# riir-reflex artifact manifest — schema v0 (riir-reflexer
+# .docs/04_vessel_format/artifact_manifest_spec.md; enforcement:
+# ../riir-ai/scripts/artifact_boundary.py; sync tool: riir-deployer
+# artifact-sync, Plan 623 T7).
+#
+# State (2026-10-07, the workspace Plan 623 T5 adoption): ZERO rows.
+# Inventory verdict, per class:
+#
+# - .raw/corpus_synth* (the SYNT corpora, ~700 KB): the repo's ONE
+#   irreplaceable-in-scratch class — teacher-generated (openthai, 3,523
+#   forwards / ~4 h, SYNTH.md), blake3-pinned, NOT bit-reproducible by
+#   re-run, NOT committed (git is not their backup). Durability pends
+#   the OWNER CLASS DECISION (this repo is PUBLIC: committing or
+#   publishing them is a publication act; the protected class pends T8
+#   provisioning). Interim: cold archive (SDXC1TB moat-archive,
+#   copy-first, b3sum-verified, nothing deleted from the source tree).
+# - .raw/datasets* (~170 MB): re-fetchable via scripts/fetch_datasets.sh
+#   (blake3-digested in .docs/02_protocols/dataset_manifest.md) —
+#   source-pin class, never artifacts.
+# - assets/game_heads/*.jsonl: the head-mint FIXTURES, COMMITTED — git
+#   is the backup; the mint is deterministic from fixtures + key.
+# - frozen test captures (tests/fixtures/): committed reference bytes.
+# - bekko-env / clef_srv / lenc-class caches: device-bound or
+#   derivable — the ARCHIVED/derivable classes, never artifact rows
+#   without a cross-box bit-repro proof.
+#
+# Rows land here only if an artifact is PLACED under
+# artifacts/<kind>/<class>/ — a row without its placed object is a gate
+# finding, never a placeholder. A PUBLIC repo's manifest carries ZERO
+# protected rows (the schema law): a protected artifact this repo's
+# binary consumes would be owned by a PRIVATE manifest and pulled into
+# artifacts/cache/ at serve time (the fetch_artifacts.sh lane).

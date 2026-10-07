@@ -32,3 +32,9 @@ scripts/out/
 
 # cargo-refine machine-local state (trajectories, fixseq, outbox, active-set)
 .refine/
+
+# The artifact directory law (Plan 623 T5): everything under artifacts/
+# is untracked EXCEPT the one manifest — the repo's ONLY tracked file
+# there and the ONE index the boundary gate adjudicates.
+artifacts/**
+!artifacts/manifest.toml
