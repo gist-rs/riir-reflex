@@ -2,7 +2,7 @@
 
 Raw row snapshots for the riir-reflex benchmark harness (G1/G2 decision
 benches). Fetched from the HF datasets-server `/rows` API (page size 100,
-offset paging) by [`scripts/fetch_datasets.sh`](../scripts/fetch_datasets.sh)
+offset paging) by [`scripts/fetch_datasets.sh`](../../scripts/fetch_datasets.sh)
 on 2026-09-22 into `.raw/datasets/<suite>/<split>-<NNN>.json` — one file per
 100-row page; each page file is the raw API response (it carries `features`,
 `rows`, `num_rows_total`, so every page is self-describing). Companion probes
@@ -17,7 +17,7 @@ on 2026-09-22 into `.raw/datasets/<suite>/<split>-<NNN>.json` — one file per
   300/1000), `train` splits capped at 4000 (typed_decisions train 1200);
   `cap=all` suites page until the API returns fewer than 100 rows.
 
-## Licences (riir-rethink Issue 023 T1 — the ledger)
+## Licences (the ledger of record — born riir-rethink Issue 023 T1; 023 closed 2026-10-07, record: riir-rethink HISTORY.md)
 
 Verified 2026-10-04 against the HF dataset API + the source LICENSE files
 /cards (human reads, not hub-tag echoes — `license:other` and absent tags
@@ -29,7 +29,8 @@ signal at every refetch; THIS table stays authoritative.
 leased artifact trained on it, benchmark/record-only use only (research
 use is fine). ⚠ rows must be cleared (or the suite demoted likewise)
 before ANY paid mint names them; the mint-side refusal gate lands with
-the mint surface (riir-rethink Issue 023 tracker).
+the mint surface (riir-rethink Issue 024 v1 — the Plan 007 P0 hosted lane;
+023's tracker role folded there at close).
 
 | Suite | Source | Licence (verified) | Attribution | Paid lane |
 |---|---|---|---|---|
@@ -44,9 +45,12 @@ the mint surface (riir-rethink Issue 023 tracker).
 | xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
 | emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
 
-Attribution page for the ✓ rows before the hosted lane opens: Issue 023 T5
-(lands with the lane). Re-sourcing candidates for the ⛔ lanes (permissive
-NLI + sentiment + news-classification sets) are tracked there too. The
+Attribution page for the ✓ rows before the hosted lane opens: **LANDED
+2026-10-07** (rethink `7dd4f8a` `site/attributions.html` + the reflex-side
+ledger corrections `2476d66`). Re-sourcing candidates for the ⛔ lanes
+(permissive NLI + sentiment + news-classification sets) are tracked by
+riir-rethink Issue 024 (the ESC re-source row; Issue 023 closed 2026-10-07,
+record: riir-rethink HISTORY.md). The
 2026-10-05 T3 verification settled both ⚠ rows to ⛔ by PRIMARY source
 (the SST zip README fetched and read; the AG corpus provenance traced) —
 "clear before charging" was measured-impossible for both, so they were
