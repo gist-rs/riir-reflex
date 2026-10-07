@@ -5,6 +5,44 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-07 — Plan 011 CLOSED (the Clef comparison lane + JDI protocol adapter): the C4 headline verdict on the local posture
+
+The owner call (2026-10-07, "close on local posture") supersedes C4's verdict-round-3 gate (the
+hosted-Clef deciding cell): the hosted Workers-AI run never became credentialable — both provided
+CF tokens lack Workers-AI scope (probed 2026-10-03: 403 `ai/models/search`, 401 `ai/run/clef[-flash]`,
+account `7e11517c4dd4f6e9cede7da9b60d66eb`; the scoped token was never minted) — and the owner had
+already pivoted to the open weights ("download model and run it like other", 2026-10-03). **The
+verdict — both sides live-measured, quotable, on IDENTICAL population pins (`fnv1a64-6e37760ee2a5b6c9`
+typed · `fnv1a64-dd8ab35333abb82a` b77), the crosswalk's digest asserts holding on every row:**
+
+- **typed_decisions (400 cases / 2000 q): RETHINK LEADS** — encoder 0.7550 acc / 0.7445 macro-F1 /
+  0.6537 skill @ p50 47.335 ms (re-seated quotable, rethink issue 021 / Bench 061; serve-refused
+  per the 014 class-wide latency class — record cell, the incumbent arm serves) vs Clef-local
+  0.6955 / 0.6742 / 0.5696 @ p50 1690 ms (bench 118 quiet-box): **+5.95 pt accuracy at ~36× lower
+  p50**. Instinct hybrid 0.6475 third; AgentJev's 0.7715 stays unquoted (det ✗).
+- **banking77 (500 cases): CLEF-LOCAL LEADS EVERY MEASURED LANE** — 0.9540 / 0.9536 / 0.9533 @
+  p50 3368 ms vs Instinct 0.8540 (best other), modelless 0.8420, bekko 0.7920, openthai 0.6560.
+  The Rethink encoder carries NO b77 cell (tier-fallback, excluded by construction — rethink
+  issue 016 D1 seating, owner-gated).
+- **Cost + latency posture (disclosed):** Clef = `mlx-community/clef-flash-4bit` (community 4-bit
+  9B quant) on this M3 via the local MLX rig (loopback HTTP, `.raw/clef_srv/`, zero marginal
+  spend); Rethink = local Metal encode (laya-typed encoder + NLEH v2 per-option head).
+  **Hosted caveat: this is NOT the blog's hosted 27B Clef** — a hosted 27B cell could still move
+  typed (b77 at 0.9540 has little headroom); that cell stays unmeasured for want of a scoped
+  token, and the B5 crosswalk caveat (different corpus/protocol caps/hardware vs the JDI board)
+  governs every row. The site already renders these verdicts data-derived (TL;DR card,
+  reflex-site `dd5409d`; rethink cell `260705a`) — this entry is the record, not a new publication.
+
+Evidence chain: [bench 113](.benchmarks/113_clef_lane/RECORD.md) (full-N) + [bench 118](.benchmarks/118_clef_quiet_reread/RECORD.md)
+(quiet re-read) + [bench 119](.benchmarks/119_clef_lane_tail/) (9-suite tail); rethink Bench 061 +
+issue 021; site edition 2026-10-2 (`5c31fa6` lane cells → `4297d32` timing graduation → `365d0a0`
+9-suite → `53d518f` crosswalk → `dd5409d` TL;DR card). Dispositioned defers at close (never
+executed; conditions recorded in the plan rows): A2.5/A6 (hosted creds — the wire golden fixture
+implements FROM a real capture if a scoped token ever lands), D1 (Clef-27B prefill-league
+workload, own session per Phase D), D3 (JDI board submission, owner-gated). The lane (`--clef`)
+and the JDI axes (macro-F1 / chance / skill / coverage) remain live harness surface; D2's recipe
+note lives in riir-train `.research/464` (`115e5690`).
+
 ## 2026-10-07 — the artifact-lane structural adoption (riir-ai Plan 623 T5): manifest seed + gitignore law + gate green; the synth-corpus durability finding recorded
 
 `artifacts/manifest.toml` seeded (schema v0, ZERO rows) + the directory law (`artifacts/**` + `!artifacts/manifest.toml`); `ci_artifact_boundary --repo` PASSED zero findings and the sweep reads `✓ riir-reflex: migrated`. **Inventory finding — the repo's ONE irreplaceable-in-scratch class:** `.raw/corpus_synth*` (the SYNT corpora, 18 files / 22 MB with their run artifacts) are teacher-generated (openthai, 3,523 forwards / ~4 h per SYNTH.md), blake3-pinned, NOT bit-reproducible by re-run, and NOT committed — git is not their backup. **Interim durability landed: cold archive** at `/Volumes/SDXC1TB/moat-archive-20261005/riir-reflex/` (copy-first, b3sum-verified 18/18 byte-identical, nothing deleted from the source tree — the riir-train 613 interim pattern). The PERMANENT home pends an OWNER CLASS DECISION: this repo is PUBLIC, so committing/publishing the corpora is a publication act (licence note: teacher-generated text conditioned on MASSIVE CC BY 4.0 seeds — plausibly public-class, not adjudicated here), and the protected class pends T8 provisioning (scoped DEKs + buckets). Datasets (.raw/datasets*, ~170 MB) adjudicated re-fetchable (source-pin class, never artifacts); game-head mint fixtures + frozen captures are committed (git = backup); bekko-env/clef_srv-class caches are the archived/derivable classes.

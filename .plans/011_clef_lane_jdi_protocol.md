@@ -1,9 +1,13 @@
 # Plan 011 — the Clef comparison lane + the Jev Decision Index protocol adapter
 
-**Status:** IN FLIGHT — filed 2026-10-02 from `.research/005_Cloudflare_Clef_Jev_Decision_Index.md`
+**Status:** CLOSED 2026-10-07 — all actionable work landed (Phase A + B complete, C1–C3 complete,
+D2 landed); C4's headline verdict recorded on the LOCAL posture per the owner call "close on local
+posture" (HISTORY.md §2026-10-07), superseding the verdict-round-3 hosted-run gate; A2.5/A6
+(Workers-AI creds, never minted), D1 (own session per Phase D), D3 (owner-gated) dispositioned as
+closed-defers — conditions in their rows. Filed 2026-10-02 from `.research/005_Cloudflare_Clef_Jev_Decision_Index.md`
 (owner ask: research the Clef blog, bench Rethink against the Jev Decision Index like the blog does,
 plan a `--clef` run published to reflex.gist.rs/bench like the other lanes). Hosted-Clef credentials
-are owner-gated; phases run in order, each commits+pushes its own unit.
+stayed owner-gated throughout; each phase committed+pushed its own unit.
 **Progress 2026-10-02: Phase A + Phase B LANDED** (lane + wiring + JDI adapter + snapshot + gates;
 A2.5/A6 blocked on owner creds; Phase C blocked on A6 — C1's hosted run needs the forwarder +
 token). **D2 LANDED 2026-10-02**: riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md`
@@ -31,10 +35,10 @@ re-read made latency QUOTABLE both ends both suites (bench 118: b77 p50 3368 ms 
 site cells graduated, reflex-site `4297d32`), and the 7-suite dataset tail reached the lane's
 9-suite index with modelless controls == board on all seven (bench 119, p50 geomean 680 ms;
 reflex-site `365d0a0`). The site carries the lane cells (edition 2026-10-2, `5c31fa6`), the JDI
-crosswalk (`53d518f`), and the TL;DR card (`dd5409d`) — all live-verified. C4 stays deferred
-(owner-gated: the HOSTED Clef run) and its reading note is updated below — rethink issue 021
-re-seated the typed encoder cell QUOTABLE on the same C2 pin. A2.5/A6 (Workers-AI-scoped
-token), D1 (GPU window), D3 (board submission) stay deferred per their own wording.
+crosswalk (`53d518f`), and the TL;DR card (`dd5409d`) — all live-verified. **C4 EXECUTED later the
+same session (owner call "close on local posture") — the plan CLOSED; verdict + evidence chain in
+HISTORY.md §2026-10-07, the C4 row below carries the execution note.** A2.5/A6 (Workers-AI-scoped
+token), D1 (GPU window), D3 (board submission) dispositioned as closed-defers per their own wording.
 
 Every number this plan publishes obeys the house laws: their stack serves, our Rust measures
 (laya-python measurement law); latency = HTTP round-trip with the serving posture + box state quoted
@@ -251,7 +255,7 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       0.5696 at 1.69 s p50` · `banking77 — Clef 0.9540 acc / 0.9533 skill at 3.37 s p50 leads every
       measured lane (best other: Instinct 0.8540)`. Smoke arm pins the leaders against the data's
       argmax (clef-led suites read the fixed `— Clef` phrasing; record-only leaders carry the rec tag).
-- [-] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
+- [x] C4 headline verdict recorded in HISTORY.md: where Clef actually lands vs Rethink on
       typed_decisions + banking77, with the cost + latency posture disclosed. **Reading note
       (verdict round 3): neither current Rethink-side figure decides the comparison — Rethink's
       0.7550 is record-only and AgentJev's 0.7715 is det ✗ — so CLEF'S HOSTED RUN ON THE SAME
@@ -267,6 +271,11 @@ half-runs; published tables are CI-regenerated, never hand-typed.
       lane (the Rethink encoder's b77 row is tier-fallback, excluded by construction — rethink
       issue 016 D1 seating, owner-gated). The cell that still decides the HEADLINE (the blog's own
       hosted posture) remains Clef's HOSTED 27B run — A6 owner-gated.
+      **EXECUTED 2026-10-07 on the LOCAL posture (owner call "close on local posture", superseding
+      the round-3 hosted gate): HISTORY.md §2026-10-07 carries the full verdict** — typed:
+      RETHINK LEADS (+5.95 pt at ~36× lower p50, identical pin); b77: CLEF-LOCAL LEADS every
+      measured lane; cost/latency posture + the hosted-27B caveat disclosed. The A2.5/A6/D1/D3
+      defers are dispositioned at close (conditions in their rows, never executed).
 
 ## Phase D — deferred (lane-intel follow-ons, each its own session)
 
