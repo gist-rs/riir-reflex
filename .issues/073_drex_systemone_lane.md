@@ -16,7 +16,9 @@ Weights are **CC BY-NC 4.0** (repo code MIT). This lane is **measurement only**:
 - comparison/bench lane: YES (we publish numbers ABOUT the model);
 - distill teacher: **NO** (NC contaminates — the bekko-MIT teacher posture does not
   transfer; never wire `TeacherForward::Drex`);
-- product/serving lane: **NO**.
+- product/serving lane: **NO** — and per the family ladder, a trained-encoder
+  SERVING arm is `riir-rethink`'s charter (private), never reflex's; this lane
+  stays measurement. For Drex that rung is license-blocked anyway (CC BY-NC).
 
 ## Why (owned data points)
 
