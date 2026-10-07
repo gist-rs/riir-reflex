@@ -5,6 +5,20 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-07 — Issue 072 CLOSED (`--dump-items`): the per-item outcome dump instrument served rethink 028's POC the same day it landed
+
+Landed as `fd8e832` (same commit as this issue file, per the cross-repo hygiene rule) and closed the
+same day: riir-rethink's Bench 062 (population-scaling POC, Issue 028 T1–T6) cites it as its
+instrument — the close condition. What shipped: `ItemOutcome` (`src/harness/item_dump.rs`, pure +
+ungated), `LaneResult.items` (`#[serde(skip)]` — always built in memory by both lane tails
+(`run_modelless` + `assemble_laya_lane_result`, covering every laya-family oracle lane), never
+serialized into results.json), the `--dump-items` CLI flag persisting
+`<out>/items/<suite>.jsonl` (join key `(case_id, q_idx)`; paw lanes disclosed-not-dumped), and
+`AbstainCause::as_str()`. Verified byte-neutral on results.json (only run-varying
+latency/load/date fields differ between flagged and unflagged runs) and cold-run-gated on emotion
+(400 items, item acc == table acc). The frozen evidence (BLAKE3-pinned item dumps + the POC
+analysis) lives in riir-rethink `.benchmarks/062_population_scaling_poc/`.
+
 ## 2026-10-07 — Plan 011 CLOSED (the Clef comparison lane + JDI protocol adapter): the C4 headline verdict on the local posture
 
 The owner call (2026-10-07, "close on local posture") supersedes C4's verdict-round-3 gate (the
