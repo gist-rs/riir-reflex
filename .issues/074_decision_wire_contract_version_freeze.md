@@ -35,10 +35,10 @@ deliberate field, spent now while only we + low-impact users ride the wire:
 2. **The rerank min-pool gate is client-side** (refine's manifest grammar, Plan 202 R7):
    rerank arms fire at pool ≥ 2 only — the wire never sees a 1-option rerank from our
    first customer.
-3. **The healing suite vocabulary freezes with the manifest grammar** (one `heal` suite vs
-   suite-per-domain) — the spike borrowed `sst5` (the R3-proven vehicle); a healing
-   domain has no dataset row on the seat today. Decision lands in Plan 202's R7 freeze;
-   the wire needs no change either way (suite is an opaque routing key).
+3. **The healing suite vocabulary: DECIDED 2026-10-08 — one `heal` suite for v1** (Plan 202's
+   R7 freeze + Bench 107 addendum): one seat lane hosts the healing rerank expert; per-domain
+   lanes wait for measured need (the hosted tier scales experts independently — R5's LRU).
+   The suite is an opaque routing key on the wire — no wire change either way.
 4. **Rule-id context on the wire is an expert-QUALITY lever, not a contract need** — the
    spike's finding 7. It becomes an ADDITIVE optional field (`context_rule_id`) in v2
    under `contract_version`, never a v1 break.
