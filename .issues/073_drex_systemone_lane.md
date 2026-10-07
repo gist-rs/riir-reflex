@@ -61,8 +61,6 @@ Weights are **CC BY-NC 4.0** (repo code MIT). This lane is **measurement only**:
 
 ## Out of scope
 
-- riir-infer eDLM/diffusion arch support (owner priority: bonsai/ternary first;
-  Research 008 records the pattern intel — block-causal mask, row-form parity,
-  prefix-cache reuse — for whenever a causal decision lane lands).
+- riir-infer eDLM/diffusion arch support: **FILED as riir-infer `.issues/1005_edlm_drex_inference_lane.md`** (owner opt-in 2026-10-07; Research 008 records the pattern intel — block-causal segment mask, row-form parity, prefix-cache reuse). Priority ordering stays owner-gated (bonsai/ternary first).
 - The Research-002 shared-prefix-KB gap stays deferred (second reference impl noted).
 - Any distill/product use (license law above).
