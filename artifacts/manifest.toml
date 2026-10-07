@@ -1,9 +1,9 @@
 # riir-reflex artifact manifest — schema v0 (riir-reflexer
 # .docs/04_vessel_format/artifact_manifest_spec.md; enforcement:
 # ../riir-ai/scripts/artifact_boundary.py; sync tool: riir-deployer
-# artifact-sync, Plan 623 T7).
+# artifact-sync, riir-ai Plan 623 T7).
 #
-# State (2026-10-07, the workspace Plan 623 T5 adoption): ZERO rows.
+# State (2026-10-07, the riir-ai Plan 623 T5 adoption): ZERO rows.
 # Inventory verdict, per class:
 #
 # - .raw/corpus_synth* (the SYNT corpora, ~700 KB): the repo's ONE
