@@ -33,9 +33,9 @@ the mint surface (riir-rethink Issue 023 tracker).
 
 | Suite | Source | Licence (verified) | Attribution | Paid lane |
 |---|---|---|---|---|
-| typed_decisions | `LocalLLaMA/typed-decisions` | Apache-2.0 | the dataset card | ✓ |
-| massive_intent_en | `mteb/amazon_massive_intent` | Apache-2.0 (the MASSIVE licence) | the MASSIVE citation (FitzGerald et al., 2022) | ✓ |
-| banking77 | `mteb/banking77` (mirror of PolyAI) | MIT (the mirror — the copy we fetch) | Casanueva et al., 2020 | ✓ |
+| typed_decisions | `LocalLLaMA/typed-decisions` | Apache-2.0 (first-party synthetic — latent factors + our teacher labels, no scraped content; card re-verified 2026-10-07) | the dataset card | ✓ |
+| massive_intent_en | `mteb/amazon_massive_intent` (mirror; upstream `alexa/massive`) | **CC BY 4.0** (the DATA's licence — Amazon NOTICE.md verified 2026-10-07: "The MASSIVE dataset is licensed under CC BY 4.0"; SLURP seed text also CC BY 4.0; the mteb mirror's Apache-2.0 tag is the CODE repo's licence, not the data's) | the MASSIVE citation (FitzGerald et al., 2022) | ✓ |
+| banking77 | `mteb/banking77` (mirror of PolyAI) | **CC BY 4.0** (PolyAI's own — the upstream licence, PolyAI card §Licensing "Creative Commons Attribution 4.0 International" verified 2026-10-07; the mteb mirror's MIT label cannot relicense the data) | Casanueva et al., 2020 | ✓ |
 | prompt_injections | `deepset/prompt-injections` | Apache-2.0 | the dataset card | ✓ |
 | thai_wisesight | `pythainlp/wisesight_sentiment` | CC0 | the pythainlp card | ✓ |
 | thai_sib200 | `Davlan/sib200` | CC BY-SA 4.0 (share-alike — ⚠ may reach redistributed derivatives; v2 leases) | Etxaniz et al., 2023 | ⚠ share-alike review before v2 |
