@@ -3,7 +3,7 @@
 //! Usage:
 //! ```text
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
-//!                                      [--skip-laya] [--laya-python] [--out DIR]
+//!                                      [--skip-laya] [--dump-items] [--laya-python] [--out DIR]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--head-scale F] [--head-select]
 //!                                      [--nb-select] [--oc-select]
@@ -182,6 +182,7 @@ fn harness_main() {
         suites: Vec::new(),
         laya_max_questions: 0,
         skip_laya: false,
+        dump_items: false,
         cascade: false,
         cascade_worthiness: false,
         // Issue 042 T3 (a), promoted per the issue's own trigger (a second
@@ -283,6 +284,7 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--laya-max-questions needs a number"));
             }
             "--skip-laya" => opts.skip_laya = true,
+            "--dump-items" => opts.dump_items = true,
             "--cascade" => opts.cascade = true,
             "--cascade-worthiness" => opts.cascade_worthiness = true,
             "--gate-fit-selection" => opts.gate_fit_selection = true,
@@ -920,11 +922,69 @@ fn harness_main() {
     if let Err(e) = std::fs::write(&json_path, json) {
         die(&format!("write {}: {e}", json_path.display()));
     }
-    if let Err(e) = std::fs::write(&md_path, &md) {
+    if let Err(e) = std::fs::write(&md_path, md) {
         die(&format!("write {}: {e}", md_path.display()));
     }
     println!("harness: wrote {}", json_path.display());
     println!("harness: wrote {}", md_path.display());
+
+    // Issue 072 (`--dump-items`; rethink 028 T1): persist the per-item
+    // records every lane materialized. One JSONL file per suite; one line
+    // per (lane, question); join key `(case_id, q_idx)`. The paw lanes
+    // keep their own result shape and are NOT dumped (a disclosed
+    // absence — the lane list line below names what was written).
+    if opts.dump_items {
+        let items_dir = out_dir.join("items");
+        if let Err(e) = std::fs::create_dir_all(&items_dir) {
+            die(&format!("create {}: {e}", items_dir.display()));
+        }
+        let mut total_lines = 0usize;
+        for suite in &output.suites {
+            let path = items_dir.join(format!("{}.jsonl", suite.name));
+            let mut buf = String::new();
+            let mut lanes = 0usize;
+            let mut write_lane = |lane: &runner::LaneResult, buf: &mut String| {
+                for it in &lane.items {
+                    buf.push_str(
+                        &serde_json::to_string(it).expect("item outcome serialize"),
+                    );
+                    buf.push('\n');
+                }
+                lanes += 1;
+            };
+            if let Some(lane) = &suite.modelless {
+                write_lane(lane, &mut buf);
+            }
+            for lane in suite.laya.values() {
+                write_lane(lane, &mut buf);
+            }
+            for lane in [
+                &suite.clm,
+                &suite.gliner,
+                &suite.bekko,
+                &suite.agentjev,
+                &suite.clef,
+                &suite.openthai,
+            ]
+            .into_iter()
+            .flatten()
+            {
+                write_lane(lane, &mut buf);
+            }
+            if let Err(e) = std::fs::write(&path, &buf) {
+                die(&format!("write {}: {e}", path.display()));
+            }
+            let lines = buf.lines().count();
+            total_lines += lines;
+            println!(
+                "harness: wrote {} ({} lane(s), {} item line(s))",
+                path.display(),
+                lanes,
+                lines
+            );
+        }
+        println!("harness: --dump-items total: {total_lines} item line(s)");
+    }
 
     // Issue 007 P1: ONE run-history row per run — the exact results.json
     // bytes under a sortable date/sha/time key. Explicit-flag failures die

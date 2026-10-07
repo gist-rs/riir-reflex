@@ -732,6 +732,18 @@ impl AbstainCause {
     pub fn abstained(self) -> bool {
         !matches!(self, AbstainCause::Answered)
     }
+
+    /// Stable wire name — the Issue-060 closed-taxonomy keys, exposed for
+    /// the Issue-072 per-item dump (never a display string).
+    pub fn as_str(self) -> &'static str {
+        match self {
+            AbstainCause::Answered => "answered",
+            AbstainCause::ScoreGate => "score_gate",
+            AbstainCause::DistanceGate => "distance_gate",
+            AbstainCause::GrammarInvalid => "grammar_invalid",
+            AbstainCause::DensityGate => "density_gate",
+        }
+    }
 }
 
 /// One answered slot — the zero-alloc core's per-question verdict. The

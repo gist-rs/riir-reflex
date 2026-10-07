@@ -796,6 +796,13 @@ pub struct LaneResult {
     /// [`corpus_digest`].
     #[serde(skip_serializing_if = "Option::is_none")]
     pub corpus_digest: Option<String>,
+    /// Issue 072 (`--dump-items`, rethink 028 T1): the per-item outcome
+    /// records of this lane — ALWAYS built in memory (the same walk the
+    /// metrics read), NEVER serialized into `results.json`; the CLI flag
+    /// persists them to `<out>/items/<suite>.jsonl`. Join key across
+    /// lanes: `(case_id, q_idx)`.
+    #[serde(skip)]
+    pub items: Vec<super::item_dump::ItemOutcome>,
 }
 
 /// One cal-slice cap-selection candidate reading (Issue 013 lever-1
@@ -3416,6 +3423,35 @@ fn run_modelless<const N: usize>(
         None
     };
 
+    // Issue 072 (`--dump-items`): the per-item outcome records — the same
+    // walk the metrics read, materialized once here so the CLI can persist
+    // them without re-running anything. Join key: (case_id, q_idx).
+    let items = {
+        let mut out = Vec::with_capacity(raw_eval.n_questions());
+        for (ci, case) in suite.cases.iter().enumerate() {
+            for (qi, q) in case.questions.iter().enumerate() {
+                let cause_cal = cal_eval_test.causes[ci][qi];
+                out.push(super::item_dump::ItemOutcome {
+                    lane: "modelless",
+                    model: "modelless".to_string(),
+                    case_id: case.id.clone(),
+                    case_idx: ci,
+                    q_idx: qi,
+                    kind: q.kind.as_str().to_string(),
+                    gold: case.gold[qi].idx,
+                    pick: raw_eval.picks[ci][qi],
+                    ok: raw_eval.picks[ci][qi] == case.gold[qi].idx,
+                    conf: raw_eval.confs[ci][qi],
+                    conf_cal: Some(cal_eval_test.confs[ci][qi]),
+                    abstain_raw: Some(raw_eval.abstained[ci][qi]),
+                    abstain_cal: Some(cal_eval_test.abstained[ci][qi]),
+                    cause_cal: cause_cal.abstained().then(|| cause_cal.as_str().to_string()),
+                });
+            }
+        }
+        out
+    };
+
     // Issue 038 T4′: the cascade lane composes THIS lane's answers with the
     // escalator's — the forced picks that define `hard` above plus the
     // calibrated gate's abstain flags (the shipped posture). Cheap clones
@@ -3674,6 +3710,7 @@ fn run_modelless<const N: usize>(
         genome_selection: genome_selected,
         transductive,
         confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
+        items,
         pair_head_ab: if inp.pair_head_ab {
             let (top2_ab, pred_ab) = pair_head_ab_pass(
                 &raw_eval,
@@ -4229,6 +4266,35 @@ fn assemble_laya_lane_result(
         pairs
     };
 
+    // Issue 072 (`--dump-items`): per-item records from the same vectors the
+    // metrics read. laya/oracle lanes cannot abstain (Research-562 flaw) —
+    // the gate fields stay `None`, never a fake false.
+    let items = {
+        let mut out = Vec::with_capacity(ev.n_questions());
+        for (ci, case) in cases.iter().enumerate() {
+            let case = case.as_ref();
+            for (qi, q) in case.questions.iter().enumerate() {
+                out.push(super::item_dump::ItemOutcome {
+                    lane,
+                    model: model.to_string(),
+                    case_id: case.id.clone(),
+                    case_idx: ci,
+                    q_idx: qi,
+                    kind: q.kind.as_str().to_string(),
+                    gold: case.gold[qi].idx,
+                    pick: ev.picks[ci][qi],
+                    ok: ev.picks[ci][qi] == case.gold[qi].idx,
+                    conf: ev.confs[ci][qi],
+                    conf_cal: None,
+                    abstain_raw: None,
+                    abstain_cal: None,
+                    cause_cal: None,
+                });
+            }
+        }
+        out
+    };
+
     // Optional extras for typed_decisions.
     let mut by_question_type: Option<BTreeMap<String, HardMetrics>> = None;
     let mut soft_acc: Option<f64> = None;
@@ -4320,6 +4386,7 @@ fn assemble_laya_lane_result(
         genome_selection: None, // the laya lanes run no joint selection
         transductive: None,
         confusion: None,  // the pair probe is the modelless lane's instrument
+        items,
         pair_head_ab: None,
         nli_feature_ab: None,
         nli_m1: None,
@@ -6694,6 +6761,14 @@ pub struct RunOptions {
     /// without it, or an unreachable server, is a LOUD error, never a
     /// silent skip. Default off.
     pub clm: bool,
+    /// Issue 072 (`--dump-items`; rethink 028 T1's instrument): persist the
+    /// per-item outcome records every lane already materialized in memory
+    /// to `<out>/items/<suite>.jsonl` (one JSONL line per answered
+    /// question; join key `(case_id, q_idx)`). Measurement-only: no lane
+    /// behavior changes, `results.json` stays byte-identical. Default off
+    /// = no file written (the records are still built — the same walk the
+    /// metrics read — and dropped).
+    pub dump_items: bool,
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build

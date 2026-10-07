@@ -22,6 +22,10 @@ pub mod families_semantic_defects_eval;
 // shared by every in-process fixture authoring; see the module doc for
 // the four-time recurrence record that forced it out of private copies.
 pub mod fixture_hygiene;
+// Issue 072 — measurement-only per-item outcome records (`--dump-items`;
+// rethink 028 T1's instrument). Ungated + pure: reads materialized eval
+// vectors, never runs an engine.
+pub mod item_dump;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
 // Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm
