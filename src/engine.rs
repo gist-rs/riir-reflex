@@ -287,16 +287,17 @@ pub struct EngineConfig {
     /// signal and ranks options by the drafter delta alone — measured
     /// ~1.5x chance.
     pub option_name_route: bool,
-    /// Issue 079: the LEGACY `k == N` index-alignment route binding. When
-    /// by-name resolution fails and the option count equals the domain
-    /// count, the pick index maps onto the domain index — a POSITION
-    /// binding, so the ranking moves with the presented option order
-    /// (bench 128: typed_decisions 4.70 pt median swing, 68.3% flips under
-    /// option permutation). `false` = the CONTENT-BOUND posture: route
-    /// terms arm only via by-name resolution; an unresolved `k == N`
-    /// question runs drafter-only (disclosed in the routing reason).
-    /// Default `true` = the incumbent shipped behavior, byte-identical.
-    /// The harness's `--no-kn-route` measures both postures in one binary.
+    /// Issue 079: the index-anchored route arm. When by-name resolution
+    /// fails, a SCORE question with k == N whose domains ARE named by the
+    /// option indices ("0".."N-1" — sst5's ordinal level corpora; the
+    /// noul-precedent class) resolves option i to domain i BY NAME, so
+    /// position ↔ level ↔ corpus is the scale's own semantics. A CHOICE
+    /// question NEVER takes this arm (a choice option's identity is its
+    /// content, never its position — the old blind `k == N` fill was
+    /// typed's position-driven defect: bench 128, 4.70 pt median swing,
+    /// 68.3% flips). `false` = strict by-name only (the A/B instrument;
+    /// the harness's `--no-kn-route`). Default `true` = the shipped
+    /// behavior, byte-identical for every suite except typed (bench 130).
     pub legacy_kn_route: bool,
     /// Fitted per-label head blend scale (issue 030 lever 4). When > 0,
     /// [`DecisionEngine::build_specs`] fits one-vs-all logistic heads over
@@ -1367,13 +1368,37 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     }
                 });
             if !by_name && self.cfg.legacy_kn_route && k == N {
-                // Legacy index alignment (pick index ↔ domain index) —
-                // gated by [`EngineConfig::legacy_kn_route`] (issue 079):
-                // off leaves `opt_dom` unset, so route terms arm only via
-                // by-name resolution (the content-bound posture; the
-                // question reads drafter-only, disclosed).
-                for (i, slot) in opt_dom.iter_mut().enumerate() {
-                    *slot = i;
+                // Index-anchored resolution (issue 079, bench 130's G3
+                // finding): the blind `k == N` identity fill is REPLACED by
+                // a NAME check — the binding is legal only when the domains
+                // ARE the option indices ("0".."N-1"): the ordinal-score
+                // corpora, sst5 the incumbent case (its domains are the
+                // level-index strings, its questions Score, so position i
+                // ↔ level i ↔ corpus i is the scale's own semantics — the
+                // noul-precedent class), s1mb_score by its Plan-010 law.
+                // SCORE ONLY: a choice option's identity is its CONTENT,
+                // never its position — typed's exact defect (bench 128:
+                // 4.70 pt median swing, 68.3% flips — option 0 of an
+                // observability question read the customer_service
+                // centroid). Byte-preserving everywhere: where the old
+                // blind fill legitimately armed, an index-named domain set
+                // resolves to the same identity map (sst5 digit-identical,
+                // bench 130 G3 re-diff); where the names are not indices
+                // (typed), nothing arms and the question reads drafter-
+                // only + option_cond — the content-bound posture, perm-
+                // invariant (bench 130 acceptance: 0.00/0.00 pt, ties
+                // only). [`EngineConfig::legacy_kn_route`] gates this arm
+                // (off = strict by-name only, the A/B instrument).
+                let by_index = matches!(q.kind, QuestionKind::Score)
+                    && self
+                        .experts
+                        .iter()
+                        .enumerate()
+                        .all(|(i, e)| e.name == i.to_string());
+                if by_index {
+                    for (i, slot) in opt_dom.iter_mut().enumerate() {
+                        *slot = i;
+                    }
                 }
             }
             // Noul never takes route terms (issue 030): its `[yes, no]`
@@ -1384,9 +1409,19 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // "yes, injection" against the BENIGN centroid — an anti-signal
             // by construction, measured 0.4397 below the 0.50 chance floor
             // (the T7 addendum's recorded −4.3 pt regression). The by-name
-            // path already excludes noul; this guard closes the legacy path.
-            let route_active = !matches!(q.kind, QuestionKind::Noul)
-                && (by_name || (self.cfg.legacy_kn_route && k == N));
+            // path already excludes noul; the index-anchored arm excludes
+            // it by kind.
+            let route_active =
+                !matches!(q.kind, QuestionKind::Noul)
+                    && (by_name
+                        || (self.cfg.legacy_kn_route
+                            && k == N
+                            && matches!(q.kind, QuestionKind::Score)
+                            && self
+                                .experts
+                                .iter()
+                                .enumerate()
+                                .all(|(i, e)| e.name == i.to_string())));
             // Issue 036 T1/T2: the weakest-scorer path — a choice/score
             // question whose option score is the raw drafter delta. Both
             // the disclosure flag and the [`EngineConfig::drafter_fix`]
@@ -1546,8 +1581,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             }
             sc.scores.clear();
             // Each option's route term is its RESOLVED domain's cosine
-            // (`opt_dom`: by name, or the identity map under the legacy
-            // k == N rule — the latter gated by
+            // (`opt_dom`: by name, or the index-anchored identity map —
+            // score questions on index-named domains, gated by
             // [`EngineConfig::legacy_kn_route`], issue 079).
             let mut terms = opt_dom[..k.min(N)].iter().map(|&d| route_terms[d]);
             // k can EXCEED N when heads are disarmed (noul k=2 on an N=1
@@ -2039,7 +2074,10 @@ mod tests {
         off.solve_into(&req, &mut a).unwrap();
         on.solve_into(&req, &mut b).unwrap();
         let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
-        assert_eq!(bits(&a.probs), bits(&b.probs));
+        // Issue 079: the index arm is SCORE-only — a choice question with
+        // by-name disabled reads drafter-only (the old blind `k == N` fill
+        // is gone), so the postures legitimately differ now.
+        assert_ne!(bits(&a.probs), bits(&b.probs));
         assert_eq!(b.slots[0].pick, 2, "music");
     }
 
@@ -2055,11 +2093,15 @@ mod tests {
     /// the winning option, and the two postures read different
     /// distributions with only the off posture disclosing drafter-only.
     #[test]
-    fn kn_route_off_is_permutation_invariant_and_on_is_position_bound() {
-        // Distinct-content options that name NO domain (by_name false,
-        // k == N — exactly the shape the legacy rule used to bind) and
-        // distinct drafter deltas (no exact tie: the first-index tie-break
-        // is itself position-driven and would mask the content invariance).
+    fn kn_route_choice_is_content_bound_and_score_index_names_arm() {
+        // ── CHOICE (bench 128's typed defect): distinct-content options
+        // that name NO domain, k == N — the exact shape the OLD blind
+        // rule bound. Under the index-anchored law a choice option's
+        // identity is its CONTENT, never its position, so BOTH knob
+        // values read drafter-only with bit-identical distributions, and
+        // the pick travels with its option under rotation. Distinct
+        // drafter deltas (no exact tie: the first-index tie-break is
+        // itself position-driven and would mask the content invariance).
         let state = "please refund my invoice, the billing balance is wrong".to_string();
         let mk = |order: &[&str]| DecisionRequest {
             state: state.clone(),
@@ -2093,7 +2135,6 @@ mod tests {
             DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
         let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
 
-        // (i) Content-bound: the pick is the same OPTION under both orders.
         let mut sc = Scratch::new();
         sc.prepare(1);
         off.solve_into(&a, &mut sc).unwrap();
@@ -2104,22 +2145,14 @@ mod tests {
             opt_a, opt_b,
             "content-bound: the pick must travel with its option"
         );
-
-        // (ii) The knob gates on this fixture: only the off posture is
-        // drafter-only (route_active demonstrably off), and the two
-        // postures' distributions differ on the same request.
-        let resp_off = off.decide(&a).unwrap();
-        let reason_off = resp_off.routing.reason.expect("modelless carries a reason");
-        assert!(
-            reason_off.contains("drafter-only=1"),
-            "knob off: the unresolved k == N question must read drafter-only, got: {reason_off}"
-        );
-        let resp_on = on.decide(&a).unwrap();
-        let reason_on = resp_on.routing.reason.expect("modelless carries a reason");
-        assert!(
-            !reason_on.contains("drafter-only"),
-            "knob on: the legacy binding must arm the route terms, got: {reason_on}"
-        );
+        for eng in [&mut off, &mut on] {
+            let resp = eng.decide(&a).unwrap();
+            let reason = resp.routing.reason.expect("modelless carries a reason");
+            assert!(
+                reason.contains("drafter-only=1"),
+                "choice is never index-bound: must read drafter-only at BOTH knob values, got: {reason}"
+            );
+        }
         let mut sc2 = Scratch::new();
         sc2.prepare(1);
         on.solve_into(&a, &mut sc2).unwrap();
@@ -2128,28 +2161,71 @@ mod tests {
         let on_probs = sc2.probs[lo..lo + k].to_vec();
         off.solve_into(&a, &mut sc).unwrap();
         let lo = sc.slots[0].prob_lo;
+        assert_eq!(
+            bits(&on_probs),
+            bits(&sc.probs[lo..lo + k]),
+            "choice: the knob must be inert — no index binding, ever"
+        );
+
+        // ── SCORE + index-named domains (the sst5 shape): the domains ARE
+        // the option indices, so position i ↔ level i ↔ corpus i is the
+        // scale's own ordinal semantics (the noul-precedent class — bench
+        // 130's G3 finding). The DEFAULT arms the route terms (not
+        // drafter-only; the distribution differs from the off posture);
+        // the knob OFF disarms (strict by-name only).
+        let index_spec = |i: usize| {
+            one_domain(
+                &i.to_string(),
+                match i {
+                    0 => "deploy the server to staging and verify the rollout",
+                    1 => "rain forecast sunny cloudy temperature tomorrow",
+                    2 => "play the song album playlist artist track",
+                    _ => "refund the customer invoice balance billing account",
+                },
+            )
+        };
+        let mk_score = |levels: &[&str]| DecisionRequest {
+            state: state.clone(),
+            questions: vec![Question::score(
+                "q0",
+                "rate the intent",
+                levels.iter().map(|s| s.to_string()).collect(),
+            )],
+        };
+        let s = mk_score(&["lev one", "lev two", "lev three", "lev four"]);
+        let mut s_off: DecisionEngine<4, EMBED_DIM> = DecisionEngine::build(
+            (0..4).map(index_spec).collect(),
+            EngineConfig {
+                legacy_kn_route: false,
+                ..EngineConfig::default()
+            },
+        )
+        .unwrap();
+        let mut s_on: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build((0..4).map(index_spec).collect(), EngineConfig::default())
+                .unwrap();
+        let resp_on = s_on.decide(&s).unwrap();
+        let reason_on = resp_on.routing.reason.expect("modelless carries a reason");
+        assert!(
+            !reason_on.contains("drafter-only"),
+            "score + index-named domains: the ordinal route arm must hold at the default, got: {reason_on}"
+        );
+        let resp_off = s_off.decide(&s).unwrap();
+        let reason_off = resp_off.routing.reason.expect("modelless carries a reason");
+        assert!(
+            reason_off.contains("drafter-only=1"),
+            "knob off: strict by-name only — the index arm must disarm, got: {reason_off}"
+        );
+        s_on.solve_into(&s, &mut sc2).unwrap();
+        let lo = sc2.slots[0].prob_lo;
+        let k = s.questions[0].options.len();
+        let on_probs = sc2.probs[lo..lo + k].to_vec();
+        s_off.solve_into(&s, &mut sc).unwrap();
+        let lo = sc.slots[0].prob_lo;
         assert_ne!(
             bits(&on_probs),
             bits(&sc.probs[lo..lo + k]),
-            "the legacy binding must move the distribution on a k == N question"
-        );
-
-        // (ii+) Incumbent: position-driven — the pick holds the
-        // best-matching domain's INDEX (billing = 3) under both orders, so
-        // the winning option changes with the rotation.
-        on.solve_into(&a, &mut sc2).unwrap();
-        assert_eq!(
-            sc2.slots[0].pick, 3,
-            "incumbent: the pick follows the billing index"
-        );
-        on.solve_into(&b, &mut sc2).unwrap();
-        assert_eq!(
-            sc2.slots[0].pick, 3,
-            "incumbent: the pick follows the POSITION, not the option"
-        );
-        assert_ne!(
-            a.questions[0].options[3], b.questions[0].options[3],
-            "fixture sanity: different options sit at the bound position"
+            "the index-anchored arm must move the distribution on the sst5 shape"
         );
     }
 
