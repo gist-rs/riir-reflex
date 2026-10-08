@@ -5,6 +5,45 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-08 — Issue 077 CLOSED: the option-permutation probe falsified "invariant by construction" and the fix landed — content binding for the classification suites; drex measured order-biased, agentjev content-bound, laya tail-fragile
+
+The probe (`--perm-probe`, exclusive early-exit mode): every probed lane answers the SAME
+choice questions under K deterministic option orderings (identity + 4 SplitMix64 shuffles,
+`slot_seed(case_id,qid)`; every permutation vector recorded) through its OWN production
+decide path (the `ChoiceOracle` seam — never a parallel rendering). Pure core
+`src/harness/permutation.rs` (orderings, permutation, label-space mapping, spread math, the
+≤2pt gate, the canary; mock-lane tests pin the canary both directions) + lanes in
+`src/harness/runner/perm_probe.rs` (modelless control / drex / agentjev / laya primary-
+checkpoint; bucket-skip convention; stride sampling; strict-byte + tie-aware control
+columns). **The control FALSIFIED the issue's premise on run 1** (Bench 128
+`.benchmarks/128_perm_spread_option_order.md`): typed 4.70pt median / 68.3% flips, ag_news
+0.95 flip rate, emotion/xnli 0.35/0.37 — root cause the legacy `k == N` index alignment in
+`solve_sample_into` (option-at-position-i gets domain-i's route term when by-name fails),
+armed on every suite whose domain names were the train docs' INTEGER labels; plus the L1
+normalizer's presentation-order f32 sum (ULP class, bounded < 0.005pt, disclosed not fixed —
+a canonical sum would move the canonical bytes published tables pin). **The fix**
+(content binding, canonical-order byte-identical): `train_row_label` maps the int class
+label through hoisted option-key consts (`AG_NEWS_KEYS`/`EMOTION_KEYS`/`XNLI_KEYS`/
+`WISESIGHT_KEYS` — builders AND label rule, ONE spelling for corpora/stratification/audit/
+domains); prepare labels := option-key union with the fetch guard now the EXPECTED KEY SET
+(exact membership pin). Post-fix: ag_news/emotion/xnli PASS at 0.00pt / 0 flips (was
+0.95/0.35/0.37); massive/banking unchanged PASS; strict byte-identity stays a disclosed
+column (control_invariant) with the control verdict keyed on ties+the 0.01pt measured
+envelope. **typed_decisions stays RED** (its 4-option questions ride the k==N binding
+against 4 workflow domains — load-bearing for the published typed numbers) → issue 079
+(owner-gated, three priced options). **Comparison lanes** (servers booted, preflight
+PASSED, G5 parity GREEN pre-laya at the CPU posture, 2/2): drex RED ×5 (emotion 14.92pt
+median, typed 11.93pt, banking 8.65pt, massive max 76.29pt; canary flips on EVERY suite at
+27.5pt — the d1 recipe's "shuffling answer options" failure class, independently measured
+on a third-party decision model); agentjev PASS ×6 (0.00–0.27pt, the recorded wobble class
+disclosed); laya median-holds/tail-fragile (english 0.01–1.53pt medians but max swings to
+99.97pt and 30% flips on massive; typed RED 4.12pt) — riir-train Research 471 item 4's
+measured evidence that option-shuffle AUGMENTATION is worth its LENC-cache cost for the
+laya family. Wire-up: `--perm-probe` / `--perm-k` / `--perm-max-cases` (comparison lanes
+ride --drex/--agentjev; laya rides its feature + --skip-laya); a control red refuses the
+run verdict after writing the record. Issue file removed per the noise rule; the follow-up
+lives in `.issues/079_typed_kn_route_binding_owner_gated.md`.
+
 ## 2026-10-08 — Issue 076 CLOSED (Drex follow-ups): the det ✗ was the timing tail, measured twice more; the per-kind cells are lane surface
 
 Three tasks, all landed: T3 the `decide_raw` latency-tail strip + test (`cd0248b`, from
