@@ -407,6 +407,10 @@ fn build_suite(name: &str, rows: &Value, max_rows: usize) -> Option<Vec<suites::
         "massive_intent_en" => build_massive_intent_en(rows, max_rows, 0).cases,
         "prompt_injections" => build_prompt_injections(rows, max_rows).cases,
         "sst5" => build_sst5(rows, max_rows).cases,
+        // Plan 003 T3.2: the Thai probe suites — the builders exist (the
+        // runner dispatches to them); the wiring scan needs the same arms.
+        "thai_sib200" => build_thai_sib200(rows, max_rows).cases,
+        "thai_wisesight" => build_thai_wisesight(rows, max_rows).cases,
         // Issue 080: the ESC re-source NLI lane — same pair shape as xnli.
         "wanli_en" => build_wanli_en(rows, max_rows).cases,
         "xnli_en" => build_xnli_en(rows, max_rows).cases,
