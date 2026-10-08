@@ -423,9 +423,11 @@ laya wins / 4 gliner wins — dominant on typed_decisions, mediocre on
 classic NLU (ag_news 0.80 vs 0.95, xnli 0.46 vs 0.86) and on the
 decision-style suites it was not trained for (banking77 0.546 vs gliner
 0.706); GLiNER2.5-Decide is the better generalist decision model on our
-15, AgentJev the better specialist on its split. det ✗ on every suite —
-their own disclosed bf16 HTTP wobble (~3rd decimal; picks stable, accuracy
-reproduced exactly across two full passes).
+15, AgentJev the better specialist on its split. det: the recorded ✗ (bench 039) was
+their `usage.wall_ms` timing tail in the byte-compare input, not their forward —
+Bench 127 (2026-10-08, post-strip) re-reads the column **✓ 10/10 byte-identical** at
+their CUDA posture (acc 0.7720); their own disclosed bf16 wobble went unfired in the
+observed pairs.
 
 **fast-decisions landscape (published vendor rows, not measured here — issue 029):**
 fastino's own `fast-decisions` suite (17 English operational-decision
