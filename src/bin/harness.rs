@@ -254,6 +254,11 @@ fn harness_main() {
     let mut kv_dir: Option<std::path::PathBuf> = None;
     let mut save_corpus: Vec<String> = Vec::new();
     let mut e0 = false;
+    // Issue 077 — the option-permutation spread probe (exclusive early-exit
+    // mode; the comparison lanes reuse --drex/--agentjev).
+    let mut perm_probe = false;
+    let mut perm_k = 0usize;
+    let mut perm_max_cases = 0usize;
     let mut distill = false;
     // The distill mode's knobs (Plan 426 T1: the mode is no longer
     // laya-only — the openthai teacher runs on a default-features build,
@@ -380,6 +385,21 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--genome-accept-margin needs a fraction (e.g. 0.03)"));
             }
             "--e0" => e0 = true,
+            "--perm-probe" => perm_probe = true,
+            "--perm-k" => {
+                i += 1;
+                perm_k = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--perm-k needs a number (orderings incl. identity)"));
+            }
+            "--perm-max-cases" => {
+                i += 1;
+                perm_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--perm-max-cases needs a number"));
+            }
             "--distill" => distill = true,
             "--ensemble-gate" => ensemble_gate = true,
             "--ensemble-out" => {
@@ -612,11 +632,89 @@ fn harness_main() {
     if e0 && distill {
         die("--e0 and --distill are both exclusive early-exit modes — pass one");
     }
+    // Issue 077 — the option-PERMUTATION spread probe: an exclusive
+    // early-exit measurement mode. The comparison lanes ride the existing
+    // --drex / --agentjev flags (their construction refuses loud when a
+    // server is unreachable — the comparison-lane law); the laya lane runs
+    // whenever its feature is compiled unless --skip-laya. The modelless
+    // control reds the RUN (exit 1) — byte-identity across orderings is an
+    // engine invariant; a control red is a finding or a harness bug, never
+    // a quiet pass.
+    if perm_probe {
+        if perm_k != 0 && perm_k < 2 {
+            die("--perm-k needs >= 2 orderings (the identity + at least one shuffle)");
+        }
+        let popts = runner::PermProbeOptions {
+            k: if perm_k == 0 {
+                runner::DEFAULT_PERM_K
+            } else {
+                perm_k
+            },
+            max_cases: if perm_max_cases == 0 {
+                runner::DEFAULT_PERM_MAX_CASES
+            } else {
+                perm_max_cases
+            },
+            drex: opts.drex,
+            agentjev: opts.agentjev,
+        };
+        println!(
+            "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
+             ≤{} case(s)/suite · lanes: modelless (control){}{}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            popts.k,
+            popts.max_cases,
+            if popts.drex { " +drex" } else { "" },
+            if popts.agentjev { " +agentjev" } else { "" },
+        );
+        let out = match runner::run_perm_probe(&opts, &popts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("perm_probe.json");
+        let md_path = out_dir.join("PERM_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("perm probe serialize");
+        let md = runner::render_perm_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        let control_red = out.suites.iter().any(|s| {
+            s.lanes
+                .iter()
+                .any(|l| l.control && l.verdict == runner::SpreadVerdict::Red)
+        });
+        if control_red {
+            die(
+                "--perm-probe: the modelless CONTROL red — the top pick moved \
+                 on an untied slot or the median swing left the L1 normalizer's \
+                 fp envelope. This is a finding or a harness bug; the record is \
+                 on disk (never a quiet pass).",
+            );
+        }
+        println!(
+            "harness --perm-probe: DONE — {} suite(s), {} RED lane cell(s) \
+             disclosed; wrote {} + {}",
+            out.suites.len(),
+            out.red_cells,
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 7] = [
+        let modes: [(&str, bool); 8] = [
             ("--e0", e0),
+            ("--perm-probe", perm_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

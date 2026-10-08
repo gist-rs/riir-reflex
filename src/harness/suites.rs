@@ -246,9 +246,36 @@ pub fn build_banking77_mteb(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
-/// §3.8 AG News — choice, 4 FIXED options (never shuffled). ClassLabel order
-/// World/Sports/Business/Sci-Tech must equal the criteria key order
-/// (VERIFY-AT-PORT in the fetch layer).
+/// Issue 077: the fixed-criteria classification suites' option keys, as
+/// MODULE consts so the builders AND [`train_row_label`] share ONE
+/// spelling. `train_row_label` returning the KEY (not the integer class
+/// label) names the engine's domains by option content — the by-name
+/// option→domain resolution then binds by CONTENT instead of the legacy
+/// `k == N` index alignment, which bound option-at-position-i to domain-i
+/// and made the ranking position-driven under any non-canonical option
+/// order (the Bench-128 finding). Canonical-order outputs are
+/// byte-identical (union[i] ≡ old domain i by the parity assert the
+/// prepare path kept since the fetch law).
+pub(crate) const AG_NEWS_KEYS: [&str; 4] = [
+    "world",
+    "sports",
+    "business",
+    "sci_tech",
+];
+pub(crate) const EMOTION_KEYS: [&str; 6] = [
+    "sadness",
+    "joy",
+    "love",
+    "anger",
+    "fear",
+    "surprise",
+];
+pub(crate) const XNLI_KEYS: [&str; 3] = ["entailment", "neutral", "contradiction"];
+pub(crate) const WISESIGHT_KEYS: [&str; 4] = ["pos", "neu", "neg", "q"];
+
+/// §3.8 AG News — choice, 4 FIXED options (never shuffled); the criteria
+/// key order IS the dataset ClassLabel order (VERIFY-AT-PORT in the fetch
+/// layer; the keys themselves live in [`AG_NEWS_KEYS`]).
 #[must_use]
 pub fn build_ag_news(rows_file: &Value, max_rows: usize) -> Suite {
     const CRIT: [(&str, &str); 4] = [
@@ -257,6 +284,11 @@ pub fn build_ag_news(rows_file: &Value, max_rows: usize) -> Suite {
         ("business", "business and economy"),
         ("sci_tech", "science and technology"),
     ];
+    debug_assert_eq!(
+        CRIT.len(),
+        AG_NEWS_KEYS.len(),
+        "ag_news key consts must stay in sync"
+    );
     let keys: Vec<String> = CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
     let descs: Vec<Option<String>> = CRIT.iter().map(|(_, d)| Some((*d).to_string())).collect();
     let all = rows_of(rows_file);
@@ -293,6 +325,7 @@ pub fn build_ag_news(rows_file: &Value, max_rows: usize) -> Suite {
 #[must_use]
 pub fn build_emotion(rows_file: &Value, max_rows: usize) -> Suite {
     const NAMES: [&str; 6] = ["sadness", "joy", "love", "anger", "fear", "surprise"];
+    debug_assert_eq!(NAMES, EMOTION_KEYS, "emotion key consts must stay in sync");
     let keys: Vec<String> = NAMES.iter().map(|n| (*n).to_string()).collect();
     let descs: Vec<Option<String>> = vec![None; 6];
     let all = rows_of(rows_file);
@@ -482,7 +515,10 @@ pub fn build_prompt_injections(rows_file: &Value, max_rows: usize) -> Suite {
 pub(crate) use katgpt_core::types::rng::SplitMix64;
 
 /// Fisher–Yates shuffle (high → low, swap with a random j <= i).
-fn shuffle<T>(xs: &mut [T], rng: &mut SplitMix64) {
+/// `pub(crate)`: the Issue-077 permutation probe's ordering stream shares
+/// this ONE shuffle (the corruption stream and the option-shuffle stream
+/// law, extended to the probe) — never a second implementation.
+pub(crate) fn shuffle<T>(xs: &mut [T], rng: &mut SplitMix64) {
     for i in (1..xs.len()).rev() {
         let j = rng.below(i + 1);
         xs.swap(i, j);
@@ -590,6 +626,11 @@ pub fn build_xnli_en(rows_file: &Value, max_rows: usize) -> Suite {
             "the premise implies the hypothesis is false",
         ),
     ];
+    debug_assert_eq!(
+        NLI_CRIT.len(),
+        XNLI_KEYS.len(),
+        "xnli key consts must stay in sync"
+    );
     let keys: Vec<String> = NLI_CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
     let descs: Vec<Option<String>> = NLI_CRIT
         .iter()
@@ -648,6 +689,11 @@ pub fn build_thai_wisesight(rows_file: &Value, max_rows: usize) -> Suite {
         ("neg", "negative sentiment"),
         ("q", "a question"),
     ];
+    debug_assert_eq!(
+        CRIT.len(),
+        WISESIGHT_KEYS.len(),
+        "wisesight key consts must stay in sync"
+    );
     let keys: Vec<String> = CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
     let descs: Vec<Option<String>> = CRIT
         .iter()
@@ -996,7 +1042,11 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
         "massive_intent_en" => row_str(row, "label_text").map(str::to_string),
         // Plan 003 Thai probe suites: the label column is `category` on
         // both — an int ClassLabel on wisesight, a plain string on sib200.
-        "thai_wisesight" => row_i64(row, "category").map(|l| l.to_string()),
+        // Issue 077: wisesight's int maps through the OPTION-KEY spelling
+        // (the engine's domain names) — see the AG_NEWS_KEYS doc.
+        "thai_wisesight" => row_i64(row, "category")
+            .and_then(|l| WISESIGHT_KEYS.get(l as usize))
+            .map(|k| (*k).to_string()),
         "thai_sib200" => row_str(row, "category").map(str::to_string),
         "typed_decisions" => row_str(row, "workflow").map(str::to_string),
         // Plan 010 S1MB: the corpus label = the gold KEY string at the
@@ -1021,6 +1071,21 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
             Some(t) => Some(t.replace('_', " ")),
             None => row_i64(row, "label").map(|l| l.to_string()),
         },
+        // Issue 077: the int-ClassLabel choice suites name their engine
+        // domains by the OPTION KEY at the class index (content binding —
+        // the doc comment on AG_NEWS_KEYS). The class index must be in
+        // range: an out-of-range label fails the rule and the row drops,
+        // exactly like a malformed label (the builders' count floors are
+        // the loud guard against a drifted fetch).
+        "ag_news" => row_i64(row, "label")
+            .and_then(|l| AG_NEWS_KEYS.get(l as usize))
+            .map(|k| (*k).to_string()),
+        "emotion" => row_i64(row, "label")
+            .and_then(|l| EMOTION_KEYS.get(l as usize))
+            .map(|k| (*k).to_string()),
+        "xnli_en" | "xnli_en_val" => row_i64(row, "label")
+            .and_then(|l| XNLI_KEYS.get(l as usize))
+            .map(|k| (*k).to_string()),
         _ => row_i64(row, "label").map(|l| l.to_string()),
     }
 }
@@ -1425,9 +1490,11 @@ mod selection_slice_tests {
 
     #[test]
     fn round_robin_interleaves_labels_in_order() {
+        // "sst5" — an int-label suite (train_row_label's default arm — the
+        // option-key suites bind through the key consts since issue 077).
         let env = envelope(grouped_rows(3, 4));
         let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
-        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 6);
+        let s = stratified_selection_slices(&env, "sst5", &labels, 0, 6);
         assert_eq!(s.n_picks, 6);
         assert_eq!(front_labels(&s), ["0", "1", "2", "0", "1", "2"]);
     }
@@ -1439,7 +1506,7 @@ mod selection_slice_tests {
         // pool region never sees again).
         let env = envelope(grouped_rows(3, 4));
         let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
-        let s = stratified_selection_slices(&env, "ag_news", &labels, 4, 9);
+        let s = stratified_selection_slices(&env, "sst5", &labels, 4, 9);
         // Budget 9 is unfillable: the pool region carries only 8 rows
         // (labels 1 and 2, 4 each) — the front takes all 8 and never a
         // prefix row.
@@ -1456,7 +1523,7 @@ mod selection_slice_tests {
         rows.push(serde_json::json!({ "label": 9, "text": "t9_0" }));
         let env = envelope(rows);
         let labels: Vec<String> = (0..2).map(|i| i.to_string()).collect();
-        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 10);
+        let s = stratified_selection_slices(&env, "sst5", &labels, 0, 10);
         assert_eq!(s.n_picks, 4); // the label-9 row is unpickable
         assert!(!front_labels(&s).iter().any(|l| l == "9"));
     }
@@ -1465,7 +1532,7 @@ mod selection_slice_tests {
     fn permuted_envelope_preserves_every_row() {
         let env = envelope(grouped_rows(3, 4));
         let labels: Vec<String> = (0..3).map(|i| i.to_string()).collect();
-        let s = stratified_selection_slices(&env, "ag_news", &labels, 0, 5);
+        let s = stratified_selection_slices(&env, "sst5", &labels, 0, 5);
         let permuted = s.permuted.get("rows").unwrap().as_array().unwrap();
         assert_eq!(permuted.len(), 12); // every row survives the permutation
         // The front IS the permuted envelope's head.
@@ -1577,7 +1644,9 @@ mod stratified_split_tests {
     fn unbalanced_labels_get_proportional_picks() {
         // banking77 shape: many labels, budget spanning all with a remainder
         // — every label picks at least once, no label more than one extra.
-        let s = stratified_split(&envelope(grouped_rows(7, 2)), "ag_news", 10);
+        // ("sst5" — an int-label suite; the option-key suites cap their
+        // label universe at the key consts since issue 077.)
+        let s = stratified_split(&envelope(grouped_rows(7, 2)), "sst5", 10);
         assert_eq!(s.n_picks, 10);
         let mut per_label: std::collections::HashMap<char, usize> =
             std::collections::HashMap::new();
@@ -1619,7 +1688,7 @@ mod thai_builder_tests {
     //! envelope fixtures).
 
     use super::{QKind, build_s1mb_choice, build_s1mb_noul, build_s1mb_score};
-    use super::{build_thai_sib200, build_thai_wisesight, train_docs};
+    use super::{WISESIGHT_KEYS, build_thai_sib200, build_thai_wisesight, train_docs};
 
     fn envelope(rows: Vec<serde_json::Value>) -> serde_json::Value {
         let wrapped: Vec<serde_json::Value> = rows
@@ -1665,8 +1734,16 @@ mod thai_builder_tests {
         ]);
         let docs = train_docs(&env, "thai_wisesight");
         assert_eq!(docs.len(), 2);
-        assert_eq!((docs[0].label.as_str(), docs[0].text.as_str()), ("1", "a"));
-        assert_eq!((docs[1].label.as_str(), docs[1].text.as_str()), ("2", "b"));
+        // Issue 077: the int category maps through the OPTION-KEY consts —
+        // the engine's domain names (content binding), not "1"/"2".
+        assert_eq!(
+            (docs[0].label.as_str(), docs[0].text.as_str()),
+            (WISESIGHT_KEYS[1], "a")
+        );
+        assert_eq!(
+            (docs[1].label.as_str(), docs[1].text.as_str()),
+            (WISESIGHT_KEYS[2], "b")
+        );
     }
 
     #[test]

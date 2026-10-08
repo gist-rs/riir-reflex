@@ -142,11 +142,20 @@ cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairh
 # 0.6542 is the honest confidence surface there):
 cargo run --release --bin harness -- --skip-laya --nli-feature-ab --out /tmp/nli_feature_ab
 
-# The Issue 047 M1 validation-reopen lane (CLOSED, Bench 073; reads
+# Issue 047 M1 validation-reopen lane (CLOSED, Bench 073; reads
 # xnli_en_val ONLY — never the spent test split):
 cargo run --release --bin harness -- --skip-laya --head-select --nb-select --ridge-select \
   --nli-m1 --suites xnli_en_val --datasets-dir .raw/datasets_t20k \
   --out .benchmarks/073_nli_m1_validation
+
+# Option-permutation spread probe (Issue 077 / Bench 128): every probed lane
+# answers each choice question under K deterministic option orderings through
+# its own decide path; gate median ≤ 2 pt; the modelless control holds
+# ties-only flips + the L1 fp envelope (a control red refuses the run).
+# Comparison lanes ride --drex / --agentjev (servers up, loud refusals);
+# laya rides its feature + G5 parity FIRST (`--test laya_riir_parity`).
+cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
+cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
 
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN
 # else PATH — build: (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)):

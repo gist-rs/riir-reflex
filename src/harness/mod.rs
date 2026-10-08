@@ -26,6 +26,11 @@ pub mod fixture_hygiene;
 // rethink 028 T1's instrument). Ungated + pure: reads materialized eval
 // vectors, never runs an engine.
 pub mod item_dump;
+// Issue 077 — the option-PERMUTATION spread probe (pure core): orderings,
+// permutation application, label-space mapping, spread math, the ≤ 2 pt
+// gate, and the canary. Ungated + pure; the lanes live in the runner half
+// (`runner/perm_probe.rs`) behind the `ChoiceOracle` seam.
+pub mod permutation;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
 // Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm

@@ -122,6 +122,15 @@ pub use synth::{
 mod corpus_ab;
 pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
 
+// Issue 077 — the option-PERMUTATION spread probe (lane-agnostic over the
+// `ChoiceOracle` seam; the pure core is `crate::harness::permutation`).
+mod perm_probe;
+pub use perm_probe::{
+    render_perm_probe_markdown, run_perm_probe, CaseRow, DEFAULT_PERM_K, DEFAULT_PERM_MAX_CASES,
+    PermLaneReport, PermProbeMeta, PermProbeOptions, PermProbeOutput, PermSuiteReport,
+};
+pub use crate::harness::permutation::SpreadVerdict;
+
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{
@@ -6116,15 +6125,19 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         // vocabulary exactly like the exempt branch below describes.
         "s1mb_noul" => vec!["false".to_string(), "true".to_string()],
         "s1mb_choice" | "s1mb_score" => option_key_union.clone(),
-        "ag_news" => (0..4).map(|i| i.to_string()).collect(),
-        "emotion" => (0..6).map(|i| i.to_string()).collect(),
-        "sst5" => (0..5).map(|i| i.to_string()).collect(),
-        "xnli_en" | "xnli_en_val" => (0..3).map(|i| i.to_string()).collect(),
-        "prompt_injections" => (0..2).map(|i| i.to_string()).collect(),
-        // Plan 003: wisesight's int ClassLabel (train docs carry ints, like
-        // emotion); sib200's string categories ride the default branch below
-        // (train docs and option keys are the same strings).
-        "thai_wisesight" => (0..4).map(|i| i.to_string()).collect(),
+        // Issue 077: the fixed-criteria classification suites name their
+        // engine domains by the OPTION KEYS (content binding for the
+        // by-name option→domain resolution). train_row_label maps the
+        // rows' int class labels through the SAME key consts, so corpora,
+        // stratification, and the slice audit all read one spelling. The
+        // count guards below pin the fetch (the old int-label vectors
+        // hardcoded these counts; the union now carries them).
+        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight" => {
+            option_key_union.clone()
+        }
+        // Noul-only: no option keys — the classes ride the train-doc
+        // integer labels (the exemption the slice audit documents).
+        "prompt_injections" => vec!["0".to_string(), "1".to_string()],
         "typed_decisions" => {
             // The workflow names from the TEST case ids (id =
             // "<workflow>:<row_idx>"), sorted for a stable domain order.
@@ -6142,20 +6155,30 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     // For fixed-criteria classification suites the engine domains must be
     // exactly as numerous as the option keys (pick index ↔ domain index).
     // Noul-only suites present no option keys — exempt (their classes ride
-    // the train-doc labels).
-    if matches!(
-        spec.name,
-        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight"
-    ) {
-        assert_eq!(
-            labels.len(),
-            option_key_union.len(),
-            "suite {}: {} class labels vs {} option keys — the fetch/protocol \
-             and the engine arming disagree",
-            spec.name,
-            labels.len(),
-            option_key_union.len()
-        );
+    // the train-doc labels). Issue 077: the labels ARE the option-key union
+    // now (content binding), so the fetch guard is the EXPECTED KEY SET —
+    // an exact membership pin, not a bare count (a swapped key would
+    // otherwise silently rebind every corpus).
+    {
+        let expected: Option<Vec<&str>> = match spec.name {
+            "ag_news" => Some(crate::harness::suites::AG_NEWS_KEYS.to_vec()),
+            "emotion" => Some(crate::harness::suites::EMOTION_KEYS.to_vec()),
+            "sst5" => Some(vec!["0", "1", "2", "3", "4"]),
+            "xnli_en" | "xnli_en_val" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
+            "thai_wisesight" => Some(crate::harness::suites::WISESIGHT_KEYS.to_vec()),
+            "prompt_injections" => Some(vec!["0", "1"]),
+            _ => None,
+        };
+        if let Some(expected) = expected {
+            let spelled: Vec<&str> = labels.iter().map(String::as_str).collect();
+            assert_eq!(
+                spelled, expected,
+                "suite {}: the option-key universe drifted from the fetch law — \
+                 the engine domains would silently rebind (issue 077's content \
+                 binding keys corpora to option CONTENT, so the set is pinned)",
+                spec.name
+            );
+        }
     }
     if spec.name == "banking77" {
         assert_eq!(
