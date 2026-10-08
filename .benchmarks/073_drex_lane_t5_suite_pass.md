@@ -103,4 +103,4 @@ cross-lane latency comparison law (the laya-python IPC disclosure) applies.
 
 - `.benchmarks/073_drex_t5/results.json` + `TABLES.md` (typed_decisions)
 - `.benchmarks/073_drex_t5_smoke/results.json` + `TABLES.md` (sst5)
-- Lane: `src/lanes/drex.rs` (T1–T4 @ `48206d5`); issue: `.issues/073_drex_systemone_lane.md`
+- Lane: `src/lanes/drex.rs` (T1–T4 @ `48206d5`); issue 073 CLOSED 2026-10-08 (file removed; `git log --follow -- .issues/073_drex_systemone_lane.md`)

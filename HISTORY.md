@@ -5,6 +5,44 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-08 — Issue 075 CLOSED (the G4 800-alloc red at the nb_ridge posture): a per-question env lookup, not the ridge math
+
+Root cause measured, not guessed (`284cc98`): `std::env::var_os` ALLOCATES on Windows even
+for a MISSING variable (probe: 1000 missing-var lookups → 1000 allocations, standalone
+counting-allocator binary), and the `[ridge-dbg]` guard read the env PER ROUTE-ACTIVE
+QUESTION — 4 of the bench request's 8 questions (noul never takes route terms) — so the
+G4 loop's 200 solves × 4 = exactly the 800 allocations the gate counted. The issue's
+"likely shape" (ridge readout allocating / katgpt-core 0.4.1 growth) was WRONG: the ridge
+math (`in_score`, `blend_term`, the capacity-retained scratch buffers) was already
+alloc-free; the issue's option (b) (re-gate the G4 arm) was also wrong — the arm was
+correct to arm the serve posture, the code was in violation. Fix: the flag cached in a
+`OnceLock<bool>` (`ridge_debug_enabled`, engine.rs) — one-time init rides the first solve
+(warmup); a var set after that is not observed (debug flag, never a config surface); the
+per-question Win32 env call + lock leave the hot path entirely. Attributed-pre-existing
+confirmed: the lookup landed with the readout itself (issue 038 T7a), dormant until the
+073 session's final guard run reached this cell red. Validation: the bench at all four
+postures G4=0 (nb_ridge 800→0, G2 p99 45 µs); `ci_feature_guard.sh` layers 1–8 green
+(clippy ×5 postures, 303 lib tests, G5 laya parity, bench, docs shape); flag semantics
+verified live (RIIR_DEBUG_RIDGE=1 → 2812 [ridge-dbg] lines = 703 solves × 4). Windows
+lesson for the record: a fresh `sentencepiece-sys` C++ build in an ISOLATED target dir
+fails MSVC C1056 under 24-way cmake parallelism (the katgpt-rs load-robustness class:
+C1001/D804/C1056) — the repo's warm `target/` never rebuilds it; cap
+`CMAKE_BUILD_PARALLEL_LEVEL` when a cold laya build is unavoidable.
+
+## 2026-10-08 — Issue 073 CLOSED (the Drex DLM comparison lane): measurement-only, card vindicated over homepage
+
+Closed by the sibling session the same day it landed (T1–T4+T6 @ `48206d5`, T5 @
+`a1bae34`); the issue file's own status block said "removed per the noise-reduction rule"
+but the removal never happened — this entry completes the closure and the file goes now
+(hygiene, nothing references it but a path line in the bench record, updated in the same
+commit). The standing documentation is `.benchmarks/073_drex_lane_t5_suite_pass.md`
+(serving posture + box state + turnkey serving setup) + the `src/lanes/drex.rs` module
+doc. Headline cells: typed_decisions acc 0.5865, readout_ece 0.1929 / readout_brier
+0.2663 — their confidence is NOT calibrated (the card's disclaimer vindicated over the
+homepage claim); sst5 smoke 0.5900 above every published sst5 bar (disclosed board
+re-pricing, never a seat — CC BY-NC, measurement only). Open follow-up: issue 076 T1
+(the BF16/CUDA det re-read under the `latency_ms` strip).
+
 ## 2026-10-07 — Issue 072 CLOSED (`--dump-items`): the per-item outcome dump instrument served rethink 028's POC the same day it landed
 
 Landed as `fd8e832` (same commit as this issue file, per the cross-repo hygiene rule) and closed the
