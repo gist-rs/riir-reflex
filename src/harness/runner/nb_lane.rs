@@ -123,6 +123,7 @@ pub(super) fn build_nb_selection<const N: usize>(
                     nb_noul_domain: noul,
                     nb_view: view,
                     legacy_kn_route: inp.kn_route,
+                    drafter_fix: inp.drafter_fix,
                     // Forced: never abstain (conf ≤ 1 < threshold).
                     score_threshold: 2.0,
                     distance_threshold: 2.0,

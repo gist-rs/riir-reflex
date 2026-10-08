@@ -63,7 +63,8 @@ use crate::harness::suites::{
     build_massive_intent_en, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
     build_s1mb_score, build_sst5, build_thai_sib200,
     build_thai_wisesight, build_typed_decisions,
-    build_xnli_en, stratified_selection_slices, stratified_split, train_docs, train_row_label,
+    build_wanli_en, build_xnli_en, stratified_selection_slices, stratified_split, train_docs,
+    train_row_label,
 };
 use crate::pyjson::serialize_state;
 use crate::readout::ReadoutMode;
@@ -310,6 +311,25 @@ const SUITES: &[SuiteSpec] = &[
         named_only: true,
         coverage_audit: true,
         build: build_xnli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    // Issue 080 — the ESC re-source NLI lane (rethink Issue 024 / Research
+    // 002): WANLI re-enters the xnli_en niche under a clean CC BY grant.
+    // `named_only` (the thai_* precedent — an opt-in via `--suites`, never a
+    // default-run member); the eval cap rides the stratified round-robin
+    // over the WHOLE 5,000-row test split (the banking77 posture), the pool
+    // floor sits on the TRAIN_CAP=20000 pull (slice_guard 16_000).
+    SuiteSpec {
+        name: "wanli_en",
+        dataset_dir: "wanli_en",
+        test_cap: 300,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: true,
+        coverage_audit: true,
+        build: build_wanli_en,
         synthetic: None,
         modelless_lane: true,
     },
@@ -2356,6 +2376,13 @@ struct ModellessInput<'a> {
     /// posture — every modelless-lane engine build (fitted, selection,
     /// transductive) arms route terms only via by-name resolution.
     pub kn_route: bool,
+    /// Issue 079: the drafter-only correction mode for the questions that
+    /// go drafter-only when the legacy binding is off (typed's short
+    /// option keys). Default `Off` = the shipped scores, byte-identical;
+    /// `--drafter-fix <mode>` arms one of the [`DrafterFix`] candidates
+    /// (issue 036 T2) so the content-bound posture is measured TUNED,
+    /// not at an arbitrary drafter posture.
+    pub drafter_fix: crate::engine::DrafterFix,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -2430,6 +2457,7 @@ fn build_selection_measurement<const N: usize>(
             EngineConfig {
                 head_scale: inp.head_scale,
                 legacy_kn_route: inp.kn_route,
+                drafter_fix: inp.drafter_fix,
                 ..EngineConfig::default()
             },
         )?;
@@ -2619,6 +2647,7 @@ fn build_head_scale_selection<const N: usize>(
             EngineConfig {
                 head_scale: scale,
                 legacy_kn_route: inp.kn_route,
+                drafter_fix: inp.drafter_fix,
                 // Forced: never abstain (conf ≤ 1 < threshold).
                 score_threshold: 2.0,
                 distance_threshold: 2.0,
@@ -2976,6 +3005,7 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     let mut default_cfg = EngineConfig {
         head_scale: selected_scale,
         legacy_kn_route: inp.kn_route,
+        drafter_fix: inp.drafter_fix,
         ..EngineConfig::default()
     };
     #[cfg(feature = "nb_scope")]
@@ -6325,9 +6355,8 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         // stratification, and the slice audit all read one spelling. The
         // count guards below pin the fetch (the old int-label vectors
         // hardcoded these counts; the union now carries them).
-        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight" => {
-            option_key_union.clone()
-        }
+        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight"
+        | "wanli_en" => option_key_union.clone(),
         // Noul-only: no option keys — the classes ride the train-doc
         // integer labels (the exemption the slice audit documents).
         "prompt_injections" => vec!["0".to_string(), "1".to_string()],
@@ -6358,6 +6387,10 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             "emotion" => Some(crate::harness::suites::EMOTION_KEYS.to_vec()),
             "sst5" => Some(vec!["0", "1", "2", "3", "4"]),
             "xnli_en" | "xnli_en_val" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
+            // Issue 080: wanli_en shares the xnli key consts — the gold
+            // string maps through the SAME order, so the expected-key pin is
+            // the same set.
+            "wanli_en" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
             "thai_wisesight" => Some(crate::harness::suites::WISESIGHT_KEYS.to_vec()),
             "prompt_injections" => Some(vec!["0", "1"]),
             _ => None,
@@ -6719,6 +6752,7 @@ pub mod seat {
             // route binding — the arena's selection surface is the instinct
             // manifest, not a reflex CLI flag.
             kn_route: true,
+            drafter_fix: crate::engine::DrafterFix::Off,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -7117,6 +7151,9 @@ pub struct RunOptions {
     /// only via by-name resolution) so both sides of the bench-128
     /// position-binding finding are measurable in one binary.
     pub kn_route: bool,
+    /// Issue 079: the drafter-only correction mode (see
+    /// [`ModellessInput::drafter_fix`]). Default `Off`.
+    pub drafter_fix: crate::engine::DrafterFix,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -7559,6 +7596,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 gate_distance_only: opts.gate_distance_only,
                 gate_fit_calibrated: opts.gate_fit_calibrated,
                 kn_route: opts.kn_route,
+                drafter_fix: opts.drafter_fix,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -8111,6 +8149,13 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 p.push_str("; --no-kn-route: the legacy k==N index-alignment route \
                             binding disabled — route terms arm only via by-name \
                             resolution (issue 079 content-bound posture)");
+            }
+            if opts.drafter_fix != crate::engine::DrafterFix::Off {
+                p.push_str(&format!(
+                    "; --drafter-fix {}: the drafter-only correction mode armed \
+                     (issue 079 tuning axis; EngineConfig::drafter_fix, issue 036 T2)",
+                    opts.drafter_fix.as_str()
+                ));
             }
             p
         },

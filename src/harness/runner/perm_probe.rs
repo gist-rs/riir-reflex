@@ -531,6 +531,7 @@ fn perm_modelless<const N: usize>(
         gate_distance_only: false,
         gate_fit_calibrated: true,
         kn_route,
+        drafter_fix: crate::engine::DrafterFix::Off,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,

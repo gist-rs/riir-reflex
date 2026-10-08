@@ -23,7 +23,8 @@
 //!                                      [--d1] [--paw] [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
-//!                                      [--no-gate-fit-calibrated]
+//!                                      [--no-gate-fit-calibrated] [--no-kn-route]
+//!                                      [--drafter-fix <off|per_byte|ncd|shared_prefix|key_only>]
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -233,6 +234,10 @@ fn harness_main() {
         // sides of the bench-128 position-binding finding are measurable
         // in one binary.
         kn_route: true,
+        // Issue 079 — the drafter-only corrections are OFF by default (the
+        // shipped scores, byte-identical); `--drafter-fix <mode>` arms one
+        // for the content-bound posture's tuning axis.
+        drafter_fix: riir_reflex::engine::DrafterFix::Off,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -327,6 +332,17 @@ fn harness_main() {
             "--gate-fit-calibrated" => opts.gate_fit_calibrated = true,
             "--no-gate-fit-calibrated" => opts.gate_fit_calibrated = false,
             "--no-kn-route" => opts.kn_route = false,
+            "--drafter-fix" => {
+                i += 1;
+                let mode = args
+                    .get(i)
+                    .unwrap_or_else(|| die("--drafter-fix needs a mode"))
+                    .clone();
+                opts.drafter_fix = riir_reflex::engine::DrafterFix::from_spelling(&mode)
+                    .unwrap_or_else(|| {
+                        die("unknown --drafter-fix mode (expected off|per_byte|ncd|shared_prefix|key_only)")
+                    });
+            }
             "--cascade-worthiness-margin" => {
                 i += 1;
                 opts.cascade_worthiness_margin = args

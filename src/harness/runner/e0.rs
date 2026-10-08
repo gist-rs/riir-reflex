@@ -222,6 +222,7 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path, kn_route: bool) -> Result<E0Suite, Str
         // Issue 079: the route-binding posture rides the invocation, like
         // every modelless engine build.
         kn_route,
+        drafter_fix: crate::engine::DrafterFix::Off,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,
