@@ -1,6 +1,10 @@
 # Research 008 — Drex DLM (Nace.AI): the diffusion-LM decision model, new top open entry on the Decision Index
 
-**Status:** RECORD — external-repo distill (owner ask, 2026-10-07). Lane issue filed: `.issues/073_drex_systemone_lane.md`.
+**Status:** RECORD — external-repo distill (owner ask, 2026-10-07). Lane CLOSED: issue 073
+landed `48206d5`/`a1bae34` + `cd0248b`, closed and removed upstream (closure narrative in
+`HISTORY.md`); its follow-up issue 076 (det re-read + the per-kind confidence cells)
+ALSO closed — det ✓ 10/10 under the timing-tail strip at BOTH serving postures, the
+not-calibrated verdict three-posture (Benches 125 + 126).
 
 > External source: `nace-ai/drex-dlm` @ `6c63df209db96c32160e1b4dfc769efb56b21f89`
 > (cloned 2026-10-07; repo code MIT, model weights **CC BY-NC 4.0**). HF:

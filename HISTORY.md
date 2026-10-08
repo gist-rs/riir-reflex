@@ -5,6 +5,26 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-08 — Issue 076 CLOSED (Drex follow-ups): the det ✗ was the timing tail, measured twice more; the per-kind cells are lane surface
+
+Three tasks, all landed: T3 the `decide_raw` latency-tail strip + test (`cd0248b`, from
+Bench 125's control — a raw byte-compare measures their clock, never the decision); T2 the
+per-kind confidence cells + split-half conformal floor on the upstream lane (`7162840` —
+`map_confidences` reads THEIR wire confidence per question (noul None, never fabricated;
+missing field = loud error), `assemble_drex_conf_readout` through `harness::metrics` only
+(`DREX_MIN_FLOOR_PAIRS` 40, first-half-cal/second-half-test), carried on
+`LaneResult.drex_conf_readout` skip-when-none, plus the four surfaces the upstream lane was
+missing entirely: TABLES.md row, the their-confidence detail line, JDI crosswalk inclusion,
+the meta line); T1 the BF16/CUDA det re-read on the 4090 (Bench 126
+`.benchmarks/126_drex_det_reread/`: **det ✓ 10/10 under the strip** with accuracy,
+readout_ece/brier and token counts EXACTLY the pre-strip T5's — 0.5865 / 0.1929-0.2663 /
+191,962 in · 164,821 out — so no measured reduction nondeterminism exists on that posture,
+and the agentjev lane's recorded det ✗ carries the same artifact, unscheduled fix). The
+not-calibrated verdict is now THREE-posture: choice 0.1471 / score 0.2477 vs split-half
+floor 0.1220 at BF16/CUDA (Bench 126) agreeing with Q8_0/Metal's 0.1460/0.2495 vs 0.1158
+(Bench 125) — the card's disclaimer beats the homepage marketing everywhere measured.
+Research note 008's status line refreshed to the closure records.
+
 ## 2026-10-08 — Issue 075 CLOSED (the G4 800-alloc red at the nb_ridge posture): a per-question env lookup, not the ridge math
 
 Root cause measured, not guessed (`284cc98`): `std::env::var_os` ALLOCATES on Windows even
