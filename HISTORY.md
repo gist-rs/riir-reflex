@@ -5,6 +5,24 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-09 — Issue 080 CLOSED: the wanli_en ESC re-source lane complete end-to-end (fetch → ledger → wiring → Bench 130 → the last leftover fixed); the t3 slice_leak wiring gate un-panicked for the Thai suites
+
+**Status: Resolved.** The reflex-side half of the ESC re-source (rethink Issue 024 owns
+the re-fit) landed in one lane 2026-10-08; the leftover PRE-EXISTING failure it reported
+(the opt-in `t3_runner_wiring_reproduces_the_probe_over_built_cases` gate panicking
+`thai_sib200: no builder — the wiring cannot scan it`, verified at clean HEAD `59b02c8`)
+is fixed at `6002a4c`: the test-local `build_suite` dispatch gained the
+`thai_sib200`/`thai_wisesight` arms — the builders always existed in `suites.rs` (the
+runner dispatches to them); only the gate's own match was never extended when the
+Plan 003 T3.2 suites landed 2026-10-02, and the opt-in feature meant nothing ran it.
+Counts reproduce the live probe exactly (thai_sib200 exact=143 near=1/61;
+thai_wisesight exact=280 near=2/120 — G1's numbers, now also asserted through the
+built-case path). Full local gate green: slice_leak oracle 6/6, default `cargo test`
+353 lib + all integration targets, clippy `-D warnings` at 3 postures. Standing note:
+the wanli_en arm predates this fix and validates wherever its data is fetched (this
+box does not carry the suite); the MNLI seed-influence owner call rides the ledger row
+(`.docs/02_protocols/dataset_manifest.md` §Licences + §11) — recorded, not settled.
+
 ## 2026-10-08 — Issue 079 CLOSED: the legacy `k == N` position binding replaced by the index-anchored law — typed content-bound at the default (0.5630; board posture + per_byte lever 0.5700, −0.25 pt vs the leaked 0.5725), sst5's ordinal binding byte-preserved, the perm control PASSES on all ten suites, instinct H2 typed seat digit-holds 0.6475 (T2 PASS)
 
 **Status: owner-gated A/B/C resolved via the Claude verdict protocol (round 1 REVISE — four
