@@ -1,0 +1,9 @@
+ok   power       AC (PowerLineStatus=Online)
+ok   scheme      High performance
+ok   load        10% x 24 = 2.4 loadavg-equivalent (ceiling 6)
+ok   swap used   3569MB
+info gpu         0 %, 638 MiB (disclosure only - a lane server is legitimately busy while serving timed requests)
+info canary      SKIPPED - no pinned Windows canary (the .sh canary is laya-Metal-specific)
+
+PROVENANCE: power=AC scheme=high load=2.4 swap=3569MB gpu=0 %, 638 MiB canary=skipped
+OK preflight PASSED - quote the PROVENANCE line in the bench record

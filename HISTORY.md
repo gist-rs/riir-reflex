@@ -20,9 +20,12 @@ the meta line); T1 the BF16/CUDA det re-read on the 4090 (Bench 126
 readout_ece/brier and token counts EXACTLY the pre-strip T5's — 0.5865 / 0.1929-0.2663 /
 191,962 in · 164,821 out — so no measured reduction nondeterminism exists on that posture,
 and the agentjev lane's recorded det ✗ carries the same artifact — fixed the same day by
-the `usage.wall_ms` strip in `AgentJevLane::decide_raw`, the Drex law mirrored; see the
-Bench 039 addendum — what remains there is their disclosed bf16 wobble, a MEASUREMENT
-question on their serving posture, not a code question). The
+the `usage.wall_ms` strip in `AgentJevLane::decide_raw`, the Drex law mirrored, and the
+post-strip re-read measured the same day on the 4090 (Bench 127
+`.benchmarks/127_agentjev_det_reread/`: **det ✓ 10/10 byte-identical** at their CUDA/BF16
+posture, acc 0.7720 == bench 123's cell exactly — the det ✗ was the timing tail, all of
+it; their bf16 wobble unfired in 20 observed requests; Plan 011's "unquoted (det ✗)"
+caveat is LIFTED at the current posture). The
 not-calibrated verdict is now THREE-posture: choice 0.1471 / score 0.2477 vs split-half
 floor 0.1220 at BF16/CUDA (Bench 126) agreeing with Q8_0/Metal's 0.1460/0.2495 vs 0.1158
 (Bench 125) — the card's disclaimer beats the homepage marketing everywhere measured.
@@ -104,6 +107,10 @@ typed · `fnv1a64-dd8ab35333abb82a` b77), the crosswalk's digest asserts holding
   per the 014 class-wide latency class — record cell, the incumbent arm serves) vs Clef-local
   0.6955 / 0.6742 / 0.5696 @ p50 1690 ms (bench 118 quiet-box): **+5.95 pt accuracy at ~36× lower
   p50**. Instinct hybrid 0.6475 third; AgentJev's 0.7715 stays unquoted (det ✗).
+  **2026-10-08: caveat LIFTED** — the det ✗ was their `usage.wall_ms` timing tail in the
+  compare input (Bench 127: post-strip det ✓ 10/10, acc 0.7720 at the current
+  `@68883998` posture); the 0.7715 cell is quotable again with its det column clean
+  (see the bench-039 addendum 2).
 - **banking77 (500 cases): CLEF-LOCAL LEADS EVERY MEASURED LANE** — 0.9540 / 0.9536 / 0.9533 @
   p50 3368 ms vs Instinct 0.8540 (best other), modelless 0.8420, bekko 0.7920, openthai 0.6560.
   The Rethink encoder carries NO b77 cell (tier-fallback, excluded by construction — rethink

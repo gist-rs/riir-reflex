@@ -99,12 +99,15 @@ request, the cross-lane latency unit every other lane uses.
   over-determined: the timing tail alone forces it, BY CONSTRUCTION. The
   `AgentJevLane::decide_raw` compare input now strips `usage.wall_ms` (the
   Issue-075 Drex strip law, mirrored; unit-tested against a canned server).
-  ⚠ This does NOT yet re-verdict the column: their disclosed bf16 wobble
-  (3rd-decimal probability drift, their own README class) is a separate,
-  plausible contributor the strip does not remove — a post-strip det read
-  on their serving posture is the pending measurement. Until then the
-  quoted cells above stand, and the det ✗ is UNADJUDICATED (neither
-  confirmed nor cleared), never quietly ✓.
+  **2026-10-08 addendum 2 (Bench 127): the pending measurement LANDED — det ✓.** At the
+  current serving posture (the bench-123 re-staged weights, `@68883998` — bench 123
+  established they serve the same effective model as the original `@9d9b5fc3` rows
+  above; 0.7715 vs 0.7720 is the one-question wobble class) the post-strip det column
+  reads **✓ 10/10 byte-identical** with acc 0.7720 == bench 123's cell exactly. The det
+  ✗ above was the timing tail, all of it, at this posture; their bf16 wobble went
+  UNFIRED in the 20 observed requests. Cite Bench 127
+  (`.benchmarks/127_agentjev_det_reread/`); the typed_decisions number is quotable
+  with its det column clean there.
 - The modelless cells are bit-identical to the published 4090 cells (the
   standing drift gate; `code_fixtures` the designed commit-relative
   exclusion).
