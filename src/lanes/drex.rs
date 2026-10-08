@@ -49,6 +49,7 @@
 
 use std::time::{Duration, Instant};
 
+use serde::Serialize;
 use serde_json::{json, Map, Value};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
@@ -71,12 +72,57 @@ pub const MAX_OPTIONS: usize = 255;
 pub type AnswerTriple = (Vec<f64>, usize, f64);
 
 /// One decide round's full yield: the answer triples, their scorer-side
-/// `latency_ms`, and their billing-style token counts.
+/// `latency_ms`, the token counts, and THEIR wire `confidence` per question
+/// (`None` for noul — the wire carries no noul confidence; see
+/// [`map_confidences`]). The runner's confidence-vs-correctness readout
+/// (issue 076 T2) consumes the last channel; the pooled readout pairs the
+/// shared tail computes stay the `answers` triples' conf.
 pub struct DecideOutcome {
     pub answers: Vec<AnswerTriple>,
+    pub confidences: Vec<Option<f64>>,
     pub latency_ms: Option<f64>,
     pub input_tokens: u64,
     pub output_tokens: u64,
+}
+
+/// One per-kind cell of the confidence-vs-correctness readout (Bench 125's
+/// instrumentation, landed by issue 076 T2): ECE + Brier of THEIR reported
+/// `confidence` against gold correctness for one question kind. The runner
+/// computes the values through `crate::harness::metrics` only — this module
+/// owns the shape, never the math (no parallel ECE).
+#[derive(Debug, Clone, Serialize)]
+pub struct DrexConfCell {
+    pub n: usize,
+    pub ece: f64,
+    pub brier: f64,
+}
+
+/// The Drex lane's confidence-vs-correctness readout (issue 073 T4 as
+/// extended by 076 T2): per-kind cells over THEIR wire `confidence` fields
+/// beside the split-half conformal-naive floor companion. Carried on
+/// `LaneResult::drex_conf_readout` (serde skip-when-none) — every other
+/// lane leaves it `None`, never a fabricated row.
+#[derive(Debug, Clone, Serialize)]
+pub struct DrexConfReadout {
+    pub choice: Option<DrexConfCell>,
+    pub score: Option<DrexConfCell>,
+    /// Always `None` — the wire carries no noul confidence. The field names
+    /// the kind so results.json DISCLOSES the absence explicitly instead of
+    /// leaving the reader to infer it from the kind mix.
+    pub noul: Option<DrexConfCell>,
+    /// The split-half conformal-naive floor ECE over ALL their-conf pairs
+    /// pooled: the first half calibrates the conformal CDF, the second half
+    /// is audited through it. `None` when the pooled window sits below the
+    /// runner's occupancy floor (`DREX_MIN_FLOOR_PAIRS`) — a floor over a
+    /// window that small is noise, and a fabricated one is worse.
+    pub floor_ece: Option<f64>,
+    pub floor_n_cal: usize,
+    pub floor_n_test: usize,
+    /// The floor's posture, disclosed verbatim in every render: this lane
+    /// has no dedicated cal slice, so its floor is the cheap split-half
+    /// companion and must never be read against the modelless lane's
+    /// dedicated-window floor.
+    pub floor_posture: &'static str,
 }
 
 /// The lane: a thin loopback HTTP/1.1 client to their service.
@@ -164,6 +210,7 @@ impl DrexLane {
             .map_err(|e| format!("drex response ({}): {e}", case.id))?;
         let outcome = DecideOutcome {
             answers: map_answers(case, &parsed)?,
+            confidences: map_confidences(case, &parsed)?,
             latency_ms: parsed.get("latency_ms").and_then(Value::as_f64),
             input_tokens: parsed
                 .pointer("/usage/input_tokens")
@@ -397,7 +444,42 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
     Ok(out)
 }
 
-// ───────────────────────────────────────────────────────────────── tests
+/// THEIR wire `confidence` per question, in OUR question order: `Some` for
+/// choice/score (the formula is theirs — the T4/076 audit axis), `None` for
+/// noul (the wire carries no noul confidence — never fabricated). A
+/// choice/score answer WITHOUT the field is a loud error, not a silent
+/// fallback: their `api.py` always emits it, so its absence means the wire
+/// drifted and every cell built on it would silently read a substitute.
+pub fn map_confidences(case: &SuiteCase, body: &Value) -> Result<Vec<Option<f64>>, String> {
+    let answers = body
+        .get("answers")
+        .and_then(Value::as_object)
+        .ok_or_else(|| "response has no answers object".to_string())?;
+    let mut out = Vec::with_capacity(case.questions.len());
+    for q in &case.questions {
+        let a = answers
+            .get(&q.qid)
+            .ok_or_else(|| format!("qid {}: no answer in response", q.qid))?;
+        match q.kind {
+            QKind::Noul => out.push(None),
+            QKind::Choice | QKind::Score => {
+                let conf = a
+                    .get("confidence")
+                    .and_then(Value::as_f64)
+                    .ok_or_else(|| {
+                        format!(
+                            "qid {}: {} answer carries no `confidence` number (their \
+                             api.py always emits it — the wire drifted)",
+                            q.qid,
+                            q.kind.as_str()
+                        )
+                    })?;
+                out.push(Some(conf));
+            }
+        }
+    }
+    Ok(out)
+}
 
 #[cfg(test)]
 mod tests {
@@ -533,6 +615,55 @@ mod tests {
         let c = case(json!("s"), vec![("q0", QKind::Noul, "d?", Value::Null)]);
         let resp = json!({"answers": {}});
         assert!(map_answers(&c, &resp).is_err());
+    }
+
+    #[test]
+    fn wire_confidences_read_per_kind_and_noul_stays_none() {
+        // Issue 076 T2: the same answers body as the mapping test — THEIR
+        // `confidence` rides `Some` for choice/score, `None` for noul (the
+        // wire carries no noul confidence; the derived top-side probability
+        // must never masquerade as one).
+        let c = case(
+            json!("s"),
+            vec![
+                ("q0", QKind::Noul, "done?", Value::Null),
+                ("q1", QKind::Choice, "pick", json!({"a": null, "b": null})),
+                ("q2", QKind::Score, "rate", json!(["lo", "mid", "hi"])),
+            ],
+        );
+        let resp = json!({
+            "answers": {
+                "q0": {"type": "noul", "noul": 0.85},
+                "q1": {
+                    "type": "choice", "choice": "b", "confidence": 0.55,
+                    "probabilities": {"a": 0.3, "b": 0.7}
+                },
+                "q2": {
+                    "type": "score", "score": 1.8, "legend": ["lo", "mid", "hi"],
+                    "probabilities": {"0": 0.1, "1": 0.2, "2": 0.7}, "confidence": 0.6
+                }
+            }
+        });
+        let confs = map_confidences(&c, &resp).unwrap();
+        assert_eq!(confs, vec![None, Some(0.55), Some(0.6)]);
+    }
+
+    #[test]
+    fn missing_choice_confidence_is_a_loud_error_not_a_fallback() {
+        // api.py ALWAYS emits `confidence` for choice/score — a body without
+        // it is a drifted wire, and a silent top-prob substitute would make
+        // every calibration cell read a fabricated axis.
+        let c = case(
+            json!("s"),
+            vec![("q1", QKind::Choice, "pick", json!({"a": null, "b": null}))],
+        );
+        let resp = json!({
+            "answers": {
+                "q1": {"type": "choice", "choice": "b", "probabilities": {"a": 0.3, "b": 0.7}}
+            }
+        });
+        let err = map_confidences(&c, &resp).unwrap_err();
+        assert!(err.contains("confidence"), "loud error names the axis: {err}");
     }
 
     #[test]

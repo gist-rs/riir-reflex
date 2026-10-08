@@ -1,8 +1,8 @@
-# Issue 076 — Drex lane follow-ups: the det timing-tail fix is landed; the per-kind confidence cells + floor companion are the open half
+# Issue 076 — Drex lane follow-ups: the det timing-tail fix + the per-kind confidence cells, both landed; the BF16/CUDA det re-read is the open half
 
-**Status:** LANDED (the det half, same commit as this file) + OPEN (the cells half, owner's
-call when to take). Filed 2026-10-08 from Bench 125 (`.benchmarks/125_drex_systemone_lane/`),
-the second-session pass over issue 073.
+**Status:** LANDED (T3 the det strip @ `cd0248b`; T2 the cells + floor companion, this
+commit) + OPEN (T1, the BF16/CUDA det re-read on the 4090 rig). Filed 2026-10-08 from
+Bench 125 (`.benchmarks/125_drex_systemone_lane/`), the second-session pass over issue 073.
 
 ## Found (measured, not guessed)
 
@@ -35,9 +35,16 @@ the second-session pass over issue 073.
 - [ ] **T1** Re-measure the BF16/CUDA posture's det column under the normalization (needs
       the 4090 rig from `.benchmarks/073_drex_lane_t5_suite_pass.md` §serving; one typed_decisions
       run, quote the rerun-pair verdict).
-- [ ] **T2** Land the per-kind cells + floor companion (the design above; the floor stays
+- [x] **T2** Land the per-kind cells + floor companion (the design above; the floor stays
       the split-half posture, disclosed in the struct; per-kind floors stay pooled — the
-      windows halve below the occupancy floor at 600/800 pairs).
+      windows halve below the occupancy floor at 600/800 pairs). *(LANDED — this commit:
+      `map_confidences` + `DrexConfCell`/`DrexConfReadout` + `assemble_drex_conf_readout`
+      (`DREX_MIN_FLOOR_PAIRS` 40, first-half-cal/second-half-test split) + the
+      `LaneResult.drex_conf_readout` field + the four surfaces the upstream lane was
+      missing entirely (TABLES.md row, the their-confidence detail line, JDI crosswalk
+      inclusion, the meta line) + 4 assembly tests + 2 wire-mapping tests; clippy -D at
+      default/`--no-default-features`/`--all-features` all-targets green, `cargo test
+      --lib` 303/0, wasm32 delta zero vs the pre-existing paw/openthai seams.)*
 - [x] **T3** The det timing-tail strip + test. *(LANDED — the same commit as this file.)*
 
 ## Out of scope

@@ -665,6 +665,15 @@ pub struct LaneResult {
     /// the calibrator-never-fitted state the `g1_pass` None projection hides,
     /// surfaced so the tables can print NO CLAIM instead of FAIL.
     pub g1_verdict: Option<G1Verdict>,
+    /// Issue 076 T2 (from Bench 125's instrumentation): the Drex lane's
+    /// confidence-vs-correctness readout — ECE/Brier of THEIR wire
+    /// `confidence` fields per kind (choice + score; the wire carries no
+    /// noul confidence — the null cell is the disclosure) beside the
+    /// split-half conformal-naive floor companion. Computed through
+    /// `harness::metrics` only (`assemble_drex_conf_readout`). `None` for
+    /// every other lane — never a fabricated row.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub drex_conf_readout: Option<crate::lanes::drex::DrexConfReadout>,
     /// Per-question-type hard metrics (typed_decisions only).
     pub by_question_type: Option<BTreeMap<String, HardMetrics>>,
     /// Soft-distribution metrics (typed_decisions only).
@@ -3703,6 +3712,7 @@ fn run_modelless<const N: usize>(
         floor_ece: Some(floor_ece),
         g1_pass,
         g1_verdict: Some(g1_verdict),
+        drex_conf_readout: None,
         by_question_type,
         soft_acc,
         brier_soft,
@@ -4387,6 +4397,7 @@ fn assemble_laya_lane_result(
         floor_ece: None,
         g1_pass: None,
         g1_verdict: None,
+        drex_conf_readout: None,
         by_question_type,
         soft_acc,
         brier_soft,
@@ -5766,6 +5777,7 @@ fn run_drex_lane(
     let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
     let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
     let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut their_confs: Vec<Vec<Option<f64>>> = Vec::with_capacity(cases.len());
     let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
     let mut determinism_ok: Option<bool> = Some(true);
     // Plan 001 task 9: the repeat COUNT (the verdict's support).
@@ -5815,12 +5827,39 @@ fn run_drex_lane(
         probs.push(cprobs);
         picks.push(cpicks);
         confs.push(cconfs);
+        their_confs.push(outcome.confidences);
     }
     eprintln!(
         "    [drex] server latency sum: {server_latency_ms:.0} ms · in {input_tokens} tok · out {output_tokens} tok"
     );
 
-    Ok(assemble_laya_lane_result(
+    // Issue 076 T2: the per-kind cells over THEIR wire confidence + the
+    // split-half conformal floor companion — the stdout line names them so
+    // a run's transcript carries the audit, not just results.json.
+    let readout = assemble_drex_conf_readout(cases, &picks, &their_confs);
+    if let Some(r) = &readout {
+        let cell = |c: &Option<crate::lanes::drex::DrexConfCell>| match c {
+            Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
+            None => "absent (no wire confidence)".to_string(),
+        };
+        let floor = r
+            .floor_ece
+            .map_or_else(
+                || "below the occupancy floor".to_string(),
+                |e| format!("ece={e:.4}"),
+            );
+        eprintln!(
+            "    [drex] their-confidence cells: choice {} · score {} · floor {} \
+             (cal {} / test {})",
+            cell(&r.choice),
+            cell(&r.score),
+            floor,
+            r.floor_n_cal,
+            r.floor_n_test
+        );
+    }
+
+    let mut result = assemble_laya_lane_result(
         "drex",
         &model,
         suite.name,
@@ -5833,7 +5872,93 @@ fn run_drex_lane(
         determinism_ok,
         Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
-    ))
+    );
+    result.drex_conf_readout = readout;
+    Ok(result)
+}
+
+/// The occupancy floor below which a split-half conformal floor is noise:
+/// 40 pairs → 20/20 (the modelless lane's dedicated cal window is the G1
+/// reference shape; this lane's floor is the cheap split-half companion and
+/// says so in its `floor_posture`).
+const DREX_MIN_FLOOR_PAIRS: usize = 40;
+
+/// Issue 076 T2 (Bench 125's instrumentation, landed on the upstream lane):
+/// per-kind ECE/Brier of THEIR wire `confidence` vs gold correctness
+/// (choice + score; noul carries no wire confidence → no cell, never a
+/// fabricated row) beside the split-half conformal-naive floor over ALL
+/// their-conf pairs pooled. Computed through `crate::harness::metrics`
+/// only (ece_of / brier_of / conformal_naive_floor / CalibrationPair — no
+/// parallel math). `None` when the suite carried no confidence-bearing
+/// question at all. The floor reads the CASE ORDER (first half calibrates,
+/// second half is audited) — deterministic by construction, and disclosed
+/// as a posture rather than pooled with the modelless lane's
+/// dedicated-window floor.
+fn assemble_drex_conf_readout(
+    cases: &[SuiteCase],
+    picks: &[Vec<usize>],
+    their_confs: &[Vec<Option<f64>>],
+) -> Option<crate::lanes::drex::DrexConfReadout> {
+    use crate::lanes::drex::{DrexConfCell, DrexConfReadout};
+
+    // (confidence, correct) pairs, pooled + per kind (choice/score only).
+    let mut pooled: Vec<(f64, bool)> = Vec::new();
+    let mut by_kind: BTreeMap<&'static str, Vec<(f64, bool)>> = BTreeMap::new();
+    for (ci, case) in cases.iter().enumerate() {
+        for (qi, q) in case.questions.iter().enumerate() {
+            let Some(conf) = their_confs[ci][qi] else {
+                continue;
+            };
+            let pair = (conf, picks[ci][qi] == case.gold[qi].idx);
+            pooled.push(pair);
+            match q.kind {
+                QKind::Choice => by_kind.entry("choice").or_default().push(pair),
+                QKind::Score => by_kind.entry("score").or_default().push(pair),
+                // No wire confidence → no cell, never a fabricated row.
+                QKind::Noul => continue,
+            }
+        }
+    }
+    if pooled.is_empty() {
+        return None;
+    }
+    let cell_of = |pairs: &[(f64, bool)]| DrexConfCell {
+        n: pairs.len(),
+        ece: ece_of(pairs),
+        brier: brier_of(pairs),
+    };
+    // Split-half conformal floor (Report-the-Floor): the FIRST half is the
+    // cal window, the SECOND half the audited test side. Per-kind floors
+    // stay absent — split-halfing a kind would halve its window toward the
+    // occupancy floor (typed_decisions' choice/score cells sit at a few
+    // hundred pairs each) and the pooled floor is the companion the G1 law
+    // names.
+    let (floor_ece, floor_n_cal, floor_n_test) = if pooled.len() >= DREX_MIN_FLOOR_PAIRS {
+        let cut = pooled.len() / 2;
+        let cal: Vec<CalibrationPair> = pooled[..cut]
+            .iter()
+            .map(|&(conf, correct)| CalibrationPair { conf, correct })
+            .collect();
+        let test_confs: Vec<f64> = pooled[cut..].iter().map(|&(c, _)| c).collect();
+        let floored = conformal_naive_floor(&cal, &test_confs);
+        let floor_pairs: Vec<(f64, bool)> = floored
+            .into_iter()
+            .zip(pooled[cut..].iter().map(|&(_, ok)| ok))
+            .collect();
+        (Some(ece_of(&floor_pairs)), cut, pooled.len() - cut)
+    } else {
+        (None, 0, 0)
+    };
+    Some(DrexConfReadout {
+        choice: by_kind.get("choice").map(|p| cell_of(p)),
+        score: by_kind.get("score").map(|p| cell_of(p)),
+        noul: None,
+        floor_ece,
+        floor_n_cal,
+        floor_n_test,
+        floor_posture: "split-half conformal (first half cal, second half test) — \
+                        this lane has no dedicated cal slice",
+    })
 }
 
 // ── prepared suite + run ────────────────────────────────────────────────
@@ -8088,6 +8213,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- bekko lane: {}\n", out.meta.bekko_lane));
     s.push_str(&format!("- agentjev lane: {}\n", out.meta.agentjev_lane));
     s.push_str(&format!("- clef lane: {}\n", out.meta.clef_lane));
+    s.push_str(&format!("- drex lane: {}\n", out.meta.drex_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(
@@ -8658,6 +8784,35 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.drex {
+            // Same shape as the openthai row — the Drex reference is a
+            // comparison lane with the same metrics surface (readout_ece
+            // here is the comparable ece(maxp) column; THEIR confidence
+            // fields get the dedicated detail line below — never folded
+            // into this column).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if let Some(r) = &suite.paw {
             // Free text, no probability surface: accuracy + latency only
             // (refusals scored wrong); the refusal line follows the table.
@@ -8696,6 +8851,29 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         if let Some(r) = &suite.paw_local {
             s.push_str(&crate::lanes::paw::render_detail_line(r));
         }
+        // Issue 076 T2: the Drex lane's confidence-vs-correctness cells —
+        // THEIR wire `confidence` fields audited (the card disclaims
+        // calibratedness, the marketing claims it), printed apart from the
+        // comparable ece(maxp) column on purpose.
+        if let Some(cr) = suite.drex.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
+            let cell = |name: &str, c: &Option<crate::lanes::drex::DrexConfCell>| match c {
+                Some(c) => format!("{name} n={} ece={} brier={}", c.n, fmt4(c.ece), fmt4(c.brier)),
+                None => format!("{name} absent (no wire confidence)"),
+            };
+            let floor = cr.floor_ece.map_or_else(
+                || "below the occupancy floor (n < 40)".to_string(),
+                |e| format!("ece={}", fmt4(e)),
+            );
+            s.push_str(&format!(
+                "\n**drex their-confidence cells:** {} · {} · floor {} (cal {} / test {}; {})\n\n",
+                cell("choice", &cr.choice),
+                cell("score", &cr.score),
+                floor,
+                cr.floor_n_cal,
+                cr.floor_n_test,
+                cr.floor_posture,
+            ));
+        }
 
         // Plan 011 §B3–B5: the JDI-protocol crosswalk — chance + skill
         // columns for every lane with forced picks on this suite, rendered
@@ -8720,6 +8898,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 suite.agentjev.as_ref(),
                 suite.clef.as_ref(),
                 suite.openthai.as_ref(),
+                suite.drex.as_ref(),
             ]
             .into_iter()
             .flatten()
@@ -9139,6 +9318,124 @@ mod host_label_tests {
         const SENTINEL: &str = "unknown";
         assert_eq!(host_label(None, None), SENTINEL);
         assert_eq!(super::PHANTOM_HOST_SENTINEL, SENTINEL);
+    }
+}
+
+#[cfg(test)]
+mod drex_conf_readout_tests {
+    //! Issue 076 T2 — the Drex lane's per-kind confidence cells + the
+    //! split-half conformal floor companion, known-answer-tested: the
+    //! kind split (noul never a cell), the occupancy floor, and the
+    //! split halves (first calibrates, second is audited).
+
+    use super::*;
+    use crate::harness::suites::{GoldAnswer, SuiteCase, SuiteQuestion};
+
+    /// One case of `kinds.len()` questions; gold idx 0 everywhere; the
+    /// caller supplies the wire confidences per question (None for noul).
+    fn case_of(kinds: &[QKind]) -> SuiteCase {
+        SuiteCase {
+            id: "c0".into(),
+            state: serde_json::json!("s"),
+            questions: kinds
+                .iter()
+                .enumerate()
+                .map(|(i, k)| SuiteQuestion {
+                    qid: format!("q{i}"),
+                    kind: *k,
+                    instructions: "i".into(),
+                    criteria: Value::Null,
+                })
+                .collect(),
+            gold: kinds
+                .iter()
+                .map(|_| GoldAnswer {
+                    idx: 0,
+                    soft: vec![],
+                    gold_score: None,
+                })
+                .collect(),
+        }
+    }
+
+    fn picks_all_zero(n: usize) -> Vec<usize> {
+        vec![0; n]
+    }
+
+    #[test]
+    fn cells_split_by_kind_and_noul_is_never_a_cell() {
+        let kinds = [
+            QKind::Choice,
+            QKind::Noul,
+            QKind::Score,
+            QKind::Choice,
+        ];
+        let case = case_of(&kinds);
+        let picks = vec![picks_all_zero(4)];
+        let confs = vec![vec![Some(0.9), None, Some(0.4), Some(0.9)]];
+        let r = assemble_drex_conf_readout(std::slice::from_ref(&case), &picks, &confs).unwrap();
+        let choice = r.choice.expect("choice cell exists");
+        assert_eq!(choice.n, 2);
+        let score = r.score.expect("score cell exists");
+        assert_eq!(score.n, 1);
+        // The disclosure law: noul is a named null, never a cell.
+        assert!(r.noul.is_none());
+        // Both choice picks are gold idx 0 → correct → Brier over the
+        // choice cell = (0.9−1)² twice, mean 0.01; the score cell reads
+        // (0.4−1)² = 0.36.
+        assert!((choice.brier - 0.01).abs() < 1e-12);
+        assert!((score.brier - 0.36).abs() < 1e-12);
+        // Floor: 3 pairs < the 40-pair occupancy floor → withheld, and the
+        // support fields say zero rather than pretending a split happened.
+        assert!(r.floor_ece.is_none());
+        assert_eq!((r.floor_n_cal, r.floor_n_test), (0, 0));
+    }
+
+    #[test]
+    fn readout_is_none_without_any_wire_confidence() {
+        let kinds = [QKind::Noul, QKind::Noul];
+        let case = case_of(&kinds);
+        let picks = vec![picks_all_zero(2)];
+        let confs = vec![vec![None, None]];
+        assert!(assemble_drex_conf_readout(std::slice::from_ref(&case), &picks, &confs).is_none());
+    }
+
+    #[test]
+    fn floor_below_the_occupancy_window_is_none_even_at_the_edge() {
+        // 39 pairs: one under the floor → withheld.
+        let kinds = [QKind::Choice; 39];
+        let case = case_of(&kinds);
+        let picks = vec![picks_all_zero(39)];
+        let confs = vec![vec![Some(0.5); 39]];
+        let r = assemble_drex_conf_readout(std::slice::from_ref(&case), &picks, &confs).unwrap();
+        assert!(r.floor_ece.is_none());
+    }
+
+    #[test]
+    fn floor_is_the_split_half_conformal_read_first_cal_second_test() {
+        // Known answer: the cal half's confidences are ALL 0.0, so the
+        // conformal CDF maps every test confidence to (1 + 20)/(20 + 1) =
+        // 1.0; the test half is half-correct, so the floored ECE over the
+        // conf=1.0 bin is |1.0 − 0.5| = 0.5 exactly. The engineered split
+        // also pins WHICH half is which: a swapped split would read cal
+        // confs 1.0 and floor the 0.0 half to 1/21 — never 0.5.
+        const N: usize = 40;
+        let kinds = [QKind::Choice; N];
+        let case = case_of(&kinds);
+        let mut confs_one_case = vec![Some(0.0); N / 2];
+        confs_one_case.resize(N, Some(1.0));
+        let confs = vec![confs_one_case];
+        // Test-half correctness alternates → exactly half correct.
+        let mut picks_one_case = vec![0usize; N];
+        for (i, p) in picks_one_case.iter_mut().enumerate().skip(N / 2) {
+            *p = usize::from(i % 2 == 0); // gold is idx 0; half the test picks miss
+        }
+        let picks = vec![picks_one_case];
+        let r = assemble_drex_conf_readout(std::slice::from_ref(&case), &picks, &confs).unwrap();
+        let floor = r.floor_ece.expect("40 pairs clear the occupancy floor");
+        assert!((floor - 0.5).abs() < 1e-12, "floor {floor}");
+        assert_eq!(r.floor_n_cal, N / 2);
+        assert_eq!(r.floor_n_test, N - N / 2);
     }
 }
 
