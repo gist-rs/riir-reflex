@@ -950,10 +950,12 @@ pub fn run_perm_probe(
                               criteria order."
                 .to_string(),
             route_binding: if opts.kn_route {
-                "legacy k==N index alignment (incumbent)".to_string()
+                "by-name + index-anchored (score, k == N, index-named \
+                 domains; issue 079)"
+                    .to_string()
             } else {
-                "content-bound (--no-kn-route: route terms arm only via \
-                 by-name resolution)"
+                "strict by-name (--no-kn-route: the index-anchored arm \
+                 disabled)"
                     .to_string()
             },
             latency_note: "latency columns deliberately absent — this is a \
