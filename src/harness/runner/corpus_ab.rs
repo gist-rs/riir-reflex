@@ -265,6 +265,12 @@ fn corpus_ab_suite<const N: usize>(
             // with the pre-knob lane.
             gate_fit_selection: false,
             gate_distance_only: false,
+            // The published face's drafter lever (issue 079: PerByte,
+            // `d3aeeae`) — engages only on the drafter-only path, inert on
+            // this lane's by-name suites (massive); armed to keep the
+            // "A/B's contract is the published row" law true as the
+            // posture moves.
+            drafter_fix: crate::engine::DrafterFix::PerByte,
         },
     )?;
     if posture.cfg.oc_scale > 0.0 {

@@ -6700,6 +6700,16 @@ pub mod seat {
         /// needs the rate-axis posture.
         pub gate_fit_selection: bool,
         pub gate_distance_only: bool,
+        /// The drafter-only correction mode (issue 079's tuning axis — the
+        /// seat half of the harness `--drafter-fix` flag). DEFAULT `Off` =
+        /// the shipped scores, byte-identical for every existing caller.
+        /// The PUBLISHED face arms `PerByte` (the board posture: Bench 131
+        /// cell 2 + the site republish `d3aeeae` — typed the only mover,
+        /// every other suite digit-identical), so the seat callers that
+        /// follow the published posture arm it. The correction engages
+        /// only on the drafter-only path, so it is inert wherever
+        /// by-name/route resolution arms.
+        pub drafter_fix: crate::engine::DrafterFix,
     }
 
     /// The deployed modelless posture for one suite: the effective corpus
@@ -6748,11 +6758,16 @@ pub mod seat {
             gate_fit_selection: knobs.gate_fit_selection,
             gate_distance_only: knobs.gate_distance_only,
             gate_fit_calibrated: true,
-            // Issue 079: the seat's published face stays at the incumbent
-            // route binding — the arena's selection surface is the instinct
-            // manifest, not a reflex CLI flag.
+            // Issue 079: the seat keeps the engine's INCUMBENT route law
+            // (`kn_route: true` — the index-anchored arm, `4ad25df`; the
+            // arena's selection surface is the instinct manifest, not a
+            // reflex CLI flag), while the drafter-only correction mode is
+            // CALLER-CHOICE — the published face arms PerByte (Bench 131
+            // cell 2 + the `d3aeeae` site republish), so seat callers that
+            // follow the published posture can arm it; `Off` (the knob's
+            // default) keeps every other caller byte-identical.
             kn_route: true,
-            drafter_fix: crate::engine::DrafterFix::Off,
+            drafter_fix: knobs.drafter_fix,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
