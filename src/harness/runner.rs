@@ -50,8 +50,9 @@ use crate::harness::metrics::{chance_corrected_skill, chance_majority};
 use crate::harness::suites::typed_gold_events;
 use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
 use crate::harness::metrics::{
-    CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, conformal_naive_floor, confusion_top,
-    ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics, subset_accuracy,
+    CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, brier_of, conformal_naive_floor,
+    confusion_top, ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics,
+    subset_accuracy,
 };
 use crate::harness::pair_heads::{
     ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
@@ -638,6 +639,14 @@ pub struct LaneResult {
     /// ECE over the lane's own reported confidence readout (modelless: the
     /// engine's readout confidence; laya: its entropy `confidence` field).
     pub readout_ece: Option<f64>,
+    /// Issue 073 T4: Brier over the same (confidence, correctness) pairs
+    /// `readout_ece` reads — the second calibration axis for lanes whose
+    /// vendor confidence has a calibration CLAIM to test (Drex's card
+    /// disclaims what their homepage markets). Populated by the shared
+    /// assembler for every lane that carries a readout; None on lanes
+    /// assembled without one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub readout_brier: Option<f64>,
     /// Abstain behavior (modelless only — laya cannot abstain; the
     /// Research-562 flaw the wire fixes with first-class abstention).
     pub raw_abstain: Option<SelectiveMetrics>,
@@ -1362,6 +1371,14 @@ pub struct SuiteResult {
     /// run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub openthai: Option<LaneResult>,
+    /// Issue 073 (from `.research/008`): the Drex DLM comparison lane's
+    /// row — Nace.AI's open-weights 8B diffusion-LM decision model (CC
+    /// BY-NC weights: MEASUREMENT ONLY, never a product lane, never a
+    /// distill teacher), their server on loopback, measured over HTTP on
+    /// the same TypeSafe `/v1/systemone` wire. Absent (never a fabricated
+    /// row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub drex: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1465,6 +1482,11 @@ pub struct RunMeta {
     /// loopback, measured over HTTP — comparison lane, never a product
     /// lane).
     pub openthai_lane: String,
+    /// Whether the Drex DLM comparison lane ran (Issue 073), and its
+    /// serving posture when it did (their serve.py / llama.cpp `edlm`
+    /// fork on loopback — the reply's own `model` field + DREX_SERVE_URL
+    /// disclose which; CC BY-NC weights: measurement only).
+    pub drex_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -3481,6 +3503,10 @@ fn run_modelless<const N: usize>(
     let readout_pairs_cal = cal_eval_test.readout_pairs(&suite.cases);
     let readout_ece_raw = ece_of(&readout_pairs_raw);
     let readout_ece_cal = ece_of(&readout_pairs_cal);
+    // Issue 073 T4 field: the Brier twin of the readout ECE, on the same
+    // calibrated pairs (report-only — the calibration axis beside the
+    // G1/ECE one).
+    let readout_brier_cal = brier_of(&readout_pairs_cal);
     let raw_abstain = raw_eval.selective(&suite.cases);
     let calibrated_abstain = cal_eval_test.selective(&suite.cases);
 
@@ -3662,6 +3688,10 @@ fn run_modelless<const N: usize>(
         model: "modelless".to_string(),
         hard,
         readout_ece: Some(readout_ece_cal),
+        // Issue 073 T4 field, modelless lane: the readout Brier twin of
+        // readout_ece — computed on the same calibrated readout pairs the
+        // G1 tail reads. Report-only; never a gate.
+        readout_brier: Some(readout_brier_cal),
         raw_abstain: Some(raw_abstain),
         calibrated_abstain: Some(calibrated_abstain),
         // Issue 060: the CALIBRATED gate's causes — the why behind the
@@ -4347,6 +4377,7 @@ fn assemble_laya_lane_result(
         model: model.to_string(),
         hard,
         readout_ece: Some(ece_of(&readout)),
+        readout_brier: Some(brier_of(&readout)),
         raw_abstain: None,
         calibrated_abstain: None,
         // laya cannot abstain — no causes to attribute (never a fake zero).
@@ -5663,6 +5694,148 @@ fn run_openthai_lane(
     ))
 }
 
+/// The Drex DLM comparison lane (Issue 073, from `.research/008`): Nace.AI's
+/// open-weights 8B diffusion-LM decision model (CC BY-NC weights: MEASUREMENT
+/// ONLY — comparison lane, never a product lane, never a distill teacher)
+/// served on loopback, measured over HTTP — the openthai lane's shape on the
+/// same TypeSafe `/v1/systemone` wire. Same cases, their contract
+/// (`src/lanes/drex.rs` pins the mapping), the same metrics tail via
+/// [`assemble_laya_lane_result`]. Latency = client round-trip per case;
+/// their scorer-side `latency_ms` and billing-style token counts accumulate
+/// as provenance lines beside it.
+///
+/// Env: `DREX_SERVE_URL` (default `http://127.0.0.1:8000`, their Python
+/// `serve.py`; the llama.cpp `edlm` fork's 8097 equally valid — the reply's
+/// own `model` field discloses which served). The `/health` probe + the
+/// warmup capture the model id; never a hardcoded name (the gliner law).
+fn run_drex_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::drex::DrexLane;
+
+    let t_start = Instant::now();
+    let lane = DrexLane::default();
+    lane.health()?;
+
+    // WARMUP (the clm lane's cold-start law): one FIXED throwaway request
+    // absorbs the service's cold path AND captures the model id (the
+    // response's own `model` field — never a hardcoded name).
+    let model;
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        let raw = lane.decide_raw(&warm).map_err(|e| format!("drex warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("drex warmup response: {e}"))?;
+        model = DrexLane::model_of(&parsed);
+        lane.decide(&warm)
+            .map_err(|e| format!("drex warmup: {e}"))?;
+    }
+    eprintln!("    [drex] service up: {model}");
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N drex row against
+    // a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut server_latency_ms: f64 = 0.0;
+    let mut input_tokens: u64 = 0;
+    let mut output_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (outcome, _client_ms) = lane
+            .decide(case)
+            .map_err(|e| format!("drex lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        if let Some(w) = outcome.latency_ms {
+            server_latency_ms += w;
+        }
+        input_tokens += outcome.input_tokens;
+        output_tokens += outcome.output_tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column. Their own validation file measured GGUF-runner
+        // wobble under load (the AgentJev bf16-HTTP-wobble class) — the
+        // check is the flag, never an assumption.
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("drex determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("drex determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(outcome.answers.len());
+        let mut cpicks = Vec::with_capacity(outcome.answers.len());
+        let mut cconfs = Vec::with_capacity(outcome.answers.len());
+        for (p, pick, conf) in outcome.answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!(
+        "    [drex] server latency sum: {server_latency_ms:.0} ms · in {input_tokens} tok · out {output_tokens} tok"
+    );
+
+    Ok(assemble_laya_lane_result(
+        "drex",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 // ── prepared suite + run ────────────────────────────────────────────────
 
 struct Prepared {
@@ -6627,6 +6800,13 @@ pub struct RunOptions {
     /// An unreachable server is a LOUD error, never a silent skip.
     /// Default off.
     pub openthai: bool,
+    /// Also run the Drex DLM comparison lane (Issue 073, from
+    /// `.research/008`): Nace.AI's open-weights 8B diffusion-LM decision
+    /// model over the TypeSafe `/v1/systemone` wire at `DREX_SERVE_URL`.
+    /// CC BY-NC weights: measurement only, never a product lane, never a
+    /// distill teacher. An unreachable server is a LOUD error, never a
+    /// silent skip. Default off.
+    pub drex: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -7304,6 +7484,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // Drex DLM comparison lane (Issue 073): their diffusion-LM server
+        // on loopback, measured over HTTP — same cases, the same
+        // TypeSafe wire family, the same metrics tail. CC BY-NC weights:
+        // measurement only.
+        let drex_result = if opts.drex {
+            eprintln!("    drex: running…");
+            match run_drex_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    drex: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (drex): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -7452,6 +7658,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             agentjev: agentjev_result,
             clef: clef_result,
             openthai: openthai_result,
+            drex: drex_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -7712,6 +7919,28 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --openthai to add the comparison lane; needs their \
              openthai service on OPENTHAI_SERVE_URL — plan 003)"
+                .to_string()
+        },
+        drex_lane: if opts.drex {
+            let url = std::env::var(crate::lanes::drex::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::drex::DEFAULT_SERVE_URL.into());
+            format!(
+                "on — Drex DLM (nace-ai/drex-dlm @ 6c63df2, Efficient-DLM-8B backbone; \
+                 repo MIT, weights CC BY-NC 4.0 — MEASUREMENT ONLY, never a product \
+                 lane, never a distill teacher) served on loopback via {url} \
+                 (comparison lane, never a product lane): same cases, their \
+                 /v1/systemone contract (the wire pinned from their api.py/serve.py \
+                 at the pin), gold-label scoring; liveness = GET /health, the model \
+                 id read from the response's own model field (never hardcoded — \
+                 their Python serve.py vs the llama.cpp edlm fork is disclosed by \
+                 it + the env); their scorer-side latency_ms + billing-style token \
+                 counts reported beside the client round-trip; probabilities read \
+                 as-is at their 4-decimal serialization (never renormalized); \
+                 determinism = the observed-repeat check; Issue 073 + .research/008"
+            )
+        } else {
+            "off (pass --drex to add the comparison lane; needs their service on \
+             DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)"
                 .to_string()
         },
         paw_lane: if opts.paw {

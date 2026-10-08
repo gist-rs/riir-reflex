@@ -222,6 +222,15 @@ LAYA_DEVICE=metal cargo run --release --features laya-riir-metal \
 OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
   cargo run --release --bin harness -- --openthai --skip-laya
 
+# Drex DLM comparison lane (Issue 073, `--drex`; CC BY-NC weights =
+# measurement only): their serve.py on DREX_SERVE_URL (default 127.0.0.1:8000;
+# the llama.cpp edlm fork's 8097 equally valid — the reply's model field
+# discloses which). Serve: .raw/drex-env (torch cu124 + transformers 5.19)
+# + .raw/drex-model; the owned cells: gold-label accuracy per primitive +
+# the ECE/Brier of their confidence fields (T4 readout_brier).
+DREX_SERVE_URL=http://127.0.0.1:8000 \
+  cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
+
 # Corpus-synthesis lane (riir-train plan 426 T5, `8426cef`): sealed SYNT v2
 # artifact + blake3 sidecar, openthai agreement VETO. --synth-plan is
 # REPORT-ONLY; --synth-corpus writes; --corpus-ab is the V5 gate (paired LB95,

@@ -34,3 +34,8 @@ pub mod paw_local;
 // `openthai-lane` feature trigger if `decision_wire` is ever needed).
 #[cfg(all(feature = "modelless", not(target_arch = "wasm32")))]
 pub mod openthai;
+// Issue 073 (from .research/008): the Drex DLM comparison lane — the
+// openthai shape on the same TypeSafe `/v1/systemone` wire (ungated: the
+// same import law). CC BY-NC weights: measurement only, never a product
+// lane, never a distill teacher (the license law in the module doc).
+pub mod drex;

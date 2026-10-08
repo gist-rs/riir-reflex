@@ -19,8 +19,8 @@
 //!                                       density_gate; absent build → the flag
 //!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
-//!                              [--clm] [--gliner] [--agentjev] [--openthai] [--paw]
-//!                                      [--paw-local] [--cascade]
+//!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
+//!                                      [--paw] [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated]
@@ -72,6 +72,18 @@
 //! cases; `CLEF_ALLOW_UNCAPPED=1` overrides) bounds undisclosed pricing.
 //! Other env: `CLEF_API_TOKEN` (bearer; the forwarder may inject),
 //! `CLEF_MODEL` (`clef` default | `clef-flash`), `CLEF_TIMEOUT_MS`.
+//! `--drex` adds the Drex DLM comparison lane (Issue 073, from
+//! `.research/008`): Nace.AI's open-weights 8B diffusion-LM decision model
+//! (`nace-ai/drex-dlm` @ `6c63df2`, Efficient-DLM-8B backbone — repo MIT,
+//! weights **CC BY-NC 4.0: MEASUREMENT ONLY**, never a product lane, never
+//! a distill teacher) answered over the TypeSafe `/v1/systemone` wire at
+//! `DREX_SERVE_URL` (default `http://127.0.0.1:8000`, their Python
+//! `serve.py`; their llama.cpp `edlm` fork's 8097 equally valid — the
+//! reply's own `model` field discloses which served). Their stack serves,
+//! our Rust measures; the owned data points: gold-label accuracy per
+//! primitive on our split + the ECE of their `confidence` fields (their
+//! card disclaims calibration — Issue 073 T4). An unreachable server is a
+//! loud absence, never a silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -212,6 +224,7 @@ fn harness_main() {
         agentjev: false,
         clef: false,
         openthai: false,
+        drex: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -471,6 +484,7 @@ fn harness_main() {
             "--agentjev" => opts.agentjev = true,
             "--clef" => opts.clef = true,
             "--openthai" => opts.openthai = true,
+            "--drex" => opts.drex = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -965,6 +979,7 @@ fn harness_main() {
                 &suite.agentjev,
                 &suite.clef,
                 &suite.openthai,
+                &suite.drex,
             ]
             .into_iter()
             .flatten()
