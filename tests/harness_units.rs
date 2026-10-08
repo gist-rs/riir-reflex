@@ -814,14 +814,20 @@ fn train_docs_rules() {
     });
     let docs = train_docs(&text_rows, "ag_news");
     assert_eq!(docs.len(), 1);
-    assert_eq!(docs[0].label, "1");
+    // Issue 077 content binding: the int ClassLabel maps through the
+    // suite's OPTION-KEY consts (AG_NEWS_KEYS[1] == "sports"), so the
+    // corpus label is the key spelling the engine's domains carry.
+    assert_eq!(docs[0].label, "sports");
     assert_eq!(docs[0].text, "hello world");
-    // same rule for the other text suites
-    for suite in ["emotion", "sst5", "banking77", "prompt_injections"] {
+    // Text-suite rule per suite: the key-mapped suites spell their own
+    // key; the passthrough suites (sst5's keys ARE "0"..; banking77's
+    // int fallback; prompt_injections' exemption) keep the integer.
+    assert_eq!(train_docs(&text_rows, "emotion")[0].label, "joy");
+    for suite in ["sst5", "banking77", "prompt_injections"] {
         assert_eq!(
-            train_docs(&text_rows, suite),
-            docs,
-            "{suite} shares the text-suite rule"
+            train_docs(&text_rows, suite)[0].label,
+            "1",
+            "{suite} passes the integer label through"
         );
     }
 
@@ -838,7 +844,8 @@ fn train_docs_rules() {
         "rows": [{"row_idx": 0, "row": {"premise": "P", "hypothesis": "H", "label": 0}}]
     });
     let docs = train_docs(&xnli, "xnli_en");
-    assert_eq!(docs[0].label, "0");
+    // Issue 077 content binding: XNLI_KEYS[0] == "entailment".
+    assert_eq!(docs[0].label, "entailment");
     assert_eq!(docs[0].text, "P\nH");
 
     // typed_decisions: the RAW state string, no reparse — irregular spacing
