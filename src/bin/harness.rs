@@ -20,7 +20,7 @@
 //!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--paw] [--paw-local] [--cascade]
+//!                                      [--d1] [--paw] [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated]
@@ -84,6 +84,16 @@
 //! primitive on our split + the ECE of their `confidence` fields (their
 //! card disclaims calibration — Issue 073 T4). An unreachable server is a
 //! loud absence, never a silent skip.
+//!
+//! `--d1` adds the LiquidAI d1 comparison lane (Issue 078, from
+//! `.research/009`): d1-3B (`LiquidAI/d1-3B` @ `051bcc4`, LFM2.5-VL-3B
+//! backbone — license **`other`/lfm1.0: MEASUREMENT ONLY**, never a
+//! product lane) answered over HTTP at `D1_SERVE_URL` (default
+//! `http://127.0.0.1:8078` — our reference stdlib server over their
+//! in-repo `D1Model`, which ships no HTTP layer). Their official
+//! `/decisions/v1/systemone` wire; the served dtype + calibration posture
+//! ride the run meta. An unreachable server is a loud absence, never a
+//! silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -225,6 +235,7 @@ fn harness_main() {
         clef: false,
         openthai: false,
         drex: false,
+        d1: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -505,6 +516,7 @@ fn harness_main() {
             "--clef" => opts.clef = true,
             "--openthai" => opts.openthai = true,
             "--drex" => opts.drex = true,
+            "--d1" => opts.d1 = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -634,12 +646,12 @@ fn harness_main() {
     }
     // Issue 077 — the option-PERMUTATION spread probe: an exclusive
     // early-exit measurement mode. The comparison lanes ride the existing
-    // --drex / --agentjev flags (their construction refuses loud when a
-    // server is unreachable — the comparison-lane law); the laya lane runs
-    // whenever its feature is compiled unless --skip-laya. The modelless
-    // control reds the RUN (exit 1) — byte-identity across orderings is an
-    // engine invariant; a control red is a finding or a harness bug, never
-    // a quiet pass.
+    // --drex / --d1 / --agentjev flags (their construction refuses loud
+    // when a server is unreachable — the comparison-lane law); the laya
+    // lane runs whenever its feature is compiled unless --skip-laya. The
+    // modelless control reds the RUN (exit 1) — byte-identity across
+    // orderings is an engine invariant; a control red is a finding or a
+    // harness bug, never a quiet pass.
     if perm_probe {
         if perm_k != 0 && perm_k < 2 {
             die("--perm-k needs >= 2 orderings (the identity + at least one shuffle)");
@@ -656,16 +668,18 @@ fn harness_main() {
                 perm_max_cases
             },
             drex: opts.drex,
+            d1: opts.d1,
             agentjev: opts.agentjev,
         };
         println!(
             "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             popts.k,
             popts.max_cases,
             if popts.drex { " +drex" } else { "" },
+            if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
         );
         let out = match runner::run_perm_probe(&opts, &popts) {
@@ -1078,6 +1092,7 @@ fn harness_main() {
                 &suite.clef,
                 &suite.openthai,
                 &suite.drex,
+                &suite.d1,
             ]
             .into_iter()
             .flatten()

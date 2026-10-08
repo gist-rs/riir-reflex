@@ -39,3 +39,8 @@ pub mod openthai;
 // same import law). CC BY-NC weights: measurement only, never a product
 // lane, never a distill teacher (the license law in the module doc).
 pub mod drex;
+// Issue 078 (from .research/009): the LiquidAI d1 comparison lane — the
+// drex shape on their official `/decisions/v1/systemone` wire (ungated:
+// the same import law). License `other`/lfm1.0: measurement only (the
+// license law in the module doc).
+pub mod d1;

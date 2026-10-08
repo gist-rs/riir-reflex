@@ -76,6 +76,10 @@ pub struct PermProbeOptions {
     pub max_cases: usize,
     /// Probe the Drex lane (their server must be serving — loud refusal).
     pub drex: bool,
+    /// Probe the LiquidAI d1 lane (their server must be serving — loud
+    /// refusal). Issue 078 T4: d1's own recipe names option shuffling, so
+    /// their model is the probe's most interesting subject.
+    pub d1: bool,
     /// Probe the AgentJev lane (their server must be serving — loud
     /// refusal).
     pub agentjev: bool,
@@ -225,6 +229,24 @@ impl ChoiceOracle for DrexOracle {
                 pick: *pick,
             })
             .ok_or_else(|| format!("drex ({}): no answers in response", case.id))
+    }
+}
+
+struct D1Oracle {
+    lane: crate::lanes::d1::D1Lane,
+}
+
+impl ChoiceOracle for D1Oracle {
+    fn answer(&mut self, case: &SuiteCase) -> Result<OrderingAnswer, String> {
+        let (outcome, _client_ms) = self.lane.decide(case)?;
+        outcome
+            .answers
+            .first()
+            .map(|(probs, pick, _)| OrderingAnswer {
+                probs: probs.clone(),
+                pick: *pick,
+            })
+            .ok_or_else(|| format!("d1 ({}): no answers in response", case.id))
     }
 }
 
@@ -803,6 +825,26 @@ pub fn run_perm_probe(
             name: "drex",
             model,
             oracle: Box::new(DrexOracle { lane }),
+        });
+    }
+    if popts.d1 {
+        let lane = crate::lanes::d1::D1Lane::default();
+        lane.health()
+            .map_err(|e| format!("--perm-probe --d1: {e}"))?;
+        // Provenance from a canary warm-up round (their `model` field —
+        // never a hardcoded id, the gliner law). The round doubles as
+        // the lane's warm-up.
+        let canary = canary_case();
+        let raw = lane
+            .decide_raw(&canary)
+            .map_err(|e| format!("--perm-probe --d1 warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("--perm-probe --d1 warmup parse: {e}"))?;
+        let model = crate::lanes::d1::D1Lane::model_of(&parsed);
+        shared.push(SharedLane {
+            name: "d1",
+            model,
+            oracle: Box::new(D1Oracle { lane }),
         });
     }
     if popts.agentjev {

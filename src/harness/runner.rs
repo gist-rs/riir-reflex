@@ -674,13 +674,15 @@ pub struct LaneResult {
     /// the calibrator-never-fitted state the `g1_pass` None projection hides,
     /// surfaced so the tables can print NO CLAIM instead of FAIL.
     pub g1_verdict: Option<G1Verdict>,
-    /// Issue 076 T2 (from Bench 125's instrumentation): the Drex lane's
-    /// confidence-vs-correctness readout — ECE/Brier of THEIR wire
+    /// Issue 076 T2 (from Bench 125's instrumentation): the comparison
+    /// lanes' confidence-vs-correctness readout — ECE/Brier of THEIR wire
     /// `confidence` fields per kind (choice + score; the wire carries no
     /// noul confidence — the null cell is the disclosure) beside the
     /// split-half conformal-naive floor companion. Computed through
-    /// `harness::metrics` only (`assemble_drex_conf_readout`). `None` for
-    /// every other lane — never a fabricated row.
+    /// `harness::metrics` only (`assemble_drex_conf_readout` — the ONE
+    /// shared math shape; the drex-named field is the historical spelling
+    /// and carries the d1 lane's cells too, Issue 078). `None` for every
+    /// other lane — never a fabricated row.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub drex_conf_readout: Option<crate::lanes::drex::DrexConfReadout>,
     /// Per-question-type hard metrics (typed_decisions only).
@@ -1397,6 +1399,14 @@ pub struct SuiteResult {
     /// row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub drex: Option<LaneResult>,
+    /// Issue 078 (from `.research/009`): the LiquidAI d1 comparison
+    /// lane's row — d1-3B (`LiquidAI/d1-3B`, LFM2.5-VL-3B backbone;
+    /// license `other`/lfm1.0: MEASUREMENT ONLY posture), our reference
+    /// stdlib server over their in-repo `D1Model` on loopback, measured
+    /// over HTTP on their official `/decisions/v1/systemone` wire. Absent
+    /// (never a fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub d1: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1505,6 +1515,12 @@ pub struct RunMeta {
     /// fork on loopback — the reply's own `model` field + DREX_SERVE_URL
     /// disclose which; CC BY-NC weights: measurement only).
     pub drex_lane: String,
+    /// Whether the LiquidAI d1 comparison lane ran (Issue 078), and its
+    /// serving posture when it did (our reference stdlib server over
+    /// their in-repo `D1Model` on loopback — the served dtype + the
+    /// reply's own `model` field + D1_SERVE_URL disclose which; lfm1.0
+    /// license: measurement only).
+    pub d1_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -5886,6 +5902,174 @@ fn run_drex_lane(
     Ok(result)
 }
 
+/// Env: `D1_SERVE_URL` (default `http://127.0.0.1:8078`, our reference
+/// stdlib server `.raw/d1_server.py` over their in-repo `D1Model`). The
+/// `/health` probe + the warmup capture the model id; never a hardcoded
+/// name (the gliner law). The mirror of [`run_drex_lane`] on the d1
+/// wire (Issue 078) — one shape, one metrics tail, the SAME shared
+/// confidence-readout assembly.
+fn run_d1_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::d1::D1Lane;
+
+    let t_start = Instant::now();
+    let lane = D1Lane::default();
+    lane.health()?;
+
+    // WARMUP (the cold-start law, the drex lane's shape): one FIXED
+    // throwaway request absorbs the service's cold path AND captures the
+    // model id (the response's own `model` field — never a hardcoded
+    // name).
+    let model;
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        let raw = lane.decide_raw(&warm).map_err(|e| format!("d1 warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("d1 warmup response: {e}"))?;
+        model = D1Lane::model_of(&parsed);
+        lane.decide(&warm)
+            .map_err(|e| format!("d1 warmup: {e}"))?;
+    }
+    eprintln!("    [d1] service up: {model}");
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N d1 row against
+    // a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut their_confs: Vec<Vec<Option<f64>>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut server_latency_ms: f64 = 0.0;
+    let mut input_tokens: u64 = 0;
+    let mut output_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (outcome, _client_ms) = lane
+            .decide(case)
+            .map_err(|e| format!("d1 lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        if let Some(w) = outcome.latency_ms {
+            server_latency_ms += w;
+        }
+        input_tokens += outcome.input_tokens;
+        output_tokens += outcome.output_tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column. Single-pass logit reads promise determinism by
+        // construction — the check is the flag, never an assumption.
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("d1 determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("d1 determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(outcome.answers.len());
+        let mut cpicks = Vec::with_capacity(outcome.answers.len());
+        let mut cconfs = Vec::with_capacity(outcome.answers.len());
+        for (p, pick, conf) in outcome.answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+        their_confs.push(outcome.confidences);
+    }
+    eprintln!(
+        "    [d1] server latency sum: {server_latency_ms:.0} ms · in {input_tokens} tok · out {output_tokens} tok \
+         (out is their ALWAYS-ZERO answer-slot law made visible)"
+    );
+
+    // Issue 076 T2's shared machinery (one assemble path for every
+    // comparison lane): the per-kind cells over THEIR wire confidence +
+    // the split-half conformal floor companion — the stdout line names
+    // them so a run's transcript carries the audit. For d1 the wire
+    // confidence IS the max probability; the readout adds the per-kind
+    // split + the floor companion.
+    let readout = assemble_drex_conf_readout(cases, &picks, &their_confs);
+    if let Some(r) = &readout {
+        let cell = |c: &Option<crate::lanes::drex::DrexConfCell>| match c {
+            Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
+            None => "absent (no wire confidence)".to_string(),
+        };
+        let floor = r
+            .floor_ece
+            .map_or_else(
+                || "below the occupancy floor".to_string(),
+                |e| format!("ece={e:.4}"),
+            );
+        eprintln!(
+            "    [d1] their-confidence cells: choice {} · score {} · floor {} \
+             (cal {} / test {})",
+            cell(&r.choice),
+            cell(&r.score),
+            floor,
+            r.floor_n_cal,
+            r.floor_n_test
+        );
+    }
+
+    let mut result = assemble_laya_lane_result(
+        "d1",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    );
+    result.drex_conf_readout = readout;
+    Ok(result)
+}
+
 /// The occupancy floor below which a split-half conformal floor is noise:
 /// 40 pairs → 20/20 (the modelless lane's dedicated cal window is the G1
 /// reference shape; this lane's floor is the cheap split-half companion and
@@ -6955,6 +7139,14 @@ pub struct RunOptions {
     /// distill teacher. An unreachable server is a LOUD error, never a
     /// silent skip. Default off.
     pub drex: bool,
+    /// Also run the LiquidAI d1 comparison lane (Issue 078, from
+    /// `.research/009`): d1-3B over their official
+    /// `/decisions/v1/systemone` wire at `D1_SERVE_URL` (our reference
+    /// stdlib server over their in-repo `D1Model`). License
+    /// `other`/lfm1.0: measurement only, never a product lane. An
+    /// unreachable server is a LOUD error, never a silent skip. Default
+    /// off.
+    pub d1: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -7658,6 +7850,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // LiquidAI d1 comparison lane (Issue 078): our reference server
+        // over their in-repo D1Model on loopback, measured over HTTP —
+        // same cases, the same metrics tail. lfm1.0 license: measurement
+        // only.
+        let d1_result = if opts.d1 {
+            eprintln!("    d1: running…");
+            match run_d1_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    d1: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (d1): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -7807,6 +8025,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             clef: clef_result,
             openthai: openthai_result,
             drex: drex_result,
+            d1: d1_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -8089,6 +8308,34 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --drex to add the comparison lane; needs their service on \
              DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)"
+                .to_string()
+        },
+        d1_lane: if opts.d1 {
+            let url = std::env::var(crate::lanes::d1::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::d1::DEFAULT_SERVE_URL.into());
+            format!(
+                "on — LiquidAI d1-3B (LiquidAI/d1-3B @ 051bcc4, LFM2.5-VL-3B backbone; \
+                 license other/lfm1.0 — MEASUREMENT ONLY, never a product lane; the \
+                 blog's 'without restrictions' is marketing) served on loopback via \
+                 {url} — our reference stdlib server over their in-repo D1Model \
+                 (trust_remote_code=True, transformers >=5.14; the repo ships NO HTTP \
+                 layer): same cases, their official /decisions/v1/systemone contract \
+                 (the wire pinned from their api.py/prompt.py/runner.py at the pin), \
+                 gold-label scoring; liveness = GET /health, the model id read from \
+                 the response's own model field (never hardcoded); the SERVED DTYPE is \
+                 fp16 per their own flip table (fp16 = 0 flips vs fp32; bf16 flips \
+                 0.8% text) and rides /health + the boot log — never assumed from the \
+                 bf16 checkpoint storage; calibration = the in-repo default (NONE — \
+                 the open weights ship no temperature artifact; the 'calibrated' card \
+                 claim is what the ECE/Brier cells test); their server latency_ms + \
+                 token counts (output ALWAYS 0 — the answer-slot read law) reported \
+                 beside the client round-trip; probabilities read as-is (never \
+                 renormalized); determinism = the observed-repeat check; Issue 078 + \
+                 .research/009"
+            )
+        } else {
+            "off (pass --d1 to add the comparison lane; needs the reference server on \
+             D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)"
                 .to_string()
         },
         paw_lane: if opts.paw {
@@ -8836,6 +9083,32 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.d1 {
+            // Same shape as the drex row — the d1 reference is a
+            // comparison lane with the same metrics surface (Issue 078).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if let Some(r) = &suite.paw {
             // Free text, no probability surface: accuracy + latency only
             // (refusals scored wrong); the refusal line follows the table.
@@ -8874,11 +9147,12 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         if let Some(r) = &suite.paw_local {
             s.push_str(&crate::lanes::paw::render_detail_line(r));
         }
-        // Issue 076 T2: the Drex lane's confidence-vs-correctness cells —
-        // THEIR wire `confidence` fields audited (the card disclaims
-        // calibratedness, the marketing claims it), printed apart from the
-        // comparable ece(maxp) column on purpose.
-        if let Some(cr) = suite.drex.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
+        // Issue 076 T2: the comparison lanes' confidence-vs-correctness
+        // cells — THEIR wire `confidence` fields audited (drex's card
+        // disclaims calibratedness, d1's card claims it), printed apart
+        // from the comparable ece(maxp) column on purpose. One render
+        // path for every lane carrying the shared readout.
+        let push_conf_cells = |s: &mut String, label: &str, cr: &crate::lanes::drex::DrexConfReadout| {
             let cell = |name: &str, c: &Option<crate::lanes::drex::DrexConfCell>| match c {
                 Some(c) => format!("{name} n={} ece={} brier={}", c.n, fmt4(c.ece), fmt4(c.brier)),
                 None => format!("{name} absent (no wire confidence)"),
@@ -8888,7 +9162,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 |e| format!("ece={}", fmt4(e)),
             );
             s.push_str(&format!(
-                "\n**drex their-confidence cells:** {} · {} · floor {} (cal {} / test {}; {})\n\n",
+                "\n**{label} their-confidence cells:** {} · {} · floor {} (cal {} / test {}; {})\n\n",
                 cell("choice", &cr.choice),
                 cell("score", &cr.score),
                 floor,
@@ -8896,6 +9170,16 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 cr.floor_n_test,
                 cr.floor_posture,
             ));
+        };
+        if let Some(cr) = suite.drex.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
+            push_conf_cells(&mut s, "drex", cr);
+        }
+        if let Some(cr) = suite.d1.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
+            // For d1 the wire confidence IS the max probability — the
+            // cells restate the ece(maxp) axis per kind + add the floor
+            // companion; the label names the lane so the shared field's
+            // historical spelling never misleads a reader.
+            push_conf_cells(&mut s, "d1", cr);
         }
 
         // Plan 011 §B3–B5: the JDI-protocol crosswalk — chance + skill
@@ -8922,6 +9206,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 suite.clef.as_ref(),
                 suite.openthai.as_ref(),
                 suite.drex.as_ref(),
+                suite.d1.as_ref(),
             ]
             .into_iter()
             .flatten()
