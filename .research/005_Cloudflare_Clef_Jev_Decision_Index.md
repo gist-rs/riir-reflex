@@ -4,10 +4,29 @@
 filed: `.plans/011_clef_lane_jdi_protocol.md`. The hosted-Clef serving credentials (Cloudflare
 account ID + Workers AI API token) are owner-gated; nothing in this note requires them to be true.
 
+> **Update 2026-10-09:** the board moved — a NEW EDITION, **release-v3 / "Decision Index 0.3"**
+> (`panel_id decision-index-0.3`, generated 2026-10-07T18:25:58Z, 114 entrants, hardware
+> "1 x NVIDIA RTX PRO 6000", Jev `jev-1.13.0`; fetched + parsed fresh 2026-10-09), which rebuilt
+> GSM8K, retired ForecastBench, moved WinoGrande to knowledge, and replaced the headline with a
+> BLENDED `balanced_skill = 0.20·public + 0.50·private_same_skills + 0.30·private_new_domains` —
+> never compare across editions (the 0.2.1 figures quoted below are the pin this note was distilled
+> against). On v3: **Perplexity Decider v1.1 (27B) is #1 blended at 62.75** (71.66 raw, 104.1 ms;
+> public-only #2 at 62.25 — **public #1 is Torchcast Decision 27B at 65.10**, #4 blended at 59.91);
+> Fastino GLiDE no-thinking #2 (60.21); JEV-27B 55.64 (#14, tied); **clef 53.08 (#19 blended but
+> PUBLIC #3 at 61.71** — on public benchmarks alone pplx leads clef by 0.54pt; the #1 blended rank
+> is carried by the 80% private weight); clef-flash 47.61 (#31). Category slices (skill): pplx leads
+> language **0.6748** vs clef 0.6127 / clef-flash 0.4722 / JEV 0.5644 — our trailing suites' class;
+> clef still wins retrieval 0.6284 vs 0.6126 and tools 0.8071 vs 0.7888 — board rank is one number,
+> per-suite reads are the decision surface. pplx v1.1 license VERIFIED (Apache-2.0, ungated, open
+> weights) → measured on OUR suites via the pplx lane: `.issues/082_pplx_decider_v11_lane.md`
+> (the 623 teacher pick rides that read); the site `board_reference` re-pinned to v3 the same day.
+> REFERENCE-ONLY, as ever: board numbers are their corpus + protocol on their hardware — never
+> comparable to our suite cells.
+
 > **Update 2026-10-08:** LiquidAI joined the category with open-weight d1 (d1-3B **48.57** /
-d1-omni-600M **15.95** on this index's 0.2.1; d1-omni is the first entrant at the laya 350–600M
-encoder scale) — distilled in `.research/009_LiquidAI_d1_Decision_Models.md` + issues 077+078. Their
-board table is a subset: the Jev 57.91 / Drex 1.5 58.28 rows above d1-3B are absent from it.
+> d1-omni-600M **15.95** on this index's 0.2.1; d1-omni is the first entrant at the laya 350–600M
+> encoder scale) — distilled in `.research/009_LiquidAI_d1_Decision_Models.md` + issues 077+078. Their
+> board table is a subset: the Jev 57.91 / Drex 1.5 58.28 rows above d1-3B are absent from it.
 
 ## TL;DR
 
@@ -38,6 +57,7 @@ wobble).
 | `Cloudflare/clef-flash` (HF) | created 2026-09-30T21:15:36Z, base `Qwen/Qwen3.5-9B`, `custom-code` | Apache-2.0 | metadata only |
 | JDI space README | `multimodalart/jev-decision-index`, fetched 2026-10-02 | — | full |
 | JDI leaderboard data | `data/index.json`, `generated_utc: 2026-09-28T00:39:36+00:00`, suite corpus `sha256 b2b56d6f…d5` (their own pin), edition `release-v2.1` / "Decision Index 0.2.1", hardware "1 × RTX PRO 6000", Jev `jev-1.13.0` | — | full JSON |
+| JDI leaderboard data (v3 edition) | `data/index.json`, `generated_utc: 2026-10-07T18:25:58Z`, `panel_id decision-index-0.3` / "Decision Index 0.3", 114 entrants, hardware "1 x NVIDIA RTX PRO 6000", Jev `jev-1.13.0` — fetched 2026-10-09 (reflex `.raw/jdi/index.json`, session-local; the sha-watch is `scripts/watch_jdi.py`) | — | full JSON |
 
 Community quant ecosystem landed within ~24h of the weights: GGUF (bartowski, prithivMLmods,
 abenzerps incl. imatrix), MLX 4/8-bit (mlx-community, TrevorJS), **EXL3 4-bit (ramgpt)**, NVFP4/FP8
