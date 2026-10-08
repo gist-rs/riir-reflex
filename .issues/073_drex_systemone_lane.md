@@ -1,6 +1,16 @@
 # Issue 073 — Drex DLM comparison lane (`--drex`, `/v1/systemone`)
 
-**Status:** OPEN — filed from `.research/008_Drex_DLM_SystemOne_Lane.md` (2026-10-07).
+**Status:** CLOSED 2026-10-08 — ALL TASKS LANDED (T1–T4+T6 @ `48206d5`, T5 the same day):
+T5 PASS on typed_decisions (acc 0.5865, readout_ece 0.1929 / readout_brier 0.2663 — the
+owned calibration cell reads NOT-CALIBRATED, the card's disclaimer vindicated over the
+homepage claim) + the sst5 smoke (0.5900 — ABOVE every published sst5 bar, disclosed as
+a board re-pricing, never a seat: CC BY-NC). Full record:
+`.benchmarks/073_drex_lane_t5_suite_pass.md` (serving posture + box state + the
+turnkey serving setup + the determinism-flag read). The issue file is removed per the
+noise-reduction rule; the lane doc (`src/lanes/drex.rs` module doc) + the bench record
+are the standing documentation.
+
+Filed from `.research/008_Drex_DLM_SystemOne_Lane.md` (2026-10-07).
 **T1–T4 + T6 LANDED 2026-10-08 (`48206d5`, shikuwa/4090):** the lane + harness wiring + the
 T4 readout + the T6 caution; T5 (the suite pass) staged — serving setup recorded under T5
 below. Wire pinned from their `api.py`/`serve.py`/`inference.py` @ `6c63df2` (re-cloned
@@ -75,18 +85,20 @@ Weights are **CC BY-NC 4.0** (repo code MIT). This lane is **measurement only**:
       the tail's `by_question_type` on typed_decisions. The formulas are pinned in
       the lane doc and the wire delivers their computed values — the lane never
       re-derives.)*
-- [ ] **T5** Suite pass on `typed_decisions` (+ one short-suite smoke) with
+- [x] **T5** Suite pass on `typed_decisions` (+ one short-suite smoke) with
       `scripts/bench_preflight.sh` PROVENANCE quoted; table lands in
       `.benchmarks/` with serving posture + box state; the "this is the open 32K
       release, not hosted Drex 1.5" scope line in every table.
-      *(STAGED 2026-10-08, shikuwa/4090: the serving posture = their Python
-      `serve.py` on CUDA — `.raw/drex-env` built (torch 2.6.0+cu124 live,
-      transformers 5.19.0, pydantic, hf_hub; their requirements satisfied),
-      `nace-ai/drex-dlm` BF16 (~16 GB) downloading into `.raw/drex-model`;
-      `nvidia-smi` headroom fine for 8B bf16 on the 4090. The Q8_0-GGUF/
-      llama.cpp-fork posture (their edlm fork @ cdcf65d, nvcc 13.3 present) is
-      the alternative — the reply's `model` field discloses whichever serves.
-      The run itself is the next unit once the weights land.)*
+      *(PASS 2026-10-08 — `.benchmarks/073_drex_lane_t5_suite_pass.md`: their Python
+      serve.py on CUDA (bf16, 15.5 GB resident on the 4090; `.raw/drex-env` torch
+      2.6.0+cu124 + transformers 5.19; weights snapshot 16 GB → `.raw/drex-model`);
+      typed_decisions acc 0.5865 / ece(maxp) 0.1082 / readout_ece 0.1929 /
+      readout_brier 0.2663 / p50 98 ms, per-primitive choice 0.6167 · noul 0.5717 ·
+      score 0.5750; sst5 smoke 0.5900 (above every published sst5 bar — board
+      re-pricing disclosed, never a seat); determinism flagged ✗ (their bf16-CUDA
+      forward is not bit-deterministic — the observed-repeat check doing its job);
+      the warm sanity read matched their published example (87 tokens EXACT,
+      argmaxes exact, deltas ≤ 0.012).)*
 - [x] **T6** Long-state caution carried from their own validation: do NOT add
       16K-token states to the lane's cases (their own cross-runner file shows a
       first-third-marker retrieval failure); if a long-state probe is ever wanted it

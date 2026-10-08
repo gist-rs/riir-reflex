@@ -1,0 +1,404 @@
+{
+  "meta": {
+    "date_utc": "2026-10-08T01:45:53Z",
+    "git_sha": "3d7c9d2",
+    "host": "shikuwa",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "E:\\git\\riir-reflex\\.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "on — Drex DLM (nace-ai/drex-dlm @ 6c63df2, Efficient-DLM-8B backbone; repo MIT, weights CC BY-NC 4.0 — MEASUREMENT ONLY, never a product lane, never a distill teacher) served on loopback via http://127.0.0.1:8000 (comparison lane, never a product lane): same cases, their /v1/systemone contract (the wire pinned from their api.py/serve.py at the pin), gold-label scoring; liveness = GET /health, the model id read from the response's own model field (never hardcoded — their Python serve.py vs the llama.cpp edlm fork is disclosed by it + the env); their scorer-side latency_ms + billing-style token counts reported beside the client round-trip; probabilities read as-is at their 4-decimal serialization (never renormalized); determinism = the observed-repeat check; Issue 073 + .research/008",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 0.72,
+        "swap_used_mb": 4240.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 4.0,
+        "gpu_mem_mib": 15633.0,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 1.92,
+        "swap_used_mb": 4236.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 2.0,
+        "gpu_mem_mib": 15829.0,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects, code_fixtures): in-process fixtures with programmatic gold; the six Issue-004 harness families were retired 2026-10-02 (owner call — at-chance on the modelless lane at the honest populations)"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.3345,
+          "macro_f1": 0.2455793958818182,
+          "ece": 0.04876030212640762,
+          "brier": 0.6895237585614031,
+          "nll": 1.2300765582334825,
+          "aurc": 0.5428540456870272,
+          "mean_confidence": 0.3491663858294487,
+          "acc_at_50_coverage": 0.469,
+          "acc_at_80_coverage": 0.3925
+        },
+        "readout_ece": 0.023394644990563374,
+        "readout_brier": 0.22364395398401532,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.993,
+          "selective_accuracy": 0.2857142857142857,
+          "selective_n": 14
+        },
+        "abstain_causes": {
+          "score_gate": 1981,
+          "distance_gate": 5,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.3292865091860295,
+        "readout_ece_calibrated": 0.023394644990563374,
+        "floor_ece": 0.3577834331337324,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.17166666666666666,
+            "macro_f1": 0.11260779263121574,
+            "ece": 0.09271795839071272,
+            "brier": 0.7817652282881075,
+            "nll": 1.494538804911172,
+            "aurc": 0.7845380104698566,
+            "mean_confidence": 0.2643846250573794,
+            "acc_at_50_coverage": 0.22666666666666666,
+            "acc_at_80_coverage": 0.2
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.565,
+            "macro_f1": 0.551791545861227,
+            "ece": 0.05682319382826484,
+            "brier": 0.49847883401813664,
+            "nll": 0.6916259033173674,
+            "aurc": 0.4859296412602207,
+            "mean_confidence": 0.5081768061717351,
+            "acc_at_50_coverage": 0.52,
+            "acc_at_80_coverage": 0.5479166666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.28375,
+            "macro_f1": 0.22752925792666806,
+            "ece": 0.044232836142182354,
+            "brier": 0.7636263496738737,
+            "nll": 1.435567864412299,
+            "aurc": 0.6663015178417134,
+            "mean_confidence": 0.29349489115178584,
+            "acc_at_50_coverage": 0.355,
+            "acc_at_80_coverage": 0.33125
+          }
+        },
+        "soft_acc": 0.31688348879039485,
+        "brier_soft": 0.24297120190362995,
+        "score_mae": 0.7045954665789839,
+        "within_1": 0.7275,
+        "latency_p50_ms": 0.908,
+        "latency_p99_ms": 2.755,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.184,
+          "max_ms": 2.828,
+          "argmax_case": 124
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 1.2135898,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.36191088,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.36191088,
+            "status": "fitted",
+            "targetAccuracy": 0.45714286,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.4,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "investigate",
+            "pred": "monitor",
+            "count": 74,
+            "share_of_errors": 0.0691588785046729
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 50,
+            "share_of_errors": 0.04672897196261682
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.04672897196261682
+          },
+          {
+            "gold": "None: everything reconciles.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 47,
+            "share_of_errors": 0.04392523364485981
+          },
+          {
+            "gold": "approve",
+            "pred": "manual_review",
+            "count": 45,
+            "share_of_errors": 0.04205607476635514
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "Mild frustration, but the relationship is intact.",
+            "count": 44,
+            "share_of_errors": 0.041121495327102804
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 42,
+            "share_of_errors": 0.03925233644859813
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 42,
+            "share_of_errors": 0.03925233644859813
+          },
+          {
+            "gold": "High: access to production, secrets or customer data.",
+            "pred": "Negligible: no access to anything sensitive.",
+            "count": 37,
+            "share_of_errors": 0.03457943925233645
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "Moderate: a real difference worth confirming.",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          },
+          {
+            "gold": "human_review",
+            "pred": "continue",
+            "count": 36,
+            "share_of_errors": 0.03364485981308411
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.059363957597173195,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.35231216442584995
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.05982501843571665
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.35231216442584995
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "drex": {
+        "lane": "drex",
+        "model": "drex-dlm",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.5865,
+          "macro_f1": 0.5802987467662611,
+          "ece": 0.10819204999999996,
+          "brier": 0.5438868918900003,
+          "nll": 0.9371348971982383,
+          "aurc": 0.2847039238141745,
+          "mean_confidence": 0.6808192500000004,
+          "acc_at_50_coverage": 0.691,
+          "acc_at_80_coverage": 0.6225
+        },
+        "readout_ece": 0.1928557500000001,
+        "readout_brier": 0.2663099949850001,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.6166666666666667,
+            "macro_f1": 0.5986425345380547,
+            "ece": 0.12052533333333346,
+            "brier": 0.5410055013166669,
+            "nll": 1.0193013141720357,
+            "aurc": 0.24645347271504708,
+            "mean_confidence": 0.7359016666666661,
+            "acc_at_50_coverage": 0.7233333333333334,
+            "acc_at_80_coverage": 0.66875
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.5716666666666667,
+            "macro_f1": 0.5187250896538379,
+            "ece": 0.1874288333333333,
+            "brier": 0.5303778705000013,
+            "nll": 0.7878827847309335,
+            "aurc": 0.2961348428659781,
+            "mean_confidence": 0.7590955000000001,
+            "acc_at_50_coverage": 0.69,
+            "acc_at_80_coverage": 0.6
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.575,
+            "macro_f1": 0.6013650035333423,
+            "ece": 0.06176450000000007,
+            "brier": 0.5561797008624992,
+            "nll": 0.9874491688183723,
+            "aurc": 0.28973144355001207,
+            "mean_confidence": 0.5808002499999998,
+            "acc_at_50_coverage": 0.6675,
+            "acc_at_80_coverage": 0.6140625
+          }
+        },
+        "soft_acc": 0.461749687739992,
+        "brier_soft": 0.22050576685344442,
+        "score_mae": 0.3906310500000003,
+        "within_1": 0.92125,
+        "latency_p50_ms": 98.0,
+        "latency_p99_ms": 157.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 83.0,
+          "max_ms": 164.0,
+          "argmax_case": 119
+        },
+        "determinism_ok": false,
+        "determinism_n": 10,
+        "seconds": 42.7869363,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.41554770318021206
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    }
+  ]
+}
