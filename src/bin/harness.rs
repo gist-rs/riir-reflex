@@ -20,7 +20,7 @@
 //!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--paw] [--paw-local] [--cascade]
+//!                                      [--d1] [--pplx] [--paw] [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -250,6 +250,7 @@ fn harness_main() {
         openthai: false,
         drex: false,
         d1: false,
+        pplx: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -547,6 +548,7 @@ fn harness_main() {
             "--openthai" => opts.openthai = true,
             "--drex" => opts.drex = true,
             "--d1" => opts.d1 = true,
+            "--pplx" => opts.pplx = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -1125,6 +1127,7 @@ fn harness_main() {
                 &suite.openthai,
                 &suite.drex,
                 &suite.d1,
+                &suite.pplx,
             ]
             .into_iter()
             .flatten()

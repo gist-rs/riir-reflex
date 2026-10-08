@@ -1427,6 +1427,13 @@ pub struct SuiteResult {
     /// (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub d1: Option<LaneResult>,
+    /// Issue 082: the pplx-decider comparison lane's row — Perplexity's
+    /// `pplx-decider-v1.1-27b` (Apache-2.0, UNGATED — the JDI 2026-10-07
+    /// #1; teacher-eligible unlike drex/d1) served through their autojev
+    /// server on the TypeSafe `/v1/systemone` wire, measured over HTTP.
+    /// Absent (never a fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub pplx: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1541,6 +1548,11 @@ pub struct RunMeta {
     /// reply's own `model` field + D1_SERVE_URL disclose which; lfm1.0
     /// license: measurement only).
     pub d1_lane: String,
+    /// Whether the pplx-decider comparison lane ran (Issue 082), and its
+    /// serving posture when it did (their autojev server — the model id +
+    /// checkpoint basename from /health, PPLX_DEVICE the posture stamp; a
+    /// local-serve read, the hosted posture owner-gated and never pooled).
+    pub pplx_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6109,6 +6121,136 @@ fn run_d1_lane(
     Ok(result)
 }
 
+/// The pplx-decider comparison lane (Issue 082): Perplexity's
+/// `pplx-decider-v1.1-27b` (the JDI 2026-10-07 #1; Apache-2.0, UNGATED —
+/// teacher-eligible, the read decides riir-train 623's pick) served
+/// through THEIR autojev server, measured over HTTP — the agentjev
+/// lane's shape (same cases, the TypeSafe `/v1/systemone` wire via
+/// `src/lanes/pplx.rs`, the same metrics tail through
+/// [`assemble_laya_lane_result`]).
+///
+/// Env: `PPLX_SERVE_URL` (default `http://127.0.0.1:8793` — their server
+/// binds `PORT`; serve with `PORT=8793` so the drex lane's 8000 stays
+/// free), `PPLX_TIMEOUT_MS` (default 300000 — the offload posture is
+/// slow per forward), `PPLX_DEVICE` (the posture stamp), `PPLX_API_KEY`
+/// (optional bearer). The `/health` handshake captures the model id +
+/// checkpoint basename (the serving provenance — never a hardcoded name,
+/// the gliner law) and refuses while their lazy first load is still
+/// `"loading"`. The no-clock law: their body carries no timing anywhere,
+/// so the determinism compare is verbatim — the column measures compute
+/// determinism (bf16 device wobble included), never their clock.
+fn run_pplx_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::pplx::PplxLane;
+
+    let t_start = Instant::now();
+    let lane = PplxLane::default();
+    let (model, device) = lane.info()?;
+    eprintln!("    [pplx] service up: {model} on {device}");
+
+    // WARMUP (the clm lane's cold-start law): one FIXED throwaway request
+    // (never a case's — no cache pollution of measured latencies) absorbs
+    // the first-forward path (kernel compile / offload page-in).
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("pplx warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N pplx row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // The repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, tokens) = lane
+            .decide(case)
+            .map_err(|e| format!("pplx lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        input_tokens += tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law) — VERBATIM compare on this wire (the no-clock law).
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("pplx determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("pplx determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!("    [pplx] input tokens summed: {input_tokens}");
+
+    Ok(assemble_laya_lane_result(
+        "pplx",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 /// The occupancy floor below which a split-half conformal floor is noise:
 /// 40 pairs → 20/20 (the modelless lane's dedicated cal window is the G1
 /// reference shape; this lane's floor is the cheap split-half companion and
@@ -7218,6 +7360,16 @@ pub struct RunOptions {
     /// unreachable server is a LOUD error, never a silent skip. Default
     /// off.
     pub d1: bool,
+    /// Also run the pplx-decider comparison lane (Issue 082): Perplexity's
+    /// `pplx-decider-v1.1-27b` (Apache-2.0, UNGATED — the JDI 2026-10-07
+    /// #1; teacher-eligible unlike drex/d1) served through their autojev
+    /// server over the TypeSafe `/v1/systemone` wire at `PPLX_SERVE_URL`
+    /// (default `http://127.0.0.1:8793`; serve their side with
+    /// `PORT=8793`). Local-serve posture only (the hosted posture is
+    /// owner-gated and never pooled — the clef law); the read decides
+    /// teacher candidacy (riir-train 623). An unreachable server is a
+    /// LOUD error, never a silent skip. Default off.
+    pub pplx: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -7949,6 +8101,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // pplx-decider comparison lane (Issue 082): Perplexity's
+        // pplx-decider-v1.1-27b through their autojev server (Apache-2.0,
+        // UNGATED — teacher-eligible, the read decides; never a product
+        // lane), measured over HTTP — same cases, the same metrics tail.
+        let pplx_result = if opts.pplx {
+            eprintln!("    pplx: running…");
+            match run_pplx_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    pplx: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (pplx): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -8099,6 +8277,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             openthai: openthai_result,
             drex: drex_result,
             d1: d1_result,
+            pplx: pplx_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -8423,6 +8602,35 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)"
                 .to_string()
         },
+        pplx_lane: if opts.pplx {
+            let url = std::env::var(crate::lanes::pplx::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::pplx::DEFAULT_SERVE_URL.into());
+            let device = std::env::var(crate::lanes::pplx::DEVICE_ENV)
+                .unwrap_or_else(|_| "cuda:0".to_string());
+            format!(
+                "on — Perplexity pplx-decider-v1.1-27b (perplexity-ai/pplx-decider-v1.1-27b \
+                 @ 3b45dea, Qwen3.8-27B backbone + single-token readout head, \
+                 noncausal_full_attention + last pooling; Apache-2.0, UNGATED — \
+                 teacher-eligible unlike drex/d1; not affiliated) served through \
+                 THEIR autojev server via {url} on {device} (comparison lane, never \
+                 a product lane): same cases, their /v1/systemone contract (the wire \
+                 pinned from their server.py/types.py/model.py at the pin), \
+                 gold-label scoring; liveness = GET /health (refuses while their \
+                 lazy first load is 'loading'), the model id + checkpoint basename \
+                 read from /health (never hardcoded); the 52GB bf16 checkpoint \
+                 exceeds a 24GB card — an offload-patched loader is a numerically \
+                 exact bf16 posture, DISCLOSED via PPLX_DEVICE and quoted here; \
+                 latency = client round-trip INCLUDING the network hop to the serve \
+                 box (the JDI hosted rows' own disclosure class — not comparable to \
+                 on-card figures); input tokens reported beside the metrics; the \
+                 no-clock law: their body carries no timing, determinism = verbatim \
+                 observed-repeat (compute, bf16 wobble included); Issue 082"
+            )
+        } else {
+            "off (pass --pplx to add the comparison lane; serve their autojev \
+             server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)"
+                .to_string()
+        },
         paw_lane: if opts.paw {
             format!(
                 "on — ProgramAsWeights (MIT SDK, not affiliated) over their hosted \
@@ -8569,6 +8777,8 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- agentjev lane: {}\n", out.meta.agentjev_lane));
     s.push_str(&format!("- clef lane: {}\n", out.meta.clef_lane));
     s.push_str(&format!("- drex lane: {}\n", out.meta.drex_lane));
+    s.push_str(&format!("- d1 lane: {}\n", out.meta.d1_lane));
+    s.push_str(&format!("- pplx lane: {}\n", out.meta.pplx_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(
@@ -9194,6 +9404,35 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
             ));
         }
+        if let Some(r) = &suite.pplx {
+            // Same shape as the d1 row — the pplx-decider reference is a
+            // comparison lane with the same metrics surface (Issue 082;
+            // latency = client round-trip INCLUDING the disclosed network
+            // hop to the serve box; determinism = the verbatim no-clock
+            // observed-repeat).
+            s.push_str(&format!(
+                "| {} · {} | {} | {} | {} | {} | {} | {} | {} | {} | {} | — / — | — | {:.1} ms | {} | {} | — |\n",
+                r.lane,
+                r.model,
+                r.hard.n,
+                fmt4(r.hard.accuracy),
+                fmt4(r.hard.macro_f1),
+                fmt4(r.hard.ece),
+                fmt4(r.hard.brier),
+                fmt4(r.hard.nll),
+                fmt4(r.hard.aurc),
+                fmt4(r.hard.acc_at_50_coverage),
+                fmt_opt(r.readout_ece),
+                r.latency_p50_ms,
+                fmt_p99_cell(
+                    r.latency_p99_ms,
+                    r.latency_tail_support,
+                    r.latency_extremes.as_ref(),
+                    1
+                ),
+                r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+            ));
+        }
         if let Some(r) = &suite.paw {
             // Free text, no probability surface: accuracy + latency only
             // (refusals scored wrong); the refusal line follows the table.
@@ -9292,6 +9531,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 suite.openthai.as_ref(),
                 suite.drex.as_ref(),
                 suite.d1.as_ref(),
+                suite.pplx.as_ref(),
             ]
             .into_iter()
             .flatten()

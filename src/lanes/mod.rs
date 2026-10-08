@@ -44,3 +44,10 @@ pub mod drex;
 // the same import law). License `other`/lfm1.0: measurement only (the
 // license law in the module doc).
 pub mod d1;
+// Issue 082: the pplx-decider comparison lane — the drex/TypeSafe
+// `/v1/systemone` shape against Perplexity's autojev server (their source
+// ships IN the model repo; Apache-2.0 UNGATED — teacher-eligible, unlike
+// drex/d1's license-restricted lanes). Ungated: the same import law
+// (`crate::harness::suites` + the std-only `crate::lanes::http_mini` +
+// std + serde_json).
+pub mod pplx;
