@@ -177,8 +177,14 @@ impl DrexLane {
         Ok((outcome, client_ms))
     }
 
-    /// The raw response body for one case (the determinism check's
-    /// byte-compare input — the agentjev/openthai lane law).
+    /// The response body for one case with the VOLATILE TIMING TAIL
+    /// removed — the determinism check's compare input. Their body carries
+    /// `latency_ms`, which differs on every request by definition: a raw
+    /// byte-compare measures their clock, not the decision, and reads det ✗
+    /// BY CONSTRUCTION on every serving posture (the artifact behind
+    /// agentjev's recorded det ✗; Bench 125 is the control — two full
+    /// Q8_0/Metal runs with the strip are byte-identical on the whole
+    /// answers surface). Everything else stays byte-exact.
     pub fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
         let body = build_body(case)?.to_string();
         let (status, _headers, raw) = self.post(&body)?;
@@ -189,7 +195,12 @@ impl DrexLane {
                 String::from_utf8_lossy(&raw)
             ));
         }
-        Ok(String::from_utf8_lossy(&raw).to_string())
+        let mut parsed: Value = serde_json::from_slice(&raw)
+            .map_err(|e| format!("drex response ({}): {e}", case.id))?;
+        if let Some(obj) = parsed.as_object_mut() {
+            obj.remove("latency_ms");
+        }
+        Ok(parsed.to_string())
     }
 
     fn post(&self, body: &str) -> Result<HttpReply, String> {
@@ -650,5 +661,84 @@ mod tests {
         assert_eq!(outcome.input_tokens, 42);
         assert_eq!(outcome.output_tokens, 77);
         assert_eq!(outcome.latency_ms, Some(12.5));
+    }
+
+    /// The determinism compare input strips the volatile timing tail
+    /// (Issue 075): two responses differing ONLY in `latency_ms` normalize
+    /// byte-identical, while the answers surface survives verbatim — the
+    /// check measures the decision, never their clock (Bench 125 is the
+    /// two-run byte-identical control).
+    #[test]
+    fn decide_raw_strips_only_the_latency_tail() {
+        let c = case(json!("s"), vec![("q0", QKind::Noul, "d?", Value::Null)]);
+        let base = json!({
+            "model": "drex-dlm",
+            "answers": {"q0": {"type": "noul", "noul": 0.25}},
+            "usage": {"input_tokens": 9, "output_tokens": 4},
+            "latency_ms": 111.0
+        });
+        let raw_with = |latency: f64| {
+            let mut body = base.clone();
+            body["latency_ms"] = json!(latency);
+            let canned = body.to_string();
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let server = std::thread::spawn(move || loop {
+                let (stream, _) = listener.accept().expect("accept");
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                // Read the headers AND THE BODY (the macOS ECONNRESET
+                // flake the openthai stub documents).
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
+                        }
+                    }
+                }
+                let mut req_body = vec![0u8; content_length];
+                if reader.read_exact(&mut req_body).is_err() {
+                    continue;
+                }
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
+                return;
+            });
+            let raw = DrexLane::from_url(&format!("http://{addr}"))
+                .decide_raw(&c)
+                .expect("round trip");
+            server.join().expect("server thread");
+            raw
+        };
+        let raw1 = raw_with(111.0);
+        let raw2 = raw_with(408.0);
+        assert_eq!(raw1, raw2, "timing-only differences normalize away");
+        assert!(!raw1.contains("latency_ms"));
+        // The answers surface survives verbatim.
+        assert!(raw1.contains("0.25"), "{raw1}");
     }
 }
