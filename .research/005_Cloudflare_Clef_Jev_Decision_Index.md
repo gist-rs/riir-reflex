@@ -4,6 +4,11 @@
 filed: `.plans/011_clef_lane_jdi_protocol.md`. The hosted-Clef serving credentials (Cloudflare
 account ID + Workers AI API token) are owner-gated; nothing in this note requires them to be true.
 
+> **Update 2026-10-08:** LiquidAI joined the category with open-weight d1 (d1-3B **48.57** /
+d1-omni-600M **15.95** on this index's 0.2.1; d1-omni is the first entrant at the laya 350–600M
+encoder scale) — distilled in `.research/009_LiquidAI_d1_Decision_Models.md` + issues 077+078. Their
+board table is a subset: the Jev 57.91 / Drex 1.5 58.28 rows above d1-3B are absent from it.
+
 ## TL;DR
 
 Cloudflare open-sourced two **decision models** — `Clef` (frozen Qwen3.8-27B backbone + routing

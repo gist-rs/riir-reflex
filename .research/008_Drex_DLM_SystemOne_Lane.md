@@ -6,6 +6,11 @@ landed `48206d5`/`a1bae34` + `cd0248b`, closed and removed upstream (closure nar
 ALSO closed — det ✓ 10/10 under the timing-tail strip at BOTH serving postures, the
 not-calibrated verdict three-posture (Benches 125 + 126).
 
+> **Update 2026-10-08:** the next entrant after this note is LiquidAI's open-weight d1
+> (same wire, d1-3B 48.57 / d1-omni-600M 15.95 on 0.2.1 — and d1-omni is the first
+> laya-scale-class entrant) — `.research/009_LiquidAI_d1_Decision_Models.md` + issues 077+078.
+> d1's board table omits the Drex-1.5/Jev rows above d1-3B (subset-table law, again).
+
 > External source: `nace-ai/drex-dlm` @ `6c63df209db96c32160e1b4dfc769efb56b21f89`
 > (cloned 2026-10-07; repo code MIT, model weights **CC BY-NC 4.0**). HF:
 > `nace-ai/drex-dlm` (BF16 safetensors, ~16 GB, 8B) + `nace-ai/drex-dlm-Q8_0` (pointer
