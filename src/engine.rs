@@ -548,6 +548,21 @@ fn find_subslice(haystack: &[u8], needle: &[u8]) -> Option<usize> {
         .position(|w| w == needle)
 }
 
+/// The `[ridge-dbg]` flag, read ONCE per process (issue 075). The
+/// per-question `env::var_os` lookup this replaced was a G4 violation at
+/// the nb_ridge posture: on Windows a lookup of a MISSING variable
+/// ALLOCATES every call (measured 1000 missing-var lookups → 1000
+/// allocations), so every route-active question allocated once and the
+/// bench's 200-rep G4 loop counted exactly 4 × 200 = 800. The lookup is
+/// also a real hot-path cost (env lock + OS call per question). Init
+/// rides the first solve (warmup); a var set AFTER the first solve is
+/// not observed — a debug flag, never a config surface.
+#[cfg(feature = "nb_ridge")]
+fn ridge_debug_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("RIIR_DEBUG_RIDGE").is_some())
+}
+
 /// The longest prefix (≥ [`SHARED_PREFIX_MIN`], the measured floor: a word)
 /// carried by at least half the options, and its byte length — the
 /// Issue-036 SharedPrefix rewrite. Deterministic; `(0, None)` when no
@@ -1499,7 +1514,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             if ridge_on {
                 // Tokens + per-domain scores come from the case-level
                 // fill; the per-question work is only the option mapping.
-                if std::env::var_os("RIIR_DEBUG_RIDGE").is_some() {
+                if ridge_debug_enabled() {
                     eprintln!(
                         "[ridge-dbg] n_tok={} ridge_in={:?}",
                         sc.ridge_tok.len(),
