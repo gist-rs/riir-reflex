@@ -1,0 +1,241 @@
+{
+  "meta": {
+    "date_utc": "2026-10-08T13:57:53Z",
+    "git_sha": "03533fb",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 13.01,
+        "swap_used_mb": 6108.88,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 13.01 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 13.01,
+        "swap_used_mb": 6108.88,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 13.01 > 6 — a sibling job is on the box"
+        ]
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects, code_fixtures): in-process fixtures with programmatic gold; the six Issue-004 harness families were retired 2026-10-02 (owner call — at-chance on the modelless lane at the honest populations)"
+    ]
+  },
+  "suites": [
+    {
+      "name": "wanli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-8746d4dcc5a158e8",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.31,
+          "macro_f1": 0.20423160717278366,
+          "ece": 0.03838876605033876,
+          "brier": 0.6688811377540381,
+          "nll": 1.1019030388544582,
+          "aurc": 0.6993480293273981,
+          "mean_confidence": 0.34838876605033875,
+          "acc_at_50_coverage": 0.3,
+          "acc_at_80_coverage": 0.30416666666666664
+        },
+        "readout_ece": 0.0870507926742236,
+        "readout_brier": 0.22848736797973,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.6,
+          "selective_accuracy": 0.3416666666666667,
+          "selective_n": 120
+        },
+        "abstain_causes": {
+          "score_gate": 109,
+          "distance_gate": 71,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.3077580815553665,
+        "readout_ece_calibrated": 0.0870507926742236,
+        "floor_ece": 0.2920563847429519,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.098,
+        "latency_p99_ms": 0.134,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.099,
+          "max_ms": 0.153,
+          "argmax_case": 274
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.135105208,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.28363237,
+        "distance_threshold": 0.56557435,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.28363237,
+            "status": "fitted",
+            "targetAccuracy": 0.35714287,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.56557435,
+            "status": "fitted",
+            "targetAccuracy": 0.29285714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 89,
+            "share_of_errors": 0.42995169082125606
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 88,
+            "share_of_errors": 0.4251207729468599
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 16,
+            "share_of_errors": 0.07729468599033816
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 11,
+            "share_of_errors": 0.05314009661835749
+          },
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 2,
+            "share_of_errors": 0.00966183574879227
+          },
+          {
+            "gold": "neutral",
+            "pred": "contradiction",
+            "count": 1,
+            "share_of_errors": 0.004830917874396135
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3333333333333333,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.347851622402668
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.002912087440490706
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.347851622402668
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2bfb6237654b0bd9"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-290572092bd750e4",
+        "cal_digest": "fnv1a64-c6aab3376a8f57c2",
+        "pool_digest": "fnv1a64-21ccb421c47809e7",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    }
+  ]
+}

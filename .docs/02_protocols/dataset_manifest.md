@@ -43,6 +43,7 @@ the mint surface (riir-rethink Issue 024 v1 — the Plan 007 P0 hosted lane;
 | ag_news | `fancyzhx/ag_news` | **none exists to clear** (verified 2026-10-05, T3: Antonio Gulli's 2004/05 "AG's corpus of news articles" — ~496k articles from 2000+ publishers; no licence on the card, the mirror, or any original hosting — the corpus predates the mirrors and was distributed without terms) | the original AG News corpus citation (Zhang et al., 2015 / Gulli, 2004) | ⛔ benchmark-only (demoted 2026-10-05, T3 — no grant exists to clear) |
 | sst5 | `SetFit/sst5` | **none exists to clear** (verified 2026-10-05, T3 against the PRIMARY source: the Stanford SST zip's own README — `nlp.stanford.edu/~socherr/stanfordSentimentTreebank.zip` — carries NO licence terms, only a citation request; content = "10,605 processed snippets from the original pool of Rotten Tomatoes HTML files" — third-party copyrighted review text, no permission grant; the HF cards carry nothing) | Socher et al., 2013 | ⛔ benchmark-only (demoted 2026-10-05, T3 — no grant exists to clear) |
 | xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
+| wanli_en | `alisawuffles/WANLI` (AI2) | **CC BY 4.0** (AI2's own page states "License: CC BY" — [allenai.org/data/wanli](https://allenai.org/data/wanli); HF tag `cc-by-4.0` — both read 2026-10-08). Open derivative question carried for the owner (verbatim from rethink Research 002): the corpus is GPT-3-generated with MultiNLI examples used as in-context SEEDS (never copied); MNLI's own terms are not stated at its primary page, so whether seed-influence reaches the generated text is an open derivative question carried on this row for the owner | Liu et al., 2022 (WANLI: Worker-and-AI Collaboration for Natural Language Inference Dataset Creation) | ✓ |
 | emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
 
 Attribution page for the ✓ rows before the hosted lane opens: **LANDED
@@ -451,6 +452,283 @@ language configs; `tha_Thai` is the Thai one (verified via /splits).
 | `train-005.json` | 100 | `5692b4104f96149db54c2a552fbe2eda55ba602c526043eb2ed6c05c231a2533` | 43802 |
 | `train-006.json` | 100 | `d92d83feb172ddfe18b606eea21a807a01898d29c539eb4614db7a07a2069801` | 47607 |
 | `train-007.json` | 1 | `a1b947c11b1b2fc73e592ad67d051449a014f35b331c8e6cc7f31d4da17e6ab3` | 784 |
+
+### 11. wanli_en — `alisawuffles/WANLI` (config `default`) — the ESC re-source NLI lane (reflex issue 080; rethink Issue 024 / Research 002)
+
+WANLI (Worker-and-AI NLI, AI2) re-enters the xnli_en niche under a clean
+CC BY grant — the licence was verified AT SOURCE 2026-10-08 (AI2's own page
+"License: CC BY"; HF tag `cc-by-4.0`), not from a hub-tag echo. `gold` is a
+plain STRING (entailment/neutral/contradiction — no ClassLabel order to
+verify at the port; the builder maps the string through the XNLI_KEYS order,
+the option universe is FIXED, not derived). `test` fetched WHOLE (5,000 rows
+— the eval cap lives in the harness, the banking77 posture); `train` capped
+at TRAIN_CAP=20000 (dataset total 102,885). Label distribution over the
+fetched slices: test 5,000 → 1,858 entailment / 2,397 neutral / 745
+contradiction; train 20,000 → 7,548 entailment / 9,455 neutral / 2,997
+contradiction.
+
+**Open derivative question carried for the owner (verbatim from rethink
+Research 002):** the corpus is GPT-3-generated with MultiNLI examples used as
+in-context SEEDS (never copied); MNLI's own terms are not stated at its
+primary page, so whether seed-influence reaches the generated text is an open
+derivative question carried on this row for the owner.
+
+Fetch 2026-10-08 (three passes — two 429 limiter walls mid-run, the skip
+logic resumed exactly; final pass clean, 0 failed_requests). First
+measurement: `.benchmarks/130_wanli_en_baseline` (A0 0.3100).
+
+| `splits.json` | — | `864338d2b6d2fb60df0d55a07dc1682d3ab41450d896295fd2e84c44c3eceaaf` | 172 |
+
+| `test-000.json` | 276f801f4c7a10c48446a119d179ca5d8098ffe26de4268be25514af7d2b7212 | 30315 |
+| `test-001.json` | efa797c0c6f68b5725b230052ab462c20f26de8bd22ee4ffcdcec5ddc186982c | 28189 |
+| `test-002.json` | dbda592600344f4a44446858fc0da22433f73f1cf62a3db196d87ef1d2c8a810 | 28612 |
+| `test-003.json` | 3ecf8be3813cee8f996b8a466a7ddd0380ef94f9b13286bfbcdc68332df7fdec | 29354 |
+| `test-004.json` | 0c91b800338106d98f316f1a48defff91a00f7071402966ec0fcac8f6fdacc7b | 29185 |
+| `test-005.json` | d3816562697456a390906a3e263ca7522e9c6102f9bf8c119c3f9c3d0b326cca | 30784 |
+| `test-006.json` | f72afee331792d6455aa1a4f891350c8a39fe09ae9aa1f24195db82f71aea724 | 28639 |
+| `test-007.json` | c360859b01105e70681ae41e85b0e27e8fef55bcdb42fa2a35d4f5014469c3bd | 30143 |
+| `test-008.json` | aefe54731e886db414cab98b8687a77766381b289c85182ded276e6e3739eb5e | 28969 |
+| `test-009.json` | 64d40b6b3d8d1ed247888d2d3e007267392d91c9dea8118125aec4b24c876388 | 29559 |
+| `test-010.json` | 650b74eada116bccae4c346090f58980cfe2fdf30f907a91209d9bec9eb1ee2f | 28483 |
+| `test-011.json` | 6cad7a358307f0e28bbbe82c03bf11bc369d41bb9b5d35865a441dc3e2ef1752 | 29855 |
+| `test-012.json` | 926fd568531dff1e10202b2d98e392ddc052a2e0afa90ccf80047e280468e856 | 29544 |
+| `test-013.json` | f04b3711ff17c0bb9cd5869803d2830280e9917a3007772e6baa100a782722fd | 31581 |
+| `test-014.json` | ac357937663bca16762147d01476cdd12f5d4f1152d81ae3bce95011f31f8911 | 30322 |
+| `test-015.json` | 4c2e0e744a3073ef7e75541fe9a9ffe41a4c6c18d540a4f2f088c5925c55b587 | 29454 |
+| `test-016.json` | 538db79706d8a62ced42e006b359071ad7de217b8e2e4c02117c6ca1fca8a839 | 30845 |
+| `test-017.json` | b33e4cb3af9f9679d5c0cfb870ec1c9df55bb9aad41aadc772d3d6a6015377d6 | 29621 |
+| `test-018.json` | fa2c7e4482c7b66779ad11ed75d61be8b931433fc9a80d7454a0c8e32888a139 | 29632 |
+| `test-019.json` | b7bb308d0902c7704bbcef6750ddb05db40569e6dfdf0863a750d77aec96c238 | 29748 |
+| `test-020.json` | 471b934ccf58b7e25e904f50ba8ffbabe98043e2d52d1087de489651f5d7616f | 30587 |
+| `test-021.json` | f308325f21f82b5bc67dbebcffce9ffabb6dd706637cc6263704f12cc90fe51c | 29589 |
+| `test-022.json` | 0613d330030a2405aa33b932fe5dfd709d955b54f82657fd80f0388b92cbab20 | 31149 |
+| `test-023.json` | 825f807e8a466e1efe10a16c1b344e61eabd79928188a0b8cd2878051c5ac038 | 30189 |
+| `test-024.json` | 3f58a9975e4267d1e69f1afdc544760f0f474b4d40a169b94f9158fd70abd50a | 29813 |
+| `test-025.json` | 4294d2953156db8f0ab536d6fea7247508806c07c0e0323ae1fa0e1c5489f930 | 29934 |
+| `test-026.json` | 5c920f0467917485a82e3c3a4cddfa859e7550b05828d7236bf86d38c613ed4e | 29307 |
+| `test-027.json` | f5d8a881d5e90c185970b61d3c065cd8ed975c5d8864283c795fc8b4b8bac1de | 28849 |
+| `test-028.json` | b54d8c07b6bd034744b50615cc0e0f37e4ce8eea250bff6c56714b0fcb004163 | 29386 |
+| `test-029.json` | f0a24e594fa434509836599a7f85a0d3f73dc8c07d353840deef867d96399aef | 28971 |
+| `test-030.json` | 39dd7da729d0e383c9a1ddb5c2169b8aa572097d5a1442a863d4099d12835383 | 29759 |
+| `test-031.json` | da76296b6c3f9f6d54ab5f2c2411bc100ea5436113d22fe1709dbb345b2b8a5f | 28758 |
+| `test-032.json` | 68adfad61b09ac64af4f6e79b1bceda400428da46e808a948b3fb82e6fe44544 | 28313 |
+| `test-033.json` | 53680026e824b52248a2945e3855066ff7afa9b3a1944e461914463cd06e3f9c | 29554 |
+| `test-034.json` | 5d44b02cea00d9321cdc11ebd0167d0dc30ed659de653704dbfdf8ea59a1c0b0 | 29923 |
+| `test-035.json` | 3c41a8216b4a4dab4c344c040b2e33afbec0e96f48f3506bf1cdece0a76a6701 | 29234 |
+| `test-036.json` | 383377907c43b3edd92b1e8381905e2567d813e6774e37d78b71e4382f3950a8 | 30702 |
+| `test-037.json` | 6f2bf5905e03ee95d8d4dc9e1d1f502368cb9e9b6e31a4dc3fd51ccadd0b9650 | 29522 |
+| `test-038.json` | d1500a33698276a6426881966b1de2f1cfe8c5eec721ede624ad5874b5eadf8a | 29159 |
+| `test-039.json` | 7b40e32d945540d6c3c1b82dfc4d517af7ea9783adc85c17484079f12901750d | 29839 |
+| `test-040.json` | 1676b68f72b59aa293e5df0e292862986cf6c893678de952399f85638c76ee18 | 28192 |
+| `test-041.json` | 8e6a59881ea30675b9c2f7a1c0ec0350fb455b7f575ceebbbe94edf42946b698 | 29683 |
+| `test-042.json` | 42534375846a37c41f9718b4dffd2128867c95cb7fa8311a055fd95c573a03b8 | 29712 |
+| `test-043.json` | 50baf2fe8b81dcf8e518239c6fd81c02b4dfa4ebbed3d248338fee657d0eb402 | 29754 |
+| `test-044.json` | 5cc4bc038479d9e679fda662897835be5d5439aac40c7d0eca2192d7b33176ad | 30167 |
+| `test-045.json` | 80779710b51c621dc0d3fcd9faea646919768a583a0907ef719f6b091d2cbe9b | 29653 |
+| `test-046.json` | 02fb6557ca67fcb2edada27c06022d09e9968711a0c2c9f2aa5c2b64799b660c | 29084 |
+| `test-047.json` | 0d81c871aafc3d9710a312ec94dfc45c4b4b0ecac5be599ddabe860c12ebee5a | 28552 |
+| `test-048.json` | 17131d7947db42ba77b8b91615e4443ff38db014a6b1d52502b1f2d994344cf9 | 29590 |
+| `test-049.json` | 28233b3a0a3641088c5d41cdb0959f368cc1d33a438719a9486594a1cb32ed30 | 28841 |
+| `train-000.json` | 17c286da6739b175eab0f7194653d6469558b7c16c94faaa1d86d42beb367412 | 30549 |
+| `train-001.json` | 5c5901a3dfec6f88325a278a685dea4f985a5b835cce3a8985e4e187b725c036 | 29812 |
+| `train-002.json` | 4363e8fb085778f27ce3ecf6dab77dc073fbad2e0326e901ee83023f3a7fe056 | 29508 |
+| `train-003.json` | d6269929aaea575fd109fe2f484671e6da2b5f183393640d5bcc7627dfb6aaa4 | 29457 |
+| `train-004.json` | 0959c7ed645df05280386d6cccaf216f3b060dc7a37567115a5f557285f5402d | 29606 |
+| `train-005.json` | 6a430e21348755c7b58e347d6f4543841c4490aadb378cd0a0c0d1dab9a65d6d | 29393 |
+| `train-006.json` | 3f794fcd9d17b25d27b064355c3fecd3601c1dd1ce8396bf5d91785b6a8d37ea | 30072 |
+| `train-007.json` | a8480b225381a5eeb9ad28387c2241eab2f8c23917ab9b4b7ace2bd05b44869e | 29055 |
+| `train-008.json` | 9fc30918e5671f360a57517c88bcc689d1276fe00f81419088430f38c7e7b1f2 | 29953 |
+| `train-009.json` | ec2cc1780d0c2b295fc956197bac87115d0fa61e637d13c1255d42b55f7f1cb1 | 29915 |
+| `train-010.json` | 116497ba198191cb05a2b70cfbac5717c9e1073f36ffadde940af92fabc15960 | 28830 |
+| `train-011.json` | 16d5fd9a818d592a82cdb76849f579c01576024139324017003bd9a0de631522 | 28378 |
+| `train-012.json` | 8ac185abe6ec78553eb5320e58f5e89125366fcc2375288d9922345d09f52ce6 | 30455 |
+| `train-013.json` | 4414ac7f9c54213cf121ee93aa1ec3954418db188eb8eec295ecbb6c82caa459 | 30239 |
+| `train-014.json` | 788183e70608cf8d6839ec426e4fe7efe225283d615d2b76545f6dd5ba55efc7 | 29202 |
+| `train-015.json` | d522ebd5e5c10d0cb0209ddc4866ed42bb99bfbab9cf49c56700d5f14eaadde5 | 29755 |
+| `train-016.json` | 19cadab367b6e120f2026166285b91b88fa927af0c3ecbeca003d0f9dde4b9a2 | 30100 |
+| `train-017.json` | 1f93e91be1240fe9d1fab50f1e5541f491f5b954507b7120e7cae411fbc04696 | 30099 |
+| `train-018.json` | ff7955073b79d7c7a0974564d6e01b8050f2b25735636eaf326fb140b602dac3 | 29403 |
+| `train-019.json` | 9a8ef3568aae01060da315e0375a157417daabf89e694631aa2ca469c437b1a9 | 30066 |
+| `train-020.json` | 46e710a5fed89c6652ff4e50953f5583975bf3a773282121296913949240cf82 | 29780 |
+| `train-021.json` | d279bc57ea90740f683ae523f68a062b1132dbf68a3929b4d1ffd3cb86c77e0c | 30313 |
+| `train-022.json` | a434b42078a6b22a64f26ebeef55343f8be53f5de0d5b491662f9bcc15d3f2fe | 28826 |
+| `train-023.json` | d54813875c7206c583b673d6b35dd1bfe8cae900ee38057c87d4b5fe3723b944 | 30297 |
+| `train-024.json` | da6e6120af73461b7919548fd0416f208e40bc4b95faac1d312bdc9022a05e85 | 28636 |
+| `train-025.json` | ec59d55f9dbf9f63fd1d313249c0fdd00236ccf57a1099409c790ca7bb2abec7 | 28692 |
+| `train-026.json` | 3a550c3fa3c1d12dd57b9c9b68cb7761e6ad8985313987a3ae86c97945d0809e | 28795 |
+| `train-027.json` | df2ef251e9a2eb812527ccaf04709c0a99e22e1667bda5cc4bb5eb9204008440 | 29589 |
+| `train-028.json` | c697645b647a74019989864a21d94375d7a457f7253e3e7eda26693bc5766c76 | 28275 |
+| `train-029.json` | 3d5a17f0c0056188cc29e71ef97933cfeea1346bf039c6be4f13a1254ca23707 | 30505 |
+| `train-030.json` | e3c152b10242e49fc7c1cffd0ba3c3a323018ee12dd9abb9a954cbc76143fc8d | 29574 |
+| `train-031.json` | 7ee591fda76eb3f31b35abecad6df45f23dd6f8cbfab0158e0467d018b40ec3d | 30534 |
+| `train-032.json` | 3d9b0ee0295628ad33496eb90888f1d35e1bb8594aa78c57161a2aa313ff8417 | 30400 |
+| `train-033.json` | 7fd04a9109e68d9cc4570398be1b5ed518b285a46706bbb6a8dc6bd47edacb46 | 29802 |
+| `train-034.json` | 69b85618cf76e3e798debf14a5e60453c2e8e01176ac006918361cc96fa72eef | 29594 |
+| `train-035.json` | 309c32a2118aa6874e2e86caba1aef9763dfc27ac2718b9286995e96c85cf01c | 29091 |
+| `train-036.json` | 589b40ecf354195ebc122b7860a142eebf31a01a84325de8b3232d7448d960de | 28108 |
+| `train-037.json` | cbf408b16012735779dbe204b0ca4e67f043446a4b1e11cd663da7076cd44400 | 28886 |
+| `train-038.json` | 5139b3033a2368c4c6127367818ad9c4d221e97a064e3f6efb1e0b5e0784465b | 29761 |
+| `train-039.json` | b5aca46b0e87d9fcd3ac50ec20837ac4a232acde4e0a53bdaae1505b9cc5f730 | 29712 |
+| `train-040.json` | 4efdd2bbc20073426ca2e53b69e3ad1019a61c0ffcb69f22625b4bc7dd5908de | 30554 |
+| `train-041.json` | 19e339f84101cfd50564b23be75253171c60ec852618b052c01299385ad32f26 | 30181 |
+| `train-042.json` | 6dbb4d1a0f65a5541873f9af82c32e2930766ea6c5d6d0c98f435dc179e982c4 | 30178 |
+| `train-043.json` | a4aeff9254bedf4c963c91a9e0cd8518474d655f75be556c42e78d3308ec4a69 | 29003 |
+| `train-044.json` | dda89f474705e04c1bf9f44971b1f3d10452ee4f8594e6de2feba8bf514bc068 | 29580 |
+| `train-045.json` | aaf0d6cb50850648c92d02a1b8126b4c9bf779d752cf0faebce9858150edc852 | 30292 |
+| `train-046.json` | c561da41baf2f490a94bd554f7b5d69351dd95a12989e61b7dc1ff81024b24f3 | 30358 |
+| `train-047.json` | dc0d8f9ff662c0d4eb27006385c5939e9c163210103526e55e47c29514a526aa | 29274 |
+| `train-048.json` | 153f5fdd786d2275c03dca2cc667f6055400c05b81b707578807a84620f6827b | 29549 |
+| `train-049.json` | a4a905a11583d3d475d76219b754ff28a79189da029553f3942c50d25fae95c9 | 28585 |
+| `train-050.json` | 175482ad0c3f741130c3ff1beeaf705b949da6c29ab762009801e4792596b71b | 30107 |
+| `train-051.json` | db3c33cc103e5b61bee0f41d641671782dafa72c2f87ce5a88858b5d3e13ad1f | 29641 |
+| `train-052.json` | 95495f0ef232d035dcdc4799232cdecb896e66cbb29e6e9928968b7e6e4a2968 | 29526 |
+| `train-053.json` | 17b350b20e0c1de0e34e66b81c80c86010d9f4cf801b0cb7a99fc5ceb65432cf | 28866 |
+| `train-054.json` | 63e5d9125de4d927cc8f865039c81b245a27409dc1349779a1f236c7d9ddebe4 | 29223 |
+| `train-055.json` | f7f530c3be0ffd89d57891f65123ae3f81ccc3f639429f4f436d9b199fb4be76 | 29701 |
+| `train-056.json` | adf544239b531fc4f5bcdf5c62d3569e38b7986334f864acc0fcd76ed8215155 | 29798 |
+| `train-057.json` | a5ee654621653ccec777d9bb17c4e1ce18093afd5e8b6fbe1fd4e894d48f845f | 29098 |
+| `train-058.json` | ca21b008746d0f7e1c048c975b70d4d2c37678548d502f970b772b22294fb98d | 29223 |
+| `train-059.json` | 725f625b593842e89b7e2944d57ee58b45819143902828e32c8a9d50ef09d9fc | 30798 |
+| `train-060.json` | 376ad42e0ab59c72d922b6304629b38590d2cc39d1558b25f85b5c12c49f8500 | 29112 |
+| `train-061.json` | dca1c902d7b875b5e5c0e72fa7e140ac754b111e136e1bad895582d04a73db80 | 29436 |
+| `train-062.json` | 82524667f285100596f660023f7368493d7f1e4ebe97f99006f8e0348ceecc1a | 28324 |
+| `train-063.json` | 96e1ee664a6d2b875b1242a66af5e0ff6cd9f8d5b6e8f31fff7b513765608681 | 28849 |
+| `train-064.json` | 7b95e55bc63633147a50674e6cedb22a0aece1d6801359aa038db83ffc1804a6 | 29688 |
+| `train-065.json` | 323a7d5bbce5e567ce93e28564ef1e33c5f213b6ef57fb75f9509a99bffcb91b | 30078 |
+| `train-066.json` | 095052f22c533952bfb432254ec2cc7de31811237b59e112f9d8a4a7c096acd1 | 30193 |
+| `train-067.json` | 35fcfd7c1fb610e347c9c4cbbe72fae55aa5eda7c12c0debcbe990ef75c6f682 | 30464 |
+| `train-068.json` | 9ce7b102028fcbdd823924e1d27c7d7ae418328d36511d935c78b01e37bfc398 | 29915 |
+| `train-069.json` | 321323b042c73619e059883e4869d64e4dff7a32caee6437c2cdfa3a5fc761f1 | 29924 |
+| `train-070.json` | 14c5cafb7387ad1634e24234370cf1d4c5fc708075bb965c116ef35b3c04eae9 | 28796 |
+| `train-071.json` | e172ff0a42860eebf2bcdf6a61e37d452b60e28b283a3a0de0eac3ec5580a213 | 28745 |
+| `train-072.json` | 0fc64dfa31957a5b321f7570d99721f4ab6eb81a984dc916fd7d1ebc82c391cd | 30687 |
+| `train-073.json` | 3ccef5f6f17d909a07fc87ad45f99f33593e4e4feb94ca1eaa62fecc52115e7e | 29582 |
+| `train-074.json` | 5f663324220f536404096a21a0648151b1c535a3d183b6d6b1e62ebf9d2e6185 | 29086 |
+| `train-075.json` | bbe70b8207568113107d1d0c8e443bf62005a13819c7976f05cbbab87ac02502 | 29930 |
+| `train-076.json` | 4eabb80e764e1a16d870f45927eb2d8cb6d8441c4deb7f353e34e00bf0f65ead | 29690 |
+| `train-077.json` | 8f9de63d9da75db22c514f745dd9947c40e8138d7ca441c2462543ab80438807 | 29293 |
+| `train-078.json` | 143c16879679f9763df8d1784e6334c2a8c5cba015d47358831a4cc5bb11ce9b | 29140 |
+| `train-079.json` | 3f5d57f00e2a0355704b5d64bc14cfcfc0f40fc4bc880b19cc4fe61b1eee64b1 | 29824 |
+| `train-080.json` | 37269453360de8499906f099b16a2fda6dd11880ef6628f9ea3f15805feabd90 | 30816 |
+| `train-081.json` | 170bc55fbc53e6847850915a9cac745c9225719033d14c2c31e7285a00d969ad | 28960 |
+| `train-082.json` | af70bae63f24d496f341b765ca7886fb8fe2c88397dffb8a58e492834e5a87d2 | 31557 |
+| `train-083.json` | 03b0d3c2736cf525755ac9c26b59605d8b3f20dd75391c09e668417b77f98b42 | 29655 |
+| `train-084.json` | af17581584439ae4a0079c56d90cbc3e924a47677963a9c15da13fc2028331b2 | 29666 |
+| `train-085.json` | ceaef3068d96e02094fb757f43d2ed75f973f8d36816bbaf8f1b70c439110ea4 | 31962 |
+| `train-086.json` | a515164209c1ecf3e9b76e1afac907bf392bb1437a82b2e8014e71f9e1bdda56 | 29952 |
+| `train-087.json` | ac12fb035a2964694c92d83cfca08e8af8a2fda0e5ce4cb913c542a8890f9988 | 29688 |
+| `train-088.json` | 679e324470cdcabb3b8f782fc5bc88a5746f56b635be5f95ca8a389f827444b3 | 29103 |
+| `train-089.json` | 14f2869afc4d91aff9abd2ce3314be6014789eab0756436010f3ba449ce4053e | 28949 |
+| `train-090.json` | 3741747291d3d719376ae5a850c5b316f15702a7cbc1c5f20af3900e47c63e99 | 29929 |
+| `train-091.json` | 582ce066c9c434cf53cbca69255676b43f422802a6107b78ea9c9108f7363a77 | 29723 |
+| `train-092.json` | 2b0b67dfcd6ef8e69ea1a335ded10d8eb42cc65defd68218ba4302b2dac97db2 | 30192 |
+| `train-093.json` | c4a0a05277e9f375298909b21ba07f2e8bf78e3beafbd1ee8b3011999bf76b4e | 29193 |
+| `train-094.json` | 1f00a2250599beb844d0855decbbf61c9047a5bf1b449271f66c156ed33fadb1 | 29139 |
+| `train-095.json` | 6da041eaeec4b2a6e31c389813f0481e4791976cf901542947609c0e0c272d08 | 29971 |
+| `train-096.json` | dce4289ef0f2bc36e9d4bb70629a9f7e3d4856e8c46b277a7d74abdee1dac032 | 28982 |
+| `train-097.json` | f2965968583d7bd310862cd190b86b719ebb949cd946dd92d6e1a006fe0df939 | 29324 |
+| `train-098.json` | 5d85c4dcc57a49bccb5f0ee42832ae43a11583c5a925bb578848ed22f32f907d | 29911 |
+| `train-099.json` | d4db9c1eaad6a24a58f5e67a21cb0a7b31c1640bd6dcaf95a33457f85f409972 | 30509 |
+| `train-100.json` | beb5f2c4e1f245d721c00426c26422f740e7899efba076082771c549c645c520 | 29096 |
+| `train-101.json` | 1edb7074baaf4a2097f22e24081cb0bcf50ca7cab135dc91f3c19a0148bc69a9 | 29255 |
+| `train-102.json` | 3e0cc3d83340a428d4cc85c48aa781beab8f74b1bbdd00c4aa29b5cd8f7ff93e | 28767 |
+| `train-103.json` | e82fe479a0f7bf229cb59f4374b40e6dd29fa6526fe934b9930ccaedfa9bfaaa | 30167 |
+| `train-104.json` | 42f0eff43085cf68a115ce1a8fd79a0a6dbba710236b7d11d54ee01cc1215bd8 | 29810 |
+| `train-105.json` | cc5ac6d27972fbbafd9f0d97198a518cd1c41a0b329e5c332d04624af77c6c03 | 30000 |
+| `train-106.json` | d45432cbf21aefecceb3f7d4b4af79b6eeb20a6d314e3929063c8deb9cf14693 | 30075 |
+| `train-107.json` | 437f6ba47429bfa248e7fe0c9bd5b50ae04c48327100e819661f7f2f49ce97e0 | 29833 |
+| `train-108.json` | dbce0bcc6b8075b6915ba72e4328928b8c4d62ca72af1b754b4aabafff1419c3 | 29464 |
+| `train-109.json` | d586c4329b72b6226988d490c0f673f8bc17fedaa737c3c204a323e742267197 | 30282 |
+| `train-110.json` | 208c92d997e7dc14462df3618c49ea923bd309e827a62be123434d8c0cbd2b7a | 29640 |
+| `train-111.json` | 90eb7d0490b583d5a32b6abbcb7b820bde4a908d3d374c94377b8a3a99473641 | 29949 |
+| `train-112.json` | 6d3d6463ccb9ce775cf9def42454577f671772325ddf7336f3d9a08cd36d2b24 | 29702 |
+| `train-113.json` | e251697f6d07cf4d523aaf005ab4349ec48a768203e1dce496e4e347217d8fc8 | 29331 |
+| `train-114.json` | 0fe1a1768adcc6f118a3ca4c99ed2dcc46d081e094a5330b9399e48cf5bfea84 | 29922 |
+| `train-115.json` | 8a9afd241d1315a4f87311736cadda29311040312dfa010cb3609ce282589db0 | 28708 |
+| `train-116.json` | b00f1bab0d9ae02d95367113220ff88c54a8ad31f7d024ca8e7965ec391cf15e | 29759 |
+| `train-117.json` | 18c748121cd740403f8a76baa8f5c6a0cb988f5459ef898bc17c13bc9fa81d97 | 29611 |
+| `train-118.json` | 43c2f2a57beb0732aa2ff40fcdfbcf9b24c65b57a48c148b73f82246f6199c43 | 30415 |
+| `train-119.json` | 1f8da86bf1c1a41633fbead55a2d6f695d67d5c03eba9b8896ec6bc109949562 | 30047 |
+| `train-120.json` | d247e8828053a1c207057d90f327383fdbd2afef1e65e49bcc5b66d4687b665b | 30399 |
+| `train-121.json` | d3708453455673a14ebfe79075b4348bc465f6b88de53a756f0c2562c9512b91 | 29239 |
+| `train-122.json` | 6f69e231ab2e0a5c4bbd31a7949ce644995798e991abcaa16f483cc9aac25cd5 | 29386 |
+| `train-123.json` | 748f5648270bb9fcd70d734d6962f5dbef35edef474bfab645357e5063a6c550 | 30875 |
+| `train-124.json` | 608b3fc5d067441e88761a47192c5b00ec9b97c2e7cff3e477a3e7f00c5cdf08 | 29305 |
+| `train-125.json` | a7b7d90d5fe321bb7aa4ac873617a78de46a0ceb200464b1885514a6dc24345d | 30343 |
+| `train-126.json` | fe383ea3a981931c1f4f475ce561d1552b6d2f5b367bf7aaa8fe37400b30f514 | 29357 |
+| `train-127.json` | 662f7e7c061946c8f3807533749aed9490fe1e29c75e6a94da125d272f7e7c64 | 29711 |
+| `train-128.json` | 0fe5330c9ba37e9ff0ebb5618f92a112c9e1dc1879c40b26c411f07d7b60cc83 | 30314 |
+| `train-129.json` | 60f39a0c3a348a526780c1fd4cddba774cf8375f4ed5766fa42a2d0ca7d9c3d9 | 28961 |
+| `train-130.json` | aae2b9445061786613a1feae83ae73bb917c4df466de704b0217982d6c89256c | 30109 |
+| `train-131.json` | 61390b57fdb17865f28c80629bf0dcc6b71f89672036582f796978e8188fdb81 | 29055 |
+| `train-132.json` | 0c3ecbdf0cb724028f08caa19bf1506df0111001289e9125415d8683d63fcc1f | 28387 |
+| `train-133.json` | b98c84c87c1a043dd636b277714e6a24ea29c46e06a36e5fa461b5d1cce97a58 | 30181 |
+| `train-134.json` | 9771e624ea05ce39301f9ea53b9f283a606686a930b3921a57f22b08edac7f87 | 30706 |
+| `train-135.json` | 1a65da3443bc2f648f30c4448f81c9e29aa3b16148f22415f5f225586946dce2 | 29707 |
+| `train-136.json` | 103c9b7da44f65dcdbf7ca26167a2880fb4b55a36bac17a20ae1c4c0bd2e35e4 | 29712 |
+| `train-137.json` | 57f34cc838a1cf4bc74868a1fd6fdb1fcff7e41981144f83e6cf9b4c94d72b7f | 30882 |
+| `train-138.json` | aa7322bf28bbd4df0936444ef79f6e91ad1954120be46c3011d1edcbd46b8f87 | 29698 |
+| `train-139.json` | a4fbe1303546f90d1cb14c210e04ced59066e76c392e2a49b6c35bd4f32ca949 | 29723 |
+| `train-140.json` | 9372e5fcf85b94b6e15328a5ca9e8846864f4f12c49aac89998726d7f408f57f | 29794 |
+| `train-141.json` | bdb0873c18f667810b00eccf476af987c64fe0faf7fa67aa812ecd91bd80d95f | 29358 |
+| `train-142.json` | 169eb136238bf5c6b4822d1976a065adfd69c5f1344b699f7ef866a0753c6151 | 30154 |
+| `train-143.json` | fa8fb1e2f5a0c7b95f4a02f29c5e79cd2ef9e4674dd3bd07ada495c5e785de6b | 29587 |
+| `train-144.json` | 1f5c94e55201baf618f520ee6d8e071fdc420be9be7e80bc302b644697bc5826 | 29395 |
+| `train-145.json` | f2e25b084896dc27258da6e74564efd0dcced73c358b1aa4025b8efe733e67b1 | 28660 |
+| `train-146.json` | fd26f3882d7ae9100d66114587943d44eca8933627b1b95e990ec2d01e8d2299 | 29751 |
+| `train-147.json` | 63357e713ba0178351f30812f4ecdfbdbb9fdb92d1afb99282cc103cfa99d3e5 | 29812 |
+| `train-148.json` | 63a76d7be59ef0fc95251017178180b0c40fb9220a19f35e2c1e3161245c3fe5 | 30136 |
+| `train-149.json` | c7b17f83ddb61a9fa134eecbaaeffd2ccb618b10d206e1e3d31db84e5944caa6 | 31279 |
+| `train-150.json` | 3f97247ed23479c5c7cb955973bff5aa5272b0525a32d0a53cd0d74af850f38a | 28922 |
+| `train-151.json` | 224ad06a5fc143540bdc65152102d7b91dfa4505bde6aa3a3f0aac9c1eaf6ad7 | 29289 |
+| `train-152.json` | 90a876f8949f1126180f3dc1ec41e9f40017f4891d0acd1b94ea3ebc5098d43f | 29644 |
+| `train-153.json` | d12eb90e3a7b5741a97685f6263fa8831d33790bcd771baf2ffe1923bf46fc47 | 29407 |
+| `train-154.json` | 41bf9bbd81c51a31d58b8bfc671515586e722294cf2087051bb16965075641d8 | 30531 |
+| `train-155.json` | d7a19f8cbaf028654ee86e81e07bc4239dc2ce0546d63d830f1fb83071bc49cb | 29693 |
+| `train-156.json` | 08cdb1d282f0ab8374acd95ab5ffc3d30f798e738411a3eed3de6527b97cc2fe | 29374 |
+| `train-157.json` | 347bbf7bfdf69c420a9394e38b910b689949faeeb6d3284deef8c3e1aabcbdf2 | 30524 |
+| `train-158.json` | 781578b02b69348972d781a308933c67631e790f1fcafbe25129fc5185233c91 | 29078 |
+| `train-159.json` | f7a6d98d514a1a9408e654f8dac8810973a744bdeed17ee2d8b2f82695b16a7b | 29985 |
+| `train-160.json` | 0e13c17f6ac0dcd3ce3be9cb749d868a84151596a036e51422c4b7cc83209fd0 | 29839 |
+| `train-161.json` | c5654e5b2491351c4eb0c7d339c3577363379df3f4d3cb45396ac409b1591f9f | 30040 |
+| `train-162.json` | d2555c1fd09656129e66fbbc33613cf3d39266bd7b045538064aa9bf52816296 | 31500 |
+| `train-163.json` | c419536944cf54aea773cbe539d19b7b8a9f401aabb25a3ca8fced1a0da0cc47 | 30149 |
+| `train-164.json` | e6af98b11d9d126b7e4c909bb8b21d7809383e944e0b26a9c5359b77674036b6 | 29409 |
+| `train-165.json` | f63234421e484c78bbf7683a61be0a0a44a7490753962f09aeb9be921148d9cc | 29175 |
+| `train-166.json` | 05ca2433668f2ec1cbd7134f708da29f10d7a16d724be2fa8aa007aba854a4c0 | 28483 |
+| `train-167.json` | af4bae1d51370cced73e6c47c3f7daa0dbe1269ffd53f8dcadd254948b812e1e | 29542 |
+| `train-168.json` | 6117a9fd723765490764d0ca815bfc2b41d43fd17476dfe19b9ddba177a4305a | 29935 |
+| `train-169.json` | 75e72f5617c531a8b9c1b1638b9415ac8cfab2fce738819ead3cf2217f503df6 | 29653 |
+| `train-170.json` | 10456029c27746ee2e5cc616aad8b365dee0906b14ec24f2520aac1aa2eb630e | 30354 |
+| `train-171.json` | c78e14e4060dc3b99320c9fdd5b39c22d50800a4027ce8e390501ec4845c7819 | 29836 |
+| `train-172.json` | 75067d7a011c97c962c658c3d48ab6ea6c48277bcf880705c016eecb0e61313f | 29093 |
+| `train-173.json` | d721404e5aafeca5a2d8b3318f58ffe3024885d9a15a37a9f1d0b68c13b40c16 | 30229 |
+| `train-174.json` | 11b74ad4fc66f7bda22da9c9aff06121542a4279b5c7191ddefcd96b51618c3f | 29767 |
+| `train-175.json` | affc1210c8ec9bb2b4d2bc347cbf768106f94448f2e22bad4eca1b45c4385234 | 29981 |
+| `train-176.json` | 8d83a03b1e60356c9e7e4901cbe01e78a03f7950bfdca8c7d36f0b9cc8acb604 | 29607 |
+| `train-177.json` | 890278b6eb47bfa7f572fb2357cf6352fac03c619a8d9214344846fddd4e5c13 | 29868 |
+| `train-178.json` | 98c3c86876fb05d30b8f2a132a0de6d2574bda393647a99c79e06f888878fe7a | 29976 |
+| `train-179.json` | 029ba7cdb0af787453036bc118b587a068922fe14126b8e3498757c126fa7a2c | 29446 |
+| `train-180.json` | 9f2d07ddbe377c41ebb312fe79a57a29cf21084a45231a5cde709bcbaac732d1 | 30041 |
+| `train-181.json` | 2af5e54bd5989d860ffaaf2b1314d25eaf61772b0042ff2505d929311552f46d | 30527 |
+| `train-182.json` | 8d15d03d019539a4f5645caf39c0fc3d544757981ace6913b312d35a3ab2d77c | 29051 |
+| `train-183.json` | d8f82fd1d33d407b784466935107dc442f8427f207d604f2fe27381cbac6c948 | 30093 |
+| `train-184.json` | 9a1ea53245d66b0c1ec5347e232949b93ccd75a5e3614af04c9b33b5da34af2f | 30331 |
+| `train-185.json` | fefd866bf79db8c5472c903be5c0f031f70fbff126c4cbdd5dc97b95c0a2e7ec | 30349 |
+| `train-186.json` | 5dce34d818a4fa445c2099a35f7c9f04702ed71ced620b2f50be42d74fe4b084 | 30447 |
+| `train-187.json` | 4431fa6bada2452dd531284478be093971f7e8b020cdb5913197f39315071b00 | 31093 |
+| `train-188.json` | a10168c84799010f5121c2f37919ef2740db932fc2af8305b8ae38a4b29f6eda | 30690 |
+| `train-189.json` | b5215080d891ab5ac91ca7699c9ebcbef9c0c3943f61f9962ffc9105eb4dbc35 | 28481 |
+| `train-190.json` | aa46475e9d7bc9d5078cbc255102f0e1413bcd6f4badaa4be8f1e67becab14c2 | 28643 |
+| `train-191.json` | 686fbe4acc677cb474f1d627505f36f17d42abb39a86110ff5b2e77b10611b0f | 29909 |
+| `train-192.json` | 7cbf2de58d30547b602ce003389f708f289e16e2e5647451f39320881930ec51 | 28919 |
+| `train-193.json` | 7e1e72d380963a8dd56c18c70e6bcc7a2bdefbf06957b101962f158df8a6f53b | 29512 |
+| `train-194.json` | 5072cdeabc1d2462f2ca1a8eaa1e454aa125df02442b3a8d7791512353c50b46 | 28842 |
+| `train-195.json` | 1dd8e09d8c626bc5d9e9462387b95b82c2ab27cfd444ef3527d71356136cc3ad | 29491 |
+| `train-196.json` | e2ab0ab4194d829a7fba5a67c8743754613835c06cf86a097c77cd5b2ec4ee32 | 30262 |
+| `train-197.json` | 25f0dc42341759b0715402032636d324fb362e6a1109263486cf487803d8148c | 30522 |
+| `train-198.json` | 2f834c8f6d7ebce03e7feae70f428bc9a3181d0a868b3c227cd18e6b4681c030 | 29463 |
+| `train-199.json` | 66586999f12ca74a42ec17b23964c3aa67fb3205f71db38b2b579729333c61b5 | 28818 |
 
 ## ClassLabel orders (verified)
 

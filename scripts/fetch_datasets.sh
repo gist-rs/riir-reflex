@@ -455,6 +455,10 @@ main() {
         log "[probe] thai_sib200 /splits"
         probe_splits thai_sib200 "Davlan%2Fsib200"
     fi
+    if want_suite wanli_en; then
+        log "[probe] wanli_en /splits"
+        probe_splits wanli_en "alisawuffles%2FWANLI"
+    fi
 
     # Licence probes (riir-rethink Issue 023 T1): one hub call per selected
     # suite — the drift tripwire beside the manifest's VERIFIED table.
@@ -489,6 +493,9 @@ main() {
     fi
     if want_suite thai_sib200; then
         probe_license thai_sib200 "Davlan/sib200"
+    fi
+    if want_suite wanli_en; then
+        probe_license wanli_en "alisawuffles/WANLI"
     fi
 
     # 1. typed_decisions — test: ALL rows; train: ALL 1200 rows (Issue 052:
@@ -601,11 +608,25 @@ main() {
     # 10. thai_sib200 — Plan 003 T3.1: the SIB-200 Thai topical probe
     #     (7-way topic), test + train fetched WHOLE (204 / 701 rows).
     if want_suite thai_sib200; then
-        log "[suite] thai_sib200 Davlan/sib200 config=tha_Thai split=test cap=all (204 rows whole-set)"
-        fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai test all
-        log "[suite] thai_sib200 config=tha_Thai split=train cap=all (701 rows whole-set)"
+        log "[suite] thai_sib200 Davlan/sib200 config=tha_Thai split=train cap=all (701 rows whole-set)"
         fetch_suite thai_sib200 "Davlan%2Fsib200" tha_Thai train all
         dedupe_train thai_sib200
+    fi
+
+    # 11. wanli_en — the ESC re-source NLI lane (riir-rethink Issue 024 /
+    #     Research 002; reflex issue 080): WANLI re-enters the xnli_en niche
+    #     at the same 3-choice wire (premise/hypothesis/gold, gold a STRING
+    #     in entailment/neutral/contradiction — no ClassLabel order to
+    #     verify at the port, the builder maps the string through XNLI_KEYS).
+    #     Test fetched WHOLE (5,000 rows; the eval cap lives in the harness,
+    #     the banking77 posture), train capped at $TRAIN_CAP (the slice
+    #     floor 16_000 sits on this pull).
+    if want_suite wanli_en; then
+        log "[suite] wanli_en alisawuffles/WANLI config=default split=test cap=all (universe rows; eval cap lives in the harness)"
+        fetch_suite wanli_en "alisawuffles%2FWANLI" default test all
+        log "[suite] wanli_en config=default split=train cap=$TRAIN_CAP"
+        fetch_suite wanli_en "alisawuffles%2FWANLI" default train "$TRAIN_CAP"
+        dedupe_train wanli_en
     fi
 
     log ""

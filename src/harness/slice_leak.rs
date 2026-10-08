@@ -467,6 +467,13 @@ pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> 
             s.get("premise")?.as_str()?,
             s.get("hypothesis")?.as_str()?
         )),
+        // Issue 080: the same pair-as-unit shape as xnli_en (the builder's
+        // state is byte-identical).
+        "wanli_en" => Some(format!(
+            "{}\n{}",
+            s.get("premise")?.as_str()?,
+            s.get("hypothesis")?.as_str()?
+        )),
         _ => None,
     }
 }
@@ -685,7 +692,7 @@ mod tests {
         use crate::harness::suites::{
             SuiteCase, build_ag_news, build_banking77_mteb, build_emotion,
             build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
-            build_xnli_en,
+            build_wanli_en, build_xnli_en,
         };
         let text_of = |suite: &str, case: &SuiteCase| eval_case_text(suite, case);
 
@@ -740,6 +747,16 @@ mod tests {
         let suite = build_xnli_en(&rows, 0);
         assert_eq!(
             text_of("xnli_en", &suite.cases[0]).as_deref(),
+            Some("a man walks\na person moves")
+        );
+        // Issue 080: wanli_en carries the same state shape (gold is the
+        // builder's label spelling, invisible to the text rule).
+        let rows = serde_json::json!({ "rows": [
+            { "row": { "premise": "a man walks", "hypothesis": "a person moves", "gold": "entailment" } }
+        ]});
+        let suite = build_wanli_en(&rows, 0);
+        assert_eq!(
+            text_of("wanli_en", &suite.cases[0]).as_deref(),
             Some("a man walks\na person moves")
         );
 

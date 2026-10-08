@@ -672,6 +672,77 @@ pub fn build_xnli_en(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
+/// §`wanli_en` (alisawuffles/WANLI — the ESC re-source NLI lane, rethink
+/// Issue 024 / Research 002; reflex issue 080) — the SAME 3-choice wire as
+/// [`build_xnli_en`]: XNLI_KEYS order verbatim ([entailment, neutral,
+/// contradiction]), premise/hypothesis in the same template slots. The one
+/// shape difference: WANLI's label field is a plain STRING (`gold`), not an
+/// int ClassLabel — the builder maps it through the XNLI_KEYS position and
+/// drops a row whose gold is not one of the three (the same skip a
+/// malformed int would take).
+#[must_use]
+pub fn build_wanli_en(rows_file: &Value, max_rows: usize) -> Suite {
+    const NLI_CRIT: [(&str, &str); 3] = [
+        ("entailment", "the premise implies the hypothesis is true"),
+        (
+            "neutral",
+            "the premise neither implies nor contradicts the hypothesis",
+        ),
+        (
+            "contradiction",
+            "the premise implies the hypothesis is false",
+        ),
+    ];
+    debug_assert_eq!(
+        NLI_CRIT.len(),
+        XNLI_KEYS.len(),
+        "wanli shares the xnli key consts — they must stay in sync"
+    );
+    let keys: Vec<String> = NLI_CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
+    let descs: Vec<Option<String>> = NLI_CRIT
+        .iter()
+        .map(|(_, d)| Some((*d).to_string()))
+        .collect();
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(premise), Some(hypothesis), Some(gold)) = (
+            row_str(row, "premise"),
+            row_str(row, "hypothesis"),
+            row_str(row, "gold"),
+        ) else {
+            continue;
+        };
+        let Some(label) = XNLI_KEYS.iter().position(|k| *k == gold) else {
+            continue;
+        };
+        cases.push(SuiteCase {
+            id: format!("wanli_en:{pos}"),
+            // key order premise then hypothesis — the serialized state bytes
+            // depend on it (§1.3); identical to build_xnli_en's state shape.
+            state: json!({ "premise": premise, "hypothesis": hypothesis }),
+            questions: vec![choice_q(
+                "relation",
+                "What is the relationship between `premise` and `hypothesis`?",
+                &keys,
+                Some(descs.clone()),
+            )],
+            gold: vec![GoldAnswer {
+                idx: label,
+                soft: vec![0.0; 3],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "wanli_en",
+        cases,
+        option_counts_note: "3 fixed options in XNLI_KEYS order [entailment, neutral, \
+                             contradiction] — gold is a plain string mapped through the \
+                             key order (no ClassLabel to verify at the port)",
+    }
+}
+
 // ── Thai probe suites (Plan 003 T3.1/T3.2 — opt-in only, never a default-run
 // member: the G-ISO-2 non-contamination law, `named_only: true` in the
 // registry) ─────────────────────────────────────────────────────────────────
@@ -1086,6 +1157,12 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
         "xnli_en" | "xnli_en_val" => row_i64(row, "label")
             .and_then(|l| XNLI_KEYS.get(l as usize))
             .map(|k| (*k).to_string()),
+        // Issue 080: WANLI's label column is `gold`, already the option-KEY
+        // string (entailment/neutral/contradiction) — the same spelling the
+        // engine domains carry, so no index mapping is needed here (the
+        // builder maps it through XNLI_KEYS position). An unknown gold
+        // string fails the rule and the row drops, like a malformed int.
+        "wanli_en" => row_str(row, "gold").map(str::to_string),
         _ => row_i64(row, "label").map(|l| l.to_string()),
     }
 }
@@ -1280,7 +1357,8 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
 /// - `massive_intent_en`: label = `label_text`, text = `text`;
 /// - `xnli_en`: label = `int(label).to_string()`, text = premise + "\n" +
 ///   hypothesis;
-/// - `typed_decisions`: label = `workflow`, text = the raw state string AS
+/// - `wanli_en`: label = the `gold` string (already the option-key
+///   spelling), text = premise + "\n" + hypothesis;/// - `typed_decisions`: label = `workflow`, text = the raw state string AS
 ///   STORED (no reparse — the compression scorer works on the stored bytes).
 ///
 /// An unknown suite name → empty vec (the caller decides whether that is an
@@ -1327,6 +1405,17 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
             })
             .collect(),
         "xnli_en" | "xnli_en_val" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: format!("{}\n{}", row_str(r, "premise")?, row_str(r, "hypothesis")?),
+                })
+            })
+            .collect(),
+        // Issue 080: the same pair-as-unit rule as xnli_en — WANLI's
+        // premise/hypothesis columns are the corpus text.
+        "wanli_en" => rows
             .iter()
             .filter_map(|r| {
                 Some(TrainDoc {

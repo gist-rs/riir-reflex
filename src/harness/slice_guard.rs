@@ -66,6 +66,9 @@ pub const MIN_POOL_ROWS: &[(&str, usize)] = &[
     ("massive_intent_en", 9_200),
     ("sst5", 6_800),
     ("xnli_en", 16_000),
+    // Issue 080: the same TRAIN_CAP=20000 pull shape as xnli_en — pool
+    // after the fixed 200-row cal front maxes at 19,800, floor = ~80%.
+    ("wanli_en", 16_000),
     ("typed_decisions", 960),
     ("prompt_injections", 430),
     ("thai_wisesight", 3_200),
