@@ -192,6 +192,14 @@ GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
 AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
   cargo run --release --bin harness -- --agentjev --suites typed_decisions --skip-laya
 
+# Jev-Mem backend lane (Issue 081; reflex AS the System-One backend — the
+# inverse of every comparison lane: THEIR SDK calls US). The serve's
+# `/v1/systemone` route speaks the TypeSafe wire; their pipeline plugs in
+# with TYPESAFE_BASE_URL + a dummy key (zero patches). The E2E probe:
+# their venv (uv venv .raw/jevmem-env; uv pip install typesafe-sdk networkx
+# numpy tqdm) + their checkout at .raw/jev-mem @ 7ab0c73c + `reflex` serving:
+.raw/jevmem-env/bin/python scripts/jevmem_demo_e2e.py   # seam + determinism strip
+
 # PAW lanes (Issue 033, `--paw` hosted / `--paw-local`; one program per
 # QUESTION SHAPE — scripts/paw_specs/<suite>[.<qid>].txt; per-shape resolver
 # is paw::resolve_shapes, BOTH lanes). Board tier = PAW_COMPILER=paw-ft-bs48-20260530

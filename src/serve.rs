@@ -657,6 +657,7 @@ pub fn run() -> std::io::Result<()> {
         crate::VERSION
     );
     eprintln!("[riir-reflex] POST /decide  — DecisionRequest JSON → DecisionResponse JSON");
+    eprintln!("[riir-reflex] POST /v1/systemone — the TypeSafe dialect (typesafe_sdk clients; Jev-Mem: TYPESAFE_BASE_URL + a dummy TYPESAFE_API_KEY)");
     eprintln!("[riir-reflex] POST /feedback — {{p, outcome}} → calibrator observe/refit");
     eprintln!("[riir-reflex] GET  /healthz — liveness");
     if corpus.info == CorpusInfo::Demo {
@@ -1205,6 +1206,29 @@ fn handle_conn<const N: usize, const D: usize>(
                     &e.to_string(),
                     cors.as_deref(),
                 ),
+            }
+        }
+        ("POST", "/v1/systemone") => {
+            // The TypeSafe dialect (issue 081): THEIR SDK calls US — Jev-Mem
+            // (or any typesafe_sdk client) points TYPESAFE_BASE_URL here.
+            // Straight to the modelless engine: no game-head try (that is
+            // the arena's posture), no lane header (the dialect has no
+            // lanes — one modelless answer per question, always).
+            if req.content_length > MAX_BODY {
+                json_response(
+                    &mut writer,
+                    "413 Payload Too Large",
+                    "{\"error\":\"body too large\"}",
+                    cors.as_deref(),
+                );
+                return Ok(());
+            }
+            let mut body = vec![0u8; req.content_length];
+            reader.read_exact(&mut body)?;
+            let mut eng = engine.lock().unwrap();
+            match crate::systemone::respond(&mut eng, &body) {
+                Ok(out) => json_response(&mut writer, "200 OK", &out, cors.as_deref()),
+                Err(e) => json_error(&mut writer, "400 Bad Request", &e, cors.as_deref()),
             }
         }
         ("POST", "/feedback") => {

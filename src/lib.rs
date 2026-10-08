@@ -133,6 +133,14 @@ pub mod laya;
 /// the `laya-riir` feature (or the datasets/weights) are absent.
 pub mod harness;
 
+/// The TypeSafe `/v1/systemone` dialect on the serving edge (issue 081):
+/// reflex as a System-One BACKEND — any `typesafe_sdk` client (Jev-Mem
+/// first) points `TYPESAFE_BASE_URL` at the serve loopback and the
+/// modelless engine answers their typed questions. The direction is the
+/// inverse of [`lanes`]: their SDK calls us.
+#[cfg(feature = "modelless")]
+pub mod systemone;
+
 /// The comparison-lane adapters (Issues 019/029/025): third-party decision
 /// engines measured in the arena's tables over their own wire — their
 /// stack serves, our Rust measures. Ungated since the agentjev lane
