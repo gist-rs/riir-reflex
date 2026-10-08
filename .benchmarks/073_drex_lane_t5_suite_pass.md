@@ -91,6 +91,12 @@ decimals AFTER a non-bit-deterministic reduction — identical requests legitima
 produce last-digit deltas. The lane law holds: the det column is FLAGGED, never
 assumed, and the accuracy/ECE cells read the first pass only.
 
+**2026-10-08 addendum (Bench 126, issue 076 T1): REFUTED.** Under the `latency_ms`
+strip (T3) the det column reads ✓ — 10/10 rerun pairs byte-identical, and the scored
+surface (acc 0.5865, ece 0.1082, token counts) reproduces EXACTLY cross-run. The ✗
+above was the timing tail in the compare input, not the forward. Speculation above
+kept for the record; cite Bench 126 (`.benchmarks/126_drex_det_reread/`).
+
 ## Latency note
 
 p50 98 ms (typed, mean ~96 q/request ≈ 1 ms/question server-side) and 35 ms (sst5,

@@ -25,6 +25,15 @@ floor 0.1220 at BF16/CUDA (Bench 126) agreeing with Q8_0/Metal's 0.1460/0.2495 v
 (Bench 125) — the card's disclaimer beats the homepage marketing everywhere measured.
 Research note 008's status line refreshed to the closure records.
 
+**Collision record (the Issue-825 class, resolved clean):** a sibling session ran the SAME
+T1 independently on the same box at the same time (their `e7111bc`, unpushed; host label
+`shikuwa` vs this session's `4090-windows`) — byte-agreeing cells, preserved as
+`results.sibling_run.json` in the bench dir, their 073 REFUTED addendum salvaged verbatim,
+their dir folded into the canonical `126_drex_det_reread/`. Their session's lesson, kept:
+the run dir was first named `076_*` after the ISSUE number — bench numbers are their own
+counter (the `.benchmarks` highwater was 125); renamed before commit. Neither preflight
+saw the other as more than a transient load tripwire.
+
 ## 2026-10-08 — Issue 075 CLOSED (the G4 800-alloc red at the nb_ridge posture): a per-question env lookup, not the ridge math
 
 Root cause measured, not guessed (`284cc98`): `std::env::var_os` ALLOCATES on Windows even

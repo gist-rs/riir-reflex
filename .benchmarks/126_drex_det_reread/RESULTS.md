@@ -5,6 +5,12 @@ issue, still open here): the BF16/CUDA posture's determinism column re-read unde
 `decide_raw` timing-tail strip landed at `cd0248b`, and the FIRST end-to-end exercise of the
 T2 per-kind cells (`7162840`) at this posture. Raw evidence: `results.json` + `TABLES.md`
 (harness `--drex --skip-laya --suites typed_decisions`, host label `4090-windows`).
+**A sibling session's INDEPENDENT second execution of the same T1** (same box, same
+posture, host label `shikuwa`; their commit `e7111bc`, unpushed) produced byte-agreeing
+cells — preserved as `results.sibling_run.json`; two executions, one verdict. The two
+sessions' records collided on the number 126; this directory is the canonical holder
+(their dir `126_drex_det_reread_bf16_cuda/` was folded in, their 073 addendum salvaged
+verbatim).
 
 > **Scope law:** the open 32K release (`nace-ai/drex-dlm` @ `6c63df2`), never hosted
 > "Drex 1.5". Weights CC BY-NC 4.0 / repo code MIT — measurement only.
@@ -39,6 +45,13 @@ rule held: 604 MiB used before the model loaded, no compute consumer besides the
 | env | `REFLEX_BENCH_HOST=4090-windows` (the phantom-host sentinel refused the first attempt — the gate works), `DREX_SERVE_URL=http://127.0.0.1:8000` |
 
 ## The three-posture picture (typed_decisions, 400 cases / 2000 questions)
+
+**The sibling run (e7111bc) agrees with this record's run to every quoted digit** — det ✓
+10/10, acc 0.5865, choice ece 0.14713 / score 0.247749 / floor 0.121991 in BOTH
+results files. A concurrent-session collision (the Issue-825 class) that resolved into
+independent reproduction: neither session knew of the other mid-run (their first
+preflight REFUSED at load 7.2 — this session's footprint; this session's preflight read
+load 0 between our runs), and the agreement is the strongest form of the verdict.
 
 | cell | T5 (BF16/CUDA, pre-strip) | **this record (BF16/CUDA, strip)** | Bench 125 (Q8_0/Metal, strip) |
 |---|---|---|---|
