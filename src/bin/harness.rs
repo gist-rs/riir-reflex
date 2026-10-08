@@ -227,6 +227,12 @@ fn harness_main() {
         // baseline. `--no-gate-fit-calibrated` restores the old
         // fit-on-raw/apply-on-calibrated posture for measurement.
         gate_fit_calibrated: true,
+        // Issue 079 — the legacy `k == N` index-alignment route binding is
+        // the incumbent default; `--no-kn-route` runs the content-bound
+        // posture (route terms arm only via by-name resolution) so both
+        // sides of the bench-128 position-binding finding are measurable
+        // in one binary.
+        kn_route: true,
         laya_python: false,
         clm: false,
         gliner: false,
@@ -320,6 +326,7 @@ fn harness_main() {
             "--gate-distance-only" => opts.gate_distance_only = true,
             "--gate-fit-calibrated" => opts.gate_fit_calibrated = true,
             "--no-gate-fit-calibrated" => opts.gate_fit_calibrated = false,
+            "--no-kn-route" => opts.kn_route = false,
             "--cascade-worthiness-margin" => {
                 i += 1;
                 opts.cascade_worthiness_margin = args

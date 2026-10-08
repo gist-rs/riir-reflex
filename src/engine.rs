@@ -287,6 +287,17 @@ pub struct EngineConfig {
     /// signal and ranks options by the drafter delta alone — measured
     /// ~1.5x chance.
     pub option_name_route: bool,
+    /// Issue 079: the LEGACY `k == N` index-alignment route binding. When
+    /// by-name resolution fails and the option count equals the domain
+    /// count, the pick index maps onto the domain index — a POSITION
+    /// binding, so the ranking moves with the presented option order
+    /// (bench 128: typed_decisions 4.70 pt median swing, 68.3% flips under
+    /// option permutation). `false` = the CONTENT-BOUND posture: route
+    /// terms arm only via by-name resolution; an unresolved `k == N`
+    /// question runs drafter-only (disclosed in the routing reason).
+    /// Default `true` = the incumbent shipped behavior, byte-identical.
+    /// The harness's `--no-kn-route` measures both postures in one binary.
+    pub legacy_kn_route: bool,
     /// Fitted per-label head blend scale (issue 030 lever 4). When > 0,
     /// [`DecisionEngine::build_specs`] fits one-vs-all logistic heads over
     /// the hashed-bag features at build time (deterministic, [`crate::label_heads`])
@@ -447,6 +458,7 @@ impl Default for EngineConfig {
             cal_min_obs: 64,
             route_scale: 8.0,
             option_name_route: true,
+            legacy_kn_route: true,
             head_scale: 0.0,
             #[cfg(feature = "nb_scope")]
             nb_scale: 0.0,
@@ -1354,8 +1366,12 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                         None => false,
                     }
                 });
-            if !by_name && k == N {
-                // Legacy index alignment (pick index ↔ domain index).
+            if !by_name && self.cfg.legacy_kn_route && k == N {
+                // Legacy index alignment (pick index ↔ domain index) —
+                // gated by [`EngineConfig::legacy_kn_route`] (issue 079):
+                // off leaves `opt_dom` unset, so route terms arm only via
+                // by-name resolution (the content-bound posture; the
+                // question reads drafter-only, disclosed).
                 for (i, slot) in opt_dom.iter_mut().enumerate() {
                     *slot = i;
                 }
@@ -1369,8 +1385,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // by construction, measured 0.4397 below the 0.50 chance floor
             // (the T7 addendum's recorded −4.3 pt regression). The by-name
             // path already excludes noul; this guard closes the legacy path.
-            let route_active =
-                !matches!(q.kind, QuestionKind::Noul) && (by_name || k == N);
+            let route_active = !matches!(q.kind, QuestionKind::Noul)
+                && (by_name || (self.cfg.legacy_kn_route && k == N));
             // Issue 036 T1/T2: the weakest-scorer path — a choice/score
             // question whose option score is the raw drafter delta. Both
             // the disclosure flag and the [`EngineConfig::drafter_fix`]
@@ -1531,7 +1547,8 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             sc.scores.clear();
             // Each option's route term is its RESOLVED domain's cosine
             // (`opt_dom`: by name, or the identity map under the legacy
-            // k == N rule).
+            // k == N rule — the latter gated by
+            // [`EngineConfig::legacy_kn_route`], issue 079).
             let mut terms = opt_dom[..k.min(N)].iter().map(|&d| route_terms[d]);
             // k can EXCEED N when heads are disarmed (noul k=2 on an N=1
             // engine; a choice with more options than domains) — the loop
@@ -2024,6 +2041,163 @@ mod tests {
         let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
         assert_eq!(bits(&a.probs), bits(&b.probs));
         assert_eq!(b.slots[0].pick, 2, "music");
+    }
+
+    /// Issue 079: with the legacy `k == N` binding OFF, a question whose
+    /// options resolve neither by name nor arity reads drafter-only — and
+    /// the drafter path is PERMUTATION-INVARIANT in the pick: the context
+    /// is state + prompt (+ criteria), never the sibling options, so every
+    /// option is scored by its own content and the argmax travels with its
+    /// option (scores may move L1-sum ULPs; picks may not). The incumbent
+    /// (knob on) binds pick index ↔ domain index — position-driven, the
+    /// bench-128 subject: on this fixture the state matches `billing`
+    /// (domain 3), so the pick follows POSITION 3 under rotation, changing
+    /// the winning option, and the two postures read different
+    /// distributions with only the off posture disclosing drafter-only.
+    #[test]
+    fn kn_route_off_is_permutation_invariant_and_on_is_position_bound() {
+        // Distinct-content options that name NO domain (by_name false,
+        // k == N — exactly the shape the legacy rule used to bind) and
+        // distinct drafter deltas (no exact tie: the first-index tie-break
+        // is itself position-driven and would mask the content invariance).
+        let state = "please refund my invoice, the billing balance is wrong".to_string();
+        let mk = |order: &[&str]| DecisionRequest {
+            state: state.clone(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                order.iter().map(|s| s.to_string()).collect(),
+                None,
+            )],
+        };
+        let a = mk(&[
+            "alpha beta gamma",
+            "delta epsilon zeta theta",
+            "eta theta iota kappa",
+            "kappa lambda mu nu xi",
+        ]);
+        // The same options, rotated one position.
+        let b = mk(&[
+            "delta epsilon zeta theta",
+            "eta theta iota kappa",
+            "kappa lambda mu nu xi",
+            "alpha beta gamma",
+        ]);
+        let cfg_off = EngineConfig {
+            legacy_kn_route: false,
+            ..EngineConfig::default()
+        };
+        let mut off: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), cfg_off).unwrap();
+        let mut on: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+
+        // (i) Content-bound: the pick is the same OPTION under both orders.
+        let mut sc = Scratch::new();
+        sc.prepare(1);
+        off.solve_into(&a, &mut sc).unwrap();
+        let opt_a = a.questions[0].options[sc.slots[0].pick as usize].clone();
+        off.solve_into(&b, &mut sc).unwrap();
+        let opt_b = b.questions[0].options[sc.slots[0].pick as usize].clone();
+        assert_eq!(
+            opt_a, opt_b,
+            "content-bound: the pick must travel with its option"
+        );
+
+        // (ii) The knob gates on this fixture: only the off posture is
+        // drafter-only (route_active demonstrably off), and the two
+        // postures' distributions differ on the same request.
+        let resp_off = off.decide(&a).unwrap();
+        let reason_off = resp_off.routing.reason.expect("modelless carries a reason");
+        assert!(
+            reason_off.contains("drafter-only=1"),
+            "knob off: the unresolved k == N question must read drafter-only, got: {reason_off}"
+        );
+        let resp_on = on.decide(&a).unwrap();
+        let reason_on = resp_on.routing.reason.expect("modelless carries a reason");
+        assert!(
+            !reason_on.contains("drafter-only"),
+            "knob on: the legacy binding must arm the route terms, got: {reason_on}"
+        );
+        let mut sc2 = Scratch::new();
+        sc2.prepare(1);
+        on.solve_into(&a, &mut sc2).unwrap();
+        let lo = sc2.slots[0].prob_lo;
+        let k = a.questions[0].options.len();
+        let on_probs = sc2.probs[lo..lo + k].to_vec();
+        off.solve_into(&a, &mut sc).unwrap();
+        let lo = sc.slots[0].prob_lo;
+        assert_ne!(
+            bits(&on_probs),
+            bits(&sc.probs[lo..lo + k]),
+            "the legacy binding must move the distribution on a k == N question"
+        );
+
+        // (ii+) Incumbent: position-driven — the pick holds the
+        // best-matching domain's INDEX (billing = 3) under both orders, so
+        // the winning option changes with the rotation.
+        on.solve_into(&a, &mut sc2).unwrap();
+        assert_eq!(
+            sc2.slots[0].pick, 3,
+            "incumbent: the pick follows the billing index"
+        );
+        on.solve_into(&b, &mut sc2).unwrap();
+        assert_eq!(
+            sc2.slots[0].pick, 3,
+            "incumbent: the pick follows the POSITION, not the option"
+        );
+        assert_ne!(
+            a.questions[0].options[3], b.questions[0].options[3],
+            "fixture sanity: different options sit at the bound position"
+        );
+    }
+
+    /// Issue 079: the knob is INERT where by-name resolution arms — the
+    /// in-order k == N question resolves by name (the identity map) before
+    /// the legacy rule is ever consulted, and the k < N shuffled subset
+    /// likewise; both knob values must read bit-identical scores.
+    #[test]
+    fn kn_route_is_inert_when_by_name_resolution_arms() {
+        let req = DecisionRequest {
+            state: "play my playlist from that artist".to_string(),
+            questions: vec![Question::choice(
+                "q0",
+                "which intent?",
+                ["deploy", "weather", "music", "billing"]
+                    .iter()
+                    .map(|s| s.to_string())
+                    .collect(),
+                None,
+            )],
+        };
+        let cfg_off = EngineConfig {
+            legacy_kn_route: false,
+            ..EngineConfig::default()
+        };
+        let mut off: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), cfg_off).unwrap();
+        let mut on: DecisionEngine<4, EMBED_DIM> =
+            DecisionEngine::build(four_topics(), EngineConfig::default()).unwrap();
+        let bits = |v: &[f32]| v.iter().map(|x| x.to_bits()).collect::<Vec<_>>();
+        let (mut a, mut b) = (Scratch::new(), Scratch::new());
+        off.solve_into(&req, &mut a).unwrap();
+        on.solve_into(&req, &mut b).unwrap();
+        assert_eq!(
+            bits(&a.probs),
+            bits(&b.probs),
+            "by-name k == N: the knob must be inert"
+        );
+        assert_eq!(a.slots[0].pick, b.slots[0].pick);
+        // The k < N by-name subset: the same law.
+        let (mut c, mut d) = (Scratch::new(), Scratch::new());
+        off.solve_into(&subset_request(), &mut c).unwrap();
+        on.solve_into(&subset_request(), &mut d).unwrap();
+        assert_eq!(
+            bits(&c.probs),
+            bits(&d.probs),
+            "by-name k < N: the knob must be inert"
+        );
     }
 
     /// Issue 036 T1: the weakest-scorer posture is disclosed. A choice

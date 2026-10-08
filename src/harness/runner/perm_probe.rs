@@ -168,6 +168,10 @@ pub struct PermProbeMeta {
     pub gate_rule: String,
     pub sampling_rule: String,
     pub invariance_rule: String,
+    /// The modelless control's route binding posture (issue 079): the
+    /// incumbent legacy `k == N` index alignment, or the content-bound
+    /// `--no-kn-route` posture — quote it with the numbers.
+    pub route_binding: String,
     pub latency_note: String,
     pub laya_device: Option<String>,
     pub box_start: crate::harness::box_state::BoxState,
@@ -505,12 +509,16 @@ fn probe_lane(
 
 /// The modelless CONTROL cell for one suite: the deployed engine build
 /// (`fit_posture_inner` + `build_engine_with`, every selection lever
-/// pinned off) answering every sampled slot under the K orderings.
+/// pinned off) answering every sampled slot under the K orderings. The
+/// route-binding posture rides the invocation (`--no-kn-route`, issue
+/// 079) — the knob is an ENGINE posture, not a lever, so the plain-
+/// posture refusal below does not apply to it.
 fn perm_modelless<const N: usize>(
     spec: &SuiteSpec,
     prepared: &Prepared,
     slots: &[(usize, usize)],
     k: usize,
+    kn_route: bool,
 ) -> Result<PermLaneReport, String> {
     let inp = ModellessInput {
         spec,
@@ -522,6 +530,7 @@ fn perm_modelless<const N: usize>(
         gate_fit_selection: false,
         gate_distance_only: false,
         gate_fit_calibrated: true,
+        kn_route,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,
@@ -664,6 +673,7 @@ fn perm_suite(
     popts: &PermProbeOptions,
     shared: &mut [SharedLane],
     laya_enabled: bool,
+    kn_route: bool,
 ) -> PermSuiteReport {
     let mut lanes: Vec<PermLaneReport> = Vec::new();
     let mut skipped: Vec<String> = Vec::new();
@@ -729,7 +739,7 @@ fn perm_suite(
     // table.
     macro_rules! dispatch {
         ($n:literal) => {
-            perm_modelless::<$n>(spec, &prepared, &slots, popts.k)
+            perm_modelless::<$n>(spec, &prepared, &slots, popts.k, kn_route)
         };
     }
     let modelless = match prepared.labels.len() {
@@ -887,7 +897,14 @@ pub fn run_perm_probe(
         } else if spec.named_only || !DEFAULT_PROBE_SUITES.contains(&spec.name) {
             continue;
         }
-        suites.push(perm_suite(spec, &opts.datasets_dir, popts, &mut shared, laya_enabled));
+        suites.push(perm_suite(
+            spec,
+            &opts.datasets_dir,
+            popts,
+            &mut shared,
+            laya_enabled,
+            opts.kn_route,
+        ));
     }
     if suites.is_empty() {
         return Err(format!(
@@ -931,6 +948,13 @@ pub fn run_perm_probe(
                               happens on labels mapped back to the original \
                               criteria order."
                 .to_string(),
+            route_binding: if opts.kn_route {
+                "legacy k==N index alignment (incumbent)".to_string()
+            } else {
+                "content-bound (--no-kn-route: route terms arm only via \
+                 by-name resolution)"
+                    .to_string()
+            },
             latency_note: "latency columns deliberately absent — this is a \
                            distribution-stability probe; the latency/determinism \
                            axes live in the det benches (126/127)."
@@ -975,6 +999,7 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
         ("gate", &m.gate_rule),
         ("sampling", &m.sampling_rule),
         ("invariance", &m.invariance_rule),
+        ("modelless route", &m.route_binding),
         ("latency", &m.latency_note),
     ] {
         s.push_str(&format!("- {name}: {rule}\n"));
@@ -1340,6 +1365,7 @@ mod tests {
                 gate_rule: "gate rule".to_string(),
                 sampling_rule: "sampling rule".to_string(),
                 invariance_rule: "invariance rule".to_string(),
+                route_binding: "legacy k==N index alignment (incumbent)".to_string(),
                 latency_note: "latency note".to_string(),
                 laya_device: None,
                 box_start: crate::harness::box_state::capture(),
@@ -1434,6 +1460,7 @@ mod tests {
                 gate_rule: "g".to_string(),
                 sampling_rule: "s".to_string(),
                 invariance_rule: "i".to_string(),
+                route_binding: "legacy k==N index alignment (incumbent)".to_string(),
                 latency_note: "l".to_string(),
                 laya_device: None,
                 box_start: crate::harness::box_state::capture(),

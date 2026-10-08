@@ -204,7 +204,7 @@ fn view_stats(
 
 /// E0 for one dataset suite: deployed-corpus tables × selection-slice
 /// states, both admissible views.
-fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
+fn e0_suite(spec: &SuiteSpec, dir: &Path, kn_route: bool) -> Result<E0Suite, String> {
     let prepared = prepare(spec, dir)?;
     if prepared.pool_rows.is_null() {
         return Err("no corpus-pool envelope (synthetic/code path)".to_string());
@@ -219,6 +219,9 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path) -> Result<E0Suite, String> {
         gate_fit_selection: false,
         gate_distance_only: false,
         gate_fit_calibrated: true,
+        // Issue 079: the route-binding posture rides the invocation, like
+        // every modelless engine build.
+        kn_route,
         suite: &prepared.suite,
         train: &prepared.train,
         state_strs: &prepared.state_strs,
@@ -330,7 +333,7 @@ pub fn run_e0(opts: &RunOptions) -> Result<E0Output, String> {
             skipped.push("code_fixtures: generated in-process, no corpus pool".to_string());
             continue;
         }
-        match e0_suite(spec, &opts.datasets_dir) {
+        match e0_suite(spec, &opts.datasets_dir, opts.kn_route) {
             Ok(s) => suites.push(s),
             Err(e) => skipped.push(format!("{}: {e}", spec.name)),
         }

@@ -2350,6 +2350,12 @@ struct ModellessInput<'a> {
     /// never lose to the pre-calibration baseline. `--no-gate-fit-calibrated`
     /// restores the old posture for measurement.
     pub gate_fit_calibrated: bool,
+    /// Issue 079: the legacy `k == N` index-alignment route binding.
+    /// `true` (the default) = the incumbent shipped behavior,
+    /// byte-identical; `false` (`--no-kn-route`) = the content-bound
+    /// posture — every modelless-lane engine build (fitted, selection,
+    /// transductive) arms route terms only via by-name resolution.
+    pub kn_route: bool,
 }
 
 /// The cal-slice cap-selection measurement (Issue 013 lever-1 protocol
@@ -2423,6 +2429,7 @@ fn build_selection_measurement<const N: usize>(
             cap,
             EngineConfig {
                 head_scale: inp.head_scale,
+                legacy_kn_route: inp.kn_route,
                 ..EngineConfig::default()
             },
         )?;
@@ -2611,6 +2618,7 @@ fn build_head_scale_selection<const N: usize>(
             effective_cap,
             EngineConfig {
                 head_scale: scale,
+                legacy_kn_route: inp.kn_route,
                 // Forced: never abstain (conf ≤ 1 < threshold).
                 score_threshold: 2.0,
                 distance_threshold: 2.0,
@@ -2967,6 +2975,7 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     #[allow(unused_mut)]
     let mut default_cfg = EngineConfig {
         head_scale: selected_scale,
+        legacy_kn_route: inp.kn_route,
         ..EngineConfig::default()
     };
     #[cfg(feature = "nb_scope")]
@@ -6706,6 +6715,10 @@ pub mod seat {
             gate_fit_selection: knobs.gate_fit_selection,
             gate_distance_only: knobs.gate_distance_only,
             gate_fit_calibrated: true,
+            // Issue 079: the seat's published face stays at the incumbent
+            // route binding — the arena's selection surface is the instinct
+            // manifest, not a reflex CLI flag.
+            kn_route: true,
             suite: &s.suite,
             train: &s.train,
             state_strs: &s.state_strs,
@@ -7098,6 +7111,12 @@ pub struct RunOptions {
     /// exactly (Bench 095). `--no-gate-fit-calibrated` restores the old
     /// posture.
     pub gate_fit_calibrated: bool,
+    /// Issue 079: the legacy `k == N` index-alignment route binding.
+    /// Default on = the incumbent shipped behavior, byte-identical;
+    /// `--no-kn-route` runs the content-bound posture (route terms arm
+    /// only via by-name resolution) so both sides of the bench-128
+    /// position-binding finding are measurable in one binary.
+    pub kn_route: bool,
     /// Also run the laya-PYTHON lane — the ORIGINAL torch reference as a
     /// subprocess oracle (measurement-only; opt-in, off by default).
     pub laya_python: bool,
@@ -7539,6 +7558,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 gate_fit_selection: opts.gate_fit_selection,
                 gate_distance_only: opts.gate_distance_only,
                 gate_fit_calibrated: opts.gate_fit_calibrated,
+                kn_route: opts.kn_route,
             };
             macro_rules! dispatch {
                 ($n:literal) => {
@@ -8086,6 +8106,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 p.push_str("; --gate-distance-only: score axis disabled (threshold 0.0), \
                             the fused gate runs on the corpus-distance axis alone \
                             (issue 042 lever 2)");
+            }
+            if !opts.kn_route {
+                p.push_str("; --no-kn-route: the legacy k==N index-alignment route \
+                            binding disabled — route terms arm only via by-name \
+                            resolution (issue 079 content-bound posture)");
             }
             p
         },
