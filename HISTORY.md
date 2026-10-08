@@ -19,7 +19,10 @@ the meta line); T1 the BF16/CUDA det re-read on the 4090 (Bench 126
 `.benchmarks/126_drex_det_reread/`: **det ✓ 10/10 under the strip** with accuracy,
 readout_ece/brier and token counts EXACTLY the pre-strip T5's — 0.5865 / 0.1929-0.2663 /
 191,962 in · 164,821 out — so no measured reduction nondeterminism exists on that posture,
-and the agentjev lane's recorded det ✗ carries the same artifact, unscheduled fix). The
+and the agentjev lane's recorded det ✗ carries the same artifact — fixed the same day by
+the `usage.wall_ms` strip in `AgentJevLane::decide_raw`, the Drex law mirrored; see the
+Bench 039 addendum — what remains there is their disclosed bf16 wobble, a MEASUREMENT
+question on their serving posture, not a code question). The
 not-calibrated verdict is now THREE-posture: choice 0.1471 / score 0.2477 vs split-half
 floor 0.1220 at BF16/CUDA (Bench 126) agreeing with Q8_0/Metal's 0.1460/0.2495 vs 0.1158
 (Bench 125) — the card's disclaimer beats the homepage marketing everywhere measured.

@@ -158,8 +158,15 @@ impl AgentJevLane {
         Ok((answers, client_ms, wall_ms))
     }
 
-    /// The raw response body for one case (the determinism check's
-    /// byte-compare input — same law as the gliner lane's raw line).
+    /// The response body for one case with the VOLATILE TIMING TAIL
+    /// removed — the determinism check's compare input. Their `usage`
+    /// object carries `wall_ms` (their server-side wall clock), which
+    /// differs on every request by definition: a raw byte-compare measures
+    /// their clock, not the decision, and reads det ✗ BY CONSTRUCTION on
+    /// every posture (the Issue-075 Drex strip is the same law; Bench 039's
+    /// det ✗ conflated it with their disclosed bf16 wobble — after this
+    /// strip the column measures only the wobble). Everything else stays
+    /// byte-exact.
     pub fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
         let body = build_body(case)?.to_string();
         let (status, _headers, raw) = self.post(&body)?;
@@ -170,7 +177,12 @@ impl AgentJevLane {
                 String::from_utf8_lossy(&raw)
             ));
         }
-        Ok(String::from_utf8_lossy(&raw).to_string())
+        let mut parsed: Value = serde_json::from_slice(&raw)
+            .map_err(|e| format!("agentjev response ({}): {e}", case.id))?;
+        if let Some(usage) = parsed.get_mut("usage").and_then(Value::as_object_mut) {
+            usage.remove("wall_ms");
+        }
+        Ok(parsed.to_string())
     }
 
     fn post(&self, body: &str) -> Result<HttpReply, String> {
@@ -380,6 +392,7 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
 mod tests {
     use super::*;
     use serde_json::json;
+    use std::io::{BufRead, BufReader, Read, Write};
 
     fn case(state: Value, questions: Vec<(&str, QKind, &str, Value)>) -> SuiteCase {
         SuiteCase {
@@ -510,6 +523,89 @@ mod tests {
         );
         let resp = json!({"results": [{"answers": []}]});
         assert!(map_answers(&c, &resp).is_err());
+    }
+
+    /// The determinism compare input strips the volatile timing tail: two
+    /// responses differing ONLY in `usage.wall_ms` normalize byte-identical,
+    /// while the answers surface survives verbatim — the check measures the
+    /// decision, never their clock (the Issue-075 Drex strip law; Bench
+    /// 039's det ✗ had conflated this by-construction artifact with their
+    /// disclosed bf16 wobble).
+    #[test]
+    fn decide_raw_strips_only_the_wall_ms_tail() {
+        let c = case(json!("s"), vec![("q0", QKind::Noul, "d?", Value::Null)]);
+        let base = json!({
+            "model": "AgentJev-0.6B",
+            "results": [{"id": "0", "answers": [
+                {"id": "q0", "type": "boolean",
+                 "distribution": {"true": 0.8, "false": 0.2},
+                 "probability": 0.8, "value": true}
+            ]}],
+            "usage": {"wall_ms": 111.0}
+        });
+        let raw_with = |wall_ms: f64| {
+            let mut body = base.clone();
+            body["usage"]["wall_ms"] = json!(wall_ms);
+            let canned = body.to_string();
+            let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
+            let addr = listener.local_addr().expect("addr");
+            let server = std::thread::spawn(move || loop {
+                let (stream, _) = listener.accept().expect("accept");
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                // Read the headers AND THE BODY (the macOS ECONNRESET
+                // flake the openthai stub documents).
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
+                        }
+                    }
+                }
+                let mut req_body = vec![0u8; content_length];
+                if reader.read_exact(&mut req_body).is_err() {
+                    continue;
+                }
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
+                return;
+            });
+            let raw = AgentJevLane::from_url(&format!("http://{addr}"))
+                .decide_raw(&c)
+                .expect("round trip");
+            server.join().expect("server thread");
+            raw
+        };
+        let raw1 = raw_with(111.0);
+        let raw2 = raw_with(408.0);
+        assert_eq!(raw1, raw2, "timing-only differences normalize away");
+        assert!(!raw1.contains("wall_ms"));
+        // The answers surface survives verbatim.
+        assert!(raw1.contains("0.8"), "{raw1}");
     }
 
     #[test]

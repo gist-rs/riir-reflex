@@ -93,6 +93,18 @@ request, the cross-lane latency unit every other lane uses.
   two RAW response bodies; probabilities wobble in the 3rd decimal, picks
   do not flip (typed_decisions reproduced 0.7715 exactly across two full
   passes). Recorded, not repaired — it is their serving path, not ours.
+  **2026-10-08 addendum (issue 076 follow-up): decomposed.** The raw
+  byte-compare input also carried their `usage.wall_ms` (their server-side
+  wall clock), which differs on EVERY request by definition — the det ✗ was
+  over-determined: the timing tail alone forces it, BY CONSTRUCTION. The
+  `AgentJevLane::decide_raw` compare input now strips `usage.wall_ms` (the
+  Issue-075 Drex strip law, mirrored; unit-tested against a canned server).
+  ⚠ This does NOT yet re-verdict the column: their disclosed bf16 wobble
+  (3rd-decimal probability drift, their own README class) is a separate,
+  plausible contributor the strip does not remove — a post-strip det read
+  on their serving posture is the pending measurement. Until then the
+  quoted cells above stand, and the det ✗ is UNADJUDICATED (neither
+  confirmed nor cleared), never quietly ✓.
 - The modelless cells are bit-identical to the published 4090 cells (the
   standing drift gate; `code_fixtures` the designed commit-relative
   exclusion).
