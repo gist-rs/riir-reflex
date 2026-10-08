@@ -5,6 +5,40 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-09 — Issue 082 CLOSED: the pplx-decider v1.1 lane measured end-to-end (bench 132, MLX-4bit posture on M3) — board rank does NOT transfer to our suites at amplitude in BOTH directions (banking77 −15pt vs clef-flash; prompt_injections +34pt, xnli +14pt); site edition 2026-10-9 deployed; the 623 per-suite-teacher decision recorded; the standing JDI sha-watch armed
+
+**Status: Resolved.** The JDI board's new #1 (Perplexity Decider v1.1 27B, Apache-2.0, published
+2026-10-05) measured on our 9 frozen suites via the pplx lane (`src/lanes/pplx.rs`, the
+clef/agentjev sibling shape, 11 wire tests, reflex `741bda3`). Posture: the 4090 bf16-offload
+plan died on a real hole (32 GB RAM box cannot hold 52 GB resident; disk-spill ≈ 15-20 h AND
+blocks sibling training) — pivoted to `mlx-community/pplx-decider-v1.1-27b-4bit` on Metal
+(the clef-lane posture class; their measured fidelity 33/33 argmax, mean KL 0.0014) through a
+byte-deterministic reference-wire adapter (`.raw/pplx_srv/pplx_mlx_adapter.py` — the port's
+own server would false-fail the det probe with its uuid `id`; det held 10/10 byte-identical
+on every suite). **The read (bench `132_pplx_lane/mlx4bit`)**: pplx LOSES banking77 to
+clef-flash 0.8040 vs 0.9540 (−15pt) but WINS prompt_injections 0.9224 vs 0.5862 (+34pt),
+xnli 0.9567 vs 0.8133 (+14pt), typed 0.7350 vs 0.6955 (+4pt); ECE 0.033-0.080 on 8/9 —
+well-calibrated out of the box. acc-only publish (preflight REFUSED under sibling load — the
+bench-131 law; latency stays acc-only until a quiet-box re-read, the bench-118 precedent).
+Site: the full bekko/clef footprint extended to pplx (reflex-site `69143ce`+`4f77c79`, edition
+2026-10-9, deployed + live-verified 9/9 cells + 9 crosswalk rows; `PUBLISH_BENCH_LANES=
+pplx:acc-only` also protected the published modelless cells from the doc's by-product
+default-posture control — the .issues/033 law). Crosswalk `board_reference` re-pinned to the
+JDI v3 edition (11 rows, every number verified against the live fetch; corrected the filing
+session's off-by-one ranks; clef is public-#3 at 61.71 — pplx's #1 is carried by the 80%
+private weight; reflex `0413dcd`, `.research/005` Update note) — and that commit also PAID the
+blocking bench-131 debt (two stale chart_render_smoke pins: the `[p50-family]` presence-row
+set now DERIVED from the render's own last-stats hook; `[ladder]`'s synthetic fixture now
+STATE-PROOF owning all three rungs' timing, both directions asserted). Standing watch (T5):
+`scripts/watch_jdi.py` + pin `scripts/jdi_board.sha` (exit 0/1/2; `--update` the only writer;
+both verdict arms proven live) — the next board move files itself. Teacher candidacy: dead
+heat on the language-class mean (0.7801 vs 0.7793) with opposite strengths → **per-suite
+teachers** recorded in riir-train 623 (`9f041a28`: clef-flash → banking77/sst5/massive; pplx →
+xnli (0.9567 clears the 0.9000 class bar where openthai 0.8600 did not) + emotion); capture
+still gated on 623 T1 + the Research-464 §3 owner gate. The distillation record: `.research/010`.
+The 4090's verified 52 GB bf16 snapshot stays as the local reference for any future
+exact-posture run on bigger iron; its dead serve-deps install is irrelevant.
+
 ## 2026-10-09 — Issue 080 CLOSED: the wanli_en ESC re-source lane complete end-to-end (fetch → ledger → wiring → Bench 130 → the last leftover fixed); the t3 slice_leak wiring gate un-panicked for the Thai suites
 
 **Status: Resolved.** The reflex-side half of the ESC re-source (rethink Issue 024 owns
