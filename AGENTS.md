@@ -256,6 +256,13 @@ D1_SERVE_URL=http://127.0.0.1:8078 \
 # one frozen test read). Issue 064 ascent leg: --synth-density-pilot (report)
 # + --synth-density-gate <p50|p75|p90>; Bench 120/121/122 verdict: UNGATED
 # beats every gate strength — the seated corpus stays the ungated artifact.
+# Rescue pre-filter (riir-refine Issue 156 T4, OPT-IN): --synth-rescue-prefilter
+# — the FlyBy b0 leg (arXiv:2609.34327): the LOCAL modelless engine answers
+# each candidate at the forced pick BEFORE the teacher forward; a
+# no-tool-solved candidate (V>0, execution-reachable) is rejected without
+# spending the veto call. AUGMENT, never replace — the veto stays the
+# acceptance authority, the filter can only narrow; artifact meta carries
+# `rescue_rule` (additive, version stays 2).
 # EVERY --corpus-ab pass computes the echo gates (abstention-entropy KL ≤ 0.05;
 # OOD word-dropout ladder, gate rung .20): a clean V5 PASS with a negative
 # gate-rung LB95 reads ECHO = the lane dies. Exclusive early-exit modes:

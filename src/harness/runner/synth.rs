@@ -48,6 +48,23 @@
 //! refuses anything else loud). `--synth-plan` runs the whole pipeline
 //! except the veto and writes nothing — inspect the allocation before
 //! spending teacher calls.
+//!
+//! The rescue pre-filter (riir-refine Issue 156 T4 — the FlyBy state-level
+//! predicate, arXiv:2609.34327 Algorithm 1, synth-lane face): OPT-IN ahead
+//! of the veto, the local modelless engine answers each candidate as the
+//! `b0` (no-tool) continuation — the hybrid's free arm, read at the FORCED
+//! pick (the hard-metric convention: `forced accuracy, abstain ignored`;
+//! the deployed gate's abstention is a serve-confidence posture the
+//! per-suite fit owns, not a knowledge axis). A candidate whose scoring
+//! already ranks gold top-1 is execution-reachable (FlyBy's `V>0` law) and
+//! is rejected WITHOUT a teacher forward: not a knowledge bottleneck, not
+//! worth corpus budget. The `bd` (rescue-evidence) leg stays the VETO's own
+//! job — one cross-model teacher agreement is stronger evidence than the
+//! paper's ≥3 same-model continuations, so the veto remains the acceptance
+//! AUTHORITY and this filter can only NARROW what enters it (the augment
+//! law). The canonical predicate home is riir-refine `src/rescue_mine.rs`
+//! (private repo, paper-derived); this public port is pinned to the same
+//! FlyBy truth table by tests — the copies cannot drift.
 
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
@@ -55,8 +72,8 @@ use std::path::Path;
 use super::{
     density_pilot::{DensityGate, DensityRung},
     distill::{argmax_lowest_pos, construct_teacher},
-    git_sha, hostname_refusing_unknown, iso8601_utc, percentile_us, prepare, RunOptions,
-    SuiteSpec, SUITES,
+    git_sha, hostname_refusing_unknown, iso8601_utc, percentile_us, prepare, Prepared,
+    RunOptions, SuiteSpec, SUITES,
 };
 use crate::harness::suites::{GoldAnswer, QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc};
 #[cfg(feature = "nb_scope")]
@@ -98,6 +115,15 @@ pub struct SynthOptions {
     /// AND-ed with the teacher veto (acceptance can only REJECT, never
     /// inject). `None` = the shipped veto-only posture, byte-identical.
     pub density_gate: Option<DensityRung>,
+    /// The rescue pre-filter (riir-refine Issue 156 T4), OPT-IN: the FlyBy
+    /// `b0` leg — the LOCAL modelless engine answers each candidate BEFORE
+    /// the teacher forward (forced pick, the hard-metric convention), and a
+    /// candidate whose scoring already ranks gold top-1 is rejected without
+    /// spending the veto call. AUGMENTS the veto, never replaces it: the
+    /// veto stays the acceptance authority and the pre-filter can only
+    /// NARROW the candidate set entering it. `false` = the shipped posture,
+    /// byte-identical.
+    pub rescue_prefilter: bool,
 }
 
 /// One generated candidate (pre-veto). `src` is the LABEL-LOCAL pool
@@ -126,6 +152,12 @@ pub struct SynthPerLabel {
     /// 0 unless the gate is armed — Issue 064 task 2.
     #[serde(default)]
     pub density_rejected: usize,
+    /// Rows the rescue pre-filter rejected BEFORE the teacher forward (the
+    /// `b0` leg: the local modelless engine already serves the candidate —
+    /// answered, not abstained, and correct). 0 unless the pre-filter is
+    /// armed — riir-refine Issue 156 T4.
+    #[serde(default)]
+    pub rescue_rejected: usize,
     pub weight: f64,
 }
 
@@ -155,6 +187,12 @@ pub struct SynthSuite {
     /// The ascent-leg disclosure (mirrors the artifact meta; `None` =
     /// veto-only).
     pub density_rule: Option<String>,
+    /// Rows the rescue pre-filter rejected before the teacher forward,
+    /// summed over labels. 0 unless the pre-filter is armed.
+    pub rescue_rejected: usize,
+    /// The rescue pre-filter disclosure (mirrors the artifact meta;
+    /// `None` = veto-only).
+    pub rescue_rule: Option<String>,
     pub per_label: BTreeMap<String, SynthPerLabel>,
 }
 
@@ -198,6 +236,13 @@ pub struct SynthArtifactMeta {
     /// `weighting_rule` already does).
     #[serde(default)]
     pub density_rule: Option<String>,
+    /// The rescue pre-filter disclosure (riir-refine Issue 156 T4): `None`
+    /// = veto-only (the shipped posture); `Some(rule)` = the FlyBy `b0`
+    /// pre-filter was armed ahead of the teacher veto. Additive +
+    /// `serde(default)` — version stays 2 for the same reason as
+    /// [`Self::density_rule`].
+    #[serde(default)]
+    pub rescue_rule: Option<String>,
 }
 
 // ── the veto shape ───────────────────────────────────────────────────────
@@ -261,14 +306,15 @@ fn single_text_field(state: &serde_json::Value) -> Option<String> {
 /// Build one synthetic veto case: the shape's question with the candidate
 /// text in the state field and the FULL label universe as criteria (the
 /// deterministic presentation — no arbitrary distractor draw). Returns
-/// the case + the gold KEY STRING the accept test compares (order-free).
+/// the case + the gold KEY STRING the accept test compares (order-free)
+/// + the gold POSITION (index-space, the b0 judge's compare).
 fn veto_case(
     shape: &VetoShape,
     labels_sorted: &[String],
     gold_label: &str,
     text: &str,
     id: String,
-) -> Result<(SuiteCase, String), String> {
+) -> Result<(SuiteCase, String, usize), String> {
     let (criteria, gold_pos, n_keys) = match shape.kind {
         QKind::Choice => {
             let pos = labels_sorted
@@ -314,7 +360,7 @@ fn veto_case(
             gold_score: None,
         }],
     };
-    Ok((case, gold_label.to_string()))
+    Ok((case, gold_label.to_string(), gold_pos))
 }
 
 /// The veto predicate (N3): the teacher's argmax KEY must equal the gold
@@ -324,6 +370,153 @@ fn veto_case(
 fn veto_accept(keyed: &[(String, f64)], gold_key: &str) -> bool {
     let best = argmax_lowest_pos(keyed);
     keyed.get(best).is_some_and(|(k, _)| k == gold_key)
+}
+
+// ── the rescue pre-filter (riir-refine Issue 156 T4) ─────────────────────
+
+/// The tool-assisted success bar — `FlyBy`'s `bd ≥ 3` of 4 (a 3-of-4 rescue
+/// majority; `(0, 2)` is REJECT: the rescue is undemonstrated).
+pub(crate) const RESCUE_BD_KEEP_MIN: u32 = 3;
+
+/// The `FlyBy` probe's per-arm continuation count (the paper's 4/4 design —
+/// documentation + the honest denominator for yield math). The synth lane's
+/// `b0` leg is ONE continuation because the modelless engine is
+/// DETERMINISTIC: one sample is the complete enumeration of its continuation
+/// distribution, not an estimate of it.
+#[allow(dead_code)] // pinned by the truth-table test; documents the paper denominator the b0 leg collapses
+pub(crate) const FLYBY_CONTINUATIONS_PER_ARM: u32 = 4;
+
+/// The `FlyBy` rescue predicate on success COUNTS: zero no-tool successes
+/// AND at least [`RESCUE_BD_KEEP_MIN`] tool-assisted successes. Ported from
+/// riir-refine `src/rescue_mine.rs` (the canonical home, paper-derived);
+/// the truth-table test below pins both copies to the same law.
+///
+/// Synth-lane mapping (the augment law): the `b0` leg is measured LOCALLY
+/// (the modelless engine, one deterministic continuation); the `bd` leg is
+/// the VETO's own job — one cross-model teacher agreement is stronger
+/// rescue evidence than ≥3 same-model continuations, and the veto stays
+/// the acceptance authority. The pre-filter therefore enforces only the
+/// `b0 = 0` half (see [`B0Judge::already_serves`]) and can only NARROW the
+/// candidate set entering the veto — never widen acceptance.
+#[must_use]
+#[allow(dead_code)] // pinned by the truth-table test; the production pre-filter enforces the b0 half — this full predicate ships for a future LOCAL bd leg (refine's arm-H consumes its twin)
+#[allow(clippy::similar_names)] // b0/bd ARE the FlyBy vocabulary — the near-identical names are the domain's own, not a slip
+pub(crate) fn rescue_keep(b0_successes: u32, bd_successes: u32) -> bool {
+    b0_successes == 0 && bd_successes >= RESCUE_BD_KEEP_MIN
+}
+
+/// The `b0` (no-tool) judge: the local modelless engine over the suite's
+/// own train pool (the registry corpus cap — the incumbent serving
+/// posture's cap, `specs_corpus_extended` with an empty extension so the
+/// construction is the SAME seam the corpus A/B lane measured), at the
+/// FORCED posture (`score/distance thresholds = 2.0` — conf ≤ 1 < 2, the
+/// `build_head_scale_selection` precedent: never abstains). One
+/// continuation per candidate; the forced pick comes back through the
+/// harness's own `eval_engine` (one source of truth for the decide law —
+/// never a parallel scoring path).
+///
+/// Why the FORCED pick and not the deployed gate's served/abstained split:
+/// the bottleneck the corpus lane mines is a KNOWLEDGE gap — whether the
+/// engine's scoring already ranks gold top-1 (the hard-metric convention,
+/// `forced accuracy, abstain ignored`, every lane table reports). The
+/// deployed gate's abstention is a serve-CONFIDENCE posture the per-suite
+/// fit owns (`fit_posture`'s calibrated thresholds); a cold judge cannot
+/// reproduce it faithfully, and a mis-fit judge would only blur the
+/// filter — while the forced pick is deterministic, posture-free, and
+/// exactly the axis FlyBy's `V>0` law names (the no-tool continuation
+/// SUCCEEDS = the task is execution-reachable, period).
+type ContinuationFn = Box<dyn FnMut(&SuiteCase, &str) -> Result<usize, String>>;
+
+pub(crate) struct B0Judge {
+    run: ContinuationFn,
+}
+
+impl B0Judge {
+    /// One `b0` continuation: the FORCED pick, INDEX-space (criteria order)
+    /// — the same convention the eval lanes' hard metrics read.
+    fn continuation(&mut self, case: &SuiteCase, state_str: &str) -> Result<usize, String> {
+        (self.run)(case, state_str)
+    }
+
+    /// The `b0` success test — the no-tool arm's scoring already ranks gold
+    /// top-1 (`FlyBy`'s `V>0`: execution-reachable). `true` = the
+    /// pre-filter rejects the candidate without a teacher forward.
+    fn already_serves(
+        &mut self,
+        case: &SuiteCase,
+        state_str: &str,
+        gold_pos: usize,
+    ) -> Result<bool, String> {
+        Ok(self.continuation(case, state_str)? == gold_pos)
+    }
+}
+
+/// Build the `b0` judge for one suite — the run() const-generic dispatch
+/// table over the domain count (the run() law; a new label count extends
+/// THIS table and that one together).
+fn build_b0_judge(suite: &str, corpus_cap: usize, prepared: &Prepared) -> Result<B0Judge, String> {
+    macro_rules! dispatch {
+        ($n:literal) => {{
+            let (specs, fallback, _) = super::specs_corpus_extended(
+                &prepared.train,
+                &[],
+                &prepared.labels,
+                corpus_cap,
+                0,
+                None,
+            );
+            if !fallback.is_empty() {
+                eprintln!(
+                    "  [synth {suite}] rescue pre-filter: {} starved label(s) serve their \
+                     own label text as corpus (the Issue-039 disclosure)",
+                    fallback.len()
+                );
+            }
+            let mut engine = crate::engine::DecisionEngine::<$n, { crate::embed::EMBED_DIM }>::
+                build_specs(
+                    specs,
+                    crate::engine::EngineConfig {
+                        // Forced: never abstain (conf ≤ 1 < threshold) — the
+                        // b0 leg reads the scoring axis, the hard-metric
+                        // convention (see the B0Judge doc).
+                        score_threshold: 2.0,
+                        distance_threshold: 2.0,
+                        ..crate::engine::EngineConfig::default()
+                    },
+                )
+                .map_err(|e| format!("rescue pre-filter engine build ({suite}): {e}"))?;
+            Ok(B0Judge {
+                run: Box::new(move |case: &SuiteCase, state_str: &str| {
+                    let strs = [state_str.to_string()];
+                    let (ev, _) = super::eval_engine::<$n>(
+                        &mut engine,
+                        std::slice::from_ref(case),
+                        &strs,
+                        false,
+                    )?;
+                    Ok(ev.picks[0][0])
+                }),
+            })
+        }};
+    }
+    match prepared.labels.len() {
+        2 => dispatch!(2),
+        3 => dispatch!(3),
+        4 => dispatch!(4),
+        5 => dispatch!(5),
+        6 => dispatch!(6),
+        7 => dispatch!(7),
+        8 => dispatch!(8),
+        10 => dispatch!(10),
+        15 => dispatch!(15),
+        59 => dispatch!(59),
+        77 => dispatch!(77),
+        842 => dispatch!(842),
+        n => Err(format!(
+            "synth rescue pre-filter: no engine instantiation for {n} domains — extend the \
+             dispatch table (the run() law)",
+        )),
+    }
 }
 
 // ── mining + generation ─────────────────────────────────────────────────
@@ -936,8 +1129,19 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         gates
     });
     let density_rule: Option<String> = sopts.density_gate.map(|r| r.rule());
+    // The rescue pre-filter (Issue 156 T4): built ONCE per suite — the
+    // default-posture engine over the same train pool the veto's universe
+    // came from. `None` = the shipped veto-only posture.
+    let mut rescue_judge = if sopts.rescue_prefilter {
+        Some(build_b0_judge(spec.name, spec.corpus_cap_per_label, &prepared)?)
+    } else {
+        None
+    };
+    let rescue_rule: Option<String> = sopts
+        .rescue_prefilter
+        .then(|| format!("flyby-b0-local-veto-augment-v1 (bd≥{RESCUE_BD_KEEP_MIN} stays the veto's authority)"));
     eprintln!(
-        "  [synth {}] teacher {}/{} · {} candidate(s) across {} label(s) · budget {}{}",
+        "  [synth {}] teacher {}/{} · {} candidate(s) across {} label(s) · budget {}{}{}",
         spec.name,
         teacher.name(),
         teacher.provenance(),
@@ -945,6 +1149,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         plan.buckets.len(),
         plan.alloc.values().sum::<usize>(),
         if let Some(r) = &density_rule { format!(" · density gate: {r}") } else { String::new() },
+        if rescue_rule.is_some() { " · rescue pre-filter: b0 local, veto authority".to_string() } else { String::new() },
     );
 
     let mut accepted: Vec<SynthCand> = Vec::new();
@@ -959,6 +1164,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
                 accepted: 0,
                 veto_rejected: 0,
                 density_rejected: 0,
+                rescue_rejected: 0,
                 weight: plan.weights.get(label).copied().unwrap_or(0.0),
             },
         );
@@ -997,13 +1203,30 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
                 slot.density_rejected += 1;
                 continue;
             }
-            let (case, gold_key) = veto_case(
+            // The rescue pre-filter (Issue 156 T4), after the density gate
+            // and BEFORE the teacher forward — both local filters are pure
+            // functions of the candidate (the engine is deterministic), so
+            // the accepted SET stays order-invariant; only the COST moves:
+            // a no-tool-solved candidate never spends the veto call. The
+            // filter can only NARROW (a candidate passing local but failing
+            // the veto stays rejected — the veto is the acceptance
+            // authority); the b0 leg reads the FORCED pick (the hard-metric
+            // convention — see the B0Judge doc for why not the gate).
+            let (case, gold_key, gold_pos) = veto_case(
                 &shape,
                 &labels_sorted,
                 label,
                 &c.text,
                 format!("synth:{}:{label}:{}", spec.name, accepted.len()),
             )?;
+            if let Some(judge) = rescue_judge.as_mut() {
+                let state_str = crate::pyjson::serialize_state(&case.state);
+                if judge.already_serves(&case, &state_str, gold_pos)? {
+                    let slot = per_label.get_mut(label).expect("seeded above");
+                    slot.rescue_rejected += 1;
+                    continue;
+                }
+            }
             let (keyed, ms) = teacher.forward(&case)?;
             durs_ms.push(ms);
             let is_accept = veto_accept(&keyed, &gold_key);
@@ -1029,6 +1252,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         }
     }
     let veto_rejected: usize = per_label.values().map(|p| p.veto_rejected).sum();
+    let rescue_rejected: usize = per_label.values().map(|p| p.rescue_rejected).sum();
     if accepted.is_empty() {
         return Err(format!(
             "veto accepted 0 of {} forwarded candidate(s) — teacher {:?} agrees with \
@@ -1052,14 +1276,17 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         accepted: accepted.len(),
         pool_rows: prepared.train.len(),
         density_rule: density_rule.clone(),
+        rescue_rule: rescue_rule.clone(),
     };
     let (path, seal_hex) =
         write_artifact(sopts.out_dir.as_path(), spec.name, &meta, &per_label, &accepted)?;
     eprintln!(
-        "  [synth {}] done: {} accepted / {} forwarded · p50 {p50} ms · {:.1}s → {}",
+        "  [synth {}] done: {} accepted / {} forwarded · {} rescue-rejected · p50 {p50} ms · \
+         {:.1}s → {}",
         spec.name,
         accepted.len(),
         durs_ms.len(),
+        rescue_rejected,
         t_start.elapsed().as_secs_f64(),
         path.display()
     );
@@ -1083,6 +1310,8 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         path: path.display().to_string(),
         blake3: seal_hex[..16].to_string(),
         density_rule,
+        rescue_rejected,
+        rescue_rule,
         per_label,
     })
 }
@@ -1100,8 +1329,16 @@ pub fn run_synth_plan(opts: &RunOptions, sopts: &SynthOptions) -> Result<String,
     }
     let mut md = String::new();
     md.push_str(&format!(
-        "# synth plan — teacher {:?} · max {} accepted / {} per label · span ≤ {}\n\n",
-        sopts.teacher, sopts.max_accepted, sopts.max_per_label, sopts.max_span_len
+        "# synth plan — teacher {:?} · max {} accepted / {} per label · span ≤ {}{}\n\n",
+        sopts.teacher,
+        sopts.max_accepted,
+        sopts.max_per_label,
+        sopts.max_span_len,
+        if sopts.rescue_prefilter {
+            " · rescue pre-filter: b0 local, veto authority"
+        } else {
+            ""
+        }
     ));
     let mut any = false;
     let mut errors = Vec::new();
@@ -1208,6 +1445,19 @@ pub fn render_synth_markdown(out: &SynthOutput) -> String {
             v.dedup_dup,
             v.outside_universe
         ));
+    }
+    // The rescue pre-filter disclosure (Issue 156 T4) — only when armed on
+    // any suite (the shipped posture prints nothing, byte-identical).
+    if let Some(v) = out.suites.iter().find(|s| s.rescue_rule.is_some()) {
+        s.push_str(&format!(
+            "\nrescue pre-filter: {} — the local `b0` leg rejects what the modelless \
+             arm already serves; the teacher veto stays the acceptance authority.\n\n| \
+             suite | rescue-rejected |\n|---|---|\n",
+            v.rescue_rule.clone().unwrap_or_default()
+        ));
+        for v in &out.suites {
+            s.push_str(&format!("| {} | {} |\n", v.name, v.rescue_rejected));
+        }
     }
     s.push_str("\nPer-label allocation (top 20 by accepted):\n\n| label | weight | cands | \
                 alloc | accepted | vetoed |\n|---|---|---|---|---|---|\n");
@@ -1328,6 +1578,7 @@ mod tests {
             max_span_len: 4,
             out_dir: std::env::temp_dir().join(format!("rfx_synth_test_{}", std::process::id())),
             density_gate: None,
+            rescue_prefilter: false,
         }
     }
 
@@ -1465,6 +1716,7 @@ mod tests {
                 accepted: 2,
                 veto_rejected: 1,
                 density_rejected: 0,
+                rescue_rejected: 0,
                 weight: 0.5,
             },
         );
@@ -1481,6 +1733,7 @@ mod tests {
             accepted: accepted.len(),
             pool_rows: 4,
             density_rule: None,
+            rescue_rule: None,
         };
         let (path, _hex) =
             write_artifact(&dir, "fixture", &meta, &per_label, &accepted).expect("write");
@@ -1530,7 +1783,7 @@ mod tests {
             .iter()
             .map(|s| s.to_string())
             .collect();
-        let (case, gold_key) = veto_case(
+        let (case, gold_key, gold_pos) = veto_case(
             &shape,
             &labels,
             "audio_volume_other",
@@ -1542,7 +1795,174 @@ mod tests {
         let keys: Vec<&String> = q.criteria.as_object().unwrap().keys().collect();
         assert_eq!(keys.len(), 2);
         assert_eq!(case.gold[0].idx, 1, "gold position follows the sorted universe");
+        assert_eq!(gold_pos, 1, "the returned position matches the gold index");
         assert_eq!(gold_key, "audio_volume_other");
         assert_eq!(case.state["utterance"], "make it louder");
+    }
+
+    #[test]
+    fn rescue_predicate_pins_the_flyby_truth_table() {
+        // The same truth table riir-refine's G1 pins (Issue 156 T5) — the
+        // two ports cannot drift: (0,4)/(0,3) keep · (1,4) reject (the
+        // control succeeded — execution-reachable, FlyBy's V>0 law) ·
+        // (0,2) reject (rescue undemonstrated).
+        assert!(rescue_keep(0, 4));
+        assert!(rescue_keep(0, 3));
+        assert!(!rescue_keep(1, 4));
+        assert!(!rescue_keep(0, 2));
+        assert_eq!(RESCUE_BD_KEEP_MIN, 3);
+        assert_eq!(FLYBY_CONTINUATIONS_PER_ARM, 4);
+    }
+
+    #[test]
+    fn b0_judge_serves_pool_replicas_and_is_deterministic() {
+        // The engine's decide path is stack-hungry in debug builds (the
+        // serve lane boots 64 MiB-stack threads for the same reason) — the
+        // test owns its stack, never the runner's environment.
+        let handoff = std::thread::Builder::new()
+            .stack_size(64 * 1024 * 1024)
+            .spawn(b0_judge_probe)
+            .expect("spawn");
+        let (replica_served, far_served) = handoff.join().expect("join");
+        assert!(
+            replica_served,
+            "a pool replica is home turf — the scoring picks its own label"
+        );
+        assert!(
+            !far_served,
+            "a text off every corpus must not read as served — the veto decides it"
+        );
+    }
+
+    /// The test body on its own thread: returns
+    /// (replica already-served?, far-text already-served?).
+    fn b0_judge_probe() -> (bool, bool) {
+        // The judge over the 2-label fixture: an alarm corpus replica is
+        // the no-tool arm's home turf — the forced pick must select its own
+        // label, so the pre-filter would reject it without a teacher call.
+        // A text far from every corpus must not read as served.
+        let prepared = fixture_prepared();
+        let mut judge = build_b0_judge("fixture", 64, &prepared).expect("judge");
+        let shape = VetoShape {
+            field: "utterance".into(),
+            qid: "intent".into(),
+            instructions: "What is the user asking for in `utterance`?".into(),
+            kind: QKind::Choice,
+            score_criteria: None,
+        };
+        let labels = vec!["alarm_set".to_string(), "audio_volume_other".to_string()];
+        let (case, _gold_key, gold_pos) = veto_case(
+            &shape,
+            &labels,
+            "alarm_set",
+            "wake me up at nine am on friday",
+            "synth-b0:t:0".into(),
+        )
+        .expect("case");
+        let state_str = crate::pyjson::serialize_state(&case.state);
+        // Deterministic: two continuations of the same request agree (one
+        // continuation IS the full distribution — FLYBY_CONTINUATIONS_PER_ARM
+        // documents the stochastic denominator the deterministic engine
+        // collapses to 1).
+        let p1 = judge.continuation(&case, &state_str).expect("cont 1");
+        let p2 = judge.continuation(&case, &state_str).expect("cont 2");
+        assert_eq!(p1, p2, "the engine is deterministic");
+        assert_eq!(p1, gold_pos, "the pool replica picks its own label");
+        let replica_served = judge
+            .already_serves(&case, &state_str, gold_pos)
+            .expect("serve");
+
+        // A text the no-tool arm does NOT solve: gold claims audio_volume_other
+        // but the corpora say alarm — the scoring must not rank gold top-1
+        // (the veto decides it, never the pre-filter).
+        let (far, _k, far_gold) = veto_case(
+            &shape,
+            &labels,
+            "audio_volume_other",
+            "zzz qqq barely words at all",
+            "synth-b0:t:1".into(),
+        )
+        .expect("case");
+        let far_state = crate::pyjson::serialize_state(&far.state);
+        let far_pick = judge.continuation(&far, &far_state).expect("cont far");
+        assert_ne!(far_pick, far_gold, "the off-corpus text must not pick the far gold");
+        let far_served = judge
+            .already_serves(&far, &far_state, far_gold)
+            .expect("serve far");
+        (replica_served, far_served)
+    }
+
+    #[test]
+    fn artifact_roundtrips_with_the_rescue_rule_field() {
+        // The additive-field law (the density_rule precedent): an artifact
+        // written with the rescue disclosure set loads back with it intact,
+        // and version stays 2 — old artifacts (no field) load via
+        // serde(default), new ones are still v2 rows.
+        let dir = std::env::temp_dir().join(format!("rfx_synth_resc_{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let accepted = vec![SynthCand {
+            text: "wake me up at seven am on friday".into(),
+            label: "alarm_set".into(),
+            src: 0,
+            span: (4, 2),
+        }];
+        let mut per_label = BTreeMap::new();
+        per_label.insert(
+            "alarm_set".to_string(),
+            SynthPerLabel {
+                candidates: 5,
+                allocated: 4,
+                accepted: 1,
+                veto_rejected: 1,
+                density_rejected: 0,
+                rescue_rejected: 2,
+                weight: 1.0,
+            },
+        );
+        let meta = SynthArtifactMeta {
+            magic: CORPUS_MAGIC.to_string(),
+            version: CORPUS_VERSION,
+            suite: "fixture".into(),
+            teacher: "openthai".into(),
+            teacher_provenance: "openthai:openthai-systemone".into(),
+            weighting_rule: "uniform".into(),
+            created_utc: "2026-10-08T00:00:00Z".into(),
+            git_sha: "test".into(),
+            host: "test".into(),
+            accepted: accepted.len(),
+            pool_rows: 4,
+            density_rule: None,
+            rescue_rule: Some("flyby-b0-local-veto-augment-v1".into()),
+        };
+        let (path, _hex) =
+            write_artifact(&dir, "fixture_r", &meta, &per_label, &accepted).expect("write");
+        let (loaded, docs, _digest) = load_synth_corpus(&path).expect("load");
+        assert_eq!(loaded.version, CORPUS_VERSION);
+        assert_eq!(
+            loaded.rescue_rule.as_deref(),
+            Some("flyby-b0-local-veto-augment-v1")
+        );
+        assert_eq!(docs.len(), 1);
+        // The shipped posture's artifacts (field absent) still load: strip
+        // the field from the header, re-seal, load — serde(default) tolerates
+        // the absence.
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let mut lines = raw.lines();
+        let header = lines.next().unwrap();
+        let mut v: serde_json::Value = serde_json::from_str(header).unwrap();
+        let obj = v.as_object_mut().unwrap();
+        obj.remove("rescue_rule");
+        let mut bytes = serde_json::to_string(&v).unwrap();
+        bytes.push('\n');
+        for l in lines {
+            bytes.push_str(l);
+            bytes.push('\n');
+        }
+        std::fs::write(&path, &bytes).unwrap();
+        let seal = blake3::hash(bytes.as_bytes()).to_hex();
+        std::fs::write(format!("{}.blake3", path.display()), format!("{seal}\n")).unwrap();
+        let (old_meta, _docs, _d) = load_synth_corpus(&path).expect("old artifact loads");
+        assert_eq!(old_meta.rescue_rule, None, "absent field decodes None");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

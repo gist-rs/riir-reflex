@@ -25,6 +25,9 @@
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
 //!                                      [--drafter-fix <off|per_byte|ncd|shared_prefix|key_only>]
+//!                                      [--synth-rescue-prefilter] (synth modes: the FlyBy
+//!                                       b0 pre-filter — local modelless leg ahead of
+//!                                       the teacher veto; the veto stays the authority)
 //! ```
 //! `--laya-python` adds the ORIGINAL torch reference as a JSONL subprocess
 //! oracle lane (measurement-only; needs python3 + torch/transformers and the
@@ -304,6 +307,9 @@ fn harness_main() {
     let mut synth_span = 4usize;
     let mut synth_extra_cap = 128usize;
     let mut synth_density_gate: Option<runner::DensityRung> = None;
+    // riir-refine Issue 156 T4: the FlyBy b0 rescue pre-filter (synth modes
+    // only) — the local modelless leg ahead of the teacher veto.
+    let mut synth_rescue_prefilter = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -516,6 +522,7 @@ fn harness_main() {
                     die("--synth-density-gate needs a rung (p50 | p75 | p90)")
                 }));
             }
+            "--synth-rescue-prefilter" => synth_rescue_prefilter = true,
             "--corpus-ab" => {
                 i += 1;
                 corpus_ab = Some(
@@ -898,6 +905,7 @@ fn harness_main() {
             max_span_len: synth_span,
             out_dir: synth_out.clone(),
             density_gate: synth_density_gate,
+            rescue_prefilter: synth_rescue_prefilter,
         };
         if synth_plan {
             println!(
@@ -966,6 +974,7 @@ fn harness_main() {
             max_span_len: synth_span,
             out_dir: synth_out.clone(),
             density_gate: synth_density_gate,
+            rescue_prefilter: false, // the pilot measures density, not the veto lane
         };
         println!(
             "harness --synth-density-pilot: datasets {} · suites {:?} · span ≤ {} · out {}",
