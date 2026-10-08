@@ -1,0 +1,1410 @@
+{
+  "meta": {
+    "date_utc": "2026-10-08T14:04:04Z",
+    "git_sha": "03533fb",
+    "host": "m3",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "k": 5,
+    "max_cases": 40,
+    "seed": 125239297,
+    "gate_rule": "per lane x suite: MEDIAN top-pick swing across orderings <= 2 pt; max + flip rate disclosed beside. The modelless control holds a stricter contract: flips allowed ONLY on an exact top-2 tie (the deterministic first-position tie-break) and median swing within the L1 normalizer's measured fp envelope (0.01 pt) — strict byte-identity stays a disclosed column (the L1 sum reorders with the presentation and moves ULPs by design). A control red refuses the run verdict.",
+    "sampling_rule": "the suite's choice-carrying cases in dataset order, first of every ceil(n/max_cases) stride (deterministic); ALL choice questions of each sampled case. The canary case rides every lane as the liveness cell (never in the suite medians).",
+    "invariance_rule": "label-space mapping: option LABELS are the invariant under permutation (indexes move); every comparison happens on labels mapped back to the original criteria order.",
+    "route_binding": "legacy k==N index alignment (incumbent)",
+    "latency_note": "latency columns deliberately absent — this is a distribution-stability probe; the latency/determinism axes live in the det benches (126/127).",
+    "laya_device": null,
+    "box_start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 19.04,
+      "swap_used_mb": 6108.88,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 19.04 > 6 — a sibling job is on the box"
+      ]
+    },
+    "box_end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 19.04,
+      "swap_used_mb": 6108.88,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 19.04 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "red_cells": 1,
+  "suites": [
+    {
+      "suite": "typed_decisions",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 60,
+          "n_orderings": 5,
+          "median_swing_pt": 4.695405066013336,
+          "max_swing_pt": 18.81239116191864,
+          "flips": 41,
+          "flip_rate": 0.6833333333333333,
+          "control_invariant": false,
+          "verdict": "RED",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "beta",
+            "pick_labels": [
+              "beta",
+              "beta",
+              "beta",
+              "beta",
+              "beta"
+            ],
+            "p_ref": [
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343
+            ],
+            "swing_pt": 0.0,
+            "flipped": false
+          },
+          "cases": [
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "stop",
+                "continue",
+                "continue",
+                "observe"
+              ],
+              "p_ref": [
+                0.2891632318496704,
+                0.2234295904636383,
+                0.2891632616519928,
+                0.2891632616519928,
+                0.2234295904636383
+              ],
+              "swing_pt": 6.573367118835449,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "failure",
+                "harmful"
+              ],
+              "p_ref": [
+                0.2880045473575592,
+                0.23852865397930145,
+                0.23852865397930145,
+                0.2880045473575592,
+                0.22253428399562836
+              ],
+              "swing_pt": 6.547026336193085,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:10",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "stop",
+                "continue",
+                "continue",
+                "human_review"
+              ],
+              "p_ref": [
+                0.28103721141815186,
+                0.24625496566295624,
+                0.28103721141815186,
+                0.28103721141815186,
+                0.25575435161590576
+              ],
+              "swing_pt": 3.4782245755195618,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:10",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "partial",
+                "success",
+                "failure",
+                "failure"
+              ],
+              "p_ref": [
+                0.2799433171749115,
+                0.245296448469162,
+                0.22000139951705933,
+                0.2799433171749115,
+                0.2799433171749115
+              ],
+              "swing_pt": 5.994191765785217,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:20",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "human_review",
+                "observe",
+                "stop",
+                "continue"
+              ],
+              "p_ref": [
+                0.28924018144607544,
+                0.22013849020004272,
+                0.23709017038345337,
+                0.2575514614582062,
+                0.28924018144607544
+              ],
+              "swing_pt": 6.9101691246032715,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:20",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "harmful",
+                "failure",
+                "harmful"
+              ],
+              "p_ref": [
+                0.28808197379112244,
+                0.21925701200962067,
+                0.21925701200962067,
+                0.28808197379112244,
+                0.25652015209198
+              ],
+              "swing_pt": 6.882496178150177,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:30",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "continue",
+                "stop",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.2792742848396301,
+                0.2792742848396301,
+                0.2536964416503906,
+                0.26117321848869324,
+                0.20974010229110718
+              ],
+              "swing_pt": 6.953418254852295,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:30",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "success",
+                "partial"
+              ],
+              "p_ref": [
+                0.27819377183914185,
+                0.26016271114349365,
+                0.20892861485481262,
+                0.2527148425579071,
+                0.26016271114349365
+              ],
+              "swing_pt": 6.926515698432922,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:40",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "stop",
+                "stop",
+                "continue",
+                "stop"
+              ],
+              "p_ref": [
+                0.28596723079681396,
+                0.2530428171157837,
+                0.2516850233078003,
+                0.28596723079681396,
+                0.21328146755695343
+              ],
+              "swing_pt": 7.2685763239860535,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:40",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "harmful",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.2848345935344696,
+                0.2506881654262543,
+                0.2506881654262543,
+                0.2124367207288742,
+                0.2506881654262543
+              ],
+              "swing_pt": 7.23978728055954,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:50",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "stop",
+                "human_review",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.28707996010780334,
+                0.2664812505245209,
+                0.1975056678056717,
+                0.2664812505245209,
+                0.2529364824295044
+              ],
+              "swing_pt": 8.957429230213165,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:50",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "partial",
+                "failure",
+                "harmful"
+              ],
+              "p_ref": [
+                0.28593525290489197,
+                0.26541867852211,
+                0.26541867852211,
+                0.28593525290489197,
+                0.25192791223526
+              ],
+              "swing_pt": 3.400734066963196,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:60",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "observe",
+                "continue",
+                "human_review",
+                "stop"
+              ],
+              "p_ref": [
+                0.2811179757118225,
+                0.25199663639068604,
+                0.2811179757118225,
+                0.23564231395721436,
+                0.25199663639068604
+              ],
+              "swing_pt": 4.547566175460815,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:60",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "partial",
+                "failure",
+                "success"
+              ],
+              "p_ref": [
+                0.2800244390964508,
+                0.2800244390964508,
+                0.2347256988286972,
+                0.2800244390964508,
+                0.25101637840270996
+              ],
+              "swing_pt": 4.52987402677536,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "human_review",
+                "human_review",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.2714698016643524,
+                0.23968687653541565,
+                0.24474212527275085,
+                0.24474214017391205,
+                0.24787777662277222
+              ],
+              "swing_pt": 3.1782925128936768,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "harmful",
+                "failure",
+                "success"
+              ],
+              "p_ref": [
+                0.2704484164714813,
+                0.23878507316112518,
+                0.23878507316112518,
+                0.2704484164714813,
+                0.23878507316112518
+              ],
+              "swing_pt": 3.166334331035614,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:80",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "stop",
+                "observe",
+                "continue",
+                "human_review"
+              ],
+              "p_ref": [
+                0.29506388306617737,
+                0.20971539616584778,
+                0.20971539616584778,
+                0.29506388306617737,
+                0.2389552742242813
+              ],
+              "swing_pt": 8.534848690032959,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:80",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "failure",
+                "partial",
+                "failure"
+              ],
+              "p_ref": [
+                0.29385823011398315,
+                0.20885847508907318,
+                0.29385823011398315,
+                0.23797887563705444,
+                0.29385823011398315
+              ],
+              "swing_pt": 8.499975502490997,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:90",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "human_review",
+                "stop",
+                "continue",
+                "observe"
+              ],
+              "p_ref": [
+                0.2952117323875427,
+                0.2415422797203064,
+                0.26079466938972473,
+                0.2952117621898651,
+                0.2415422797203064
+              ],
+              "swing_pt": 5.366948246955872,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:90",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "failure",
+                "failure",
+                "partial"
+              ],
+              "p_ref": [
+                0.29400208592414856,
+                0.25972601771354675,
+                0.29400208592414856,
+                0.29400208592414856,
+                0.25972601771354675
+              ],
+              "swing_pt": 3.4276068210601807,
+              "flipped": true
+            },
+            {
+              "case_id": "customer_service:100",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:100",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:110",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344523131847382
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:110",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:120",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:120",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:130",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:130",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:150",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344521641731262
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:150",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:160",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:160",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "delivery",
+              "pick_labels": [
+                "delivery",
+                "refund",
+                "refund",
+                "delivery",
+                "delivery"
+              ],
+              "p_ref": [
+                0.20289430022239685,
+                0.20289430022239685,
+                0.20289430022239685,
+                0.20289427042007446,
+                0.20289430022239685
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "customer_service:170",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21169543266296387,
+                0.21169543266296387,
+                0.21169543266296387,
+                0.21169543266296387,
+                0.21169543266296387
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:170",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:180",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344523131847382,
+                0.21344523131847382
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:180",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:190",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344523131847382,
+                0.21344523131847382
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:190",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:200",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "reject",
+                "hold",
+                "approve",
+                "manual_review"
+              ],
+              "p_ref": [
+                0.3034836947917938,
+                0.21306872367858887,
+                0.21306873857975006,
+                0.1895386129617691,
+                0.3034836947917938
+              ],
+              "swing_pt": 11.394508183002472,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:210",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "approve",
+                "reject",
+                "reject",
+                "approve"
+              ],
+              "p_ref": [
+                0.29399630427360535,
+                0.2015860378742218,
+                0.21986131370067596,
+                0.2015860229730606,
+                0.23041385412216187
+              ],
+              "swing_pt": 9.241028130054474,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:220",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "manual_review",
+                "reject",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.2901833653450012,
+                0.2901833653450012,
+                0.23595763742923737,
+                0.2076025754213333,
+                0.2076025754213333
+              ],
+              "swing_pt": 8.25807899236679,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:230",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "reject",
+                "reject",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.30351799726486206,
+                0.2307933270931244,
+                0.2307933270931244,
+                0.16316939890384674,
+                0.24668529629707336
+              ],
+              "swing_pt": 14.034859836101532,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:240",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "approve",
+                "approve",
+                "reject",
+                "hold"
+              ],
+              "p_ref": [
+                0.30524134635925293,
+                0.23291005194187164,
+                0.23291005194187164,
+                0.21367132663726807,
+                0.21367132663726807
+              ],
+              "swing_pt": 9.157001972198486,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:250",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "approve",
+                "approve",
+                "approve",
+                "hold"
+              ],
+              "p_ref": [
+                0.307333379983902,
+                0.20860318839550018,
+                0.22410687804222107,
+                0.2033984363079071,
+                0.20860318839550018
+              ],
+              "swing_pt": 10.393494367599487,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:260",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "hold",
+                "reject",
+                "reject",
+                "reject"
+              ],
+              "p_ref": [
+                0.3126600384712219,
+                0.18147686123847961,
+                0.18147686123847961,
+                0.18147686123847961,
+                0.2073095589876175
+              ],
+              "swing_pt": 13.118317723274231,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:270",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "approve",
+                "reject",
+                "manual_review",
+                "reject"
+              ],
+              "p_ref": [
+                0.30022165179252625,
+                0.19211959838867188,
+                0.2148750126361847,
+                0.30022168159484863,
+                0.2148750126361847
+              ],
+              "swing_pt": 10.810208320617676,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:280",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "approve",
+                "approve",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.288580060005188,
+                0.24162600934505463,
+                0.24162600934505463,
+                0.24162600934505463,
+                0.24162600934505463
+              ],
+              "swing_pt": 4.695405066013336,
+              "flipped": true
+            },
+            {
+              "case_id": "invoice_processing:290",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "reject",
+                "hold",
+                "hold",
+                "reject"
+              ],
+              "p_ref": [
+                0.2927476167678833,
+                0.20859888195991516,
+                0.20859889686107635,
+                0.23185233771800995,
+                0.21294566988945007
+              ],
+              "swing_pt": 8.414873480796814,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:300",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "contain",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.26810741424560547,
+                0.253983736038208,
+                0.2607637643814087,
+                0.23601987957954407,
+                0.26810741424560547
+              ],
+              "swing_pt": 3.20875346660614,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:310",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "monitor",
+                "close_benign",
+                "investigate",
+                "contain"
+              ],
+              "p_ref": [
+                0.35609740018844604,
+                0.35609740018844604,
+                0.16797348856925964,
+                0.2610972821712494,
+                0.2610972821712494
+              ],
+              "swing_pt": 18.81239116191864,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:320",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "contain",
+                "close_benign",
+                "monitor",
+                "investigate"
+              ],
+              "p_ref": [
+                0.2848728895187378,
+                0.26517194509506226,
+                0.2562180757522583,
+                0.2848728895187378,
+                0.21377062797546387
+              ],
+              "swing_pt": 7.110226154327393,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:330",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "contain",
+                "contain",
+                "contain",
+                "investigate"
+              ],
+              "p_ref": [
+                0.28031691908836365,
+                0.21899107098579407,
+                0.21899107098579407,
+                0.21899108588695526,
+                0.21899104118347168
+              ],
+              "swing_pt": 6.132587790489197,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:340",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "contain",
+                "contain",
+                "investigate",
+                "close_benign"
+              ],
+              "p_ref": [
+                0.29251712560653687,
+                0.20711317658424377,
+                0.20711317658424377,
+                0.2760116457939148,
+                0.2760116457939148
+              ],
+              "swing_pt": 8.540394902229309,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:350",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "close_benign",
+                "close_benign",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.29485005140304565,
+                0.19335076212882996,
+                0.25689831376075745,
+                0.29485005140304565,
+                0.29485005140304565
+              ],
+              "swing_pt": 10.14992892742157,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:360",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "close_benign",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.3125258982181549,
+                0.28429993987083435,
+                0.24890649318695068,
+                0.17631877958774567,
+                0.3125258982181549
+              ],
+              "swing_pt": 13.620711863040924,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:370",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "close_benign",
+                "contain",
+                "close_benign",
+                "contain"
+              ],
+              "p_ref": [
+                0.30219483375549316,
+                0.24867258965969086,
+                0.20508664846420288,
+                0.20508664846420288,
+                0.20508664846420288
+              ],
+              "swing_pt": 9.710818529129028,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:380",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "investigate",
+                "close_benign",
+                "investigate",
+                "monitor"
+              ],
+              "p_ref": [
+                0.30148711800575256,
+                0.260774165391922,
+                0.25483623147010803,
+                0.2040969580411911,
+                0.30148711800575256
+              ],
+              "swing_pt": 9.739015996456146,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:390",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "monitor",
+              "pick_labels": [
+                "monitor",
+                "investigate",
+                "contain",
+                "contain",
+                "close_benign"
+              ],
+              "p_ref": [
+                0.2722770571708679,
+                0.252799391746521,
+                0.252799391746521,
+                0.252799391746521,
+                0.252799391746521
+              ],
+              "swing_pt": 1.9477665424346924,
+              "flipped": true
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-287d5f73a11932cd) · cal 100 (fnv1a64-0b6e8426558b0d1e) · pool 1100 (fnv1a64-a1679de56e9278b1) · OK"
+    }
+  ]
+}

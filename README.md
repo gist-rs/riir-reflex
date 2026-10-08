@@ -306,7 +306,7 @@ pull), banking77 0.7700 → 0.8620):
 
 | suite | n | modelless | laya best | modelless p50 | laya p50 |
 |---|---|---|---|---|---|
-| typed_decisions | 2000 | 0.5725 ³⁵ | **0.7445** (`typed`) | 0.8 ms | 1312 ms |
+| typed_decisions | 2000 | 0.5700 ³⁵³⁶ | **0.7445** (`typed`) | 0.8 ms | 1312 ms |
 | ag_news | 400 | 0.8825 ³ | **0.9500** | 0.2 ms | 116 ms |
 | emotion | 400 | **0.8850** ³ | 0.5925 | 0.1 ms | 66 ms |
 | sst5 | 600 | **0.4017** ³ | 0.3717 | 0.1 ms | 88 ms |
@@ -329,6 +329,29 @@ is a frozen trained checkpoint scored on the (byte-identical) test split;
 the harness train corpus feeds only the modelless drafter + cal selects.
 `.benchmarks/078_typed_corpus_cap_lift/` is the record.
 
+³⁶ Issue 079 (Bench 131): the legacy `k == N` index-alignment route binding is
+REPLACED by the index-anchored law — route terms arm via by-name (any kind) or
+via the option's index string matching the domain names (Score, k == N,
+index-named domains: sst5's ordinal corpora, byte-preserved digit-exact). A
+CHOICE question never takes the arm: typed's criteria phrases are
+workflow-unrelated, so the old binding was cross-workflow position noise
+(bench 128: 4.70 pt median swing, 68.3% flips under option permutation — the
+perm-probe's last RED control). The content-bound typed posture reads
+0.5630 at the engine default and **0.5700 with the `--drafter-fix per_byte`
+lever** (the board posture; per_byte is accuracy-neutral on every other
+suite — full-registry diff, both hosts bit-identical). Perm acceptance:
+content-bound control PASS at 0.00/0.00 pt (ties only) — the control
+contract holds on all ten suites now. The −0.25 pt vs the leaked 0.5725 is
+the measured price of order-robustness on a wire that declares no option
+order; the leak decomposition (gold piles on position 2 at 40–45% vs ~25%
+chance share; the binding harvested that pile by construction) and the
+permutation-averaged baselines are in
+`.benchmarks/131_kn_route_ab.md`. The instinct H2 typed hybrid seat
+re-read digit-holds at 0.6475 (T2 PASS, LB95 +0.0657 —
+`riir-instinct` Bench 0058); laya/typed stays 4.12-pt order-fragile (the
+trained-encoder lane, riir-train Research 471 item 4's augmentation lane,
+not this engine).
+
 ³ Issue 038 (Bench 051 → 057 → 064): the count-table lane (`nb_scope`, default-on
 feature; the arena protocol adds `--nb-select`). One-vs-rest naive-Bayes
 log-odds tables per label (katgpt-core `contrastive_scope`), built from
@@ -343,7 +366,9 @@ ag_news 0.5100 → 0.8825, emotion 0.2825 → 0.8850 (ridge@8), sst5
 0.2167 → 0.4017 (genome, Bench 064), xnli 0.3467 → 0.5233 (sentence-pair
 view), massive 0.7367 → 0.7800, banking77 0.5940 → 0.8620 (genome),
 typed_decisions 0.3190 → 0.4655 (option-conditioned oc@2, Bench 057,
-default-on; **0.5725 at the Issue-052 corpus-cap lift — oc@4**, Bench 078),
+default-on; 0.5725 at the Issue-052 corpus-cap lift — oc@4, Bench 078;
+**0.5700 at the Issue-079 index-anchored route law + the per_byte drafter
+lever — Bench 131**, the position-binding leak removed),
 prompt_injections 0.4828 → 0.7672 (noul polarity ON — see ¹
 and Issue 043). G2/G4 PASS with the tables armed. G1: at the full pull the
 baseline itself fails on the wide-label suites; the tables flip ag_news to

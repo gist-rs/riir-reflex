@@ -5,6 +5,64 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-08 — Issue 079 CLOSED: the legacy `k == N` position binding replaced by the index-anchored law — typed content-bound at the default (0.5630; board posture + per_byte lever 0.5700, −0.25 pt vs the leaked 0.5725), sst5's ordinal binding byte-preserved, the perm control PASSES on all ten suites, instinct H2 typed seat digit-holds 0.6475 (T2 PASS)
+
+**Status: owner-gated A/B/C resolved via the Claude verdict protocol (round 1 REVISE — four
+amendments, all executed; round 2 re-confirmation RATE-BLOCKED at the reviewer's weekly
+limit — the round-1 verdict + the measured gates carry the decision; the posture is
+reversible: `legacy_kn_route` + `--drafter-fix` are both flags).** Found by bench 128
+(issue 077): option AT position i bound domain i whenever by-name failed and k == N —
+typed's criteria phrases are workflow-unrelated, so the binding was cross-workflow
+position noise (typed control 4.70 pt median swing, 68.3% flips — the probe's last RED).
+
+- **Instrument first** (`59b02c8` + `03533fb`): `EngineConfig::legacy_kn_route` (default
+  true = incumbent bytes) + the `--no-kn-route` harness flag reaching every modelless
+  build incl. the perm probe (route posture disclosed in the probe meta) + the
+  `--drafter-fix <mode>` flag (the tuned-posture axis; oc_scale re-selects per posture:
+  incumbent oc@4 → content oc@0.25). En route: `b3520a5` fixed the stale
+  `train_docs_rules` expectations (red on develop since the 077 content binding).
+- **The leak decomposition** (verdict amendment a; `scripts/issue079_gold_position.py`):
+  gold piles on position 2 (40–45% sampled vs ~25% chance share, positional chance
+  0.2333) — the binding harvested that pile by construction. Perm-averaged plain-posture
+  baselines: incumbent 0.1833 vs content-bound 0.1000 (probe posture has no levers —
+  different population from 0.5725; disclosed).
+- **Tuned B** (amendment b): off 0.5630 · per_byte 0.5700 (chosen) · ncd 0.5670 ·
+  shared_prefix structural no-op (0/600 typed questions share a prefix) · key_only 0.5535.
+- **The G3 finding** (amendment c predicted it): sst5 also rode the blind fill — 0.3967 →
+  0.1567 under knob-off (option strings are the ordinal level PHRASES, domains the index
+  strings, by-name can never arm). But sst5's binding is LEGAL — score questions are
+  ordinal (position = level = the corpus's index label; the noul-precedent class). So the
+  landed fix (`4ad25df`) REPLACES the blind fill with the **index-anchored law**: route
+  arms via by-name (any kind) OR the option's index string matching the domain names
+  (Score, k == N, names exactly "0".."N-1"); choice never takes the arm. Verified
+  digit-exact: sst5 0.3967 preserved; typed 0.5630 == the content-bound bytes;
+  full-registry diff vs incumbent: ONLY typed moves; perm control typed PASS 0.00/0.00
+  ties-only; 339 lib tests green (`f068ae6` names the disclosure string).
+- **Cross-host**: the full 4090-windows cell at the board posture — bit-identity PASS
+  10/10 (hard + calibrated abstain + cases_digest identical; ULP auxiliary drift
+  disclosed). Board posture: `--skip-laya --nb-select --oc-select --ridge-select
+  --drafter-fix per_byte`; typed reads 0.5700 (README ³⁵³⁶).
+- **Downstream re-read** (amendment d — actually run, not footnoted): instinct H2 typed
+  hybrid seat digit-HOLDS 0.6475, T2 PASS LB95 +0.0657 (improved from +0.0580; the H2
+  pick path is engine-independent, only the A0 denominator moved) — `riir-instinct`
+  Bench 0058, commit `6ec4eb2`; their arena also carried a pre-existing
+  `presented_keys` array-spelling regression fix (typed had been unseatable on their
+  develop since 10-03), disclosed there. laya/typed re-read RED 4.12 pt unchanged (the
+  trained-encoder lane; riir-train Research 471 item 4's option-shuffle augmentation is
+  its known lane, not this engine).
+- **The trade, stated**: −0.25 pt hard (0.5700 vs the leaked 0.5725) buys perm-invariance
+  on a wire that declares no option order; calibration improves at the default (ECE cal
+  0.0192 vs floor 0.2778; incumbent 0.0496/0.1818) and stays under floor at per_byte
+  (0.0946/0.2164); selective coverage shifts toward coverage (736/2000 at sel-acc 0.5747
+  vs incumbent 566 at 0.6537). Owner follow-ups recorded, not acted: reflex-site
+  republish (two-host cells in the record), the instinct `REFLEX_BASELINE_SHA` bump.
+
+Bench 131 `.benchmarks/131_kn_route_ab.md` (renumbered from 130 — the wanli sibling's
+committed `130_wanli_en_baseline` took the number first; `dual_allocation_gate` green
+after the renumber). Commits: `b3520a5` `59b02c8` `03533fb` `4ad25df` `f068ae6`.
+Note: the wanli sibling's runner.rs hunks rode `03533fb` (shared-worktree staging
+overlap), acknowledged in their `459d344` message.
+
 ## 2026-10-08 — Issue 078 CLOSED: the `--d1` lane landed — d1-3B measured third on typed (0.6510) but BEST-in-family calibrated (ECE 0.037–0.051 raw, no temperature artifact shipped), order-biased on 3 of 6 probed suites; Windows torch cannot run their one-pass tree (flash kernels absent through 2.11+cu128) — the windows-split posture disclosed
 
 The lane (`src/lanes/d1.rs`, mirror of drex.rs on their official

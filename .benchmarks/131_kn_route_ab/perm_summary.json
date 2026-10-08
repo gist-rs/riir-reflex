@@ -1,0 +1,83 @@
+{
+ "incumbent": {
+  "route_binding": "legacy k==N index alignment (incumbent)",
+  "git_sha": "03533fb",
+  "k": 5,
+  "max_cases": 40,
+  "n_slots_scored": 60,
+  "n_slots_unmatched": 0,
+  "n_orderings": 5,
+  "identity_accuracy": 0.18333333333333332,
+  "per_ordering_accuracy": [
+   0.183333,
+   0.1,
+   0.216667,
+   0.233333,
+   0.183333
+  ],
+  "permutation_averaged_accuracy": 0.183333,
+  "mean_p_ref_identity_ordering": 0.264253,
+  "all_way_tie_slots": 0,
+  "flips": 41,
+  "flip_rate": 0.6833333333333333,
+  "median_swing_pt": 4.695405066013336,
+  "max_swing_pt": 18.81239116191864,
+  "verdict": "RED",
+  "control_invariant": false,
+  "brier": "NOT DERIVABLE \u2014 the probe record carries p_ref (mass on the identity pick) only, never the full per-ordering vector"
+ },
+ "content": {
+  "route_binding": "content-bound (--no-kn-route: route terms arm only via by-name resolution)",
+  "git_sha": "03533fb",
+  "k": 5,
+  "max_cases": 40,
+  "n_slots_scored": 60,
+  "n_slots_unmatched": 0,
+  "n_orderings": 5,
+  "identity_accuracy": 0.13333333333333333,
+  "per_ordering_accuracy": [
+   0.133333,
+   0.066667,
+   0.133333,
+   0.05,
+   0.116667
+  ],
+  "permutation_averaged_accuracy": 0.1,
+  "mean_p_ref_identity_ordering": 0.244258,
+  "all_way_tie_slots": 10,
+  "flips": 31,
+  "flip_rate": 0.5166666666666667,
+  "median_swing_pt": 0.0,
+  "max_swing_pt": 2.9802322387695312e-06,
+  "verdict": "PASS",
+  "control_invariant": false,
+  "brier": "NOT DERIVABLE \u2014 the probe record carries p_ref (mass on the identity pick) only, never the full per-ordering vector"
+ },
+ "content_per_byte": {
+  "route_binding": "content-bound (--no-kn-route: route terms arm only via by-name resolution)",
+  "git_sha": "459d344",
+  "k": 5,
+  "max_cases": 40,
+  "n_slots_scored": 60,
+  "n_slots_unmatched": 0,
+  "n_orderings": 5,
+  "identity_accuracy": 0.13333333333333333,
+  "per_ordering_accuracy": [
+   0.133333,
+   0.066667,
+   0.133333,
+   0.05,
+   0.116667
+  ],
+  "permutation_averaged_accuracy": 0.1,
+  "mean_p_ref_identity_ordering": 0.244258,
+  "all_way_tie_slots": 10,
+  "flips": 31,
+  "flip_rate": 0.5166666666666667,
+  "median_swing_pt": 0.0,
+  "max_swing_pt": 2.9802322387695312e-06,
+  "verdict": "PASS",
+  "control_invariant": false,
+  "brier": "NOT DERIVABLE \u2014 the probe record carries p_ref (mass on the identity pick) only, never the full per-ordering vector"
+ }
+}
