@@ -38,7 +38,11 @@ probe on d1:** RED ×3/6 (typed 7.70pt median / 13.3% flips, emotion 4.92 / 12.5
 5.58 / 10.3%), PASS ag_news/xnli/massive — their option-shuffling training lever bought
 robustness on the wide suites only; canary flips on every suite (the probe provably fires).
 The typed modelless-control RED (4.70pt/68.3%) is the standing Issue-079 owner-gated
-finding, disclosed (the same shape as Bench 128), not a regression.
+finding, disclosed (the same shape as Bench 128), not a regression. T6 stays DEFERRED
+(the issue's own task list, preserved here now that the file is removed): SQuAD2.0-as-noul
+external abstention-anchor suite + the wider seven-benchmark panel
+(SQuAD2.0/CivilComments/BoolQ/PubMedQA/PAWS-X) as harness suites; the hosted-`d1:free`
+posture stays owner-gated/closed. Landed: lane `f6337a1`, bench + closure `4310988`.
 
 ## 2026-10-08 — Issue 077 CLOSED: the option-permutation probe falsified "invariant by construction" and the fix landed — content binding for the classification suites; drex measured order-biased, agentjev content-bound, laya tail-fragile
 
