@@ -5,6 +5,41 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-08 — Issue 078 CLOSED: the `--d1` lane landed — d1-3B measured third on typed (0.6510) but BEST-in-family calibrated (ECE 0.037–0.051 raw, no temperature artifact shipped), order-biased on 3 of 6 probed suites; Windows torch cannot run their one-pass tree (flash kernels absent through 2.11+cu128) — the windows-split posture disclosed
+
+The lane (`src/lanes/d1.rs`, mirror of drex.rs on their official
+`/decisions/v1/systemone` wire, `D1_SERVE_URL` default loopback:8078; `--d1` flag,
+`SuiteResult.d1`, `RunMeta.d1_lane`, perm-probe `--d1` mount, JDI crosswalk + dump-items +
+their-confidence render joins; 11 module tests incl. the stub-listener round trip) + the
+reference server (`.raw/d1_server.py` + `boot_d1.cmd` — their in-repo `D1Model` UNMODIFIED
+behind a stdlib listener, the Drex-lane shape; their repo ships no HTTP layer). License law
+discharged: `lfm1.0` = LFM Open License v1.0 — $10M-revenue Threshold on commercial use,
+measurement-only research licensed, redistribution per §4 (not NC, not Apache/MIT; the
+blog's "without restrictions" oversold it). **The windows-split finding:** their
+`hybrid.py` tree path calls `aten::_flash_attention_forward` / `_scaled_dot_product_flash_attention`
+directly, and NO Windows torch wheel compiles those kernels — the `USE_FLASH_ATTENTION was
+not enabled for build` guard verified failing on torch 2.6.0+cu124 (drex-env) AND a
+throwaway 2.11.0+cu128 venv (deleted after; a build flag, not a version gap). The server
+answers multi-question requests one question per `system_one` pass — the vendor's
+single-question reference path, code unmodified ("mathematically each row alone"); kernel
+batch shapes + per-question state re-encode disclosed beside every cell, input_tokens
+matching their own single-question accounting. **Cells** (Bench 129
+`.benchmarks/129_d1_lane.md`, 4090-windows, fp16 · calibration=None · windows-split,
+preflight PASSED): typed 0.6510 (choice 0.6033 / noul 0.8050 / score 0.5713) · xnli 0.8167 ·
+massive 0.9067 vs their-card 87.3/85.0 on THEIR split — crosswalk, never a board row;
+typed ranking AgentJev 0.7715 > laya 0.7445 > d1 0.6510 > modelless 0.3345. det ✓ all
+suites (observed-repeat, byte-identical under the latency-tail strip). **The calibration
+claim SURVIVES the open weights:** the card says "calibrated" but the open weights ship NO
+temperature artifact (`config.json` none, `D1Model.engine` passes `calibration=None`) and
+the raw softmax still reads ECE 0.037–0.051, beating its split-half conformal floor
+everywhere (0.15–0.42) — the per-type temperatures are a hosted-tier artifact we could not
+test; the confidence==max-prob coincidence is disclosed (one axis, two names). **T4 perm
+probe on d1:** RED ×3/6 (typed 7.70pt median / 13.3% flips, emotion 4.92 / 12.5%, banking77
+5.58 / 10.3%), PASS ag_news/xnli/massive — their option-shuffling training lever bought
+robustness on the wide suites only; canary flips on every suite (the probe provably fires).
+The typed modelless-control RED (4.70pt/68.3%) is the standing Issue-079 owner-gated
+finding, disclosed (the same shape as Bench 128), not a regression.
+
 ## 2026-10-08 — Issue 077 CLOSED: the option-permutation probe falsified "invariant by construction" and the fix landed — content binding for the classification suites; drex measured order-biased, agentjev content-bound, laya tail-fragile
 
 The probe (`--perm-probe`, exclusive early-exit mode): every probed lane answers the SAME

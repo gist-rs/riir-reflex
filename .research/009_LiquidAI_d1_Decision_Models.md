@@ -1,9 +1,11 @@
 # Research 009 — LiquidAI d1 (d1-3B + d1-omni-600M): the foundation-vendor entrant, open weights, at our encoder scale
 
-**Status:** RECORD — external-release distill (owner ask, 2026-10-08). Lane actionable:
-`.issues/078_d1_comparison_lane.md` (`--d1` lane) + `.issues/077_option_permutation_spread_probe.md`
-(the probe — lane-agnostic, runnable today against the existing lanes).
-Training-recipe half: `../riir-train/.research/471_D1_PostTraining_Recipe_vs_Typed_Head.md`.
+**Status:** RECORD — external-release distill (owner ask, 2026-10-08). Lane MEASURED +
+CLOSED: `.benchmarks/129_d1_lane.md` (issue 078, 2026-10-08 — typed 0.6510 / xnli 0.8167 /
+massive 0.9067; the calibration claim survives the open weights; perm-probe RED ×3/6;
+windows-split posture). Perm-probe: `.benchmarks/128_perm_spread_option_order.md`
+(issue 077, closed). Training-recipe half:
+`../riir-train/.research/471_D1_PostTraining_Recipe_vs_Typed_Head.md`.
 
 > Release sources (blog published 2026-10-07; d1-3B was scored with the official
 > Decision Index scorer per their card — their claim, not a board submission).

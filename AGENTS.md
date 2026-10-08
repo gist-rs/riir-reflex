@@ -152,7 +152,7 @@ cargo run --release --bin harness -- --skip-laya --head-select --nb-select --rid
 # answers each choice question under K deterministic option orderings through
 # its own decide path; gate median ≤ 2 pt; the modelless control holds
 # ties-only flips + the L1 fp envelope (a control red refuses the run).
-# Comparison lanes ride --drex / --agentjev (servers up, loud refusals);
+# Comparison lanes ride --drex / --d1 / --agentjev (servers up, loud refusals);
 # laya rides its feature + G5 parity FIRST (`--test laya_riir_parity`).
 cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
 cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
@@ -239,6 +239,16 @@ OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
 # the ECE/Brier of their confidence fields (T4 readout_brier).
 DREX_SERVE_URL=http://127.0.0.1:8000 \
   cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
+
+# LiquidAI d1 comparison lane (Issue 078, `--d1`; license other/lfm1.0 =
+# measurement only): .raw/d1_server.py (their in-repo D1Model behind a
+# stdlib listener, port 8078) on D1_SERVE_URL; fp16 · calibration=None ·
+# WINDOWS-SPLIT posture (their one-pass tree needs flash kernels no Windows
+# torch wheel compiles — verified through 2.11+cu128). Board cells: bench 129
+# (typed 0.6510 / xnli 0.8167 / massive 0.9067; ECE 0.037–0.051 raw;
+# perm-probe RED ×3/6).
+D1_SERVE_URL=http://127.0.0.1:8078 \
+  cargo run --release --bin harness -- --d1 --suites typed_decisions --skip-laya
 
 # Corpus-synthesis lane (riir-train plan 426 T5, `8426cef`): sealed SYNT v2
 # artifact + blake3 sidecar, openthai agreement VETO. --synth-plan is
