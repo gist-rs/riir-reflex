@@ -153,3 +153,14 @@ cited as published, ours as measured, protocol differences flagged.
 > with-dense-attention family (Block-Recurrent Transformer, Infini-attention,
 > LongMem), and a riir-infer/riir-train lane only if a consumer + recipe ever
 > appear (none today).
+
+---
+
+> **Follow-on (2026-10-08):** Jiang, Li, Li [arXiv:2609.23986 "Jev-Mem:
+> System-One-Controlled Agentic Memory for Efficient AI Agents"] — the first
+> published application running a whole memory lifecycle on a typed
+> System-One engine (Jev API default, Laya backend added 2026-09-27);
+> distilled at `../riir-neuron-db/.research/310` (signal-diff vs
+> experience_graph + this lane's ecosystem), backend-lane issue
+> `.issues/081` — the Jev decision-model landscape now has its first
+> memory-system consumer.
