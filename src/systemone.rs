@@ -49,6 +49,10 @@ pub(crate) struct SystemOneBuilt {
     /// The translated questions, echoed-aligned with the response's answers
     /// (label lookup for choice, rubric for score).
     questions: Vec<Question>,
+    /// Wire-shape record: `true` where the WIRE question was `noul` — the
+    /// answer must carry the `{type: noul, noul: p}` shape whatever the
+    /// engine kind ended up being (see the noul arm in [`translate`]).
+    wire_noul: Vec<bool>,
 }
 
 /// Render a TypeSafe `JSONContent` (text | object | array) into the bytes
@@ -89,7 +93,9 @@ pub(crate) fn translate(
             .into());
     }
     let mut built = Vec::with_capacity(questions.len());
+    let mut wire_noul = Vec::with_capacity(questions.len());
     for (qid, def) in questions {
+        let mut is_wire_noul = false;
         let Some(obj) = def.as_object() else {
             return Err(format!("question {qid:?} must be an object"));
         };
@@ -105,23 +111,55 @@ pub(crate) fn translate(
         let question = match qtype {
             "noul" => {
                 // The SDK's noul criteria `{true: desc, false: desc}` are
-                // OPTIONAL descriptions — absent criteria still score (the
-                // bare yes/no drafter delta).
-                let criteria = criteria_val
-                    .and_then(Value::as_object)
-                    .map(render_criteria_map)
-                    .unwrap_or_default();
-                Question {
-                    id: qid.clone(),
-                    kind: QuestionKind::Noul,
-                    prompt: instructions,
-                    options: Vec::new(),
-                    criteria: if criteria.is_empty() {
-                        None
-                    } else {
-                        Some(criteria)
-                    },
-                }
+                // OPTIONAL descriptions. WITH the canonical {true, false}
+                // pair the question rides the CRITERIA-AS-OPTIONS arm: the
+                // engine sees a 2-option Choice whose options ARE the two
+                // descriptions, so the drafter scores semantic strings
+                // against the routed domain's corpus (the banking77-class
+                // competency) and p(yes) = probabilities[0]. The bare
+                // engine-Noul kind scores the literal bytes `yes`/`no` —
+                // measured flat ~0.495 for EVERY input (Bench 133: the
+                // corpus is invisible to that arm; a 2-3 byte literal is a
+                // constant compression offset, not a semantic decision).
+                // Absent or non-canonical criteria keep the bare arm.
+                let cmap = criteria_val.and_then(Value::as_object);
+                let canonical = cmap.is_some_and(|c| {
+                    c.len() == 2 && c.contains_key("true") && c.contains_key("false")
+                });
+                let question = if let (Some(c), true) = (cmap, canonical) {
+                    let options = vec![
+                        render_json_content(c.get("true").expect("checked")),
+                        render_json_content(c.get("false").expect("checked")),
+                    ];
+                    // criteria: NONE on this arm — the descriptions ARE the
+                    // options now, and rendering them into the ctx as well
+                    // would let each candidate match the request itself
+                    // (measured: the two scores converge and p pins at 0.5
+                    // for every input — the criteria-in-ctx symmetricization).
+                    // The dictionary, not the request, must decide.
+                    Question {
+                        id: qid.clone(),
+                        kind: QuestionKind::Choice,
+                        prompt: instructions,
+                        options,
+                        criteria: None,
+                    }
+                } else {
+                    let criteria = cmap.map(render_criteria_map).unwrap_or_default();
+                    Question {
+                        id: qid.clone(),
+                        kind: QuestionKind::Noul,
+                        prompt: instructions,
+                        options: Vec::new(),
+                        criteria: if criteria.is_empty() {
+                            None
+                        } else {
+                            Some(criteria)
+                        },
+                    }
+                };
+                is_wire_noul = true;
+                question
             }
             "choice" => {
                 let Some(criteria) = criteria_val
@@ -171,6 +209,7 @@ pub(crate) fn translate(
                 ))
             }
         };
+        wire_noul.push(is_wire_noul);
         if let Err(e) = question.validate(built.len()) {
             return Err(format!("question {qid:?}: {e}"));
         }
@@ -188,6 +227,7 @@ pub(crate) fn translate(
     Ok(SystemOneBuilt {
         request,
         questions: built,
+        wire_noul,
     })
 }
 
@@ -233,9 +273,28 @@ pub(crate) fn map_answers(
 ) -> Map<String, Value> {
     use katgpt_core::decision_wire::Outcome;
     let mut out = Map::new();
-    for (q, a) in built.questions.iter().zip(resp.answers.iter()) {
+    for ((q, a), &wire_noul) in built.questions.iter().zip(resp.answers.iter()).zip(built.wire_noul.iter()) {
         let probs = &a.probabilities;
         let mut answer = Map::new();
+        // A wire-noul question answers `{type: noul, noul: p}` whatever the
+        // engine kind: the criteria-as-options arm (engine Choice) reads
+        // probabilities[0] = p(TRUE description); the bare arm (engine
+        // Noul) reads probabilities[0] = p(yes) — the same slot. Abstained
+        // (empty probs) reads 0.5 — the dialect's own "uncertainty"
+        // semantics. A carried p passes through UNTOUCHED: it is a single
+        // value, not a distribution — normalizing it would erase it
+        // (p/p ≡ 1).
+        if wire_noul {
+            answer.insert("type".into(), "noul".into());
+            let p = probs
+                .first()
+                .map(|&p| round6(p as f64))
+                .unwrap_or(0.5)
+                .clamp(0.0, 1.0);
+            answer.insert("noul".into(), Value::from(p));
+            out.insert(q.id.clone(), Value::Object(answer));
+            continue;
+        }
         match q.kind {
             QuestionKind::Noul => {
                 answer.insert("type".into(), "noul".into());
@@ -369,6 +428,10 @@ mod tests {
 
     #[test]
     fn noul_translates_instructions_and_criteria() {
+        // Canonical {true, false} criteria ride the CRITERIA-AS-OPTIONS arm:
+        // the engine sees a 2-option Choice whose options ARE the two
+        // descriptions (the drafter scores semantic strings — the bare
+        // yes/no arm is measured flat for every input, Bench 133).
         let built = built_from(&json!({
             "should_store": {
                 "type": "noul",
@@ -378,23 +441,44 @@ mod tests {
         }));
         let q = &built.questions[0];
         assert_eq!(q.id, "should_store");
-        assert_eq!(q.kind, QuestionKind::Noul);
-        assert!(q.options.is_empty());
+        assert_eq!(q.kind, QuestionKind::Choice);
+        assert_eq!(q.options, vec!["A fact worth recall.", "Only filler."]);
         assert_eq!(q.prompt, "Is this worth retaining?");
-        assert_eq!(
-            q.criteria.as_deref(),
-            Some("true: A fact worth recall.\nfalse: Only filler.")
-        );
+        // criteria is NONE on this arm — the descriptions ARE the options;
+        // rendering them into the ctx too would let each candidate match
+        // the request itself (p pins at 0.5 — measured).
+        assert!(q.criteria.is_none());
+        assert!(built.wire_noul[0]);
         // The state crosses as canonical JSON.
         assert!(built.request.state.contains("Alice prefers"));
     }
 
     #[test]
-    fn noul_without_criteria_is_legal() {
+    fn noul_without_criteria_keeps_the_bare_arm() {
         let built = built_from(&json!({
             "q": {"type": "noul", "instructions": "Done?"}
         }));
         assert!(built.questions[0].criteria.is_none());
+        assert_eq!(built.questions[0].kind, QuestionKind::Noul);
+        assert!(built.questions[0].options.is_empty());
+        assert!(built.wire_noul[0]);
+    }
+
+    #[test]
+    fn noul_with_non_canonical_criteria_keeps_the_bare_arm() {
+        // Criteria that are not exactly {true, false} (the SDK's canonical
+        // noul shape) do not guess an option order — bare Noul arm.
+        let built = built_from(&json!({
+            "q": {
+                "type": "noul",
+                "instructions": "Done?",
+                "criteria": {"yes": "a", "no": "b"}
+            }
+        }));
+        assert_eq!(built.questions[0].kind, QuestionKind::Noul);
+        assert!(built.questions[0].options.is_empty());
+        assert!(built.questions[0].criteria.is_some());
+        assert!(built.wire_noul[0]);
     }
 
     #[test]
@@ -502,6 +586,42 @@ mod tests {
             confidence: 0.1,
         };
         let a2 = answer_for(&built, abstained);
+        assert_eq!(a2["noul"], json!(0.5));
+    }
+
+    #[test]
+    fn criteria_options_noul_maps_the_choice_distribution_to_p() {
+        // The criteria-as-options arm: the WIRE question is noul, the ENGINE
+        // question is a 2-option Choice — the answer must still carry the
+        // noul shape, p = probabilities[0] (the TRUE description's share).
+        let built = built_from(&json!({
+            "q": {
+                "type": "noul",
+                "instructions": "worth storing?",
+                "criteria": {"true": "A fact.", "false": "Filler."}
+            }
+        }));
+        assert_eq!(built.questions[0].kind, QuestionKind::Choice);
+        let a = answer_for(
+            &built,
+            katgpt_core::decision_wire::Answer::choice(
+                "q",
+                0,
+                vec![0.72, 0.28],
+                0.6,
+            ),
+        );
+        assert_eq!(a["type"], "noul");
+        assert_eq!(a["noul"], json!(0.72));
+        // Abstained reads 0.5 (the uniform 2-option share).
+        let abstained = katgpt_core::decision_wire::Answer {
+            question_id: "q".into(),
+            outcome: None,
+            probabilities: Vec::new(),
+            confidence: 0.1,
+        };
+        let a2 = answer_for(&built, abstained);
+        assert_eq!(a2["type"], "noul");
         assert_eq!(a2["noul"], json!(0.5));
     }
 

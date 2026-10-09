@@ -354,6 +354,13 @@ required-features = ["modelless"]
 name = "route_scale_probe"
 required-features = ["modelless"]
 
+# Issue 081 T2b: the corpus-distance gate probe for memory-control corpora
+# (measures where real requests sit vs the gate midpoint — the corpus-authoring
+# instrument). Rides the modelless engine + corpus loader.
+[[example]]
+name = "jevmem_gate_probe"
+required-features = ["modelless"]
+
 # The NbRidge differential probe (issue 038 T7a, measurement-only): fits
 # the Rust readout on the emotion seat pool and reads pure-argmax accuracy
 # against the Python premise number (scripts/issue038_t7_probe_k.py).

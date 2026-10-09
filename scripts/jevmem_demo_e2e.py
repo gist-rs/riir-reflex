@@ -46,56 +46,68 @@ def fail(msg: str) -> "None":
 
 
 def run_once(jevmem_dir: str, cache_dir: str) -> "tuple":
-    # Imported lazily under the caller's env (their venv + our env vars).
-    from memory.jev_mem_config import JevMemConfig
-    from memory.memory_builder import MemoryBuilder
-    from memory.mock_encoder import MockEncoder
-    from memory.query_engine import QueryEngine
-    from memory.trg_memory import TemporalResonanceGraphMemory
-    from memory.vector_db import NumpyVectorDB
+    # Import lazily under the caller's env (their venv + our env vars).
+    # Determinism law v2: the uuid patch lives HERE (per fresh process —
+    # see main) so both runs draw the same node-id sequence for the same
+    # build sequence; module-init draws differ between a cold and a warm
+    # interpreter, which is why each run is its own SUBPROCESS.
+    import uuid as _uuid
+    import unittest.mock as _mock
 
-    encoder = MockEncoder()
-    trg = TemporalResonanceGraphMemory(
-        vector_db=NumpyVectorDB(encoder.dimension), encoder=encoder, llm_backend=None
-    )
-    # `JevMemConfig.load` (not the constructor) — the TYPESAFE_BASE_URL /
-    # TYPESAFE_DEFAULT_MODEL env overrides are applied by load() only, and
-    # the seam IS that env override (their own config-file path goes through
-    # load() too).
-    config = JevMemConfig.load(
-        write_enabled=True,
-        read_enabled=True,
-        jev_mock=False,
-        decision_backend="jev",
-        fallback_to_magma=False,  # a backend failure RAISES, never a silent None
-        timeout_seconds=5.0,
-        max_retries=0,
-        audit_path=str(Path(cache_dir) / "decisions.jsonl"),
-        anchor_count=1,
-    )
-    builder = MemoryBuilder(
-        cache_dir, jev_config=config, trg_memory=trg, llm_enabled=False
-    )
-    observations = [
-        "Thanks!",
-        "Alice started the Jev-Mem project in Dallas.",
-        "Alice prefers concise explanations about the Jev-Mem project.",
-        "Alice presented the Jev-Mem project results on Friday.",
-    ]
-    lines = []
-    for day, text in enumerate(observations, 1):
-        node = builder.build(
-            text,
-            timestamp=datetime(2026, 9, day),
-            metadata={"source": "reflex_e2e", "entities": ["Alice"]},
+    def _seeded_uuid4_factory():
+        seq = iter(f"{n:08d}-0000-4000-8000-{n:012d}" for n in range(100_000))
+
+        def _uuid4():
+            return _uuid.UUID(next(seq), version=4)
+
+        return _uuid4
+
+    with _mock.patch.object(_uuid, "uuid4", _seeded_uuid4_factory()):
+        from memory.jev_mem_config import JevMemConfig
+        from memory.memory_builder import MemoryBuilder
+        from memory.mock_encoder import MockEncoder
+        from memory.query_engine import QueryEngine
+        from memory.trg_memory import TemporalResonanceGraphMemory
+        from memory.vector_db import NumpyVectorDB
+
+        encoder = MockEncoder()
+        trg = TemporalResonanceGraphMemory(
+            vector_db=NumpyVectorDB(encoder.dimension), encoder=encoder, llm_backend=None
         )
-        lines.append(("STORED: " if node else "REJECTED: ") + text)
-    builder.save()
-    engine = QueryEngine(trg, builder.node_index, jev_config=config, jev_client=builder.jev)
-    context, evidence = engine.query("What does Alice prefer about Jev-Mem explanations?")
-    audit = Path(cache_dir) / "decisions.jsonl"
-    body = audit.read_text(encoding="utf-8") if audit.exists() else ""
-    return lines, evidence, body
+        config = JevMemConfig.load(
+            write_enabled=True,
+            read_enabled=True,
+            jev_mock=False,
+            decision_backend="jev",
+            fallback_to_magma=False,  # a backend failure RAISES, never a silent None
+            timeout_seconds=5.0,
+            max_retries=0,
+            audit_path=str(Path(cache_dir) / "decisions.jsonl"),
+            anchor_count=1,
+        )
+        builder = MemoryBuilder(
+            cache_dir, jev_config=config, trg_memory=trg, llm_enabled=False
+        )
+        observations = [
+            "Thanks!",
+            "Alice started the Jev-Mem project in Dallas.",
+            "Alice prefers concise explanations about the Jev-Mem project.",
+            "Alice presented the Jev-Mem project results on Friday.",
+        ]
+        lines = []
+        for day, text in enumerate(observations, 1):
+            node = builder.build(
+                text,
+                timestamp=datetime(2026, 9, day),
+                metadata={"source": "reflex_e2e", "entities": ["Alice"]},
+            )
+            lines.append(("STORED: " if node else "REJECTED: ") + text)
+        builder.save()
+        engine = QueryEngine(trg, builder.node_index, jev_config=config, jev_client=builder.jev)
+        context, evidence = engine.query("What does Alice prefer about Jev-Mem explanations?")
+        audit = Path(cache_dir) / "decisions.jsonl"
+        body = audit.read_text(encoding="utf-8") if audit.exists() else ""
+        return lines, evidence, body
 
 
 def normalize_run_artifact(text: str) -> str:
@@ -120,7 +132,22 @@ def main() -> "None":
     parser.add_argument(
         "--jevmem-dir", default=os.environ.get("JEVMEM_DIR", ".raw/jev-mem")
     )
+    parser.add_argument("--single-run", default=None, help=argparse.SUPPRESS)
+    parser.add_argument("--single-out", default=None, help=argparse.SUPPRESS)
     args = parser.parse_args()
+
+    if args.single_run and args.single_out:
+        # The subprocess half of the v2 determinism law (see main's comment):
+        # ONE pipeline run under the seeded uuid patch, results to JSON.
+        sys.path.insert(0, str(Path(args.jevmem_dir).resolve()))
+        os.environ["TYPESAFE_BASE_URL"] = args.serve_url
+        os.environ.setdefault("TYPESAFE_API_KEY", "reflex-local")
+        lines, evidence, audit = run_once(args.jevmem_dir, args.single_run)
+        Path(args.single_out).write_text(
+            json.dumps({"lines": lines, "evidence": str(evidence), "audit": audit}),
+            encoding="utf-8",
+        )
+        return
 
     jevmem = Path(args.jevmem_dir).resolve()
     if not jevmem.is_dir():
@@ -132,9 +159,31 @@ def main() -> "None":
     print(f"serve: {args.serve_url}   jev-mem: {jevmem}")
     base = Path(tempfile.mkdtemp(prefix="jevmem_e2e_"))
     try:
-        run_a, run_b = base / "a", base / "b"
-        lines_a, evidence_a, audit_a = run_once(str(jevmem), str(run_a))
-        lines_b, evidence_b, audit_b = run_once(str(jevmem), str(run_b))
+        # Determinism law, v2 (the criteria-as-options era): decision values
+        # are now sensitive to the FULL ctx bytes — their `uuid4` node ids
+        # leak into the values (measured: pair_0_semantic 0.673 vs 0.689
+        # across runs on identical content; a logging proxy showed the
+        # request bodies differed ONLY in node ids — and the offsets differ
+        # between cold and warm interpreters via module-init draws, so
+        # in-process seeding cannot align them). Each run is therefore its
+        # own SUBPROCESS with the same seeded uuid sequence — identical
+        # bytes in, byte-identical decisions out; any remaining diff is OURS.
+        import subprocess
+
+        def one_run(tag: str) -> "tuple[list, str, str]":
+            cache = base / tag
+            out = base / f"{tag}.json"
+            cmd = [
+                sys.executable, os.path.abspath(__file__),
+                "--single-run", str(cache), "--single-out", str(out),
+                "--serve-url", args.serve_url, "--jevmem-dir", str(jevmem),
+            ]
+            subprocess.run(cmd, check=True, env={**os.environ})
+            data = json.loads(out.read_text(encoding="utf-8"))
+            return data["lines"], data["evidence"], data["audit"]
+
+        lines_a, evidence_a, audit_a = one_run("a")
+        lines_b, evidence_b, audit_b = one_run("b")
 
         for line in lines_a:
             print(line)
