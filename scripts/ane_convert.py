@@ -99,6 +99,17 @@ import subprocess
 import sys
 import time
 from pathlib import Path
+# Keep this instrument's verdict printable on a non-UTF-8 console
+# (katgpt-rs Issue 804 / the 928 drift census): it prints non-ASCII glyphs,
+# and print() raises UnicodeEncodeError on e.g. cp874 — the process then dies
+# with NO verdict. backslashreplace degrades the glyph visibly and keeps
+# ASCII exact, so a verdict line stays greppable. Best-effort: a detached or
+# captured stream is left alone rather than made fatal at import.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
 REPO = Path(__file__).resolve().parent.parent
 OUT_ROOT = REPO / "assets" / "ane"
@@ -524,7 +535,7 @@ def cmd_convert(args) -> int:
     from safetensors.torch import load_file
 
     paths = ensure_checkpoint(args.model)
-    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text()), args.model)
+    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text(encoding="utf-8")), args.model)
     print(
         f"ane_convert: {args.model} geometry d={cfg.hidden} layers={cfg.layers} heads={cfg.heads} "
         f"hd={cfg.head_dim} I={cfg.intermediate} vocab={cfg.vocab} window={cfg.window} "
@@ -641,7 +652,7 @@ def merge_manifest(model: str, bucket_key: str, entry: dict):
         meta["history"].append(line)
     manifest.setdefault("artifacts", {})[f"{model}/{bucket_key}"] = entry
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n")
+    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
 def _manifest_base():
@@ -649,7 +660,7 @@ def _manifest_base():
     tool + history plumbing ready. Shared by the artifact and table lanes."""
     manifest = {}
     if MANIFEST.exists():
-        manifest = json.loads(MANIFEST.read_text())
+        manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     meta = manifest.setdefault(
         "_meta",
         {
@@ -671,9 +682,9 @@ def log_append(text: str):
         LOG.write_text(
             "# ANE conversion log (Plan 002 P0)\n\n"
             "Appended by `scripts/ane_convert.py` per run. Artifacts themselves are "
-            "local-only (gitignored); this log + `manifest.json` are the committed record.\n"
+            "local-only (gitignored); this log + `manifest.json` are the committed record.\n", encoding="utf-8"
         )
-    with open(LOG, "a") as f:
+    with open(LOG, "a", encoding="utf-8") as f:
         f.write(text.rstrip() + "\n\n")
 
 
@@ -824,7 +835,7 @@ def merge_table_manifest(model: str, entry: dict):
         meta["history"].append(line)
     manifest.setdefault("artifacts", {})[f"{model}/table_e8"] = entry
     MANIFEST.parent.mkdir(parents=True, exist_ok=True)
-    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n")
+    MANIFEST.write_text(json.dumps(manifest, indent=2, sort_keys=False) + "\n", encoding="utf-8")
 
 
 def cmd_table(args) -> int:
@@ -835,7 +846,7 @@ def cmd_table(args) -> int:
         raise SystemExit(f"ane_convert: table precision {args.table_precision!r} refused — only e8")
     model = args.model
     paths = ensure_checkpoint(model)
-    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text()), model)
+    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text(encoding="utf-8")), model)
     st_path = Path(paths["model.safetensors"])
     dt, shape, abs_off = st_tensor_info(st_path, TABLE_TENSOR)
     if dt != "F16":
@@ -891,7 +902,7 @@ def cmd_table(args) -> int:
 
     serves = []
     if MANIFEST.exists():
-        man = json.loads(MANIFEST.read_text())
+        man = json.loads(MANIFEST.read_text(encoding="utf-8"))
         serves = sorted(
             {
                 v["bucket_L"]
@@ -999,7 +1010,7 @@ def load_tokenizer(paths):
     from tokenizers import Tokenizer
 
     tok = Tokenizer.from_file(str(paths["tokenizer.json"]))
-    tcfg = json.loads(Path(paths["tokenizer_config.json"]).read_text())
+    tcfg = json.loads(Path(paths["tokenizer_config.json"]).read_text(encoding="utf-8"))
     name_of = lambda key: tcfg[key]  # must be a plain string, like the Rust name_of
 
     def id_of(name):
@@ -1233,7 +1244,7 @@ def cmd_smoke(args) -> int:
 
     model = args.model
     paths = ensure_checkpoint(model)
-    exp_all = json.loads(EXPECTED.read_text())
+    exp_all = json.loads(EXPECTED.read_text(encoding="utf-8"))
     corpus_blake3 = exp_all["_meta"]["fixture_corpus_blake3"]
     got = hash_file(CORPUS, "blake3")
     if got != corpus_blake3:
@@ -1241,16 +1252,16 @@ def cmd_smoke(args) -> int:
     exp = exp_all["checkpoints"][fixture_name(model)]
 
     corpus = {}
-    for line in CORPUS.read_text().splitlines():
+    for line in CORPUS.read_text(encoding="utf-8").splitlines():
         if line.strip():
             row = json.loads(line)
             corpus[row["id"]] = row
 
     spec = load_tokenizer(paths)
-    agent_cfg = json.loads(Path(paths["rl_agent_config.json"]).read_text())
+    agent_cfg = json.loads(Path(paths["rl_agent_config.json"]).read_text(encoding="utf-8"))
     max_len, head_max_len = agent_cfg["max_len"], agent_cfg["head_max_len"]
     temps = Temps(agent_cfg)
-    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text()), model)
+    cfg = parse_encoder_config(json.loads(Path(paths["encoder_config.json"]).read_text(encoding="utf-8")), model)
 
     # Deterministic selection: the first `half` golden rows with n <= 64
     # (file order) + the first `half` with 64 < n <= 128 — both buckets

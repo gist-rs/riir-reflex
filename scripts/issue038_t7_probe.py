@@ -31,6 +31,17 @@ import sys
 from collections import Counter, defaultdict
 
 import numpy as np
+# Keep this instrument's verdict printable on a non-UTF-8 console
+# (katgpt-rs Issue 804 / the 928 drift census): it prints non-ASCII glyphs,
+# and print() raises UnicodeEncodeError on e.g. cp874 — the process then dies
+# with NO verdict. backslashreplace degrades the glyph visibly and keeps
+# ASCII exact, so a verdict line stays greppable. Best-effort: a detached or
+# captured stream is left alone rather than made fatal at import.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, ".raw", "datasets_t20k")

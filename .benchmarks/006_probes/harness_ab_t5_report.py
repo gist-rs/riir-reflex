@@ -23,7 +23,7 @@ for f in glob.glob(f"{LOGS}/h_*_*.log"):
         if m and suite:
             rows[(r, arm, suite, m.group(1))] = (float(m.group(2)), float(m.group(3)), float(m.group(4)))
 
-idx = open(f"{LOGS}/harness_ab.idx").read()
+idx = open(f"{LOGS}/harness_ab.idx", encoding="utf-8").read()
 print(idx)
 
 keys = sorted(rows)

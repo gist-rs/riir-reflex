@@ -25,6 +25,17 @@ from collections import Counter, defaultdict
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import issue038_t7_probe as base  # noqa: E402
+# Keep this instrument's verdict printable on a non-UTF-8 console
+# (katgpt-rs Issue 804 / the 928 drift census): it prints non-ASCII glyphs,
+# and print() raises UnicodeEncodeError on e.g. cp874 — the process then dies
+# with NO verdict. backslashreplace degrades the glyph visibly and keeps
+# ASCII exact, so a verdict line stays greppable. Best-effort: a detached or
+# captured stream is left alone rather than made fatal at import.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
 DATA = base.DATA
 V = base.V

@@ -9,7 +9,7 @@ for f in glob.glob("/tmp/cf020b/h_*_*.log"):
         m = re.search(r"laya\[english\]: acc ([\d.]+) .* p50 ([\d.]+) ms · ([\d.]+) s", line)
         if m and suite:
             rows[(int(r), arm, suite)] = tuple(map(float, m.groups()))
-idx = open("/tmp/cf020b/harness_ab.idx").read()
+idx = open("/tmp/cf020b/harness_ab.idx", encoding="utf-8").read()
 print(idx)
 suites = sorted({k[2] for k in rows}); rounds = sorted({k[0] for k in rows})
 print("| suite | acc A=B? | A p50 (med) | B p50 (med) | paired B/A p50 | A wall s | B wall s | paired B/A wall | B wins wall |")

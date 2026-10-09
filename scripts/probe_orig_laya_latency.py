@@ -13,12 +13,23 @@ import time
 
 sys.path.insert(0, ".raw/laya")
 import laya  # noqa: E402
+# Keep this instrument's verdict printable on a non-UTF-8 console
+# (katgpt-rs Issue 804 / the 928 drift census): it prints non-ASCII glyphs,
+# and print() raises UnicodeEncodeError on e.g. cp874 — the process then dies
+# with NO verdict. backslashreplace degrades the glyph visibly and keeps
+# ASCII exact, so a verdict line stays greppable. Best-effort: a detached or
+# captured stream is left alone rather than made fatal at import.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
 FIXTURE = "tests/fixtures/laya_parity_v1.jsonl"
 SUBFOLDERS = {"english": "", "typed-decisions": "typed-decisions", "multilingual": "multilingual"}
 
 rows = []
-with open(FIXTURE) as f:
+with open(FIXTURE, encoding="utf-8") as f:
     for line in f:
         d = json.loads(line)
         if d.get("id") == "_meta":

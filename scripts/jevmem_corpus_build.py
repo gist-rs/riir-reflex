@@ -202,7 +202,7 @@ def stop_label(rows_base: dict, rows_stop0: dict, qa_index: int):
 
 def load_rows(results_root: Path, sample: int) -> dict:
     p = results_root / f"s{sample}" / "reflex_pass1" / "results.json"
-    return {r["qa_index"]: r for r in json.loads(p.read_text())["rows"]}
+    return {r["qa_index"]: r for r in json.loads(p.read_text(encoding="utf-8"))["rows"]}
 
 
 def trim_stop_state(state: dict) -> dict:
@@ -469,7 +469,7 @@ def cmd_build(args) -> None:
         "sizes_bytes": {d.name: sum(f.stat().st_size for f in d.iterdir())
                         for d in (d_stop, d_expand, d_mh, d_dir, d_pin)},
     }
-    (corpus / "_build_stats.json").write_text(json.dumps(stats, indent=1, sort_keys=True))
+    (corpus / "_build_stats.json").write_text(json.dumps(stats, indent=1, sort_keys=True), encoding="utf-8")
     print(json.dumps(stats, indent=1, sort_keys=True))
     print(f"corpus at {corpus} — serve with RIIR_REFLEX_CORPUS={corpus}")
 
@@ -618,7 +618,7 @@ def cmd_eval(args) -> None:
     }
     out["samples"] = args.samples
     print(json.dumps(out, indent=1, sort_keys=True))
-    (raw / f"corpus_pack_{args.tag}_eval.json").write_text(json.dumps(out, indent=1, sort_keys=True))
+    (raw / f"corpus_pack_{args.tag}_eval.json").write_text(json.dumps(out, indent=1, sort_keys=True), encoding="utf-8")
 
 
 def main() -> None:

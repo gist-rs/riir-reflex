@@ -8,6 +8,17 @@ law).
 """
 import json
 import sys
+# Keep this instrument's verdict printable on a non-UTF-8 console
+# (katgpt-rs Issue 804 / the 928 drift census): it prints non-ASCII glyphs,
+# and print() raises UnicodeEncodeError on e.g. cp874 — the process then dies
+# with NO verdict. backslashreplace degrades the glyph visibly and keeps
+# ASCII exact, so a verdict line stays greppable. Best-effort: a detached or
+# captured stream is left alone rather than made fatal at import.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
 
 M3 = ".benchmarks/052_stratified_readout/results.json"
 W = ".benchmarks/052_4090/results.json"
@@ -47,8 +58,8 @@ def get(obj, dotted):
 
 
 def main(m3_path, w_path):
-    m3 = json.load(open(m3_path))
-    w = json.load(open(w_path))
+    m3 = json.load(open(m3_path, encoding="utf-8"))
+    w = json.load(open(w_path, encoding="utf-8"))
     m3_suites = {s["name"]: s for s in m3["suites"]}
     w_suites = {s["name"]: s for s in w["suites"]}
 
