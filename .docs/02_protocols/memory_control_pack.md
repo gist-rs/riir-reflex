@@ -99,3 +99,14 @@ is the integrating system's own supervision (for LoCoMo: an utterance in
 some QA's gold evidence ⇒ high future-utility; never-referenced ⇒ low) —
 authored as a reflex corpus for the memory-control suite, never pooled with
 the evaluation read (Bench-127 determinism law applies to every re-fit).
+
+**Executed and closed** ([Bench 135](../../.benchmarks/135_jevmem_t2b_corpus/RESULTS.md) +
+[Bench 136](../../.benchmarks/136_jevmem_t2c_pairwise_head.md)): the fitted read-path corpus
+dominates the mock-stop-1 floor on both axes (0.7691 @ 1074 edges held-out), and the
+fitted-token head (the pairwise table margin, `nb_pair_scale`) now reads O(1)-token
+signals perfectly — but the stopping lever itself has NO reachable Pareto win on this
+controller: the loop is bounded by the ROUTING-derived depth limit (2-3 beam waves; the
+gold lives in waves 2-3), so a perfect depth-1 stop still costs −15.6pt recall at 200
+edges, and the v5 supervision labels are content-inseparable on every estimator measured
+(compression path AND count tables — the class prior dominates). The head machinery stays
+available for any future O(1)-token policy surface.
