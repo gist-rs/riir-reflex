@@ -131,13 +131,9 @@ pub fn hard_metrics(rows: &[(usize, Vec<f64>)]) -> HardMetrics {
     }
     let aurc = aurc / n;
 
-    let acc_at = |frac: f64| -> f64 {
-        // Python int(len*frac) truncates toward zero; len*frac >= 0 so == floor
-        let k = ((rows.len() as f64) * frac).floor() as usize;
-        let k = k.max(1);
-        let hits = order.iter().take(k).filter(|&&i| correct[i]).count();
-        hits as f64 / k as f64
-    };
+    // acc@X% coverage via the ONE law (acc_at_coverage_of) over this run's
+    // own confs/correct — the order vector stays for aurc above.
+    let acc_at = |frac: f64| -> f64 { acc_at_coverage_of(&confs, &correct, frac) };
 
     HardMetrics {
         n: rows.len(),
@@ -250,6 +246,26 @@ pub fn conformal_naive_floor(cal: &[CalibrationPair], test_confs: &[f64]) -> Vec
         }
     }
     out
+}
+
+/// acc@X% coverage over a plain (conf, correct) list — the ONE law (the
+/// `hard_metrics` argsort extracted, so external consumers — the rethink
+/// encoder-lane re-read's emitted cell — compute the identical number).
+/// Rows sorted by conf DESCENDING, STABLE (first index wins ties); k =
+/// max(1, floor(n*frac)); hits/k.
+#[must_use]
+pub fn acc_at_coverage_of(confs: &[f64], correct: &[bool], frac: f64) -> f64 {
+    assert_eq!(
+        confs.len(),
+        correct.len(),
+        "acc_at_coverage_of: confs/correct must be row-aligned"
+    );
+    let mut order: Vec<usize> = (0..confs.len()).collect();
+    order.sort_by(|&a, &b| confs[b].total_cmp(&confs[a]));
+    let k = ((confs.len() as f64) * frac).floor() as usize;
+    let k = k.max(1);
+    let hits = order.iter().take(k).filter(|&&i| correct[i]).count();
+    hits as f64 / k as f64
 }
 
 /// The same 15-bin ECE as `hard_metrics`, over a plain (conf, correct) list.
