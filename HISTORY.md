@@ -5,7 +5,27 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-09 — Issue 081 CLOSED: the Jev-Mem System-One backend lane — zero-fork T1 adapter live, T2 parity-plus at −21% work, the stopping lever measured CLOSED on this substrate (T2b/T2c); T4 declined by the owner
+
+**Status: Resolved.** The lane's full arc (Benches 133/134/135/136, reflex `a53ce4b`+`a3ba564`): T1 landed the native
+`POST /v1/systemone` TypeSafe route (zero-fork, 14 wire gates, honest abstain mapping, `model:"reflex-modelless"`);
+T2 measured the full LoCoMo-10 matrix — **0.7921 vs mock 0.7847 pooled evidence_recall at −20.8% edges examined**
+(paired 61W-41L-1438T, p=0.0297) with the write-path flat-reject posture beating mock's cosine links; T3 measured the
+real stopping surface as a BINARY expand-once gate (depth ≤ 1 everywhere; the per-round thresholds are not the lever);
+T2b's corpus lever dominated the mock-stop-1 floor on both axes but missed the recall hold (0.96pt) — four mechanism
+laws recorded (routing-is-the-classifier, option-delta surface, pin-steal, traversal self-symmetry); T2c built the
+`nb_pair_scale` pairwise-count-table head + serve knobs and REFUTED the depth-1 stop as a mock-arm artifact (the gold
+lives in routing-bounded beam waves 2-3 — a PERFECT depth-1 stop still costs −15.6pt s5 recall; four more laws:
+averaging/collision/burial/depth-limit; the v5 label closed content-inseparable on a second estimator). T5 published the
+memory-control pack structure/mapping (`.docs/02_protocols/memory_control_pack.md`). **T4 (LoCoMo answer-model
+landscape cell) DECLINED by the owner 2026-10-09** — after the T2c refutation the cell buys landscape color, not a
+decision. The lane's durable outputs: the `/v1/systemone` surface (the funnel artifact for Jev-Mem-class consumers),
+the head machinery for any future O(1)-token policy surface, and the rig under `.raw/locomo/` (corpora v5-v11,
+captures s0-9). The pplx latency quiet-box re-read (082 leftover) stays box-gated; the 7331 serve stays DOWN
+(restart line in the Bench-136 record).
+
 ## 2026-10-09 — Issue 082 CLOSED: the pplx-decider v1.1 lane measured end-to-end (bench 132, MLX-4bit posture on M3) — board rank does NOT transfer to our suites at amplitude in BOTH directions (banking77 −15pt vs clef-flash; prompt_injections +34pt, xnli +14pt); site edition 2026-10-9 deployed; the 623 per-suite-teacher decision recorded; the standing JDI sha-watch armed
+
 
 **Status: Resolved.** The JDI board's new #1 (Perplexity Decider v1.1 27B, Apache-2.0, published
 2026-10-05) measured on our 9 frozen suites via the pplx lane (`src/lanes/pplx.rs`, the
