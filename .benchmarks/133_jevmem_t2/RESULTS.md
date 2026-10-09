@@ -108,3 +108,21 @@ cargo run --release --bin reflex -- serve   # 127.0.0.1:7331, /healthz
 Dataset: `.raw/locomo/locomo10.json` (local only). Rig: `.raw/jev-mem` @
 `7ab0c73c` + `.raw/jevmem-env` (venv; `sentence-transformers` added for the
 local MiniLM encoder — their default macOS CPU posture).
+
+## Addendum 2026-10-09 — why the reflex values were flat, and the fix (T2b interim, reflex `fa315a9`)
+
+The flat ~0.495 posture this bench recorded was STRUCTURAL, not
+unfittedness: the engine's Noul kind scores the literal bytes `yes`/`no` —
+a 2-3 byte literal is a constant compression offset no corpus can move
+(measured identical on two corpus shapes). The fix landed in the
+translation layer: canonical `{true, false}` criteria ride a 2-option
+Choice whose options ARE the descriptions (criteria absent from the ctx —
+rendering them there lets each candidate match the request itself and pins
+p at 0.5). With a labeled-example LoCoMo corpus (fit s0-4, held-out s5-9):
+should_store EV 0.795 vs FL 0.687 — differentiated but weakly (the
+supervision label, not the mechanism, is the limit). The corpus-design
+law and the gate measurements live in the issue's T2b note;
+`examples/jevmem_gate_probe.rs` is the gate instrument (the gate passes
+real requests at conf 0.94+ — never the blocker). Determinism law v2:
+subprocess-isolated runs with seeded uuids (values are ctx-byte-sensitive;
+their uuid4 node ids leaked into values under the in-process law).
