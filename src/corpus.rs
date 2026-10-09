@@ -46,10 +46,20 @@ pub fn load_dir(dir: &Path) -> Result<CorpusSpecs, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("{}: {e}", dir.display()))?;
         let path = entry.path();
-        let Some(name) = path.file_stem().and_then(|s| s.to_str()) else {
+        // The domain name is the entry's name VERBATIM for a directory
+        // (issue 081 T2c: a domain named after a wire option string — prose
+        // that may end in `.` — must survive byte-intact for by-name option
+        // routing; `file_stem` strips a trailing extension separator and
+        // silently renamed `"…help."` to `"…help"`). Files keep the stem
+        // (the `<domain>.md` single-doc form strips its extension).
+        let name_os = if path.is_dir() {
+            path.file_name()
+        } else {
+            path.file_stem()
+        };
+        let Some(name) = name_os.and_then(|s| s.to_str()) else {
             continue;
         };
-        let name = name.to_string();
         if name.starts_with('.') {
             continue;
         }
@@ -75,11 +85,11 @@ pub fn load_dir(dir: &Path) -> Result<CorpusSpecs, String> {
                     path.display()
                 ));
             }
-            found.push((name, docs));
+            found.push((name.to_string(), docs));
         } else if path.extension().and_then(|e| e.to_str()) == Some("md") {
             let text =
                 std::fs::read_to_string(&path).map_err(|e| format!("{}: {e}", path.display()))?;
-            found.push((name, vec![(path.display().to_string(), text)]));
+            found.push((name.to_string(), vec![(path.display().to_string(), text)]));
         }
         // Anything else (notes, non-.md files) is not corpus — ignored.
     }
@@ -158,6 +168,23 @@ mod tests {
         assert_eq!(loaded.docs_per_domain, vec![1, 2]);
         assert_eq!(loaded.specs.len(), 2);
         assert_eq!(loaded.specs[1].docs.len(), 2);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn directory_names_load_verbatim_including_dots() {
+        // Issue 081 T2c: a domain named after a wire option string (prose
+        // that ends in `.`) must load byte-intact — by-name option routing
+        // compares the option string to the domain name with `==`.
+        let dir = temp_dir("verbatim");
+        let _ = std::fs::remove_dir_all(&dir);
+        write(&dir.join("No further round helps./d0.md"), "state depth 0 doc\n");
+        write(&dir.join("Another round would help./d1.md"), "state depth 1 doc\n");
+        write(&dir.join("plain/plain.md"), "plain domain keeps working\n");
+        let loaded = load_dir(&dir).expect("loads");
+        assert!(loaded.domains.contains(&"No further round helps.".to_string()));
+        assert!(loaded.domains.contains(&"Another round would help.".to_string()));
+        assert!(loaded.domains.contains(&"plain".to_string()));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

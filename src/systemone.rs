@@ -65,6 +65,56 @@ fn render_json_content(v: &Value) -> String {
     }
 }
 
+/// The spaced-rendering experiment flag (issue 081 T2c): read ONCE per
+/// process (the G4 env law — the `ridge_debug_enabled` precedent).
+fn spaced_state_enabled() -> bool {
+    static ENABLED: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ENABLED.get_or_init(|| std::env::var_os("RIIR_REFLEX_SYSTEMONE_SPACED").is_some())
+}
+
+/// Render the request state as Python-`json.dumps`-default-shaped JSON
+/// (`", "` / `": "` separators), recursively, preserving key order —
+/// byte-deterministic. WHY (the measured law, issue 081 T2c): their client
+/// serializes the state with ALPHABETICAL keys and compact separators, so
+/// the `depth` digit is glued into the first whitespace token
+/// (`{"depth":0,"evidence":[{"content":"[Audrey]: …`), a per-state-
+/// unique chunk the count tables can never see on held-out states. The
+/// spaced rendering separates `"depth":` and `0,` into clean standalone
+/// tokens — the O(1)-token signal becomes reachable. Opt-in (the standing
+/// compact rendering is the measured posture of Benches 133-135; every
+/// ctx consumer — drafter, embedder, distance gate — shifts under spacing,
+/// so adoption is a re-baseline decision, not a default).
+fn render_state_spaced(v: &Value) -> String {
+    match v {
+        Value::String(s) => serde_json::to_string(s).unwrap_or_default(),
+        Value::Array(a) => {
+            let mut out = String::from("[");
+            for (i, item) in a.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&render_state_spaced(item));
+            }
+            out.push(']');
+            out
+        }
+        Value::Object(m) => {
+            let mut out = String::from("{");
+            for (i, (k, val)) in m.iter().enumerate() {
+                if i > 0 {
+                    out.push_str(", ");
+                }
+                out.push_str(&serde_json::to_string(k).unwrap_or_default());
+                out.push_str(": ");
+                out.push_str(&render_state_spaced(val));
+            }
+            out.push('}');
+            out
+        }
+        other => serde_json::to_string(other).unwrap_or_default(),
+    }
+}
+
 /// Render noul/choice criteria into the engine's `Question::criteria`
 /// string — both branches' descriptions must reach the drafter context
 /// (`ctx = prompt + "\n" + criteria`), because the yes/no delta the engine
@@ -216,9 +266,16 @@ pub(crate) fn translate(
         built.push(question);
     }
     let request = DecisionRequest {
-        // The state crosses VERBATIM as canonical JSON (objects keep their
-        // wire order — the same bytes their own `semantic()` would render).
-        state: serde_json::to_string(state).unwrap_or_default(),
+        // The state crosses as canonical JSON (objects keep their wire
+        // order — the same bytes their own `semantic()` would render); the
+        // SPACED arm (issue 081 T2c) renders Python-default separators so
+        // structural scalars (the `depth` digit) become standalone tokens —
+        // see `render_state_spaced` for the measured law.
+        state: if spaced_state_enabled() {
+            render_state_spaced(state)
+        } else {
+            serde_json::to_string(state).unwrap_or_default()
+        },
         questions: built.clone(),
     };
     if let Err(e) = request.validate() {
@@ -771,5 +828,34 @@ mod tests {
         assert!(respond(&mut engine, no_state.as_bytes()).is_err());
         let not_json = b"{not json";
         assert!(respond(&mut engine, not_json).is_err());
+    }
+
+    #[test]
+    fn spaced_state_rendering_separates_structural_scalars() {
+        // Issue 081 T2c: the burial law — a compact state with alphabetical
+        // keys glues the `depth` digit into the first whitespace token (a
+        // per-state-unique chunk); the spaced rendering must isolate `0,`
+        // as a standalone token so the count tables can see it.
+        let state = json!({"depth": 0, "evidence": [{"content": "[Audrey]: hello"}]});
+        let spaced = super::render_state_spaced(&state);
+        assert_eq!(
+            spaced,
+            "{\"depth\": 0, \"evidence\": [{\"content\": \"[Audrey]: hello\"}]}"
+        );
+        // The token stream: the digit is its own token (trimmed `0`), not
+        // glued into the first chunk.
+        let mut toks = Vec::new();
+        crate::embed::hashed_tokens_into(
+            spaced.as_bytes(),
+            crate::nb_scope::NB_VOCAB,
+            &mut toks,
+        );
+        let mut probe = Vec::new();
+        crate::embed::hashed_tokens_into(
+            b"0",
+            crate::nb_scope::NB_VOCAB,
+            &mut probe,
+        );
+        assert!(toks.contains(&probe[0]), "the depth digit must be a standalone token");
     }
 }

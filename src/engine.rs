@@ -337,6 +337,23 @@ pub struct EngineConfig {
     /// view (last field read against the earlier ones).
     #[cfg(feature = "nb_scope")]
     pub nb_view: NbView,
+    /// PAIRWISE count-table blend scale (issue 081 T2c, opt-in `nb_scope`).
+    /// When > 0, a by-name-resolved choice question's option `i` gains
+    /// `nb_pair_scale · σ(in_{d_i} − max_{j≠i} in_{d_j})` — the margin over
+    /// the QUESTION'S OWN option domains only, in BITS, with NO per-token
+    /// normalization. Measured law (the v8 probe): on O(1000)-token states
+    /// a single discriminative token contributes O(10) bits to the table
+    /// margins — cleanly signed — but `σ(margin/n_tokens)` (the nb/oc
+    /// convention) averages it to ±0.02 in σ-space and the ridge's
+    /// top-k-by-df selection drops class-exclusive low-df buckets
+    /// outright; under L1-normalized scores the averaged family is also
+    /// scale-self-limiting (byte-identical p at scale 4k vs 64k — the
+    /// common σ component cancels). The pairwise form has no common
+    /// component (a 2-option pair is complementary: the terms sum to the
+    /// scale), so its L1 leverage is `2σ(Δ)−1` — full range at any scale.
+    /// 0.0 = OFF, byte-identical.
+    #[cfg(feature = "nb_scope")]
+    pub nb_pair_scale: f32,
     /// Option-conditioned count-table blend scale (issue 038 T7b, opt-in
     /// `option_cond`). When > 0, the event-carrying constructor
     /// ([`DecisionEngine::build_specs_oc`]) fits one (qid, option) table
@@ -469,6 +486,8 @@ impl Default for EngineConfig {
             nb_noul_domain: None,
             #[cfg(feature = "nb_scope")]
             nb_view: NbView::Bag,
+            #[cfg(feature = "nb_scope")]
+            nb_pair_scale: 0.0,
             #[cfg(feature = "option_cond")]
             oc_scale: 0.0,
             #[cfg(feature = "nb_ridge")]
@@ -956,7 +975,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             return Err(EngineError::DensityNeedsCorpora);
         }
         #[cfg(feature = "nb_scope")]
-        if cfg.nb_scale > 0.0 {
+        if cfg.nb_scale > 0.0 || cfg.nb_pair_scale > 0.0 {
             return Err(EngineError::NbNeedsCorpora);
         }
         #[cfg(feature = "option_cond")]
@@ -1105,7 +1124,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         // Count tables fit BEFORE the specs are consumed (they read the
         // wider `nb_docs` set when present, `docs` otherwise).
         #[cfg(feature = "nb_scope")]
-        let nb = (cfg.nb_scale > 0.0).then(|| {
+        let nb = (cfg.nb_scale > 0.0 || cfg.nb_pair_scale > 0.0).then(|| {
             let sets: Vec<&[String]> = specs
                 .iter()
                 .map(|s| s.nb_docs.as_deref().unwrap_or(&s.docs))
@@ -1501,6 +1520,29 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                     // form recomputed per question).
                     for (nt, &d) in nb_terms.iter_mut().zip(opt_dom.iter()).take(k) {
                         *nt = NbScope::blend_term(&nb_in_base, d, nb_n_tok, self.cfg.nb_scale);
+                    }
+                    // Pairwise terms (issue 081 T2c): the option-set-scoped
+                    // margin, NO per-token normalization — the O(1)-token
+                    // signal the averaged family cannot express (the field
+                    // doc on `nb_pair_scale` records the measured law).
+                    // Only when armed (> 0) and every option resolved by
+                    // name (route_active is this block's guard).
+                    if self.cfg.nb_pair_scale > 0.0 && k >= 2 {
+                        for i in 0..k {
+                            let di = opt_dom[i];
+                            // Max over the QUESTION'S OWN other option
+                            // domains — never the whole corpus (the
+                            // pin-steal law: a big unrelated domain wins
+                            // max_other and saturates the margin).
+                            let mut other = f32::NEG_INFINITY;
+                            for j in 0..k {
+                                if j != i {
+                                    other = other.max(nb_in_base[opt_dom[j]]);
+                                }
+                            }
+                            nb_terms[i] += self.cfg.nb_pair_scale
+                                * exact_sigmoid(nb_in_base[di] - other);
+                        }
                     }
                 }
             }
@@ -2813,6 +2855,198 @@ mod tests {
             },
         );
         assert_eq!(verdict.err(), Some(EngineError::NbNeedsCorpora));
+    }
+
+    /// Issue 081 T2c: the by-name + count-table surface for systemone-class
+    /// wires — a Choice whose two options byte-equal two DOMAIN NAMES (the
+    /// criteria-as-options arm over canonical {true,false} noul criteria)
+    /// arms the route + nb terms, so a discriminative STATE token (`depth`:
+    /// one digit inside a JSON state, invisible to the compression drafter
+    /// on realistic states) becomes a count-table feature and drives p(yes)
+    /// across the consumer's controller threshold in the labelled
+    /// directions. The CONTROL arm (same docs, unlabeled domain names —
+    /// by-name never resolves) pins that the RENAME is the unlock: armed
+    /// tables that no option can reach move nothing.
+    #[cfg(feature = "nb_scope")]
+    #[test]
+    fn by_name_nb_reads_a_discriminative_state_token() {
+        // Synthetic descriptions shaped like the wire (prose ending in a
+        // period); their actual prose never enters this repo.
+        const YES_DESC: &str = "Another retrieval round could fill a gap.";
+        const NO_DESC: &str = "No identifiable retrieval need remains.";
+        const QUERIES: [&str; 8] = [
+            "where did they park the car",
+            "who bought the groceries",
+            "what was agreed about the trip",
+            "when is the dentist appointment",
+            "which laptop was recommended",
+            "who moved to seoul",
+            "what did they cook for dinner",
+            "where are the keys kept",
+        ];
+        let doc = |qi: usize, depth: u8| {
+            let evidence = format!(
+                "speaker mentions {} again later while planning the week",
+                QUERIES[qi]
+            );
+            format!(
+                "{{\"query\":\"{}\",\"evidence\":[\"{}\",\"{}\"],\"depth\":{}}}",
+                QUERIES[qi], evidence, evidence, depth
+            )
+        };
+        // Domain membership by DEPTH: the yes-desc domain holds depth-0
+        // states (never stop), the no-desc domain depth-1 states (stop).
+        let specs_for = |names: [String; 2]| {
+            let mut yes_docs = Vec::new();
+            let mut no_docs = Vec::new();
+            for qi in 0..QUERIES.len() {
+                yes_docs.push(doc(qi, 0));
+                no_docs.push(doc(qi, 1));
+            }
+            vec![
+                ExpertSpec::new(&names[0], &yes_docs),
+                ExpertSpec::new(&names[1], &no_docs),
+            ]
+        };
+        let request = |depth: u8, qi: usize| DecisionRequest {
+            state: doc(qi, depth),
+            questions: vec![Question::choice(
+                "continue_useful",
+                "Given `query` and `evidence`, is another retrieval round likely to help?",
+                vec![YES_DESC.to_string(), NO_DESC.to_string()],
+                None,
+            )],
+        };
+        let p_yes = |specs, cfg: &EngineConfig, depth, qi| {
+            let mut eng: DecisionEngine<2, EMBED_DIM> =
+                DecisionEngine::build_specs(specs, cfg.clone()).unwrap();
+            let mut sc = Scratch::new();
+            eng.solve_into(&request(depth, qi), &mut sc).unwrap();
+            sc.probs[0]
+        };
+        let named = [
+            YES_DESC.to_string(),
+            NO_DESC.to_string(),
+        ];
+        let armed = EngineConfig {
+            nb_scale: 64.0,
+            ..EngineConfig::default()
+        };
+        // The controller thresholds (their retrieval loop): stop fires at
+        // continue_useful < 0.40 — depth-1 states must cross DOWN, depth-0
+        // must stay UP. Unseen query text (rotation offset) both arms.
+        for (depth, qi) in [(0u8, 3usize), (0, 5), (1, 2), (1, 6)] {
+            let p = p_yes(specs_for(named.clone()), &armed, depth, qi);
+            if depth == 0 {
+                assert!(
+                    p >= 0.40,
+                    "depth-0 must not stop (p_continue {p:.3} >= 0.40)"
+                );
+            } else {
+                assert!(
+                    p < 0.40,
+                    "depth-1 must stop (p_continue {p:.3} < 0.40)"
+                );
+            }
+        }
+        // The separation is real, not threshold-adjacent noise.
+        let (p0, p1) = (
+            p_yes(specs_for(named.clone()), &armed, 0, 4),
+            p_yes(specs_for(named.clone()), &armed, 1, 4),
+        );
+        assert!(p0 - p1 >= 0.20, "gap {p0:.3} vs {p1:.3} too thin");
+        // CONTROL: same docs under opaque names — by-name never resolves,
+        // the tables reach no option, and both depths read flat.
+        let opaque = ["expand_class".to_string(), "stop_class".to_string()];
+        let (c0, c1) = (
+            p_yes(specs_for(opaque.clone()), &armed, 0, 4),
+            p_yes(specs_for(opaque.clone()), &armed, 1, 4),
+        );
+        assert!(
+            (c0 - c1).abs() < 0.05,
+            "opaque names must leave the depth token invisible: {c0:.3} vs {c1:.3}"
+        );
+    }
+
+    /// Issue 081 T2c — the PAIRWISE functional and its measured law: on
+    /// REALISTIC state sizes (hundreds of tokens) a single discriminative
+    /// token contributes O(10) bits to the table margins, which the
+    /// averaged `σ(margin/n)` family cannot express (bounded by L/n in
+    /// σ-space) — but the option-set-scoped pairwise margin
+    /// `σ(in_{d_i} − in_{d_j})` (bits, NO normalization) separates hard.
+    /// The docs are PAIRED (identical except the depth byte) with NEUTRAL
+    /// tails — the cancellation corpus (query/evidence mass cancels
+    /// exactly; only the depth forms carry class mass).
+    #[cfg(feature = "nb_scope")]
+    #[test]
+    fn pairwise_count_table_reads_a_single_token_on_large_states() {
+        const YES_DESC: &str = "Another retrieval round could fill a gap.";
+        const NO_DESC: &str = "No identifiable retrieval need remains.";
+        // ~300-token states: the depth digit is 1 event in ~300 — the
+        // averaged family's bound is L/n ≈ 0.07 in σ-space (invisible).
+        let filler: Vec<String> = (0..60)
+            .map(|i| format!("speaker mentions detail number {i} again while planning the week"))
+            .collect();
+        let doc = |depth: u8| {
+            format!(
+                "{{\"depth\":{depth},\"evidence\":[{}]}}",
+                filler
+                    .iter()
+                    .map(|f| format!("{{\"content\":\"{f}\"}}"))
+                    .collect::<Vec<_>>()
+                    .join(",")
+            )
+        };
+        let specs = vec![
+            ExpertSpec::new(
+                YES_DESC,
+                &(0..8).map(|_| doc(0)).collect::<Vec<_>>(),
+            ),
+            ExpertSpec::new(
+                NO_DESC,
+                &(0..8).map(|_| doc(1)).collect::<Vec<_>>(),
+            ),
+        ];
+        let request = |depth: u8| DecisionRequest {
+            state: doc(depth),
+            questions: vec![Question::choice(
+                "continue_useful",
+                "is another retrieval round likely to help?",
+                vec![YES_DESC.to_string(), NO_DESC.to_string()],
+                None,
+            )],
+        };
+        let p = |cfg: &EngineConfig, depth: u8| {
+            let mut eng: DecisionEngine<2, EMBED_DIM> =
+                DecisionEngine::build_specs(specs.clone(), cfg.clone()).unwrap();
+            let mut sc = Scratch::new();
+            eng.solve_into(&request(depth), &mut sc).unwrap();
+            sc.probs[0]
+        };
+        // The averaged family at a large scale: the law says it CANNOT
+        // cross the controller threshold (bounded by L/n).
+        let averaged = p(
+            &EngineConfig { nb_scale: 64.0, ..EngineConfig::default() },
+            1,
+        );
+        assert!(
+            averaged > 0.40,
+            "the averaged family must NOT express the single-token stop on large states (got {averaged:.3})"
+        );
+        // The pairwise functional: crosses hard, both directions.
+        let pair = EngineConfig { nb_pair_scale: 50.0, ..EngineConfig::default() };
+        let (p0, p1) = (p(&pair, 0), p(&pair, 1));
+        assert!(p0 >= 0.40, "depth-0 must not stop (p={p0:.3})");
+        assert!(p1 < 0.40, "depth-1 must stop (p={p1:.3})");
+        assert!(p0 - p1 >= 0.5, "separation {p0:.3} vs {p1:.3} too thin");
+        // OFF is byte-identical to the never-armed posture.
+        let off = p(&EngineConfig::default(), 0).to_bits();
+        let explicit_off = p(
+            &EngineConfig { nb_pair_scale: 0.0, ..EngineConfig::default() },
+            0,
+        )
+        .to_bits();
+        assert_eq!(off, explicit_off, "nb_pair_scale 0 must be byte-identical");
     }
 
     #[test]

@@ -713,6 +713,30 @@ pub fn run() -> std::io::Result<()> {
     serve_boot(listener, corpus, laya, heads)
 }
 
+/// Is a `RIIR_REFLEX_*` knob env var set to a nonblank value?
+fn env_set(name: &str) -> bool {
+    std::env::var(name)
+        .map(|v| !v.trim().is_empty())
+        .unwrap_or(false)
+}
+
+/// Parse a positive-scale env knob's value (`RIIR_REFLEX_NB_SCALE`,
+/// `RIIR_REFLEX_RIDGE_SCALE`): `Ok(None)` = unset/blank (the standing
+/// off posture, byte-identical), `Ok(Some(v))` = a positive finite scale,
+/// `Err(why)` = the boot refuses (never a quiet default).
+fn parse_positive_scale(name: &str, raw: Option<&str>) -> Result<Option<f32>, String> {
+    let Some(raw) = raw.map(str::trim).filter(|r| !r.is_empty()) else {
+        return Ok(None);
+    };
+    let v: f32 = raw
+        .parse()
+        .map_err(|_| format!("{name}={raw:?} is not a number"))?;
+    if !v.is_finite() || v <= 0.0 {
+        return Err(format!("{name}={raw:?} must be a positive finite scale"));
+    }
+    Ok(Some(v))
+}
+
 /// The N-dispatched boot (issue 063 option 1): build the corpus engine at
 /// the request's domain count — one monomorphised arm per `N ∈ 1..=8`, the
 /// dispatch happens ONCE per process, and the serve loop below stays
@@ -726,6 +750,16 @@ fn serve_boot(
 ) -> std::io::Result<()> {
     let ServeCorpus { info, specs } = corpus;
     let cfg = if info == CorpusInfo::Demo {
+        if env_set("RIIR_REFLEX_NB_SCALE")
+            || env_set("RIIR_REFLEX_RIDGE_SCALE")
+            || env_set("RIIR_REFLEX_NB_PAIR_SCALE")
+        {
+            eprintln!(
+                "[riir-reflex] RIIR_REFLEX_NB_SCALE/RIIR_REFLEX_RIDGE_SCALE/RIIR_REFLEX_NB_PAIR_SCALE \
+                 ignored on the demo posture (the fixture engine is fixed; set RIIR_REFLEX_CORPUS \
+                 to arm them)"
+            );
+        }
         crate::engine::EngineConfig::default()
     } else {
         // The first-corpus posture (measured, issue 063): a first corpus is
@@ -738,10 +772,84 @@ fn serve_boot(
         // best pick, off-corpus still abstains (in-corpus distance
         // confidence ≈ 0.93+, off-corpus ≈ 0.06 — the 0.5 default midpoint
         // sits in the desert between them).
-        crate::engine::EngineConfig {
+        let mut cfg = crate::engine::EngineConfig {
             score_threshold: 0.0,
             ..crate::engine::EngineConfig::default()
+        };
+        // Issue 081 T2c: arm the per-domain count tables (`nb_scope`,
+        // issue 038) and/or the NBSVM ridge readout (`nb_ridge`) on a
+        // corpus boot — the fitted-token head surfaces the memory-control
+        // lane needs (a discriminative state token such as `depth` is
+        // invisible to the compression drafter but is a plain count-table
+        // feature). Scales are SELECTED offline (the eval arm); a bad value
+        // refuses the boot, never a quiet default.
+        let mut nb_scale_val: Option<f32> = None;
+        let mut ridge_scale_val: Option<f32> = None;
+        let mut nb_pair_val: Option<f32> = None;
+        for (name, slot) in [
+            ("RIIR_REFLEX_NB_SCALE", &mut nb_scale_val),
+            ("RIIR_REFLEX_RIDGE_SCALE", &mut ridge_scale_val),
+            ("RIIR_REFLEX_NB_PAIR_SCALE", &mut nb_pair_val),
+        ] {
+            match parse_positive_scale(name, std::env::var(name).ok().as_deref()) {
+                Ok(None) => {}
+                Ok(Some(v)) => *slot = Some(v),
+                Err(why) => {
+                    eprintln!("[riir-reflex] {why} — refusing");
+                    std::process::exit(2);
+                }
+            }
         }
+        #[cfg(feature = "nb_scope")]
+        if let Some(scale) = nb_scale_val {
+            cfg.nb_scale = scale;
+            eprintln!(
+                "[riir-reflex] corpus nb count tables armed: nb_scale={scale} \
+                 (RIIR_REFLEX_NB_SCALE; by-name option routing resolves per-question)"
+            );
+        }
+        #[cfg(feature = "nb_scope")]
+        if let Some(scale) = nb_pair_val {
+            cfg.nb_pair_scale = scale;
+            eprintln!(
+                "[riir-reflex] corpus nb PAIRWISE head armed: nb_pair_scale={scale} \
+                 (RIIR_REFLEX_NB_PAIR_SCALE; option-set-scoped margins in bits — \
+                 the O(1)-token functional, issue 081 T2c)"
+            );
+        }
+        #[cfg(feature = "nb_ridge")]
+        if let Some(scale) = ridge_scale_val {
+            cfg.ridge_scale = scale;
+            eprintln!(
+                "[riir-reflex] corpus nb ridge readout armed: ridge_scale={scale} \
+                 (RIIR_REFLEX_RIDGE_SCALE; discriminative margins over the count-table stream)"
+            );
+        }
+        // The knobs never silently no-op (the flag-does-nothing bug class):
+        // a build without the fitted surface refuses the boot naming the
+        // rebuild. (nb_ridge implies nb_scope, so the nb check covers the
+        // compile-gate for both only when checked in the right order —
+        // check each against its own feature.)
+        #[cfg(not(feature = "nb_scope"))]
+        if nb_scale_val.is_some() || nb_pair_val.is_some() {
+            eprintln!(
+                "[riir-reflex] RIIR_REFLEX_NB_SCALE/RIIR_REFLEX_NB_PAIR_SCALE set but this build \
+                 compiles without the nb_scope feature — rebuild with \
+                 --features nb_scope or unset the knob"
+            );
+            std::process::exit(2);
+        }
+        #[cfg(not(feature = "nb_ridge"))]
+        if ridge_scale_val.is_some() {
+            eprintln!(
+                "[riir-reflex] RIIR_REFLEX_RIDGE_SCALE is set but this build \
+                 compiles without the nb_ridge feature — rebuild with \
+                 --features nb_ridge or unset the knob"
+            );
+            std::process::exit(2);
+        }
+        let _ = (nb_scale_val.is_some(), ridge_scale_val.is_some(), nb_pair_val.is_some());
+        cfg
     };
     macro_rules! boot {
         ($n:literal) => {{
@@ -1387,5 +1495,38 @@ fn laya_edge(
             ),
             cors,
         ),
+    }
+}
+
+#[cfg(test)]
+mod nb_scale_tests {
+    use super::parse_positive_scale;
+
+    #[test]
+    fn scale_unset_or_blank_is_none() {
+        assert_eq!(parse_positive_scale("K", None), Ok(None));
+        assert_eq!(parse_positive_scale("K", Some("")), Ok(None));
+        assert_eq!(parse_positive_scale("K", Some("   ")), Ok(None));
+    }
+
+    #[test]
+    fn scale_positive_finite_parses() {
+        assert_eq!(parse_positive_scale("K", Some("16")), Ok(Some(16.0)));
+        assert_eq!(parse_positive_scale("K", Some(" 0.5 ")), Ok(Some(0.5)));
+        assert_eq!(parse_positive_scale("K", Some("1e3")), Ok(Some(1000.0)));
+    }
+
+    #[test]
+    fn scale_bad_values_refuse_never_default() {
+        // Not a number, zero, negative, non-finite: every bad spelling
+        // refuses (Err) — the boot exits, it never arms a guessed scale.
+        assert!(parse_positive_scale("K", Some("abc")).is_err());
+        assert!(parse_positive_scale("K", Some("0")).is_err());
+        assert!(parse_positive_scale("K", Some("-4")).is_err());
+        assert!(parse_positive_scale("K", Some("inf")).is_err());
+        assert!(parse_positive_scale("K", Some("nan")).is_err());
+        // The refusal NAMES the knob (two knobs, two names).
+        let why = parse_positive_scale("RIIR_REFLEX_RIDGE_SCALE", Some("x")).unwrap_err();
+        assert!(why.contains("RIIR_REFLEX_RIDGE_SCALE"));
     }
 }

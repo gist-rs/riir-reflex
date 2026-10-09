@@ -65,6 +65,9 @@ CONTINUE_THRESHOLD = 0.40
 # 5 s evaluate timeout on the ~160-question traversal batches).
 STOP_DOCS_MAX = 250          # per depth, seeded subsample of stop-labeled
 EVIDENCE_IN_DOC = 5          # trim the evidence list in stopping docs
+PAIR_STATES = 250            # v8: per captured pool, seeded — the paired-doc
+                            # cancellation build emits each state in BOTH
+                            # stopping domains (only the depth byte differs)
 PIN_STATES = 50              # traversal pin states (trimmed, symmetric)
 PIN_EVIDENCE = 6
 PIN_CANDIDATES = 6
@@ -80,6 +83,15 @@ def wire_state(state) -> str:
     """The exact bytes the serve's ctx carries: compact JSON, insertion
     order (serde_json preserve_order), non-ASCII literal."""
     return json.dumps(state, separators=(",", ":"), ensure_ascii=False)
+
+
+def wire_state_spaced(state) -> str:
+    """The SPACED arm (v10, issue 081 T2c): Python-default separators
+    (", " / ": "), mirroring the serve's RIIR_REFLEX_SYSTEMONE_SPACED
+    rendering — structural scalars (the `depth` digit) become standalone
+    whitespace tokens instead of being glued into the first evidence
+    item's opening text (the measured burial law)."""
+    return json.dumps(state, separators=(", ", ": "), ensure_ascii=False)
 
 
 # ---------------------------------------------------------------- capture
@@ -204,7 +216,8 @@ def trim_stop_state(state: dict) -> dict:
 
 def cmd_build(args) -> None:
     raw = Path(args.raw_dir)
-    corpus = raw / "corpus_pack_v6"
+    variant = getattr(args, "variant", "v6")
+    corpus = raw / f"corpus_pack_{variant}"
     if corpus.exists():
         fail(f"{corpus} already exists — move it aside (a corpus is never silently rebuilt over)")
     capture_dir = raw / "capture"
@@ -229,7 +242,8 @@ def cmd_build(args) -> None:
                 if call["op"] == "stopping":
                     depth = call["state"].get("depth")
                     rec = {"s": s, "qa": qa, "state": call["state"],
-                           "questions": call["questions"], "depth": depth}
+                           "questions": call["questions"], "depth": depth,
+                           "label_stop": label}
                     # v6 law (the v5 negative): the depth-0 stop/expand split
                     # is NOT readable from the state bytes (measured p overlap
                     # med 0.405 vs 0.415 on held-out) — the corpus teaches the
@@ -246,9 +260,36 @@ def cmd_build(args) -> None:
                     pins.append({"s": s, "qa": qa, "state": call["state"],
                                  "questions": call["questions"], "gold": gold})
 
+    # v7 (issue 081 T2c): the two stopping domains are renamed to the wire's
+    # own continue_useful criteria descriptions — byte-exact, read from the
+    # captures (never retyped) — so the criteria-as-options Choice arm
+    # resolves BY NAME and the engine's route + count-table terms arm for
+    # exactly that question (the fitted-token head surface; the `depth`
+    # token is invisible to the compression drafter on realistic states
+    # but is a plain count-table feature).
+    stop_dir_name, expand_dir_name = "stopping_stop", "stopping_expand"
+    if variant in ("v7", "v8", "v9", "v10", "v11"):
+        first_q = None
+        for rec in depth0 + depth1:
+            q = rec["questions"].get("continue_useful")
+            if q and q.get("criteria"):
+                first_q = q
+                break
+        if first_q is None:
+            fail("v7 needs the continue_useful question in the captures")
+        crit = first_q["criteria"]
+        if not crit.get("true") or not crit.get("false"):
+            fail(f"continue_useful criteria missing descriptions: {list(crit)}")
+        expand_dir_name = crit["true"]   # depth-0 docs -> the TRUE desc domain
+        stop_dir_name = crit["false"]    # depth-1 docs -> the FALSE desc domain
+        for nm in (stop_dir_name, expand_dir_name):
+            if "/" in nm or len(nm.encode()) > 200 or not nm.strip():
+                fail(f"description {nm!r} is not a usable directory name")
+        print(f"v7 stopping domains (byte-exact wire descriptions):\n  expand: {expand_dir_name!r}\n  stop:   {stop_dir_name!r}")
+
     rng = random.Random(SEED)
-    d_stop = corpus / "stopping_stop"
-    d_expand = corpus / "stopping_expand"
+    d_stop = corpus / stop_dir_name
+    d_expand = corpus / expand_dir_name
     d_mh = corpus / "routing_multihop"
     d_dir = corpus / "routing_direct"
     d_pin = corpus / "traversal_pin"
@@ -285,18 +326,108 @@ def cmd_build(args) -> None:
     rng.shuffle(depth1)
     picked_stop = depth1[:STOP_DOCS_MAX]
     picked_expand = depth0[:STOP_DOCS_MAX]
-    n_stop = write_stop_docs(picked_stop, d_stop, STOP_POLARITY, "stop")
-    n_expand = write_stop_docs(picked_expand, d_expand, EXPAND_POLARITY, "exp")
+    if variant in ("v8", "v9", "v10", "v11"):
+        # v8 (issue 081 T2c): PAIRED-DOC CANCELLATION. Measured on v7: the
+        # count table reads the depth token (a depth flip moves p by a
+        # consistent −0.005) but the query+evidence table mass — sampling
+        # noise over 250 docs — swings p ±0.3 and drowns it. The repair is
+        # corpus-side: emit the SAME states into BOTH stopping domains,
+        # differing ONLY in the depth byte — every nuisance token appears
+        # identically in both tables and cancels exactly in the margin, so
+        # the depth bigram is the only discriminative mass by construction.
+        # Docs stay request-shaped (drafter + distance gate read them too).
+        #
+        # v9: NEUTRAL TAILS. v8 measured 38% premature depth-0 stops — the
+        # residual is HASH-COLLISION noise: each class-exclusive bucket
+        # (the depth token forms + ~48 description-tail tokens/bigrams)
+        # carries ±22 bits, and a ~2500-event request collides onto a
+        # WRONG-SIDE exclusive bucket with λ ≈ 1.1 (P(≥2) ≈ 31%, matching
+        # the 38% measured). Identical neutral tails drop the exclusive
+        # set to the ~6 depth-form buckets (λ ≈ 0.13, residual < 1%).
+        # v11: the V5 SUPERVISION LABELS through the pair functional — the
+        # original T2b target (stop-ok = r0 >= r1, 92.6% of QAs; expand =
+        # the 7.4% carrying 4.2pt). Unpaired (the label IS the class) but
+        # with every v9/v10 law applied (neutral tails, spaced render). The
+        # question this arm answers: can ANY content signal beat the 12.6:1
+        # class prior on the count-table substrate (v5's compression-path
+        # read measured the labels inseparable — med 0.405 vs 0.415)?
+        pool_stop, pool_expand = [], []
+        if variant == "v11":
+            for rec in depth0:
+                # v5 label (stop_label above, carried on the record): the
+                # DEPTH-0 states partitioned by measured supervision —
+                # stop-ok = r0 >= r1 (stopping at depth 0 loses nothing).
+                (pool_expand if rec["label_stop"] is False else pool_stop).append(rec)
+            rng.shuffle(pool_stop); rng.shuffle(pool_expand)
+            pool_stop = pool_stop[:STOP_DOCS_MAX]
+            pool_expand = pool_expand[:STOP_DOCS_MAX]
+            pool = pool_stop + pool_expand
+        else:
+            pool = picked_stop + picked_expand
+        continue_useful_q = None
+        for rec in pool:
+            q = rec["questions"].get("continue_useful")
+            if q and q.get("criteria"):
+                continue_useful_q = q
+                break
+        if continue_useful_q is None:
+            fail("v8/v9 needs the continue_useful question in the captures")
+        neutral_tail = "the stopping policy reads the retrieval depth"
+        render = wire_state_spaced if variant in ("v10", "v11") else wire_state
+        n_stop = n_expand = 0
+        if variant == "v11":
+            # UNPAIRED: each depth-0 state lands in its LABEL's domain only.
+            for rec, dom in ([(r, d_stop) for r in pool_stop] + [(r, d_expand) for r in pool_expand]):
+                state = trim_stop_state(dict(rec["state"]))
+                st = dict(state)
+                st["depth"] = rec["depth"]
+                emit_doc(dom, f"lab_s{rec['s']}q{rec['qa']}", render(st),
+                         continue_useful_q["instructions"], neutral_tail)
+                if dom == d_expand:
+                    n_expand += 1
+                else:
+                    n_stop += 1
+        else:
+            for rec in pool:
+                state = trim_stop_state(dict(rec["state"]))
+                base = f"pair_s{rec['s']}q{rec['qa']}d{rec['depth']}"
+                # v8-v10: the depth byte IS the class (the paired
+                # cancellation) — each state emits into BOTH domains,
+                # differing only in the depth byte.
+                for dom, depth_byte, tag in ((d_expand, 0, "x"), (d_stop, 1, "s")):
+                    st = dict(state)
+                    st["depth"] = depth_byte
+                    doc_tail = (
+                        continue_useful_q["criteria"]["true" if depth_byte == 0 else "false"]
+                        if variant == "v8" else neutral_tail
+                    )
+                    emit_doc(dom, f"{base}_{tag}", render(st),
+                             continue_useful_q["instructions"], doc_tail)
+                    if dom == d_expand:
+                        n_expand += 1
+                    else:
+                        n_stop += 1
+            assert n_stop == n_expand == len(pool), (n_stop, n_expand, len(pool))
+    else:
+        n_stop = write_stop_docs(picked_stop, d_stop, STOP_POLARITY, "stop")
+        n_expand = write_stop_docs(picked_expand, d_expand, EXPAND_POLARITY, "exp")
 
     ROUTE_PIN_TRUE = ("temporal", "entity")
     ROUTE_PIN_FALSE = ("semantic", "causal", "recency_importance")
+    # v10: the WHOLE corpus renders in the spaced dialect — a request rendered
+    # spaced (RIIR_REFLEX_SYSTEMONE_SPACED) must meet docs in the same dialect
+    # or every compression-calibrated read (the traversal pin's symmetric-tail
+    # beam preservation, the routing masses) breaks on the shape mismatch
+    # (measured: compact docs + spaced requests = recall 0.567, a catastrophic
+    # traversal-calibration break; the stopping head alone was clean).
+    route_render = wire_state_spaced if variant == "v10" else wire_state
     n_mh = n_dir = 0
     for rec in routes:
         qs = rec["questions"]
         if "multi_hop_need" not in qs:
             continue
         dom, tag = (d_mh, "mh") if rec["cat"] == 1 else (d_dir, "dir")
-        sw = wire_state(rec["state"])
+        sw = route_render(rec["state"])
         q = qs["multi_hop_need"]
         emit_doc(dom, f"{tag}_s{rec['s']}q{rec['qa']}_multi_hop_need", sw,
                  q["instructions"], qdesc(q, "true" if rec["cat"] == 1 else "false"))
@@ -315,7 +446,7 @@ def cmd_build(args) -> None:
         state = dict(rec["state"])
         state["evidence"] = list(state.get("evidence", []))[:PIN_EVIDENCE]
         state["candidates"] = list(state.get("candidates", []))[:PIN_CANDIDATES]
-        sw = wire_state(state)
+        sw = route_render(state)
         for qid, q in qs.items():
             if not qid.startswith("candidate_0_"):
                 continue  # one question family per state (index 0 of the trimmed set)
@@ -331,10 +462,10 @@ def cmd_build(args) -> None:
             "expand": sum(1 for r in label_rows if not r[5]),
             "note": "v6: depth classes, not stop labels (the v5 depth-0 read was inseparable)",
         },
-        "docs": {"stopping_stop": n_stop, "stopping_expand": n_expand,
+        "docs": {stop_dir_name: n_stop, expand_dir_name: n_expand,
                  "routing_multihop": n_mh, "routing_direct": n_dir,
                  "traversal_pin": n_pin},
-        "domains": 5, "seed": SEED,
+        "domains": 5, "seed": SEED, "variant": variant,
         "sizes_bytes": {d.name: sum(f.stat().st_size for f in d.iterdir())
                         for d in (d_stop, d_expand, d_mh, d_dir, d_pin)},
     }
@@ -361,9 +492,14 @@ def cmd_eval(args) -> None:
     raw = Path(args.raw_dir)
     capture_dir = raw / "capture"
     results, stop0 = raw / "results", raw / "t3_stop0"
+    # Selection discipline (Bench-127 law): `--samples fit` fires the FIT
+    # samples (s0-4) — the posture-selection surface (nb_scale sweeps);
+    # `--samples eval` (default) is the honest held-out read (s5-9), fired
+    # ONCE per posture.
+    samples = FIT_SAMPLES if args.samples == "fit" else EVAL_SAMPLES
     continue_q, suff_q, mh_q, entity_q, temporal_q, rel_q = None, None, None, None, None, None
     depth0_rows, depth1_rows, route_rows, pin_rows = [], [], [], []
-    for s in EVAL_SAMPLES:
+    for s in samples:
         cap_p = capture_dir / f"sample{s}.jsonl"
         if not cap_p.exists():
             fail(f"missing capture {cap_p}")
@@ -397,7 +533,8 @@ def cmd_eval(args) -> None:
     if continue_q is None or mh_q is None:
         fail("no stopping/routing capture found for the question inventory")
     if not pin_rows:
-        for line in (capture_dir / "sample5.jsonl").read_text(encoding="utf-8").splitlines()[:40]:
+        pin_src = capture_dir / (f"sample{samples[0]}.jsonl")
+        for line in pin_src.read_text(encoding="utf-8").splitlines()[:40]:
             row = json.loads(line)
             for c in row["calls"]:
                 if c["op"] == "traversal" and "candidate_0_relevance" in c["questions"]:
@@ -479,8 +616,9 @@ def cmd_eval(args) -> None:
         "traversal_pin_p_range": [min(pin_p), max(pin_p)] if pin_p else None,
         "n_routing": len(route_rows),
     }
+    out["samples"] = args.samples
     print(json.dumps(out, indent=1, sort_keys=True))
-    (raw / "corpus_pack_v6_eval.json").write_text(json.dumps(out, indent=1, sort_keys=True))
+    (raw / f"corpus_pack_{args.tag}_eval.json").write_text(json.dumps(out, indent=1, sort_keys=True))
 
 
 def main() -> None:
@@ -495,10 +633,21 @@ def main() -> None:
     c.set_defaults(fn=cmd_capture)
     b = sub.add_parser("build")
     b.add_argument("--raw-dir", default=".raw/locomo")
+    b.add_argument("--variant", choices=["v6", "v7", "v8", "v9", "v10", "v11"], default="v6",
+                   help="v6: stopping_stop/stopping_expand dirs (the measured posture); "
+                        "v7 (issue 081 T2c): the same docs under the wire's continue_useful "
+                        "criteria descriptions — by-name option routing arms the count tables; "
+                        "v8: v7 names + PAIRED docs (each state in BOTH domains, only the "
+                        "depth byte differs — the cancellation corpus); "
+                        "v9: v8 + NEUTRAL tails (collision-noise repair — identical tail "
+                        "text drops the class-exclusive bucket set to the depth forms)")
     b.set_defaults(fn=cmd_build)
     e = sub.add_parser("eval")
     e.add_argument("--serve-url", default="http://127.0.0.1:7331")
     e.add_argument("--raw-dir", default=".raw/locomo")
+    e.add_argument("--samples", choices=["fit", "eval"], default="eval",
+                   help="fit = s0-4 (posture selection: nb_scale sweeps); eval = s5-9 (the honest read)")
+    e.add_argument("--tag", default="v6", help="output file tag: corpus_pack_<tag>_eval.json")
     e.set_defaults(fn=cmd_eval)
     args = ap.parse_args()
     args.fn(args)
