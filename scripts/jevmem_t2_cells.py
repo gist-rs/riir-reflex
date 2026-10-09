@@ -68,6 +68,26 @@ def config_fingerprint(cfg) -> str:
     return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:12]
 
 
+WRITE_SIDE_FIELDS = (
+    # Their validate_reuse_memory law: ONLY these fields shape the constructed
+    # graph — retrieval-side settings (thresholds, budgets, top-k) are tuning
+    # on an EXISTING graph and must reuse it, never rebuild.
+    "write_enabled", "admission_enabled", "jev_mock", "jev_model",
+    "decision_schema_version", "decision_backend", "laya_model", "laya_subfolder",
+    "relation_threshold", "candidate_top_k", "consolidation_interval", "consolidation_threshold",
+)
+
+
+def write_fingerprint(cfg) -> str:
+    """Cache-key fingerprint over the write-side fields only (their reuse law)."""
+    d = cfg.to_dict()
+    payload = {k: d[k] for k in WRITE_SIDE_FIELDS}
+    if d.get("admission_enabled"):
+        payload["admission_threshold"] = d["admission_threshold"]
+        payload["admission_weights"] = list(d["admission_weights"])
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:12]
+
+
 def healthz(serve_url: str) -> dict:
     with urllib.request.urlopen(f"{serve_url}/healthz", timeout=5) as resp:
         return json.loads(resp.read().decode("utf-8"))
@@ -105,6 +125,10 @@ def run_arm(args) -> None:
         overrides["decision_backend"] = "jev"
     if args.max_latency:
         overrides["max_latency_seconds"] = float(args.max_latency)
+    if args.stop_threshold is not None:
+        overrides["evidence_sufficient_threshold"] = float(args.stop_threshold)
+    if args.continue_threshold is not None:
+        overrides["continue_threshold"] = float(args.continue_threshold)
 
     out_dir = Path(args.out_dir)
     pass_dir = out_dir / f"{args.arm}_pass{args.pass_n}"
@@ -115,7 +139,7 @@ def run_arm(args) -> None:
     if args.arm == "mock" and not config.jev_mock:
         fail("mock arm configured but jev_mock is False — check --jev-config")
     fp = config_fingerprint(config)
-    cache_dir = Path(args.raw_dir) / "cache" / f"{args.arm}_{fp}" / f"sample{args.sample}"
+    cache_dir = Path(args.raw_dir) / "cache" / f"{args.arm}_{write_fingerprint(config)}" / f"sample{args.sample}"
     print(f"arm={args.arm} fingerprint={fp} cache={cache_dir}")
 
     from jev_mem.datasets.locomo import load_locomo_dataset
@@ -322,6 +346,10 @@ def main() -> None:
     parser.add_argument("--out-dir", default=".raw/locomo/results")
     parser.add_argument("--max-latency", type=float, default=None,
                         help="override max_latency_seconds for BOTH arms (load-shielding; disclosed)")
+    parser.add_argument("--stop-threshold", type=float, default=None,
+                        help="override evidence_sufficient_threshold (T3 stopping sweep; graph reused, never rebuilt)")
+    parser.add_argument("--continue-threshold", type=float, default=None,
+                        help="override continue_threshold (T3 stopping sweep; graph reused, never rebuilt)")
     parser.add_argument("--compare", nargs=2, metavar=("A.json", "B.json"), dest="compare_pair")
     parser.add_argument("--summary", nargs="+", metavar="results.json", dest="results_files")
     args = parser.parse_args()
