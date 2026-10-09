@@ -36,8 +36,9 @@ Smoke evidence (under load, `/tmp/137_smoke_*` — accuracy only, latency ignore
 
 Binary: rebuilt at HEAD `27ca2d9` (the `nb_pair_scale` commit `a53ce4b` is
 opt-in, default 0.0 byte-identical — verified before arming). The watcher's
-provenance guard refuses to fire if HEAD moves or `src/`/`Cargo.toml` goes
-dirty before the box quiets.
+provenance guard stamps `src/`+`Cargo.toml` at arm time and refuses to fire
+if either moves (committed or dirty) before the box quiets — docs/bench
+commits do not trip it.
 
 ## After the run
 

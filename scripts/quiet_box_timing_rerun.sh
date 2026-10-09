@@ -15,12 +15,17 @@
 #
 # Controls:
 #   <out-dir>/STOP   touch it to make the watcher exit at the next poll.
-#   ARM_SHA          required — the HEAD the target/release/harness binary
-#                    was built at. The watcher REFUSES to fire if HEAD has
-#                    moved or src/Cargo.toml is dirty since arming: the
-#                    harness stamps the RUNTIME HEAD into results.json, and
-#                    a stale binary stamping a newer sha is a provenance
-#                    lie (bench 137's arming note).
+#   <out-dir>/.armed-stamp
+#                     written at arm time: the git tree stamp of src/ + the
+#                     blob stamp of Cargo.toml the target/release/harness
+#                     binary was built against. Each poll REFUSES to fire if
+#                     the stamps moved (committed or dirty — either way the
+#                     binary no longer describes the tree, and the harness
+#                     stamps the RUNTIME HEAD into results.json: a stale
+#                     binary stamping a newer sha is a provenance lie).
+#                     Docs/bench/issue commits do NOT trip it — only a
+#                     src/ or Cargo.toml change does. Wipe the stamp (or
+#                     pass --rearm) to re-arm after a deliberate rebuild.
 #   MAX_WAIT_H       hours to wait before giving up loud (default 48).
 #   POLL_S           poll interval (default 60).
 #   MAX_ATTEMPTS     quotable-run attempts before giving up (default 3) —
@@ -36,17 +41,38 @@ if [ "$#" -lt 3 ] || [ "$2" != "--" ]; then
     exit 2
 fi
 
+rearm=0
+for a in "$@"; do
+    if [ "$a" = "--rearm" ]; then rearm=1; fi
+done
+
 OUT_DIR=$1
 shift 2
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 POLL_S=${POLL_S:-60}
 MAX_WAIT_H=${MAX_WAIT_H:-48}
 MAX_ATTEMPTS=${MAX_ATTEMPTS:-3}
-ARM_SHA=${ARM_SHA:?ARM_SHA is required — the sha the harness binary was built at (see header)}
 
 mkdir -p "$OUT_DIR"
 OUT_ABS=$(CDPATH= cd -- "$OUT_DIR" && pwd)
 PID_FILE=$OUT_ABS/watcher.pid
+STAMP_FILE=$OUT_ABS/.armed-stamp
+
+# The binary-describes-tree stamp: src/ tree hash + Cargo.toml blob hash at
+# HEAD, plus a dirty-worktree marker. Recorded once at arm time; every poll
+# re-derives it and refuses on any change.
+src_stamps() {
+    dirty=x
+    if git -C "$REPO_ROOT" diff --quiet -- src Cargo.toml; then dirty=; fi
+    printf '%s %s%s\n' "$(git -C "$REPO_ROOT" rev-parse HEAD:src)" \
+        "$(git -C "$REPO_ROOT" rev-parse HEAD:Cargo.toml)" "$dirty"
+}
+
+if [ "$rearm" = 1 ] || [ ! -f "$STAMP_FILE" ]; then
+    src_stamps > "$STAMP_FILE"
+    rm -f "$OUT_ABS/GAVE_UP"
+fi
+ARMED_STAMP=$(cat "$STAMP_FILE")
 
 if [ -e "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
     echo "refusing: a watcher is already running (pid $(cat "$PID_FILE"))" >&2
@@ -65,7 +91,7 @@ give_up() {
 
 deadline=$(( $(date +%s) + MAX_WAIT_H * 3600 ))
 attempt=1
-say "armed: out=$OUT_ABS sha=$ARM_SHA poll=${POLL_S}s max_wait=${MAX_WAIT_H}h attempts=$MAX_ATTEMPTS"
+say "armed: out=$OUT_ABS stamp=$ARMED_STAMP poll=${POLL_S}s max_wait=${MAX_WAIT_H}h attempts=$MAX_ATTEMPTS"
 say "harness args: $*"
 
 while [ "$(date +%s)" -lt "$deadline" ]; do
@@ -75,12 +101,9 @@ while [ "$(date +%s)" -lt "$deadline" ]; do
     fi
 
     # provenance guard: the binary must match the tree it will be stamped from
-    head_sha=$(git -C "$REPO_ROOT" rev-parse --short HEAD)
-    if [ "$head_sha" != "$ARM_SHA" ]; then
-        give_up "HEAD moved ($head_sha != armed $ARM_SHA) — re-arm the watcher at the new posture (rebuild, re-verify digit-match, then re-run this script)"
-    fi
-    if ! git -C "$REPO_ROOT" diff --quiet -- src Cargo.toml; then
-        give_up "src/ or Cargo.toml is dirty — the armed binary no longer describes the tree; re-arm"
+    now_stamp=$(src_stamps)
+    if [ "$now_stamp" != "$ARMED_STAMP" ]; then
+        give_up "src/ or Cargo.toml moved since arming ($now_stamp != $ARMED_STAMP) — re-arm the watcher at the new posture (rebuild, re-verify digit-match, then re-run with --rearm)"
     fi
 
     if ! (cd "$REPO_ROOT" && bash scripts/bench_preflight.sh > "$OUT_ABS/preflight.last" 2>&1); then

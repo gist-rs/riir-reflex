@@ -39,6 +39,7 @@ the chart refuses to plot them.
 
 - The watcher never publishes; it leaves the doc + a READY note.
 - `STOP` file in the bench dir cancels the watcher cleanly.
-- Provenance guard: refuses to fire if reflex HEAD moves or `src/`/`Cargo.toml`
-  goes dirty after arming (a stale binary stamping a newer sha is a
-  provenance lie) — re-arm after rebuilding + re-verifying digit-match.
+- Provenance guard: refuses to fire if reflex `src/` or `Cargo.toml` changes
+  after arming (a stale binary stamping a newer sha is a provenance lie) —
+  re-arm with `--rearm` after rebuilding + re-verifying digit-match. Docs/
+  bench commits do NOT trip it.
