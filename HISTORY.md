@@ -5,6 +5,33 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-10 — Issue 083 CLOSED: the site modelless timing graduates to quotable (bench 137's quiet-box re-read) + the vacuous-carry publisher fix
+
+**Status: Resolved.** The home chart's "timing failed the loaded-box check — re-run pending" presence row
+(`Reflex · modelless`) retired. The debt: every m3 run since the 2026-09-24 primary (`8028a10`, load 6.31>6)
+started/ended under sibling load, so each posture refresh (`f068ae6` 10-08, `0413dcd` s1mb) published acc-only
+(the `d3aeeae` load-wall convention; Issue 021's measured 12×-swing wall held every time).
+
+The re-read (bench 137, reflex `197e855`): `bench_preflight.sh` PASSED (load 2.96, AC settled, High Power),
+~11.5 min, 13/13 suites, **start load 4.0 / end load 2.5 — latency QUOTABLE both ends**; accuracies AND corpus
+digests digit-match every published cell (a pure timing attach; binary rebuilt at `197e855` after the sibling's
+`src/harness/metrics.rs` commit correctly tripped the armed watcher's src-stamp guard). The armed watcher
+(`scripts/quiet_box_timing_rerun.sh`, bench 137) proved all three behaviors live across the wait: two fired
+attempts ended unquotable when siblings returned mid-run (start 5.76 → end 11.48), then GAVE UP on a sibling's
+transient `src/` dirt — the wall and the guard both held. Published via the full `republish_bench.sh` pass
+(self-test 93/93 · chart smoke · pairing 18 · mirror parity · chromium bench-page smoke), deployed (reflex-site
+`1b78072`, wrangler `6577167f`); live: typed 0.762 ms · banking77 0.357 · sst5 0.090 · semantic_defects 0.024,
+areas timing `p50_geomean 0.1572 ms, n_used 9, n_unquotable 0`.
+
+The publish surfaced a **publisher defect, fixed same day** (reflex-site `1b78072`): an acc-only-stripped
+incumbent owns NO timing cells, so LANE-CARRY had nothing to donate — but `apply_lane_carry` fired anyway,
+popping the update's own `latency_quotable: true` and stamping a false `latency_provenance` note. The
+Issue-003 T2 suppression cannot see this shape (it checks the incumbent's verdict `is False`; a stripped
+incumbent's verdict is ABSENT). Fix: the vacuous-carry guard (`not any(k in src_lane for k in
+LANE_LATENCY_FIELDS)` → skip) + self-test `case_stripped_incumbent_cannot_vacuously_carry` (93/93 green,
+prove-fires with the guard removed). Remaining acc-only timing debt on the board: the pplx lane (the
+bench-131 law — its own quiet-box re-read).
+
 ## 2026-10-09 — Issue 081 CLOSED: the Jev-Mem System-One backend lane — zero-fork T1 adapter live, T2 parity-plus at −21% work, the stopping lever measured CLOSED on this substrate (T2b/T2c); T4 declined by the owner
 
 **Status: Resolved.** The lane's full arc (Benches 133/134/135/136, reflex `a53ce4b`+`a3ba564`): T1 landed the native

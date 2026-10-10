@@ -1,0 +1,6212 @@
+{
+  "meta": {
+    "date_utc": "2026-10-10T06:52:15Z",
+    "git_sha": "197e855",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved; --drafter-fix per_byte: the drafter-only correction mode armed (issue 079 tuning axis; EngineConfig::drafter_fix, issue 036 T2)",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 4.0,
+        "swap_used_mb": 2404.75,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 2.5,
+        "swap_used_mb": 2380.75,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "ON — cal-selected per suite (scale 0/1/4/16/32/64 × α observed-laplace/fixed-1, promotion bar +5 pt over off on the stratified slice; + noul polarity per domain on noul suites; + bag/pair view on multi-field states; count tables from TRAIN rows only, uncapped). Transductive column: TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc",
+    "oc_posture": "ON — cal-selected per suite (scale 0/0.25/0.5/1/2/4/8, promotion bar +5 pt over off on the stratified slice; one contrastive table per (question id, gold option) from the TRAIN rows, events filtered to the corpus pool; every question kind armed — typed_decisions is the target suite)",
+    "ridge_posture": "ON — cal-selected per suite (scale 0/0.5/1/2/4/8 × λ 10 fixed, promotion bar +5 pt over off on the stratified slice; NBSVM closed-form ridge, k=2048, per-class NB log-count ratios, fit-time self-calibrated margin temperature)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects, code_fixtures): in-process fixtures with programmatic gold; the six Issue-004 harness families were retired 2026-10-02 (owner call — at-chance on the modelless lane at the honest populations)"
+    ]
+  },
+  "suites": [
+    {
+      "name": "s1mb_choice",
+      "n_cases": 4329,
+      "n_questions": 4329,
+      "cases_digest": "fnv1a64-46281107df052d0e",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 4329,
+          "accuracy": 0.22961422961422961,
+          "macro_f1": 0.05728477985464882,
+          "ece": 0.04368157599910449,
+          "brier": 0.7720725868820079,
+          "nll": 1.843002186277205,
+          "aurc": 0.6642965880999749,
+          "mean_confidence": 0.24446859121964598,
+          "acc_at_50_coverage": 0.3202402957486137,
+          "acc_at_80_coverage": 0.2682645105399942
+        },
+        "readout_ece": 0.20603674965280053,
+        "readout_brier": 0.22520657170020122,
+        "raw_abstain": {
+          "abstain_rate": 0.7803187803187803,
+          "selective_accuracy": 0.138801261829653,
+          "selective_n": 951
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.7803187803187803,
+          "selective_accuracy": 0.138801261829653,
+          "selective_n": 951
+        },
+        "abstain_causes": {
+          "score_gate": 2686,
+          "distance_gate": 692,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.20603674965280053,
+        "readout_ece_calibrated": 0.20603674965280053,
+        "floor_ece": 0.40613977927410666,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.373,
+        "latency_p99_ms": 1.819,
+        "latency_tail_support": 44,
+        "latency_extremes": {
+          "first_ms": 0.432,
+          "max_ms": 9.735,
+          "argmax_case": 351
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 558.808362584,
+        "n_cases": 4329,
+        "n_questions": 4329,
+        "score_threshold": 0.010039693,
+        "distance_threshold": 0.5756306,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.010039693,
+            "status": "fitted",
+            "targetAccuracy": 0.15,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.5756306,
+            "status": "fitted",
+            "targetAccuracy": 0.16428572,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 16,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.155
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.185
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.18
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.175
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.175
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.18
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.17
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.175
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.165
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.16
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.16
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.155
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.17
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.19
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.195
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.185
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.195
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "not_mentioned",
+            "pred": "contradiction",
+            "count": 312,
+            "share_of_errors": 0.09355322338830585
+          },
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 257,
+            "share_of_errors": 0.07706146926536732
+          },
+          {
+            "gold": "not_mentioned",
+            "pred": "entailment",
+            "count": 108,
+            "share_of_errors": 0.032383808095952024
+          },
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 80,
+            "share_of_errors": 0.0239880059970015
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 61,
+            "share_of_errors": 0.018290854572713643
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 53,
+            "share_of_errors": 0.015892053973013492
+          },
+          {
+            "gold": "option_1",
+            "pred": "option_0",
+            "count": 53,
+            "share_of_errors": 0.015892053973013492
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 46,
+            "share_of_errors": 0.013793103448275862
+          },
+          {
+            "gold": "option_2",
+            "pred": "option_3",
+            "count": 26,
+            "share_of_errors": 0.007796101949025487
+          },
+          {
+            "gold": "A",
+            "pred": "B",
+            "count": 25,
+            "share_of_errors": 0.0074962518740629685
+          },
+          {
+            "gold": "2",
+            "pred": "3",
+            "count": 24,
+            "share_of_errors": 0.00719640179910045
+          },
+          {
+            "gold": "option_0",
+            "pred": "option_1",
+            "count": 22,
+            "share_of_errors": 0.006596701649175412
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.23331023331023332,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.13536291792988778
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.09499485112726685
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.15231328934431076
+            }
+          ]
+        },
+        "corpus_fallbacks": [
+          "getting_spare_card",
+          "verify_my_identity",
+          "virtual_card_not_working",
+          "disposable_card_limits",
+          "reverted_card_payment?",
+          "pending_cash_withdrawal",
+          "get_physical_card",
+          "lost_or_stolen_card",
+          "top_up_by_card_charge",
+          "extra_charge_on_statement",
+          "automatic_top_up",
+          "get_disposable_virtual_card",
+          "transfer_not_received_by_recipient",
+          "request_refund",
+          "pending_card_payment",
+          "declined_transfer",
+          "age_limit",
+          "card_payment_fee_charged",
+          "verify_source_of_funds",
+          "declined_card_payment",
+          "card_payment_wrong_exchange_rate",
+          "wrong_amount_of_cash_received",
+          "atm_support",
+          "transaction_charged_twice",
+          "wrong_exchange_rate_for_cash_withdrawal",
+          "supported_cards_and_currencies",
+          "balance_not_updated_after_bank_transfer",
+          "card_swallowed",
+          "failed_transfer",
+          "cancel_transfer",
+          "direct_debit_payment_not_recognised",
+          "top_up_limits",
+          "exchange_via_app",
+          "passcode_forgotten",
+          "top_up_by_cash_or_cheque",
+          "top_up_by_bank_transfer_charge",
+          "beneficiary_not_allowed",
+          "compromised_card",
+          "unable_to_verify_identity",
+          "card_not_working",
+          "exchange_rate",
+          "card_payment_not_recognised",
+          "transfer_into_account",
+          "cash_withdrawal_charge",
+          "card_arrival",
+          "card_acceptance",
+          "activate_my_card",
+          "transfer_timing",
+          "terminate_account",
+          "topping_up_by_card",
+          "cash_withdrawal_not_recognised",
+          "getting_virtual_card",
+          "country_support",
+          "Refund_not_showing_up",
+          "balance_not_updated_after_cheque_or_cash_deposit",
+          "change_pin",
+          "pending_transfer",
+          "edit_personal_details",
+          "verify_top_up",
+          "pending_top_up",
+          "why_verify_identity",
+          "card_about_to_expire",
+          "exchange_charge",
+          "transfer_fee_charged",
+          "top_up_failed",
+          "fiat_currency_support",
+          "card_delivery_estimate",
+          "rewards_balance",
+          "translate",
+          "cancel",
+          "maybe",
+          "restaurant_reviews",
+          "repeat",
+          "todo_list",
+          "flight_status",
+          "last_maintenance",
+          "pto_balance",
+          "directions",
+          "restaurant_reservation",
+          "confirm_reservation",
+          "order_status",
+          "tell_joke",
+          "oos",
+          "calculator",
+          "gas_type",
+          "travel_suggestion",
+          "share_location",
+          "shopping_list",
+          "change_language",
+          "timezone",
+          "yes",
+          "book_flight",
+          "payday",
+          "no",
+          "meeting_schedule",
+          "do_you_have_pets",
+          "order",
+          "credit_limit_change",
+          "recipe",
+          "calendar_update",
+          "improve_credit_score",
+          "pin_change",
+          "update_playlist",
+          "cancel_reservation",
+          "date",
+          "measurement_conversion",
+          "definition",
+          "oil_change_how",
+          "whisper_mode",
+          "flip_coin",
+          "find_phone",
+          "todo_list_update",
+          "redeem_rewards",
+          "change_user_name",
+          "change_ai_name",
+          "min_payment",
+          "spelling",
+          "how_busy",
+          "change_accent",
+          "schedule_meeting",
+          "food_last",
+          "international_fees",
+          "book_hotel",
+          "where_are_you_from",
+          "change_volume",
+          "are_you_a_bot",
+          "tire_change",
+          "ingredients_list",
+          "current_location",
+          "goodbye",
+          "insurance_change",
+          "w2",
+          "pto_used",
+          "new_card",
+          "traffic",
+          "balance",
+          "fun_fact",
+          "ingredient_substitution",
+          "transfer",
+          "freeze_account",
+          "schedule_maintenance",
+          "thank_you",
+          "what_is_your_name",
+          "gas",
+          "vaccines",
+          "accept_reservations",
+          "transactions",
+          "cook_time",
+          "distance",
+          "routing",
+          "report_lost_card",
+          "next_song",
+          "carry_on",
+          "what_song",
+          "travel_notification",
+          "apr",
+          "nutrition_info",
+          "who_made_you",
+          "next_holiday",
+          "bill_balance",
+          "reminder_update",
+          "how_old_are_you",
+          "mpg",
+          "rollover_401k",
+          "account_blocked",
+          "plug_type",
+          "card_declined",
+          "smart_home",
+          "meal_suggestion",
+          "direct_deposit",
+          "sync_device",
+          "pay_bill",
+          "uber",
+          "pto_request_status",
+          "taxes",
+          "order_checks",
+          "greeting",
+          "income",
+          "spending_history",
+          "calories",
+          "reset_settings",
+          "expiration_date",
+          "tire_pressure",
+          "meaning_of_life",
+          "make_call",
+          "insurance",
+          "restaurant_suggestion",
+          "interest_rate",
+          "credit_limit",
+          "bill_due",
+          "who_do_you_work_for",
+          "report_fraud",
+          "roll_dice",
+          "change_speed",
+          "damaged_card",
+          "shopping_list_update",
+          "what_are_your_hobbies",
+          "lost_luggage",
+          "oil_change_when",
+          "text",
+          "travel_alert",
+          "car_rental",
+          "international_visa",
+          "application_status",
+          "jump_start",
+          "credit_score",
+          "what_can_i_ask_you",
+          "replacement_card_duration",
+          "pto_request",
+          "national_id",
+          "company_name",
+          "account_number",
+          "password",
+          "url",
+          "-47",
+          "-4",
+          "14",
+          "34",
+          "24",
+          "5760",
+          "5756",
+          "5750",
+          "5765",
+          "33",
+          "-2",
+          "8",
+          "12",
+          "29",
+          "16",
+          "52",
+          "-5",
+          "17",
+          "72",
+          "80",
+          "78",
+          "103",
+          "98",
+          "48",
+          "200",
+          "150",
+          "180",
+          "196",
+          "64",
+          "114",
+          "59",
+          "84",
+          "38",
+          "63",
+          "43",
+          "32",
+          "21",
+          "20",
+          "-18",
+          "27",
+          "149",
+          "197",
+          "172",
+          "147",
+          "88",
+          "93",
+          "-1",
+          "-3",
+          "350",
+          "397",
+          "400",
+          "375",
+          "248",
+          "254",
+          "255",
+          "251",
+          "6580",
+          "6598",
+          "6600",
+          "6593",
+          "293",
+          "305",
+          "288",
+          "13997",
+          "14000",
+          "13993",
+          "14007",
+          "-33",
+          "475",
+          "504",
+          "501",
+          "500",
+          "11",
+          "40",
+          "90",
+          "70",
+          "89",
+          "1198",
+          "1194",
+          "1202",
+          "1173",
+          "297",
+          "310",
+          "-15",
+          "-10",
+          "71",
+          "121",
+          "-21",
+          "36",
+          "122",
+          "128",
+          "125",
+          "190",
+          "207",
+          "47",
+          "39",
+          "92",
+          "130",
+          "76",
+          "195",
+          "41",
+          "46",
+          "283",
+          "273",
+          "44",
+          "18",
+          "-8",
+          "62",
+          "5",
+          "55",
+          "play game",
+          "iot coffee",
+          "transport traffic",
+          "calendar query",
+          "qa factoid",
+          "play audiobook",
+          "iot cleaning",
+          "alarm remove",
+          "general negate",
+          "recommendation events",
+          "alarm set",
+          "play podcasts",
+          "transport query",
+          "general commandstop",
+          "iot wemo off",
+          "music settings",
+          "general explain",
+          "lists query",
+          "general joke",
+          "iot hue lightup",
+          "email query",
+          "takeaway query",
+          "play radio",
+          "lists remove",
+          "music query",
+          "recommendation movies",
+          "close_no_action",
+          "delivery",
+          "stop",
+          "harmful",
+          "qa_stock",
+          "recommendation_movies",
+          "audio_volume_up",
+          "play_audiobook",
+          "recommendation_locations",
+          "cooking_recipe",
+          "datetime_convert",
+          "cooking_query",
+          "qa_currency",
+          "weather_query",
+          "music_query",
+          "iot_hue_lightdim",
+          "iot_hue_lightup",
+          "qa_definition",
+          "audio_volume_down",
+          "general_greet",
+          "iot_hue_lightoff",
+          "alarm_set",
+          "general_quirky",
+          "play_podcasts",
+          "email_addcontact",
+          "cooking",
+          "IN:LIKE_MUSIC",
+          "IN:GET_RECIPES",
+          "IN:GET_TIMER",
+          "IN:CREATE_PLAYLIST_MUSIC",
+          "IN:PAUSE_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_CALLING",
+          "IN:SWITCH_CALL",
+          "IN:SET_UNAVAILABLE",
+          "IN:GET_EDUCATION_DEGREE",
+          "IN:GET_MAJOR",
+          "IN:GET_TRACK_INFO_MUSIC",
+          "IN:GET_ATTENDEE_EVENT",
+          "IN:UPDATE_METHOD_CALL",
+          "IN:GET_AVAILABILITY",
+          "IN:GET_EMPLOYMENT_TIME",
+          "IN:GET_REMINDER_DATE_TIME",
+          "IN:CREATE_REMINDER",
+          "IN:SKIP_TRACK_MUSIC",
+          "IN:GET_AGE",
+          "IN:GET_LIFE_EVENT",
+          "IN:STOP_SHUFFLE_MUSIC",
+          "IN:GET_CALL",
+          "IN:MERGE_CALL",
+          "IN:DELETE_ALARM",
+          "IN:UNLOOP_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_MUSIC",
+          "IN:RESUME_CALL",
+          "IN:CREATE_CALL",
+          "IN:GET_CALL_TIME",
+          "IN:GET_CONTACT_METHOD",
+          "IN:GET_UNDERGRAD",
+          "IN:GET_GENDER",
+          "IN:SHARE_EVENT",
+          "IN:RESTART_TIMER",
+          "IN:SET_RSVP_INTERESTED",
+          "IN:QUESTION_NEWS",
+          "IN:GET_DETAILS_NEWS",
+          "IN:ADD_TIME_TIMER",
+          "IN:GET_MESSAGE_CONTACT",
+          "IN:ANSWER_CALL",
+          "IN:SET_AVAILABLE",
+          "IN:UPDATE_REMINDER_LOCATION",
+          "IN:REMOVE_FROM_PLAYLIST_MUSIC",
+          "IN:PLAY_MEDIA",
+          "IN:HOLD_CALL",
+          "IN:GET_STORIES_NEWS",
+          "IN:GET_EVENT",
+          "IN:FOLLOW_MUSIC",
+          "IN:GET_AIRQUALITY",
+          "IN:CANCEL_CALL",
+          "IN:GET_REMINDER_AMOUNT",
+          "IN:GET_WEATHER",
+          "IN:UPDATE_REMINDER_DATE_TIME",
+          "IN:CANCEL_MESSAGE",
+          "IN:IS_TRUE_RECIPES",
+          "IN:GET_GROUP",
+          "IN:PAUSE_TIMER",
+          "IN:DISPREFER",
+          "IN:CREATE_TIMER",
+          "option_9",
+          "option_10",
+          "option_11",
+          "option_12",
+          "option_13",
+          "option_14",
+          "option_15",
+          "mixed",
+          "SearchHotel",
+          "MakePayment",
+          "RequestPayment",
+          "GetTimesForMovie",
+          "BuyMovieTickets",
+          "FindRestaurants",
+          "SearchHouse",
+          "SearchOnewayFlight",
+          "LookupMusic",
+          "AddAlarm",
+          "GetWeather",
+          "GetRide",
+          "ShareLocation",
+          "teacher",
+          "supervisor",
+          "clerk",
+          "lawyer",
+          "baker",
+          "carpenter",
+          "developer",
+          "auditor"
+        ],
+        "corpus_digest": "fnv1a64-e5cf849bd33ea8e1"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 4330,
+        "n_cal": 200,
+        "n_pool": 4130,
+        "test_digest": "fnv1a64-3d5a30a2826dd8dc",
+        "cal_digest": "fnv1a64-4366c2ff02074485",
+        "pool_digest": "fnv1a64-7c46a2ccb379573c",
+        "missing_test_labels": [
+          "getting_spare_card",
+          "verify_my_identity",
+          "reverted_card_payment?",
+          "apple_pay_or_google_pay",
+          "get_physical_card",
+          "lost_or_stolen_card",
+          "top_up_by_card_charge",
+          "extra_charge_on_statement",
+          "get_disposable_virtual_card",
+          "transfer_not_received_by_recipient",
+          "receiving_money",
+          "declined_transfer",
+          "age_limit",
+          "wrong_amount_of_cash_received",
+          "atm_support",
+          "transaction_charged_twice",
+          "card_swallowed",
+          "direct_debit_payment_not_recognised",
+          "top_up_limits",
+          "exchange_via_app",
+          "passcode_forgotten",
+          "top_up_reverted",
+          "compromised_card",
+          "unable_to_verify_identity",
+          "order_physical_card",
+          "card_not_working",
+          "contactless_not_working",
+          "visa_or_mastercard",
+          "card_arrival",
+          "card_acceptance",
+          "activate_my_card",
+          "transfer_timing",
+          "terminate_account",
+          "topping_up_by_card",
+          "cash_withdrawal_not_recognised",
+          "country_support",
+          "balance_not_updated_after_cheque_or_cash_deposit",
+          "change_pin",
+          "edit_personal_details",
+          "verify_top_up",
+          "pin_blocked",
+          "top_up_failed",
+          "declined_cash_withdrawal",
+          "card_linking",
+          "lost_or_stolen_phone",
+          "rewards_balance",
+          "maybe",
+          "restaurant_reviews",
+          "repeat",
+          "flight_status",
+          "restaurant_reservation",
+          "tell_joke",
+          "gas_type",
+          "share_location",
+          "no",
+          "meeting_schedule",
+          "do_you_have_pets",
+          "order",
+          "recipe",
+          "date",
+          "measurement_conversion",
+          "definition",
+          "oil_change_how",
+          "whisper_mode",
+          "todo_list_update",
+          "change_user_name",
+          "how_busy",
+          "change_accent",
+          "food_last",
+          "where_are_you_from",
+          "change_volume",
+          "are_you_a_bot",
+          "tire_change",
+          "ingredients_list",
+          "w2",
+          "pto_used",
+          "traffic",
+          "balance",
+          "ingredient_substitution",
+          "thank_you",
+          "what_is_your_name",
+          "accept_reservations",
+          "transactions",
+          "cook_time",
+          "routing",
+          "report_lost_card",
+          "next_song",
+          "carry_on",
+          "what_song",
+          "apr",
+          "nutrition_info",
+          "reminder_update",
+          "mpg",
+          "account_blocked",
+          "plug_type",
+          "card_declined",
+          "smart_home",
+          "meal_suggestion",
+          "pay_bill",
+          "pto_request_status",
+          "taxes",
+          "greeting",
+          "spending_history",
+          "calories",
+          "expiration_date",
+          "tire_pressure",
+          "credit_limit",
+          "report_fraud",
+          "change_speed",
+          "shopping_list_update",
+          "oil_change_when",
+          "travel_alert",
+          "car_rental",
+          "jump_start",
+          "credit_score",
+          "pto_request",
+          "health_plan_beneficiary_number",
+          "-47",
+          "-4",
+          "74",
+          "28",
+          "5756",
+          "5750",
+          "5765",
+          "15",
+          "-2",
+          "19",
+          "13",
+          "29",
+          "16",
+          "52",
+          "22",
+          "-5",
+          "72",
+          "78",
+          "103",
+          "48",
+          "150",
+          "180",
+          "196",
+          "114",
+          "59",
+          "84",
+          "63",
+          "21",
+          "-18",
+          "7",
+          "149",
+          "197",
+          "172",
+          "88",
+          "93",
+          "-1",
+          "-3",
+          "350",
+          "397",
+          "375",
+          "248",
+          "254",
+          "251",
+          "6580",
+          "6598",
+          "6593",
+          "293",
+          "305",
+          "288",
+          "13997",
+          "13993",
+          "14007",
+          "-33",
+          "475",
+          "504",
+          "501",
+          "26",
+          "40",
+          "70",
+          "89",
+          "1194",
+          "1202",
+          "1173",
+          "297",
+          "310",
+          "-15",
+          "-10",
+          "121",
+          "-21",
+          "36",
+          "31",
+          "122",
+          "128",
+          "45",
+          "190",
+          "207",
+          "47",
+          "39",
+          "92",
+          "130",
+          "76",
+          "41",
+          "50",
+          "46",
+          "283",
+          "273",
+          "44",
+          "18",
+          "-8",
+          "62",
+          "30",
+          "55",
+          "iot hue lightchange",
+          "cooking recipe",
+          "social post",
+          "weather query",
+          "transport taxi",
+          "general quirky",
+          "music likeness",
+          "qa currency",
+          "social query",
+          "play music",
+          "email sendemail",
+          "email querycontact",
+          "qa stock",
+          "general confirm",
+          "general repeat",
+          "iot hue lighton",
+          "news query",
+          "qa maths",
+          "qa definition",
+          "general praise",
+          "email addcontact",
+          "close_benign",
+          "close_no_action",
+          "failure",
+          "iot_wemo_off",
+          "play_radio",
+          "iot_hue_lightchange",
+          "cooking_query",
+          "lists_remove",
+          "takeaway_query",
+          "transport_traffic",
+          "email_sendemail",
+          "transport_query",
+          "qa_factoid",
+          "calendar_query",
+          "calendar_set",
+          "news_query",
+          "audio_volume_other",
+          "transport_ticket",
+          "iot_wemo_on",
+          "email_query",
+          "music_likeness",
+          "IN:GET_SUNSET",
+          "IN:GET_REMINDER_LOCATION",
+          "IN:PLAY_MUSIC",
+          "IN:REPEAT_ALL_MUSIC",
+          "IN:UPDATE_ALARM",
+          "IN:DELETE_REMINDER",
+          "IN:SUBTRACT_TIME_TIMER",
+          "IN:UPDATE_REMINDER_TODO",
+          "IN:GET_MAJOR",
+          "IN:DELETE_PLAYLIST_MUSIC",
+          "IN:RESUME_TIMER",
+          "IN:GET_SUNRISE",
+          "IN:CREATE_REMINDER",
+          "IN:GET_REMINDER",
+          "IN:SET_RSVP_YES",
+          "IN:FAST_FORWARD_MUSIC",
+          "IN:STOP_SHUFFLE_MUSIC",
+          "IN:GET_DATE_TIME_EVENT",
+          "IN:REWIND_MUSIC",
+          "IN:MERGE_CALL",
+          "IN:REPEAT_ALL_OFF_MUSIC",
+          "IN:GET_CALL_CONTACT",
+          "IN:UNLOOP_MUSIC",
+          "IN:RESUME_CALL",
+          "IN:CREATE_CALL",
+          "IN:START_SHUFFLE_MUSIC",
+          "IN:END_CALL",
+          "IN:GET_LANGUAGE",
+          "IN:GET_GENDER",
+          "IN:GET_MESSAGE",
+          "IN:IGNORE_CALL",
+          "IN:DISLIKE_MUSIC",
+          "IN:GET_INFO_RECIPES",
+          "IN:QUESTION_MUSIC",
+          "IN:GET_JOB",
+          "IN:PREVIOUS_TRACK_MUSIC",
+          "IN:SEND_MESSAGE",
+          "IN:GET_EMPLOYER",
+          "IN:GET_MUTUAL_FRIENDS",
+          "IN:SILENCE_ALARM",
+          "IN:UPDATE_REMINDER",
+          "IN:RESUME_MUSIC",
+          "IN:GET_CATEGORY_EVENT",
+          "IN:HELP_REMINDER",
+          "IN:REPLAY_MUSIC",
+          "IN:CREATE_ALARM",
+          "IN:FOLLOW_MUSIC",
+          "IN:GET_AIRQUALITY",
+          "IN:GET_LYRICS_MUSIC",
+          "IN:CANCEL_CALL",
+          "IN:PREFER",
+          "IN:UPDATE_TIMER",
+          "IN:GET_INFO_CONTACT",
+          "IN:SNOOZE_ALARM",
+          "IN:DELETE_TIMER",
+          "IN:GET_LIFE_EVENT_TIME",
+          "IN:SET_RSVP_NO",
+          "IN:GET_LOCATION",
+          "IN:GET_CONTACT",
+          "IN:ADD_TO_PLAYLIST_MUSIC",
+          "IN:GET_GROUP",
+          "IN:GET_ALARM",
+          "IN:DISPREFER",
+          "IN:UPDATE_CALL",
+          "IN:LOOP_MUSIC",
+          "IN:GET_EDUCATION_TIME",
+          "IN:STOP_MUSIC",
+          "option_9",
+          "option_10",
+          "option_11",
+          "option_12",
+          "option_13",
+          "option_14",
+          "option_15",
+          "mixed",
+          "ReserveHotel",
+          "FindMovies",
+          "PlayMovie",
+          "BookHouse",
+          "GetAlarms",
+          "ReserveCar",
+          "GetCarsAvailable",
+          "ScheduleVisit",
+          "FindHomeByArea",
+          "hairdresser",
+          "nurse",
+          "assistant",
+          "clerk",
+          "editor",
+          "designer"
+        ],
+        "missing_cal_labels": [
+          "virtual_card_not_working",
+          "disposable_card_limits",
+          "pending_cash_withdrawal",
+          "pending_card_payment",
+          "verify_source_of_funds",
+          "declined_card_payment",
+          "card_payment_wrong_exchange_rate",
+          "wrong_exchange_rate_for_cash_withdrawal",
+          "balance_not_updated_after_bank_transfer",
+          "failed_transfer",
+          "cancel_transfer",
+          "top_up_by_bank_transfer_charge",
+          "beneficiary_not_allowed",
+          "card_payment_not_recognised",
+          "transfer_into_account",
+          "cash_withdrawal_charge",
+          "Refund_not_showing_up",
+          "pending_top_up",
+          "card_about_to_expire",
+          "exchange_charge",
+          "transfer_fee_charged",
+          "fiat_currency_support",
+          "card_delivery_estimate",
+          "translate",
+          "cancel",
+          "todo_list",
+          "last_maintenance",
+          "pto_balance",
+          "directions",
+          "confirm_reservation",
+          "order_status",
+          "play_music",
+          "oos",
+          "calculator",
+          "travel_suggestion",
+          "shopping_list",
+          "change_language",
+          "timezone",
+          "yes",
+          "book_flight",
+          "payday",
+          "credit_limit_change",
+          "calendar_update",
+          "improve_credit_score",
+          "pin_change",
+          "update_playlist",
+          "cancel_reservation",
+          "time",
+          "flip_coin",
+          "find_phone",
+          "redeem_rewards",
+          "change_ai_name",
+          "min_payment",
+          "spelling",
+          "schedule_meeting",
+          "international_fees",
+          "reminder",
+          "book_hotel",
+          "current_location",
+          "goodbye",
+          "insurance_change",
+          "new_card",
+          "fun_fact",
+          "transfer",
+          "freeze_account",
+          "schedule_maintenance",
+          "gas",
+          "vaccines",
+          "distance",
+          "travel_notification",
+          "who_made_you",
+          "next_holiday",
+          "bill_balance",
+          "how_old_are_you",
+          "rollover_401k",
+          "direct_deposit",
+          "sync_device",
+          "uber",
+          "order_checks",
+          "alarm",
+          "income",
+          "reset_settings",
+          "meaning_of_life",
+          "make_call",
+          "insurance",
+          "restaurant_suggestion",
+          "interest_rate",
+          "bill_due",
+          "who_do_you_work_for",
+          "roll_dice",
+          "damaged_card",
+          "what_are_your_hobbies",
+          "lost_luggage",
+          "text",
+          "international_visa",
+          "application_status",
+          "what_can_i_ask_you",
+          "replacement_card_duration",
+          "bank_routing_number",
+          "company_name",
+          "swift_bic",
+          "cvv",
+          "account_number",
+          "postcode",
+          "ipv6",
+          "unique_identifier",
+          "pin",
+          "coordinate",
+          "url",
+          "date_time",
+          "-47",
+          "-4",
+          "14",
+          "34",
+          "74",
+          "24",
+          "28",
+          "5760",
+          "5756",
+          "5750",
+          "5765",
+          "15",
+          "33",
+          "-2",
+          "8",
+          "12",
+          "19",
+          "13",
+          "29",
+          "9",
+          "16",
+          "52",
+          "22",
+          "-5",
+          "17",
+          "72",
+          "80",
+          "75",
+          "78",
+          "103",
+          "98",
+          "48",
+          "200",
+          "150",
+          "180",
+          "196",
+          "64",
+          "114",
+          "59",
+          "84",
+          "38",
+          "63",
+          "43",
+          "32",
+          "21",
+          "20",
+          "-18",
+          "27",
+          "7",
+          "149",
+          "197",
+          "172",
+          "147",
+          "100",
+          "88",
+          "93",
+          "-1",
+          "10",
+          "6",
+          "-3",
+          "350",
+          "397",
+          "400",
+          "375",
+          "248",
+          "254",
+          "255",
+          "251",
+          "6580",
+          "6598",
+          "6600",
+          "6593",
+          "293",
+          "305",
+          "288",
+          "300",
+          "13997",
+          "14000",
+          "13993",
+          "14007",
+          "-33",
+          "475",
+          "504",
+          "501",
+          "500",
+          "26",
+          "11",
+          "40",
+          "90",
+          "70",
+          "89",
+          "1198",
+          "1194",
+          "1202",
+          "1173",
+          "297",
+          "310",
+          "-15",
+          "-10",
+          "71",
+          "121",
+          "-21",
+          "36",
+          "31",
+          "122",
+          "128",
+          "125",
+          "45",
+          "190",
+          "207",
+          "47",
+          "39",
+          "92",
+          "130",
+          "76",
+          "195",
+          "41",
+          "50",
+          "46",
+          "280",
+          "283",
+          "273",
+          "44",
+          "18",
+          "-8",
+          "62",
+          "30",
+          "5",
+          "55",
+          "play game",
+          "iot wemo on",
+          "iot coffee",
+          "iot hue lightchange",
+          "audio volume mute",
+          "transport traffic",
+          "calendar query",
+          "qa factoid",
+          "cooking recipe",
+          "play audiobook",
+          "iot cleaning",
+          "social post",
+          "weather query",
+          "transport taxi",
+          "alarm remove",
+          "iot hue lightdim",
+          "general quirky",
+          "music likeness",
+          "general negate",
+          "alarm query",
+          "recommendation events",
+          "qa currency",
+          "social query",
+          "audio volume up",
+          "general affirm",
+          "datetime query",
+          "play music",
+          "alarm set",
+          "email sendemail",
+          "lists createoradd",
+          "datetime convert",
+          "play podcasts",
+          "calendar set",
+          "transport query",
+          "general dontcare",
+          "email querycontact",
+          "qa stock",
+          "general commandstop",
+          "iot wemo off",
+          "general confirm",
+          "general repeat",
+          "music settings",
+          "general explain",
+          "lists query",
+          "recommendation locations",
+          "general joke",
+          "iot hue lightup",
+          "iot hue lightoff",
+          "iot hue lighton",
+          "news query",
+          "audio volume down",
+          "email query",
+          "qa maths",
+          "takeaway query",
+          "qa definition",
+          "general praise",
+          "takeaway order",
+          "play radio",
+          "lists remove",
+          "calendar remove",
+          "music query",
+          "recommendation movies",
+          "email addcontact",
+          "transport ticket",
+          "world",
+          "business",
+          "sci_tech",
+          "sports",
+          "monitor",
+          "contain",
+          "close_benign",
+          "investigate",
+          "hold",
+          "reject",
+          "approve",
+          "manual_review",
+          "request_information",
+          "answer_directly",
+          "escalate_to_human",
+          "close_no_action",
+          "execute_refund",
+          "technical",
+          "account",
+          "delivery",
+          "refund",
+          "billing",
+          "observe",
+          "stop",
+          "continue",
+          "human_review",
+          "partial",
+          "success",
+          "harmful",
+          "failure",
+          "iot_wemo_off",
+          "qa_stock",
+          "qa_maths",
+          "recommendation_movies",
+          "audio_volume_up",
+          "play_audiobook",
+          "recommendation_locations",
+          "cooking_recipe",
+          "takeaway_order",
+          "play_radio",
+          "iot_hue_lightchange",
+          "datetime_convert",
+          "general_joke",
+          "cooking_query",
+          "qa_currency",
+          "lists_remove",
+          "takeaway_query",
+          "weather_query",
+          "transport_traffic",
+          "music_dislikeness",
+          "music_query",
+          "iot_hue_lightdim",
+          "email_sendemail",
+          "iot_hue_lightup",
+          "transport_query",
+          "social_query",
+          "qa_factoid",
+          "email_querycontact",
+          "qa_definition",
+          "calendar_query",
+          "iot_hue_lighton",
+          "audio_volume_down",
+          "lists_query",
+          "calendar_set",
+          "social_post",
+          "news_query",
+          "audio_volume_other",
+          "alarm_remove",
+          "transport_ticket",
+          "iot_coffee",
+          "general_greet",
+          "iot_hue_lightoff",
+          "iot_wemo_on",
+          "play_game",
+          "alarm_set",
+          "email_query",
+          "datetime_query",
+          "alarm_query",
+          "calendar_remove",
+          "music_settings",
+          "iot_cleaning",
+          "music_likeness",
+          "transport_taxi",
+          "general_quirky",
+          "play_podcasts",
+          "lists_createoradd",
+          "email_addcontact",
+          "audio_volume_mute",
+          "recommendation_events",
+          "recommendation",
+          "transport",
+          "news",
+          "play",
+          "lists",
+          "iot",
+          "datetime",
+          "music",
+          "qa",
+          "general",
+          "social",
+          "takeaway",
+          "cooking",
+          "audio",
+          "a",
+          "b",
+          "messaging",
+          "people",
+          "calling",
+          "recipes",
+          "IN:GET_SUNSET",
+          "IN:LIKE_MUSIC",
+          "IN:GET_REMINDER_LOCATION",
+          "IN:GET_RECIPES",
+          "IN:PLAY_MUSIC",
+          "IN:REPEAT_ALL_MUSIC",
+          "IN:UPDATE_ALARM",
+          "IN:GET_TIMER",
+          "IN:CREATE_PLAYLIST_MUSIC",
+          "IN:DELETE_REMINDER",
+          "IN:PAUSE_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_CALLING",
+          "IN:SWITCH_CALL",
+          "IN:SET_UNAVAILABLE",
+          "IN:GET_EDUCATION_DEGREE",
+          "IN:SUBTRACT_TIME_TIMER",
+          "IN:UPDATE_REMINDER_TODO",
+          "IN:GET_MAJOR",
+          "IN:GET_TRACK_INFO_MUSIC",
+          "IN:GET_ATTENDEE_EVENT",
+          "IN:UPDATE_METHOD_CALL",
+          "IN:DELETE_PLAYLIST_MUSIC",
+          "IN:GET_AVAILABILITY",
+          "IN:RESUME_TIMER",
+          "IN:GET_SUNRISE",
+          "IN:GET_EMPLOYMENT_TIME",
+          "IN:GET_REMINDER_DATE_TIME",
+          "IN:CREATE_REMINDER",
+          "IN:SKIP_TRACK_MUSIC",
+          "IN:GET_REMINDER",
+          "IN:SET_RSVP_YES",
+          "IN:GET_AGE",
+          "IN:GET_LIFE_EVENT",
+          "IN:FAST_FORWARD_MUSIC",
+          "IN:STOP_SHUFFLE_MUSIC",
+          "IN:GET_DATE_TIME_EVENT",
+          "IN:GET_CALL",
+          "IN:REWIND_MUSIC",
+          "IN:MERGE_CALL",
+          "IN:DELETE_ALARM",
+          "IN:REPEAT_ALL_OFF_MUSIC",
+          "IN:GET_CALL_CONTACT",
+          "IN:UNLOOP_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_MUSIC",
+          "IN:RESUME_CALL",
+          "IN:CREATE_CALL",
+          "IN:START_SHUFFLE_MUSIC",
+          "IN:GET_CALL_TIME",
+          "IN:GET_CONTACT_METHOD",
+          "IN:GET_UNDERGRAD",
+          "IN:END_CALL",
+          "IN:GET_LANGUAGE",
+          "IN:GET_GENDER",
+          "IN:SHARE_EVENT",
+          "IN:RESTART_TIMER",
+          "IN:SET_RSVP_INTERESTED",
+          "IN:GET_MESSAGE",
+          "IN:QUESTION_NEWS",
+          "IN:IGNORE_CALL",
+          "IN:GET_DETAILS_NEWS",
+          "IN:DISLIKE_MUSIC",
+          "IN:GET_INFO_RECIPES",
+          "IN:QUESTION_MUSIC",
+          "IN:ADD_TIME_TIMER",
+          "IN:GET_JOB",
+          "IN:GET_MESSAGE_CONTACT",
+          "IN:PREVIOUS_TRACK_MUSIC",
+          "IN:ANSWER_CALL",
+          "IN:SEND_MESSAGE",
+          "IN:GET_EMPLOYER",
+          "IN:SET_AVAILABLE",
+          "IN:UPDATE_REMINDER_LOCATION",
+          "IN:GET_MUTUAL_FRIENDS",
+          "IN:SILENCE_ALARM",
+          "IN:REMOVE_FROM_PLAYLIST_MUSIC",
+          "IN:PLAY_MEDIA",
+          "IN:HOLD_CALL",
+          "IN:UPDATE_REMINDER",
+          "IN:GET_STORIES_NEWS",
+          "IN:GET_EVENT",
+          "IN:RESUME_MUSIC",
+          "IN:GET_CATEGORY_EVENT",
+          "IN:HELP_REMINDER",
+          "IN:REPLAY_MUSIC",
+          "IN:CREATE_ALARM",
+          "IN:FOLLOW_MUSIC",
+          "IN:GET_AIRQUALITY",
+          "IN:GET_LYRICS_MUSIC",
+          "IN:CANCEL_CALL",
+          "IN:GET_REMINDER_AMOUNT",
+          "IN:PREFER",
+          "IN:UPDATE_TIMER",
+          "IN:GET_WEATHER",
+          "IN:GET_INFO_CONTACT",
+          "IN:UPDATE_REMINDER_DATE_TIME",
+          "IN:SNOOZE_ALARM",
+          "IN:CANCEL_MESSAGE",
+          "IN:DELETE_TIMER",
+          "IN:GET_LIFE_EVENT_TIME",
+          "IN:SET_RSVP_NO",
+          "IN:GET_LOCATION",
+          "IN:GET_CONTACT",
+          "IN:IS_TRUE_RECIPES",
+          "IN:ADD_TO_PLAYLIST_MUSIC",
+          "IN:GET_GROUP",
+          "IN:PAUSE_TIMER",
+          "IN:GET_ALARM",
+          "IN:DISPREFER",
+          "IN:UPDATE_CALL",
+          "IN:LOOP_MUSIC",
+          "IN:CREATE_TIMER",
+          "IN:GET_EDUCATION_TIME",
+          "IN:STOP_MUSIC",
+          "option_2",
+          "option_3",
+          "option_4",
+          "option_5",
+          "option_6",
+          "option_7",
+          "option_8",
+          "option_9",
+          "option_10",
+          "option_11",
+          "option_12",
+          "option_13",
+          "option_14",
+          "option_15",
+          "positive",
+          "mixed",
+          "negative",
+          "no_impact",
+          "method",
+          "background",
+          "result",
+          "BookAppointment",
+          "NONE",
+          "FindProvider",
+          "SearchHotel",
+          "ReserveHotel",
+          "FindMovies",
+          "PlayMovie",
+          "FindTrains",
+          "GetTrainTickets",
+          "MakePayment",
+          "RequestPayment",
+          "GetTimesForMovie",
+          "BuyMovieTickets",
+          "ReserveRestaurant",
+          "FindRestaurants",
+          "BookHouse",
+          "SearchHouse",
+          "SearchOnewayFlight",
+          "SearchRoundtripFlights",
+          "LookupMusic",
+          "PlayMedia",
+          "GetAlarms",
+          "AddAlarm",
+          "BuyBusTicket",
+          "FindBus",
+          "ReserveCar",
+          "GetCarsAvailable",
+          "BuyEventTickets",
+          "FindEvents",
+          "GetWeather",
+          "GetRide",
+          "FindAttractions",
+          "ScheduleVisit",
+          "FindHomeByArea",
+          "ShareLocation",
+          "left",
+          "upper-right",
+          "right",
+          "above",
+          "upper-left",
+          "lower-right",
+          "lower-left",
+          "below",
+          "overlap",
+          "SYM",
+          "VERB",
+          "ADJ",
+          "ADV",
+          "INTJ",
+          "PART",
+          "PRON",
+          "X",
+          "AUX",
+          "PROPN",
+          "DET",
+          "NOUN",
+          "PUNCT",
+          "CCONJ",
+          "ADP",
+          "NUM",
+          "SCONJ",
+          "mechanic",
+          "hairdresser",
+          "driver",
+          "teacher",
+          "nurse",
+          "assistant",
+          "construction worker",
+          "tailor",
+          "physician",
+          "analyst",
+          "supervisor",
+          "attendant",
+          "guard",
+          "housekeeper",
+          "accountant",
+          "janitor",
+          "clerk",
+          "counselor",
+          "laborer",
+          "secretary",
+          "writer",
+          "farmer",
+          "sheriff",
+          "lawyer",
+          "baker",
+          "carpenter",
+          "developer",
+          "cleaner",
+          "cook",
+          "salesperson",
+          "editor",
+          "receptionist",
+          "auditor",
+          "manager",
+          "designer"
+        ],
+        "missing_pool_labels": [
+          "getting_spare_card",
+          "verify_my_identity",
+          "virtual_card_not_working",
+          "disposable_card_limits",
+          "reverted_card_payment?",
+          "pending_cash_withdrawal",
+          "get_physical_card",
+          "lost_or_stolen_card",
+          "top_up_by_card_charge",
+          "extra_charge_on_statement",
+          "automatic_top_up",
+          "get_disposable_virtual_card",
+          "transfer_not_received_by_recipient",
+          "request_refund",
+          "pending_card_payment",
+          "declined_transfer",
+          "age_limit",
+          "card_payment_fee_charged",
+          "verify_source_of_funds",
+          "declined_card_payment",
+          "card_payment_wrong_exchange_rate",
+          "wrong_amount_of_cash_received",
+          "atm_support",
+          "transaction_charged_twice",
+          "wrong_exchange_rate_for_cash_withdrawal",
+          "supported_cards_and_currencies",
+          "balance_not_updated_after_bank_transfer",
+          "card_swallowed",
+          "failed_transfer",
+          "cancel_transfer",
+          "direct_debit_payment_not_recognised",
+          "top_up_limits",
+          "exchange_via_app",
+          "passcode_forgotten",
+          "top_up_by_cash_or_cheque",
+          "top_up_by_bank_transfer_charge",
+          "beneficiary_not_allowed",
+          "compromised_card",
+          "unable_to_verify_identity",
+          "card_not_working",
+          "exchange_rate",
+          "card_payment_not_recognised",
+          "transfer_into_account",
+          "cash_withdrawal_charge",
+          "card_arrival",
+          "card_acceptance",
+          "activate_my_card",
+          "transfer_timing",
+          "terminate_account",
+          "topping_up_by_card",
+          "cash_withdrawal_not_recognised",
+          "getting_virtual_card",
+          "country_support",
+          "Refund_not_showing_up",
+          "balance_not_updated_after_cheque_or_cash_deposit",
+          "change_pin",
+          "pending_transfer",
+          "edit_personal_details",
+          "verify_top_up",
+          "pending_top_up",
+          "why_verify_identity",
+          "card_about_to_expire",
+          "exchange_charge",
+          "transfer_fee_charged",
+          "top_up_failed",
+          "fiat_currency_support",
+          "card_delivery_estimate",
+          "rewards_balance",
+          "translate",
+          "cancel",
+          "maybe",
+          "restaurant_reviews",
+          "repeat",
+          "todo_list",
+          "flight_status",
+          "last_maintenance",
+          "pto_balance",
+          "directions",
+          "restaurant_reservation",
+          "confirm_reservation",
+          "order_status",
+          "tell_joke",
+          "oos",
+          "calculator",
+          "gas_type",
+          "travel_suggestion",
+          "share_location",
+          "shopping_list",
+          "change_language",
+          "timezone",
+          "yes",
+          "book_flight",
+          "payday",
+          "no",
+          "meeting_schedule",
+          "do_you_have_pets",
+          "order",
+          "credit_limit_change",
+          "recipe",
+          "calendar_update",
+          "improve_credit_score",
+          "pin_change",
+          "update_playlist",
+          "cancel_reservation",
+          "date",
+          "measurement_conversion",
+          "definition",
+          "oil_change_how",
+          "whisper_mode",
+          "flip_coin",
+          "find_phone",
+          "todo_list_update",
+          "redeem_rewards",
+          "change_user_name",
+          "change_ai_name",
+          "min_payment",
+          "spelling",
+          "how_busy",
+          "change_accent",
+          "schedule_meeting",
+          "food_last",
+          "international_fees",
+          "book_hotel",
+          "where_are_you_from",
+          "change_volume",
+          "are_you_a_bot",
+          "tire_change",
+          "ingredients_list",
+          "current_location",
+          "goodbye",
+          "insurance_change",
+          "w2",
+          "pto_used",
+          "new_card",
+          "traffic",
+          "balance",
+          "fun_fact",
+          "ingredient_substitution",
+          "transfer",
+          "freeze_account",
+          "schedule_maintenance",
+          "thank_you",
+          "what_is_your_name",
+          "gas",
+          "vaccines",
+          "accept_reservations",
+          "transactions",
+          "cook_time",
+          "distance",
+          "routing",
+          "report_lost_card",
+          "next_song",
+          "carry_on",
+          "what_song",
+          "travel_notification",
+          "apr",
+          "nutrition_info",
+          "who_made_you",
+          "next_holiday",
+          "bill_balance",
+          "reminder_update",
+          "how_old_are_you",
+          "mpg",
+          "rollover_401k",
+          "account_blocked",
+          "plug_type",
+          "card_declined",
+          "smart_home",
+          "meal_suggestion",
+          "direct_deposit",
+          "sync_device",
+          "pay_bill",
+          "uber",
+          "pto_request_status",
+          "taxes",
+          "order_checks",
+          "greeting",
+          "income",
+          "spending_history",
+          "calories",
+          "reset_settings",
+          "expiration_date",
+          "tire_pressure",
+          "meaning_of_life",
+          "make_call",
+          "insurance",
+          "restaurant_suggestion",
+          "interest_rate",
+          "credit_limit",
+          "bill_due",
+          "who_do_you_work_for",
+          "report_fraud",
+          "roll_dice",
+          "change_speed",
+          "damaged_card",
+          "shopping_list_update",
+          "what_are_your_hobbies",
+          "lost_luggage",
+          "oil_change_when",
+          "text",
+          "travel_alert",
+          "car_rental",
+          "international_visa",
+          "application_status",
+          "jump_start",
+          "credit_score",
+          "what_can_i_ask_you",
+          "replacement_card_duration",
+          "pto_request",
+          "national_id",
+          "company_name",
+          "account_number",
+          "password",
+          "url",
+          "-47",
+          "-4",
+          "14",
+          "34",
+          "24",
+          "5760",
+          "5756",
+          "5750",
+          "5765",
+          "33",
+          "-2",
+          "8",
+          "12",
+          "29",
+          "16",
+          "52",
+          "-5",
+          "17",
+          "72",
+          "80",
+          "78",
+          "103",
+          "98",
+          "48",
+          "200",
+          "150",
+          "180",
+          "196",
+          "64",
+          "114",
+          "59",
+          "84",
+          "38",
+          "63",
+          "43",
+          "32",
+          "21",
+          "20",
+          "-18",
+          "27",
+          "149",
+          "197",
+          "172",
+          "147",
+          "88",
+          "93",
+          "-1",
+          "-3",
+          "350",
+          "397",
+          "400",
+          "375",
+          "248",
+          "254",
+          "255",
+          "251",
+          "6580",
+          "6598",
+          "6600",
+          "6593",
+          "293",
+          "305",
+          "288",
+          "13997",
+          "14000",
+          "13993",
+          "14007",
+          "-33",
+          "475",
+          "504",
+          "501",
+          "500",
+          "11",
+          "40",
+          "90",
+          "70",
+          "89",
+          "1198",
+          "1194",
+          "1202",
+          "1173",
+          "297",
+          "310",
+          "-15",
+          "-10",
+          "71",
+          "121",
+          "-21",
+          "36",
+          "122",
+          "128",
+          "125",
+          "190",
+          "207",
+          "47",
+          "39",
+          "92",
+          "130",
+          "76",
+          "195",
+          "41",
+          "46",
+          "283",
+          "273",
+          "44",
+          "18",
+          "-8",
+          "62",
+          "5",
+          "55",
+          "play game",
+          "iot coffee",
+          "transport traffic",
+          "calendar query",
+          "qa factoid",
+          "play audiobook",
+          "iot cleaning",
+          "alarm remove",
+          "general negate",
+          "recommendation events",
+          "alarm set",
+          "play podcasts",
+          "transport query",
+          "general commandstop",
+          "iot wemo off",
+          "music settings",
+          "general explain",
+          "lists query",
+          "general joke",
+          "iot hue lightup",
+          "email query",
+          "takeaway query",
+          "play radio",
+          "lists remove",
+          "music query",
+          "recommendation movies",
+          "close_no_action",
+          "delivery",
+          "stop",
+          "harmful",
+          "qa_stock",
+          "recommendation_movies",
+          "audio_volume_up",
+          "play_audiobook",
+          "recommendation_locations",
+          "cooking_recipe",
+          "datetime_convert",
+          "cooking_query",
+          "qa_currency",
+          "weather_query",
+          "music_query",
+          "iot_hue_lightdim",
+          "iot_hue_lightup",
+          "qa_definition",
+          "audio_volume_down",
+          "general_greet",
+          "iot_hue_lightoff",
+          "alarm_set",
+          "general_quirky",
+          "play_podcasts",
+          "email_addcontact",
+          "cooking",
+          "IN:LIKE_MUSIC",
+          "IN:GET_RECIPES",
+          "IN:GET_TIMER",
+          "IN:CREATE_PLAYLIST_MUSIC",
+          "IN:PAUSE_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_CALLING",
+          "IN:SWITCH_CALL",
+          "IN:SET_UNAVAILABLE",
+          "IN:GET_EDUCATION_DEGREE",
+          "IN:GET_MAJOR",
+          "IN:GET_TRACK_INFO_MUSIC",
+          "IN:GET_ATTENDEE_EVENT",
+          "IN:UPDATE_METHOD_CALL",
+          "IN:GET_AVAILABILITY",
+          "IN:GET_EMPLOYMENT_TIME",
+          "IN:GET_REMINDER_DATE_TIME",
+          "IN:CREATE_REMINDER",
+          "IN:SKIP_TRACK_MUSIC",
+          "IN:GET_AGE",
+          "IN:GET_LIFE_EVENT",
+          "IN:STOP_SHUFFLE_MUSIC",
+          "IN:GET_CALL",
+          "IN:MERGE_CALL",
+          "IN:DELETE_ALARM",
+          "IN:UNLOOP_MUSIC",
+          "IN:SET_DEFAULT_PROVIDER_MUSIC",
+          "IN:RESUME_CALL",
+          "IN:CREATE_CALL",
+          "IN:GET_CALL_TIME",
+          "IN:GET_CONTACT_METHOD",
+          "IN:GET_UNDERGRAD",
+          "IN:GET_GENDER",
+          "IN:SHARE_EVENT",
+          "IN:RESTART_TIMER",
+          "IN:SET_RSVP_INTERESTED",
+          "IN:QUESTION_NEWS",
+          "IN:GET_DETAILS_NEWS",
+          "IN:ADD_TIME_TIMER",
+          "IN:GET_MESSAGE_CONTACT",
+          "IN:ANSWER_CALL",
+          "IN:SET_AVAILABLE",
+          "IN:UPDATE_REMINDER_LOCATION",
+          "IN:REMOVE_FROM_PLAYLIST_MUSIC",
+          "IN:PLAY_MEDIA",
+          "IN:HOLD_CALL",
+          "IN:GET_STORIES_NEWS",
+          "IN:GET_EVENT",
+          "IN:FOLLOW_MUSIC",
+          "IN:GET_AIRQUALITY",
+          "IN:CANCEL_CALL",
+          "IN:GET_REMINDER_AMOUNT",
+          "IN:GET_WEATHER",
+          "IN:UPDATE_REMINDER_DATE_TIME",
+          "IN:CANCEL_MESSAGE",
+          "IN:IS_TRUE_RECIPES",
+          "IN:GET_GROUP",
+          "IN:PAUSE_TIMER",
+          "IN:DISPREFER",
+          "IN:CREATE_TIMER",
+          "option_9",
+          "option_10",
+          "option_11",
+          "option_12",
+          "option_13",
+          "option_14",
+          "option_15",
+          "mixed",
+          "SearchHotel",
+          "MakePayment",
+          "RequestPayment",
+          "GetTimesForMovie",
+          "BuyMovieTickets",
+          "FindRestaurants",
+          "SearchHouse",
+          "SearchOnewayFlight",
+          "LookupMusic",
+          "AddAlarm",
+          "GetWeather",
+          "GetRide",
+          "ShareLocation",
+          "teacher",
+          "supervisor",
+          "clerk",
+          "lawyer",
+          "baker",
+          "carpenter",
+          "developer",
+          "auditor"
+        ],
+        "violations": []
+      }
+    },
+    {
+      "name": "s1mb_noul",
+      "n_cases": 6173,
+      "n_questions": 6173,
+      "cases_digest": "fnv1a64-a887ca350a4a8b7c",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 6173,
+          "accuracy": 0.7054916572169123,
+          "macro_f1": 0.42913836905658626,
+          "ece": 0.20416973503486036,
+          "brier": 0.5001310888121616,
+          "nll": 0.6932784373256037,
+          "aurc": 0.37506022202551853,
+          "mean_confidence": 0.501321922182052,
+          "acc_at_50_coverage": 0.6970187945560596,
+          "acc_at_80_coverage": 0.6871202916160389
+        },
+        "readout_ece": 0.006089712481202825,
+        "readout_brier": 0.25001118921980225,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.4676818402721529,
+          "selective_accuracy": 0.30401704199634816,
+          "selective_n": 3286
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 2887,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.10980077466141282,
+        "readout_ece_calibrated": 0.006089712481202825,
+        "floor_ece": 0.06142461191525924,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.291,
+        "latency_p99_ms": 0.431,
+        "latency_tail_support": 62,
+        "latency_extremes": {
+          "first_ms": 0.279,
+          "max_ms": 1.038,
+          "argmax_case": 3626
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 5.9449105,
+        "n_cases": 6173,
+        "n_questions": 6173,
+        "score_threshold": 0.45501745,
+        "distance_threshold": 0.6012192,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.45501745,
+            "status": "fitted",
+            "targetAccuracy": 0.455,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.6012192,
+            "status": "fitted",
+            "targetAccuracy": 0.47142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.515
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.53
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.53
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.53
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.53
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.53
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.47
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.47
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.47
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.47
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.47
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.5
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [],
+        "pair_head_ab": null,
+        "jdi_chance": 0.7357848695933906,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.11997524559497832
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.0015637028217315718
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.11997524559497832
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-0c8778c6d51742f4"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 6173,
+        "n_cal": 200,
+        "n_pool": 5974,
+        "test_digest": "fnv1a64-84180b47f6a27e92",
+        "cal_digest": "fnv1a64-8ef8b387238526af",
+        "pool_digest": "fnv1a64-bae132b5e4d2771b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "s1mb_score",
+      "n_cases": 2571,
+      "n_questions": 2571,
+      "cases_digest": "fnv1a64-81f40d7a9b57e9b6",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2571,
+          "accuracy": 0.4982497082847141,
+          "macro_f1": 0.10160467092004079,
+          "ece": 0.29225885901978305,
+          "brier": 0.7940581511281869,
+          "nll": 1.5851819124303006,
+          "aurc": 0.5903998829836306,
+          "mean_confidence": 0.20599084926493108,
+          "acc_at_50_coverage": 0.4350194552529183,
+          "acc_at_80_coverage": 0.4771400778210117
+        },
+        "readout_ece": 0.26810998820530585,
+        "readout_brier": 0.32188089003429515,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.07701283547257877,
+          "selective_accuracy": 0.5128529287821323,
+          "selective_n": 2373
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 198,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.004096552471690769,
+        "readout_ece_calibrated": 0.26810998820530585,
+        "floor_ece": 0.4869681154709195,
+        "g1_pass": false,
+        "g1_verdict": "fail",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.4454512679107152,
+        "within_1": 0.26059898872034226,
+        "latency_p50_ms": 0.245,
+        "latency_p99_ms": 0.379,
+        "latency_tail_support": 26,
+        "latency_extremes": {
+          "first_ms": 0.069,
+          "max_ms": 0.438,
+          "argmax_case": 2040
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 8.995764375,
+        "n_cases": 2571,
+        "n_questions": 2571,
+        "score_threshold": 0.23013774,
+        "distance_threshold": 0.41533497,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.23013774,
+            "status": "fitted",
+            "targetAccuracy": 0.23,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.41533497,
+            "status": "fitted",
+            "targetAccuracy": 0.27857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 16,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.21717171717171718
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.21717171717171718
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "1.0",
+            "pred": "0.0",
+            "count": 499,
+            "share_of_errors": 0.3868217054263566
+          },
+          {
+            "gold": "3.0",
+            "pred": "0.0",
+            "count": 354,
+            "share_of_errors": 0.2744186046511628
+          },
+          {
+            "gold": "2.0",
+            "pred": "0.0",
+            "count": 241,
+            "share_of_errors": 0.1868217054263566
+          },
+          {
+            "gold": "4.0",
+            "pred": "0.0",
+            "count": 135,
+            "share_of_errors": 0.10465116279069768
+          },
+          {
+            "gold": "0.5",
+            "pred": "0.0",
+            "count": 11,
+            "share_of_errors": 0.008527131782945736
+          },
+          {
+            "gold": "0.75",
+            "pred": "0.0",
+            "count": 9,
+            "share_of_errors": 0.0069767441860465115
+          },
+          {
+            "gold": "1.0",
+            "pred": "0.3333333333333333",
+            "count": 8,
+            "share_of_errors": 0.006201550387596899
+          },
+          {
+            "gold": "0.25",
+            "pred": "0.0",
+            "count": 7,
+            "share_of_errors": 0.005426356589147287
+          },
+          {
+            "gold": "0.6666666666666666",
+            "pred": "0.3333333333333333",
+            "count": 6,
+            "share_of_errors": 0.004651162790697674
+          },
+          {
+            "gold": "0.3333333333333333",
+            "pred": "0.0",
+            "count": 5,
+            "share_of_errors": 0.003875968992248062
+          },
+          {
+            "gold": "0.0",
+            "pred": "0.3333333333333333",
+            "count": 3,
+            "share_of_errors": 0.002325581395348837
+          },
+          {
+            "gold": "0.6666666666666666",
+            "pred": "0.0",
+            "count": 2,
+            "share_of_errors": 0.0015503875968992248
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.4955270322831583,
+        "jdi_skill": 0.005397070161912056,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.0006615148484706879
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.05418207250535489
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.000017529428005218504
+            }
+          ]
+        },
+        "corpus_fallbacks": [
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "corpus_digest": "fnv1a64-f5d9f67a1fd69443"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 2574,
+        "n_cal": 200,
+        "n_pool": 2374,
+        "test_digest": "fnv1a64-49574479b2c3dc4d",
+        "cal_digest": "fnv1a64-f36037b81b6b2013",
+        "pool_digest": "fnv1a64-345fee4f7512445c",
+        "missing_test_labels": [
+          "5",
+          "8",
+          "9"
+        ],
+        "missing_cal_labels": [
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "missing_pool_labels": [
+          "5",
+          "6",
+          "7",
+          "8",
+          "9"
+        ],
+        "violations": []
+      }
+    },
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.57,
+          "macro_f1": 0.539329054680424,
+          "ece": 0.21543478833883997,
+          "brier": 0.6434320700139581,
+          "nll": 1.146723112360243,
+          "aurc": 0.30591289718569137,
+          "mean_confidence": 0.35456521166116,
+          "acc_at_50_coverage": 0.668,
+          "acc_at_80_coverage": 0.58
+        },
+        "readout_ece": 0.09456632691621782,
+        "readout_brier": 0.24279730191318755,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.632,
+          "selective_accuracy": 0.5747282608695652,
+          "selective_n": 736
+        },
+        "abstain_causes": {
+          "score_gate": 947,
+          "distance_gate": 317,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.5644833512306213,
+        "readout_ece_calibrated": 0.09456632691621782,
+        "floor_ece": 0.21644411177644715,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.5483333333333333,
+            "macro_f1": 0.4427516704324253,
+            "ece": 0.2756351305296024,
+            "brier": 0.7261415492313711,
+            "nll": 1.3760498373068872,
+            "aurc": 0.43141318071378293,
+            "mean_confidence": 0.27269820280373097,
+            "acc_at_50_coverage": 0.4766666666666667,
+            "acc_at_80_coverage": 0.5041666666666667
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.7433333333333333,
+            "macro_f1": 0.7371535205498156,
+            "ece": 0.20128869409362474,
+            "brier": 0.45091075422633403,
+            "nll": 0.6436496199143352,
+            "aurc": 0.16217189041911362,
+            "mean_confidence": 0.5420446392397086,
+            "acc_at_50_coverage": 0.8266666666666667,
+            "acc_at_80_coverage": 0.775
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.45625,
+            "macro_f1": 0.36099755761350183,
+            "ece": 0.18089410237967968,
+            "brier": 0.7257909474416057,
+            "nll": 1.3520331879846887,
+            "aurc": 0.46530446693557165,
+            "mean_confidence": 0.2753558976203203,
+            "acc_at_50_coverage": 0.5225,
+            "acc_at_80_coverage": 0.4734375
+          }
+        },
+        "soft_acc": 0.33301113778941527,
+        "brier_soft": 0.2106513235327601,
+        "score_mae": 0.6697793511115953,
+        "within_1": 0.76,
+        "latency_p50_ms": 0.762,
+        "latency_p99_ms": 1.623,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.204,
+          "max_ms": 6.173,
+          "argmax_case": 200
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 6.5459362500000005,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.56503725,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.56503725,
+            "status": "fitted",
+            "targetAccuracy": 0.4,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.47142857,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 0.0,
+          "selected_alpha": "off",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.318
+            }
+          ]
+        },
+        "oc_selection": {
+          "selected_scale": 0.25,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "cal_acc": 0.318
+            },
+            {
+              "scale": 0.25,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 0.5,
+              "cal_acc": 0.532
+            },
+            {
+              "scale": 1.0,
+              "cal_acc": 0.536
+            },
+            {
+              "scale": 2.0,
+              "cal_acc": 0.536
+            },
+            {
+              "scale": 4.0,
+              "cal_acc": 0.538
+            },
+            {
+              "scale": 8.0,
+              "cal_acc": 0.536
+            }
+          ]
+        },
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Critical; requires action within the same day.",
+            "count": 55,
+            "share_of_errors": 0.07790368271954674
+          },
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 52,
+            "share_of_errors": 0.07365439093484419
+          },
+          {
+            "gold": "success",
+            "pred": "partial",
+            "count": 50,
+            "share_of_errors": 0.0708215297450425
+          },
+          {
+            "gold": "No time pressure; can wait indefinitely.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 36,
+            "share_of_errors": 0.05099150141643059
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "None: everything reconciles.",
+            "count": 35,
+            "share_of_errors": 0.049575070821529746
+          },
+          {
+            "gold": "Benign: read-only or clearly safe actions.",
+            "pred": "Low: routine writes within scope.",
+            "count": 33,
+            "share_of_errors": 0.046742209631728045
+          },
+          {
+            "gold": "Moderate: access to internal systems or non-public data.",
+            "pred": "High: access to production, secrets or customer data.",
+            "count": 30,
+            "share_of_errors": 0.042492917847025496
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 28,
+            "share_of_errors": 0.039660056657223795
+          },
+          {
+            "gold": "Imminent: threatening to cancel, dispute or leave.",
+            "pred": "Clearly unhappy; repeat problems or explicit complaints.",
+            "count": 24,
+            "share_of_errors": 0.0339943342776204
+          },
+          {
+            "gold": "Mild frustration, but the relationship is intact.",
+            "pred": "Clearly unhappy; repeat problems or explicit complaints.",
+            "count": 24,
+            "share_of_errors": 0.0339943342776204
+          },
+          {
+            "gold": "request_information",
+            "pred": "escalate_to_human",
+            "count": 24,
+            "share_of_errors": 0.0339943342776204
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "Critical; requires action within the same day.",
+            "count": 22,
+            "share_of_errors": 0.031161473087818695
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.39222614840989395,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.5529305105209351
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.20307282534241677
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.5529305105209351
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "ag_news",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-07eff23c06505584",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.8825,
+          "macro_f1": 0.8741933646432797,
+          "ece": 0.47827894262969495,
+          "brier": 0.5053158266072506,
+          "nll": 0.9629571322547602,
+          "aurc": 0.04689348589556988,
+          "mean_confidence": 0.40422105737030506,
+          "acc_at_50_coverage": 0.94,
+          "acc_at_80_coverage": 0.9375
+        },
+        "readout_ece": 0.04585413459688425,
+        "readout_brier": 0.09073375505306376,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.49,
+          "selective_accuracy": 0.9509803921568627,
+          "selective_n": 204
+        },
+        "abstain_causes": {
+          "score_gate": 60,
+          "distance_gate": 136,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8304792892932893,
+        "readout_ece_calibrated": 0.04585413459688425,
+        "floor_ece": 0.24822139303482577,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.143,
+        "latency_p99_ms": 0.24,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.238,
+          "max_ms": 0.251,
+          "argmax_case": 5
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 4.300983583,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.8358875,
+        "distance_threshold": 0.41053298,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.8358875,
+            "status": "fitted",
+            "targetAccuracy": 0.9357143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41053298,
+            "status": "fitted",
+            "targetAccuracy": 0.8857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.74
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.74
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.8825,
+          "honest_accuracy": 0.8825,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "business",
+            "pred": "sci_tech",
+            "count": 10,
+            "share_of_errors": 0.2127659574468085
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "business",
+            "count": 8,
+            "share_of_errors": 0.1702127659574468
+          },
+          {
+            "gold": "world",
+            "pred": "business",
+            "count": 7,
+            "share_of_errors": 0.14893617021276595
+          },
+          {
+            "gold": "world",
+            "pred": "sports",
+            "count": 6,
+            "share_of_errors": 0.1276595744680851
+          },
+          {
+            "gold": "sports",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "sports",
+            "pred": "world",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "world",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "business",
+            "pred": "world",
+            "count": 2,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "sports",
+            "count": 2,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "business",
+            "pred": "sports",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "world",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          },
+          {
+            "gold": "sports",
+            "pred": "business",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3075,
+        "jdi_skill": 0.8303249097472923,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.8204048293828965
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.48570768773555756
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.8204048293828965
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-58e669a512102140"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-238133933bb8d6fc",
+        "cal_digest": "fnv1a64-96c58e69e7c6048e",
+        "pool_digest": "fnv1a64-996876e41929dc33",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "emotion",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-6feefd1c947dd008",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.885,
+          "macro_f1": 0.8014284327939634,
+          "ece": 0.6182363981008531,
+          "brier": 0.6593071434500918,
+          "nll": 1.3642793452306783,
+          "aurc": 0.035998860173968965,
+          "mean_confidence": 0.26676360189914705,
+          "acc_at_50_coverage": 0.975,
+          "acc_at_80_coverage": 0.940625
+        },
+        "readout_ece": 0.04880640662275256,
+        "readout_brier": 0.09032840869404729,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.4625,
+          "selective_accuracy": 0.9348837209302325,
+          "selective_n": 215
+        },
+        "abstain_causes": {
+          "score_gate": 80,
+          "distance_gate": 105,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8621306203305722,
+        "readout_ece_calibrated": 0.04880640662275256,
+        "floor_ece": 0.27810945273631843,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.11,
+        "latency_p99_ms": 0.121,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.116,
+          "max_ms": 0.125,
+          "argmax_case": 154
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 10.029595333,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.7631245,
+        "distance_threshold": 0.4265421,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.7631245,
+            "status": "fitted",
+            "targetAccuracy": 0.89285713,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.4265421,
+            "status": "fitted",
+            "targetAccuracy": 0.73571426,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.195
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.535
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.465
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 8.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.64
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.69
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.76
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.8875,
+          "honest_accuracy": 0.885,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "love",
+            "pred": "joy",
+            "count": 15,
+            "share_of_errors": 0.32608695652173914
+          },
+          {
+            "gold": "anger",
+            "pred": "sadness",
+            "count": 5,
+            "share_of_errors": 0.10869565217391304
+          },
+          {
+            "gold": "fear",
+            "pred": "joy",
+            "count": 5,
+            "share_of_errors": 0.10869565217391304
+          },
+          {
+            "gold": "fear",
+            "pred": "sadness",
+            "count": 4,
+            "share_of_errors": 0.08695652173913043
+          },
+          {
+            "gold": "surprise",
+            "pred": "joy",
+            "count": 4,
+            "share_of_errors": 0.08695652173913043
+          },
+          {
+            "gold": "fear",
+            "pred": "anger",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "joy",
+            "pred": "sadness",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "joy",
+            "pred": "surprise",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "sadness",
+            "pred": "joy",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "surprise",
+            "pred": "fear",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "anger",
+            "pred": "joy",
+            "count": 1,
+            "share_of_errors": 0.021739130434782608
+          },
+          {
+            "gold": "anger",
+            "pred": "surprise",
+            "count": 1,
+            "share_of_errors": 0.021739130434782608
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2975,
+        "jdi_skill": 0.8362989323843416,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.7589061281085013
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.527420337125659
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.7589061281085013
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-dfde0f5a6091008c"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 15799,
+        "test_digest": "fnv1a64-36f3eb1067bed96a",
+        "cal_digest": "fnv1a64-f2ec48ed7070889c",
+        "pool_digest": "fnv1a64-8ef2b2af400721fd",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "sst5",
+      "n_cases": 600,
+      "n_questions": 600,
+      "cases_digest": "fnv1a64-ad64a6cb0039e916",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.39666666666666667,
+          "macro_f1": 0.32101890185812104,
+          "ece": 0.13891353478034335,
+          "brier": 0.7604214524982581,
+          "nll": 1.5156292710507784,
+          "aurc": 0.5364704218034313,
+          "mean_confidence": 0.2577531318863233,
+          "acc_at_50_coverage": 0.47,
+          "acc_at_80_coverage": 0.42083333333333334
+        },
+        "readout_ece": 0.10858877512315908,
+        "readout_brier": 0.2494353212266079,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.5316666666666666,
+          "selective_accuracy": 0.40569395017793597,
+          "selective_n": 281
+        },
+        "abstain_causes": {
+          "score_gate": 188,
+          "distance_gate": 131,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.3849011408289273,
+        "readout_ece_calibrated": 0.10858877512315908,
+        "floor_ece": 0.22199004975124378,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.1170251806701224,
+        "within_1": 0.54,
+        "latency_p50_ms": 0.09,
+        "latency_p99_ms": 0.094,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 0.091,
+          "max_ms": 0.098,
+          "argmax_case": 181
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 3.83934575,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": 0.28131148,
+        "distance_threshold": 0.41663086,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.28131148,
+            "status": "fitted",
+            "targetAccuracy": 0.27142859,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41663086,
+            "status": "fitted",
+            "targetAccuracy": 0.30714285,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 16.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.24
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.355
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.315
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.335
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.335
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.355
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.36
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.37
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.4
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.39666666666666667,
+          "honest_accuracy": 0.39666666666666667,
+          "n_pseudo": 0,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "very positive",
+            "pred": "positive",
+            "count": 62,
+            "share_of_errors": 0.1712707182320442
+          },
+          {
+            "gold": "very negative",
+            "pred": "negative",
+            "count": 49,
+            "share_of_errors": 0.13535911602209943
+          },
+          {
+            "gold": "neutral",
+            "pred": "negative",
+            "count": 47,
+            "share_of_errors": 0.1298342541436464
+          },
+          {
+            "gold": "positive",
+            "pred": "negative",
+            "count": 36,
+            "share_of_errors": 0.09944751381215469
+          },
+          {
+            "gold": "negative",
+            "pred": "positive",
+            "count": 28,
+            "share_of_errors": 0.07734806629834254
+          },
+          {
+            "gold": "neutral",
+            "pred": "positive",
+            "count": 28,
+            "share_of_errors": 0.07734806629834254
+          },
+          {
+            "gold": "very positive",
+            "pred": "negative",
+            "count": 24,
+            "share_of_errors": 0.06629834254143646
+          },
+          {
+            "gold": "negative",
+            "pred": "neutral",
+            "count": 17,
+            "share_of_errors": 0.04696132596685083
+          },
+          {
+            "gold": "positive",
+            "pred": "very positive",
+            "count": 17,
+            "share_of_errors": 0.04696132596685083
+          },
+          {
+            "gold": "very negative",
+            "pred": "positive",
+            "count": 11,
+            "share_of_errors": 0.03038674033149171
+          },
+          {
+            "gold": "very negative",
+            "pred": "neutral",
+            "count": 10,
+            "share_of_errors": 0.027624309392265192
+          },
+          {
+            "gold": "very positive",
+            "pred": "neutral",
+            "count": 9,
+            "share_of_errors": 0.024861878453038673
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2733333333333333,
+        "jdi_skill": 0.16972477064220184,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.2754612743854523
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.04647017426788808
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.2754612743854523
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-726f717634ca24fb"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 600,
+        "n_cal": 200,
+        "n_pool": 8333,
+        "test_digest": "fnv1a64-67fe9666fa0c3a6f",
+        "cal_digest": "fnv1a64-d210e7c6707c3d40",
+        "pool_digest": "fnv1a64-b46434b82644c53b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "prompt_injections",
+      "n_cases": 116,
+      "n_questions": 116,
+      "cases_digest": "fnv1a64-5080803ec29f2423",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.7672413793103449,
+          "macro_f1": 0.7642808760442538,
+          "ece": 0.13358817981748744,
+          "brier": 0.33647229928899053,
+          "nll": 0.5194112460029578,
+          "aurc": 0.09487560056959717,
+          "mean_confidence": 0.6544157581339622,
+          "acc_at_50_coverage": 0.896551724137931,
+          "acc_at_80_coverage": 0.8369565217391305
+        },
+        "readout_ece": 0.09491884348721336,
+        "readout_brier": 0.16565858443344492,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.6810344827586207,
+          "selective_accuracy": 0.9459459459459459,
+          "selective_n": 37
+        },
+        "abstain_causes": {
+          "score_gate": 52,
+          "distance_gate": 27,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.674452191282963,
+        "readout_ece_calibrated": 0.09491884348721336,
+        "floor_ece": 0.3622396722430863,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.076,
+        "latency_p99_ms": 0.085,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.084,
+          "max_ms": 0.09,
+          "argmax_case": 8
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 1.512909667,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": 0.7991401,
+        "distance_threshold": 0.46189553,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.7991401,
+            "status": "fitted",
+            "targetAccuracy": 0.8,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          },
+          "distance": {
+            "threshold": 0.46189553,
+            "status": "fitted",
+            "targetAccuracy": 0.78571427,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": 1,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.5
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": 0,
+              "view": "bag",
+              "cal_acc": 0.49
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.51
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.51
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.51
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.51
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": 1,
+              "view": "bag",
+              "cal_acc": 0.51
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.61
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.7672413793103449,
+          "honest_accuracy": 0.7672413793103449,
+          "n_pseudo": 0,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [],
+        "pair_head_ab": null,
+        "jdi_chance": 0.5172413793103449,
+        "jdi_skill": 0.5178571428571429,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.6830641734600067
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.1164907401800156
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.6830641734600067
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-91324bedb87d226f"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 116,
+        "n_cal": 100,
+        "n_pool": 446,
+        "test_digest": "fnv1a64-a6a375f0273e0bef",
+        "cal_digest": "fnv1a64-a45e6561b2a98ff1",
+        "pool_digest": "fnv1a64-8b32b961bbd47195",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-b136750e5af1d412",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.5233333333333333,
+          "macro_f1": 0.5061129338341462,
+          "ece": 0.13834670235713323,
+          "brier": 0.6178344532049044,
+          "nll": 1.0286514608348634,
+          "aurc": 0.3119835082997881,
+          "mean_confidence": 0.3849866309762001,
+          "acc_at_50_coverage": 0.64,
+          "acc_at_80_coverage": 0.5791666666666667
+        },
+        "readout_ece": 0.11191444128751758,
+        "readout_brier": 0.23493533027637814,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.54,
+          "selective_accuracy": 0.6086956521739131,
+          "selective_n": 138
+        },
+        "abstain_causes": {
+          "score_gate": 90,
+          "distance_gate": 72,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.5133298230171204,
+        "readout_ece_calibrated": 0.11191444128751758,
+        "floor_ece": 0.14800995024875624,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.084,
+        "latency_p99_ms": 0.088,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.089,
+          "max_ms": 0.089,
+          "argmax_case": 0
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 3.495122333,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.55691224,
+        "distance_threshold": 0.51104105,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.55691224,
+            "status": "fitted",
+            "targetAccuracy": 0.6357143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.51104105,
+            "status": "fitted",
+            "targetAccuracy": 0.62142855,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "fixed-1",
+          "selected_noul_domain": null,
+          "selected_view": "pair",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.365
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.31
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.32
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.31
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.57
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.565
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.555
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.555
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.505
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.455
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.44
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.5033333333333333,
+          "honest_accuracy": 0.5233333333333333,
+          "n_pseudo": 300,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 46,
+            "share_of_errors": 0.32167832167832167
+          },
+          {
+            "gold": "neutral",
+            "pred": "contradiction",
+            "count": 27,
+            "share_of_errors": 0.1888111888111888
+          },
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 26,
+            "share_of_errors": 0.18181818181818182
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 21,
+            "share_of_errors": 0.14685314685314685
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 18,
+            "share_of_errors": 0.1258741258741259
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.03496503496503497
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3333333333333333,
+        "jdi_skill": 0.285,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.5868099159002303
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.21351082310080524
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.5868099159002303
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-ec79d4c41953d288"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-614262484399affa",
+        "cal_digest": "fnv1a64-b8126a40673cc7c6",
+        "pool_digest": "fnv1a64-f3f8f200eba61985",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "massive_intent_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-49390c8b80475849",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.78,
+          "macro_f1": 0.7698039912157559,
+          "ece": 0.635231661486129,
+          "brier": 0.7856433271131125,
+          "nll": 2.059894100161934,
+          "aurc": 0.055327402112393974,
+          "mean_confidence": 0.14476833851387103,
+          "acc_at_50_coverage": 0.9666666666666667,
+          "acc_at_80_coverage": 0.8916666666666667
+        },
+        "readout_ece": 0.07900598575671515,
+        "readout_brier": 0.10938055445024435,
+        "raw_abstain": {
+          "abstain_rate": 0.5133333333333333,
+          "selective_accuracy": 0.910958904109589,
+          "selective_n": 146
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.31,
+          "selective_accuracy": 0.7681159420289855,
+          "selective_n": 207
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 93,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.635231661486129,
+        "readout_ece_calibrated": 0.07900598575671515,
+        "floor_ece": 0.11626865671641791,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.111,
+        "latency_p99_ms": 0.133,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.122,
+          "max_ms": 0.15,
+          "argmax_case": 94
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 37.828576583,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.11058739,
+        "distance_threshold": 0.5259382,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.11058739,
+            "status": "fitted",
+            "targetAccuracy": 0.545,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.5259382,
+            "status": "fitted",
+            "targetAccuracy": 0.55714285,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.445
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.6
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.59
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.59
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.59
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.545
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.56
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.6
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.6
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.6
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.605
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.625
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.615
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.7833333333333333,
+          "honest_accuracy": 0.78,
+          "n_pseudo": 300,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "music_dislikeness",
+            "pred": "play_music",
+            "count": 3,
+            "share_of_errors": 0.045454545454545456
+          },
+          {
+            "gold": "audio_volume_other",
+            "pred": "audio_volume_up",
+            "count": 2,
+            "share_of_errors": 0.030303030303030304
+          },
+          {
+            "gold": "datetime_convert",
+            "pred": "datetime_query",
+            "count": 2,
+            "share_of_errors": 0.030303030303030304
+          },
+          {
+            "gold": "music_likeness",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.030303030303030304
+          },
+          {
+            "gold": "music_settings",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.030303030303030304
+          },
+          {
+            "gold": "alarm_query",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_down",
+            "pred": "audio_volume_up",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "calendar_query",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "general_quirky",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_other",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_other",
+            "pred": "qa_maths",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          },
+          {
+            "gold": "audio_volume_up",
+            "pred": "play_audiobook",
+            "count": 1,
+            "share_of_errors": 0.015151515151515152
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.08666666666666667,
+        "jdi_skill": 0.759124087591241,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.43910876892507067
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.43910876892507067
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.5072379374504089
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-8e7cc94319af1108"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 11314,
+        "test_digest": "fnv1a64-328f111f90d7a0c1",
+        "cal_digest": "fnv1a64-74b76416cdd836d5",
+        "pool_digest": "fnv1a64-fb5a4f0d9147dc0d",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "cases_digest": "fnv1a64-dd8ab35333abb82a",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.842,
+          "macro_f1": 0.8362254543690752,
+          "ece": 0.8193658229298889,
+          "brier": 0.9687678887240521,
+          "nll": 3.821497518480265,
+          "aurc": 0.05987299049258608,
+          "mean_confidence": 0.022634177070111037,
+          "acc_at_50_coverage": 0.972,
+          "acc_at_80_coverage": 0.9075
+        },
+        "readout_ece": 0.051719533622264856,
+        "readout_brier": 0.11249431446039657,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.478,
+          "selective_accuracy": 0.9348659003831418,
+          "selective_n": 261
+        },
+        "abstain_causes": {
+          "score_gate": 130,
+          "distance_gate": 109,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8193658229298889,
+        "readout_ece_calibrated": 0.051719533622264856,
+        "floor_ece": 0.29331343283582084,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.357,
+        "latency_p99_ms": 0.666,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.312,
+          "max_ms": 0.681,
+          "argmax_case": 72
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 50.875362959,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.74778104,
+        "distance_threshold": 0.55494976,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.74778104,
+            "status": "fitted",
+            "targetAccuracy": 0.9,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.55494976,
+            "status": "fitted",
+            "targetAccuracy": 0.8142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.465
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.81
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.8
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.795
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.775
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.77
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.76
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.76
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.81
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.845
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.855
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.855
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.845
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.825
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.836,
+          "honest_accuracy": 0.842,
+          "n_pseudo": 500,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "exchange charge",
+            "pred": "exchange rate",
+            "count": 3,
+            "share_of_errors": 0.0379746835443038
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "activate my card",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card arrival",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "transfer timing",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "contactless not working",
+            "pred": "declined transfer",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "supported cards and currencies",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "pending top up",
+            "pred": "top up reverted",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "top up reverted",
+            "pred": "Refund not showing up",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "wrong exchange rate for cash withdrawal",
+            "pred": "wrong amount of cash received",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "balance not updated after bank transfer",
+            "pred": "transfer timing",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "beneficiary not allowed",
+            "pred": "declined transfer",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "card acceptance",
+            "pred": "atm support",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.8397565922920892,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.7729256937466562
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.7729256937466562
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.7924418762326241
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-07e3c974b5ae1bda"
+      },
+      "laya": {},
+      "slices": {
+        "n_test": 500,
+        "n_cal": 200,
+        "n_pool": 9793,
+        "test_digest": "fnv1a64-cb0b5cbcb0cdfcce",
+        "cal_digest": "fnv1a64-8f14f68a2e55799f",
+        "pool_digest": "fnv1a64-14a38d138e218d1b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "code_fixtures",
+      "n_cases": 16,
+      "n_questions": 32,
+      "cases_digest": "fnv1a64-93583fda4fc64946",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 32,
+          "accuracy": 0.375,
+          "macro_f1": 0.16398467432950192,
+          "ece": 0.09478947846218944,
+          "brier": 0.6858308207025954,
+          "nll": 1.3870096269732066,
+          "aurc": 0.40726383867930005,
+          "mean_confidence": 0.3234607386402786,
+          "acc_at_50_coverage": 0.625,
+          "acc_at_80_coverage": 0.4
+        },
+        "readout_ece": 0.09384669177234173,
+        "readout_brier": 0.24328841747944735,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.34375,
+          "selective_accuracy": 0.2857142857142857,
+          "selective_n": 21
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 11,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.3742090817540884,
+        "readout_ece_calibrated": 0.09384669177234173,
+        "floor_ece": 0.35101744186046513,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.215,
+        "latency_p99_ms": 0.372,
+        "latency_tail_support": 1,
+        "latency_extremes": {
+          "first_ms": 0.178,
+          "max_ms": 0.372,
+          "argmax_case": 9
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.060256625,
+        "n_cases": 16,
+        "n_questions": 32,
+        "score_threshold": 0.4606726,
+        "distance_threshold": 0.3365353,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.4606726,
+            "status": "fitted",
+            "targetAccuracy": 0.703125,
+            "support": {
+              "n": 64,
+              "nPass": 64,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.3365353,
+            "status": "fitted",
+            "targetAccuracy": 0.62222224,
+            "support": {
+              "n": 64,
+              "nPass": 45,
+              "nAbstain": 19
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 18446744073709551615,
+          "source": "registry (selection n/a: self-corpora)",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "game_heads",
+            "pred": "engine",
+            "count": 2,
+            "share_of_errors": 0.14285714285714285
+          },
+          {
+            "gold": "engine",
+            "pred": "lanes::clm",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::runner",
+            "pred": "engine",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::runner",
+            "pred": "harness::suites",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::slice_leak",
+            "pred": "engine",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::slice_leak",
+            "pred": "lanes::clm",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::suites",
+            "pred": "lanes::clm",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "harness::suites",
+            "pred": "lanes::paw",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "lanes::clm",
+            "pred": "harness::runner",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "lanes::clm",
+            "pred": "lanes::paw",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "lanes::paw",
+            "pred": "engine",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          },
+          {
+            "gold": "serve",
+            "pred": "engine",
+            "count": 1,
+            "share_of_errors": 0.07142857142857142
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.375,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.4601553222164512
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.14789915131404996
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.4601553222164512
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-58c275cd1d2ec9c0"
+      },
+      "laya": {}
+    },
+    {
+      "name": "semantic_defects",
+      "n_cases": 102,
+      "n_questions": 102,
+      "cases_digest": "fnv1a64-8032fe33f25653bc",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 102,
+          "accuracy": 0.4411764705882353,
+          "macro_f1": 0.4334818023351805,
+          "ece": 0.23470770494610654,
+          "brier": 0.79874137265555,
+          "nll": 1.6978339787256655,
+          "aurc": 0.430125277309569,
+          "mean_confidence": 0.20646876564212874,
+          "acc_at_50_coverage": 0.49019607843137253,
+          "acc_at_80_coverage": 0.49382716049382713
+        },
+        "readout_ece": 0.43579113892480437,
+        "readout_brier": 0.43534595726314507,
+        "raw_abstain": {
+          "abstain_rate": 0.5,
+          "selective_accuracy": 0.43137254901960786,
+          "selective_n": 51
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.5,
+          "selective_accuracy": 0.43137254901960786,
+          "selective_n": 51
+        },
+        "abstain_causes": {
+          "score_gate": 32,
+          "distance_gate": 19,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.43579113892480437,
+        "readout_ece_calibrated": 0.43579113892480437,
+        "floor_ece": 0.19453044375645,
+        "g1_pass": null,
+        "g1_verdict": "no_claim",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.024,
+        "latency_p99_ms": 0.026,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.025,
+          "max_ms": 0.026,
+          "argmax_case": 5
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.128910583,
+        "n_cases": 102,
+        "n_questions": 102,
+        "score_threshold": 0.0026944876,
+        "distance_threshold": 0.52091897,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0026944876,
+            "status": "fitted",
+            "targetAccuracy": 0.53846157,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          },
+          "distance": {
+            "threshold": 0.52091897,
+            "status": "fitted",
+            "targetAccuracy": 0.53846157,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 18446744073709551615,
+          "source": "registry (selection n/a: self-corpora)",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.2777777777777778
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4444444444444444
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4444444444444444
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4444444444444444
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4444444444444444
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.4444444444444444
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.3333333333333333
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.3888888888888889
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.3888888888888889
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.3888888888888889
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.3888888888888889
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.43137254901960786,
+          "honest_accuracy": 0.4411764705882353,
+          "n_pseudo": 102,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "clean",
+            "pred": "off_by_one",
+            "count": 8,
+            "share_of_errors": 0.14035087719298245
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "inverted_condition",
+            "count": 5,
+            "share_of_errors": 0.08771929824561403
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.07017543859649122
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "clean",
+            "count": 4,
+            "share_of_errors": 0.07017543859649122
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.07017543859649122
+          },
+          {
+            "gold": "clean",
+            "pred": "inverted_condition",
+            "count": 3,
+            "share_of_errors": 0.05263157894736842
+          },
+          {
+            "gold": "clean",
+            "pred": "swapped_lookup",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          },
+          {
+            "gold": "inverted_condition",
+            "pred": "off_by_one",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "swapped_lookup",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "clean",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "off_by_one",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          },
+          {
+            "gold": "swapped_lookup",
+            "pred": "clean",
+            "count": 2,
+            "share_of_errors": 0.03508771929824561
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.16666666666666666,
+        "jdi_skill": 0.32941176470588235,
+        "corpus_digest": "fnv1a64-d0a395518fca2bdb"
+      },
+      "laya": {}
+    }
+  ]
+}
