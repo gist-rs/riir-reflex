@@ -5,6 +5,23 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-10 — Issue 084 CLOSED: corpus dot-name test red on every Windows box — the trailing-dot fixture is unrepresentable on NTFS (visible-skip + interior-dot companion)
+
+**Status: Resolved** (reflex `bca951c`). `corpus::tests::directory_names_load_verbatim_including_dots`
+(Issue 081 T2c) failed on every Windows box: Win32 path normalization strips trailing dots (and spaces)
+from the LAST path component at dir creation, so `create_dir_all("…helps.")` silently created `…helps`, the
+loader read the stripped name, and the byte-intact assertion failed
+(`loaded.domains.contains(&"No further round helps.")` — reproduced 4090-windows 2026-10-10). The loader is
+innocent: a trailing-dot domain dir cannot exist via any normal Windows API, so the production surface
+(by-name option routing `==`) is unthreatened there — the property matters on the macOS/Linux deployment
+platforms where such dirs DO exist. Fix, both halves in one commit: `#[cfg_attr(windows, ignore = …)]` on
+the original test (a VISIBLE skip whose reason prints in test output — never a silent `#[cfg]`
+compile-to-nothing, per the green-zero rule) + `directory_names_load_verbatim_interior_dots` (no cfg, runs
+everywhere: `state.depth.0`, `v1.2 release notes` — dots in non-terminal positions, still catching a loader
+that trims at the first dot or normalizes names). Verified on Windows: 376 lib tests pass + 1
+ignored-with-reason; clippy `--lib --tests` clean. M3/Linux verification of the (no-op there) cfg_attr rides
+the next macOS touch.
+
 ## 2026-10-10 — Issue 083 CLOSED: the site modelless timing graduates to quotable (bench 137's quiet-box re-read) + the vacuous-carry publisher fix
 
 **Status: Resolved.** The home chart's "timing failed the loaded-box check — re-run pending" presence row
