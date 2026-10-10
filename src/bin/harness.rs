@@ -455,7 +455,7 @@ fn harness_main() {
                 distill_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko)"));
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx)"));
             }
             "--distill-out" => {
                 i += 1;
@@ -803,7 +803,7 @@ fn harness_main() {
         #[cfg(feature = "laya-riir")]
         let run = runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher);
         #[cfg(not(feature = "laya-riir"))]
-        let run = if matches!(distill_teacher.as_str(), "openthai" | "bekko") {
+        let run = if matches!(distill_teacher.as_str(), "openthai" | "bekko" | "clef" | "pplx") {
             runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher)
         } else {
             // Unreachable — the laya posture died above; kept for the

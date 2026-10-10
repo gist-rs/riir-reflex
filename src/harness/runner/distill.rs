@@ -94,6 +94,10 @@ impl KeyMap {
     pub fn for_suite(suite: &str) -> Option<Self> {
         match suite {
             "massive_intent_en" | "banking77" => Some(Self::Name),
+            // Issue 623 (2026-10-10 owner extension): the pplx capture slot
+            // rides the same FixedInt law — noul 2-class, int labels, the
+            // full 2-class universe presented (the gold pin verifies it).
+            "prompt_injections" => Some(Self::FixedInt),
             "ag_news" | "emotion" | "sst5" | "xnli_en" => Some(Self::FixedInt),
             _ => None,
         }
@@ -127,6 +131,14 @@ pub(crate) enum TeacherForward {
     /// probabilities reuse the openthai keying over the same positional
     /// answer shape (one keying law, two oracles).
     Bekko { oracle: super::JsonlOracle },
+    /// The Clef loopback service (riir-train Issue 623 T1, ungated — the
+    /// `--clef` lane's client over the same Jev-shaped wire). The keyed
+    /// probabilities reuse the openthai keying over the positional answer
+    /// (one keying law, many oracles).
+    Clef { lane: crate::lanes::clef::ClefLane, provenance: String },
+    /// The pplx-decider loopback service (reflex Issue 082's lane as the
+    /// Issue-623 teacher, ungated). Same keyed-probs tail as clef.
+    Pplx { lane: crate::lanes::pplx::PplxLane, provenance: String },
 }
 
 impl TeacherForward {
@@ -137,6 +149,8 @@ impl TeacherForward {
             Self::Laya { .. } => "laya",
             Self::Openthai { .. } => "openthai",
             Self::Bekko { .. } => "bekko",
+            Self::Clef { .. } => "clef",
+            Self::Pplx { .. } => "pplx",
         }
     }
 
@@ -148,6 +162,7 @@ impl TeacherForward {
             Self::Laya { provenance, .. } => provenance,
             Self::Openthai { provenance, .. } => provenance,
             Self::Bekko { oracle } => &oracle.model,
+            Self::Clef { provenance, .. } | Self::Pplx { provenance, .. } => provenance,
         }
     }
 
@@ -197,6 +212,24 @@ impl TeacherForward {
                     .ask(case)
                     .map(|_| ())
                     .map_err(|e| format!("bekko warmup: {e}"))
+            }
+            // The clef handshake (info) IS a full probe round trip over the
+            // wire — it fills the model provenance (the envelope's model
+            // field, else the CLEF_MODEL stamp); then one discarded forward
+            // on the real case shape (the seam's law).
+            Self::Clef { lane, provenance } => {
+                let (model, _posture) = lane.info().map_err(|e| format!("clef warmup: {e}"))?;
+                *provenance = format!("clef:{model}");
+                lane.decide(case)
+                    .map(|_| ())
+                    .map_err(|e| format!("clef warmup: {e}"))
+            }
+            // pplx's health ran at construct (it fills the provenance);
+            // warmup is the loud proof + the cold-path absorb.
+            Self::Pplx { lane, .. } => {
+                lane.decide(case)
+                    .map(|_| ())
+                    .map_err(|e| format!("pplx warmup: {e}"))
             }
         }
     }
@@ -260,10 +293,45 @@ impl TeacherForward {
                     openthai_keyed_probs(q, &probs).map_err(|e| format!("{}: {e}", case.id))?;
                 Ok((keyed, ms))
             }
+            Self::Clef { lane, .. } => {
+                let (answers, client_ms, _server_wall) = lane
+                    .decide(case)
+                    .map_err(|e| format!("clef forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "clef")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Pplx { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("pplx forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "pplx")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
         }
     }
 }
 
+/// The shared keyed-probs tail for the HTTP decision teachers (clef/pplx):
+/// the lane's FIRST answer (the single-question contract the T3 suites
+/// speak) re-keyed over the question's presented keys — the same law
+/// openthai speaks ([`openthai_keyed_probs`] is the shared home; one
+/// keying, many oracles).
+fn keyed_first_answer(
+    case: &super::SuiteCase,
+    answers: &[(Vec<f64>, usize, f64)],
+    teacher: &str,
+) -> Result<Vec<(String, f64)>, String> {
+    let (probs, _pick, _conf) = answers
+        .first()
+        .ok_or_else(|| format!("{}: no answer for its single question", case.id))?;
+    let q = case
+        .questions
+        .first()
+        .ok_or_else(|| format!("{}: no questions for its single gold", case.id))?;
+    openthai_keyed_probs(q, probs).map_err(|e| format!("{teacher} forward ({}): {e}", case.id))
+}
 /// Build the label-keyed probability vector one openthai answer speaks,
 /// over the question's PRESENTED keys in presentation order (the same
 /// iteration [`crate::lanes::openthai::map_answers`] reads positionally):
@@ -366,6 +434,22 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             )?;
             Ok(TeacherForward::Bekko { oracle })
         }
+        "clef" => {
+            // Env-only at construct (the no-creds gate is the loud one —
+            // for the LOCAL rig posture set CLEF_RUN_PATH; the hosted
+            // posture keeps its plan-011 account law). The wire is proven
+            // + the model provenance filled at warmup.
+            let lane = crate::lanes::clef::ClefLane::from_env()?;
+            Ok(TeacherForward::Clef { lane, provenance: "clef:?".to_string() })
+        }
+        "pplx" => {
+            // Health at construct (the openthai law — a server that is
+            // down, or still lazy-loading, refuses LOUD here naming the
+            // env), and the provenance comes straight off /health.
+            let lane = crate::lanes::pplx::PplxLane::default();
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Pplx { lane, provenance })
+        }
         "laya" => {
             #[cfg(feature = "laya-riir")]
             {
@@ -394,7 +478,8 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             }
         }
         other => Err(format!(
-            "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai' and 'bekko')"
+            "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
+             'bekko', 'clef' and 'pplx')"
         )),
     }
 }
@@ -407,11 +492,20 @@ fn t3_skip_reason(suite: &str) -> &'static str {
              distillation there waits for the option-conditioned scorer \
              (riir-instinct Issue 005 E0 note)"
         }
-        "prompt_injections" => {
-            "not a T3 teacher suite — noul 2-class, outside Arm A's six (576 T2 scope)"
-        }
-        _ => "not a T3 teacher suite",
+        _ => "not a T3 teacher suite (no train-row join: synthetic families and \
+              code_fixtures generate in-process; their students need the \
+              synthetic-suite rig first)",
     }
+}
+
+/// The distill teacher's row-backed suite set: the six Arm-A suites (576
+/// T2) plus `prompt_injections` (Issue 623, 2026-10-10 owner extension —
+/// the pplx capture slot; noul 2-class joins the FixedInt law). The
+/// synthetic families and code_fixtures stay out: they have no train rows
+/// for the doc/case join, and their students need the synthetic-suite rig
+/// first (T2 scope, riir-train Issue 623).
+fn is_distill_suite(name: &str) -> bool {
+    T3_SUITES.contains(&name) || name == "prompt_injections"
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -699,7 +793,7 @@ pub fn run_distill(
             skipped.push(format!("{}: synthetic family — no dataset rows", spec.name));
             continue;
         }
-        if !T3_SUITES.contains(&spec.name) {
+        if !is_distill_suite(spec.name) {
             skipped.push(format!("{}: {}", spec.name, t3_skip_reason(spec.name)));
             continue;
         }
@@ -791,11 +885,11 @@ mod tests {
     fn keymap_dispatches_the_t3_suites() {
         assert_eq!(KeyMap::for_suite("massive_intent_en"), Some(KeyMap::Name));
         assert_eq!(KeyMap::for_suite("banking77"), Some(KeyMap::Name));
-        for s in ["ag_news", "emotion", "sst5", "xnli_en"] {
+        for s in ["ag_news", "emotion", "sst5", "xnli_en", "prompt_injections"] {
             assert_eq!(KeyMap::for_suite(s), Some(KeyMap::FixedInt), "{s}");
         }
         assert_eq!(KeyMap::for_suite("typed_decisions"), None);
-        assert_eq!(KeyMap::for_suite("prompt_injections"), None);
+        assert_eq!(KeyMap::for_suite("code_fixtures"), None);
         assert_eq!(T3_SUITES.len(), 6);
     }
 
