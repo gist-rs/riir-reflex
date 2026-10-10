@@ -3634,6 +3634,7 @@ dependencies = [
  "blake3",
  "bytemuck",
  "cubecl",
+ "cubecl-environment",
  "half",
  "katgpt-core",
  "log",
