@@ -172,6 +172,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(windows, ignore = "Win32 strips trailing dots from the last path component at dir creation - the trailing-dot fixture is unrepresentable on NTFS; the byte-intact property stays guarded by the interior-dot companion below on Windows and by this test on the macOS/Linux deployment platforms (issue 084)")]
     fn directory_names_load_verbatim_including_dots() {
         // Issue 081 T2c: a domain named after a wire option string (prose
         // that ends in `.`) must load byte-intact — by-name option routing
@@ -185,6 +186,23 @@ mod tests {
         assert!(loaded.domains.contains(&"No further round helps.".to_string()));
         assert!(loaded.domains.contains(&"Another round would help.".to_string()));
         assert!(loaded.domains.contains(&"plain".to_string()));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn directory_names_load_verbatim_interior_dots() {
+        // Issue 084 companion: Windows cannot create the trailing-dot
+        // fixture at all, so the loader's byte-intact-name property needs a
+        // fixture every platform can represent — dots in NON-terminal
+        // positions. Still catches a loader that trims at the first dot or
+        // normalizes domain names.
+        let dir = temp_dir("interior");
+        let _ = std::fs::remove_dir_all(&dir);
+        write(&dir.join("state.depth.0/d0.md"), "state depth 0 doc\n");
+        write(&dir.join("v1.2 release notes/d1.md"), "state depth 1 doc\n");
+        let loaded = load_dir(&dir).expect("loads");
+        assert!(loaded.domains.contains(&"state.depth.0".to_string()));
+        assert!(loaded.domains.contains(&"v1.2 release notes".to_string()));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
