@@ -70,6 +70,13 @@ pub struct CorpusAbSuite {
     /// the OOD word-dropout ladder (computed on every run).
     pub abstention: AbstentionGateBlock,
     pub ood: OodBlock,
+    /// Plan 621 T5.1 (`--probe-delta-ab`, feature `probe_delta_ab`): the
+    /// paired counterfactual ΔV certification over the SAME frozen read —
+    /// additive disclosure beside the V5 verdict, never a gate
+    /// replacement. None when the flag is off.
+    #[cfg(feature = "probe_delta_ab")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub probe: Option<crate::harness::probe_delta::ProbeDeltaCert>,
     pub seconds: f64,
 }
 
@@ -356,6 +363,13 @@ fn corpus_ab_suite<const N: usize>(
     let acc_b = ok_b.iter().filter(|&&b| b).count() as f64 / ok_b.len() as f64;
     let lb95 = paired_lb95(&ok_b, &ok_a);
 
+    // Plan 621 T5.1: the paired counterfactual ΔV certification over the
+    // SAME frozen read (report-only; the V5 verdict above is unchanged).
+    #[cfg(feature = "probe_delta_ab")]
+    let probe_cert = opts
+        .probe_delta_ab
+        .then(|| crate::harness::probe_delta::certify(&ok_a, &ok_b));
+
     // ── Issue-064 mandatory gates (every run; modelless reads are µs-class).
 
     // (1) Abstention-entropy preservation: the calibrated fused gate's
@@ -449,6 +463,29 @@ fn corpus_ab_suite<const N: usize>(
          doc(s) · verdict: {verdict}",
         spec.name, extra_used,
     );
+    #[cfg(feature = "probe_delta_ab")]
+    if let Some(c) = &probe_cert {
+        eprintln!(
+            "  [corpus-ab {}] probe ΔV: {} discordant ({}W/{}L, {} tie) · v̂ {:.3} Wilson [{:.3},{:.3}] → {}{} · {} flip(s)",
+            spec.name,
+            c.wins + c.losses,
+            c.wins,
+            c.losses,
+            c.ties,
+            c.v_hat,
+            c.wilson_lo,
+            c.wilson_hi,
+            match c.verdict {
+                crate::harness::probe_delta::ProbeDeltaVerdict::MovesValue => "MOVES VALUE",
+                crate::harness::probe_delta::ProbeDeltaVerdict::NoValue => "NO VALUE",
+                crate::harness::probe_delta::ProbeDeltaVerdict::Undetermined => "UNDETERMINED",
+            },
+            c.settled_at_n
+                .map(|n| format!(" (settled @ n={n})"))
+                .unwrap_or_default(),
+            c.flips.len(),
+        );
+    }
     let gate_rung = ood
         .rungs
         .iter()
@@ -503,6 +540,8 @@ fn corpus_ab_suite<const N: usize>(
         verdict: verdict.to_string(),
         abstention,
         ood,
+        #[cfg(feature = "probe_delta_ab")]
+        probe: probe_cert,
         seconds: t_start.elapsed().as_secs_f64(),
     })
 }
@@ -525,6 +564,28 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
             v.suite, v.acc_gold, v.acc_synth, v.delta_lb95
         ));
         s.push_str(&format!("- {}\n- {}\n", v.aliveness, v.verdict));
+        #[cfg(feature = "probe_delta_ab")]
+        if let Some(c) = &v.probe {
+            s.push_str(&format!(
+                "- probe ΔV (Plan 621 T5.1): {} discordant ({}W/{}L, {} tie) · v̂ {:.3} Wilson [{:.3},{:.3}] → **{}**{} · {} flip(s)\n",
+                c.wins + c.losses,
+                c.wins,
+                c.losses,
+                c.ties,
+                c.v_hat,
+                c.wilson_lo,
+                c.wilson_hi,
+                match c.verdict {
+                    crate::harness::probe_delta::ProbeDeltaVerdict::MovesValue => "MOVES VALUE",
+                    crate::harness::probe_delta::ProbeDeltaVerdict::NoValue => "NO VALUE",
+                    crate::harness::probe_delta::ProbeDeltaVerdict::Undetermined => "UNDETERMINED",
+                },
+                c.settled_at_n
+                    .map(|n| format!(", settled @ n={n}"))
+                    .unwrap_or_default(),
+                c.flips.len(),
+            ));
+        }
         s.push_str(&format!(
             "- corpus: gold {} doc(s) → synth {} doc(s) ({} in scope of {} artifact rows)\n",
             v.gold_corpus_docs,

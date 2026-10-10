@@ -273,7 +273,17 @@ D1_SERVE_URL=http://127.0.0.1:8078 \
 # `rescue_rule` (additive, version stays 2).
 # EVERY --corpus-ab pass computes the echo gates (abstention-entropy KL ≤ 0.05;
 # OOD word-dropout ladder, gate rung .20): a clean V5 PASS with a negative
-# gate-rung LB95 reads ECHO = the lane dies. Exclusive early-exit modes:
+# gate-rung LB95 reads ECHO = the lane dies.
+# Probe-delta certification (katgpt-rs Plan 621 T5.1, OPT-IN feature
+# `probe_delta_ab`): `--corpus-ab <artifact> --probe-delta-ab` adds the FlyBy
+# paired counterfactual ΔV record (arXiv:2609.34327) beside the V5 verdict —
+# katgpt-core `state_probe` over the DISCORDANT pairs: classify(ε = 0.5) =
+# MOVES VALUE / NO VALUE / UNDETERMINED (the sign test), the adaptive prefix
+# walk discloses `settled_at_n` + every flip with its interval width. The
+# certification of record is the FULL frozen read; AUGMENTS, never replaces
+# (the V5 paired-LB95 gate law is unchanged). Real first read 2026-10-11:
+# massive_intent_en 11W/1L → MOVES VALUE, settled @ n=128, agreeing with the
+# V5 PASS. Exclusive early-exit modes:
 cargo run --release --bin harness -- --synth-plan --help
 cargo run --release --bin harness -- --corpus-ab --help
 ```

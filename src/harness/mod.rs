@@ -43,6 +43,12 @@ pub mod pair_heads;
 // (report-only; rides the engine feature).
 #[cfg(feature = "density_gate")]
 pub mod density_ab;
+// Plan 621 Phase 5 T5.1 — the FlyBy paired counterfactual ΔV
+// certification (the `--corpus-ab --probe-delta-ab` instrument; consumes
+// katgpt-core `state_probe`). Pure over paired outcome slices; the
+// corpus-ab lane is its first consumer.
+#[cfg(feature = "probe_delta_ab")]
+pub mod probe_delta;
 // Issue 058 — the slice-integrity guard: hard assertions over the
 // test/cal/pool slices (overlaps, test-sample label coverage) + the raw
 // slice-identity digests the board publish path compares. Ungated + pure.

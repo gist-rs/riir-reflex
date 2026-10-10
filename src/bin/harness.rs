@@ -274,6 +274,8 @@ fn harness_main() {
         genome_select: false,
         genome_accept_margin: 0.05,
         density_gate: false,
+        #[cfg(feature = "probe_delta_ab")]
+        probe_delta_ab: false,
     };
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
@@ -366,6 +368,13 @@ fn harness_main() {
                 );
             }
             "--pair-head-ab" => opts.pair_head_ab = true,
+            #[cfg(feature = "probe_delta_ab")]
+            "--probe-delta-ab" => opts.probe_delta_ab = true,
+            #[cfg(not(feature = "probe_delta_ab"))]
+            "--probe-delta-ab" => die(
+                "--probe-delta-ab needs the probe_delta_ab feature — rebuild: \
+                 cargo build --release -p riir-reflex --bin harness --features probe_delta_ab",
+            ),
             "--nli-feature-ab" => opts.nli_feature_ab = true,
             "--nli-m1" => opts.nli_m1 = true,
             #[cfg(feature = "mc_ensemble")]
@@ -781,6 +790,16 @@ fn harness_main() {
         }
     }
 
+    // Plan 621 T5.1: the certification is a MODIFIER on the corpus-ab lane,
+    // never a mode of its own — a bare --probe-delta-ab is a usage error,
+    // not a silent no-op.
+    #[cfg(feature = "probe_delta_ab")]
+    if opts.probe_delta_ab && corpus_ab.is_none() {
+        die(
+            "--probe-delta-ab certifies the --corpus-ab paired A/B; pass --corpus-ab <artifact>",
+        );
+    }
+
     // riir-train Issue 576 T3: the Arm-B TEACHER pass — laya probabilities
     // over the train rows of the six Arm-A suites, dumped as frozen data
     // (magic `RIDT` + a `.blake3` sidecar per suite) for the distillation
@@ -1014,12 +1033,23 @@ fn harness_main() {
     }
     if let Some(ab_path) = corpus_ab.clone() {
         // Plan 426 T5 — the V5 gate: gold-only vs +synth over ONE frozen
-        // test read (paired LB95 + the aliveness anchor).
+        // test read (paired LB95 + the aliveness anchor). Plan 621 T5.1 —
+        // --probe-delta-ab adds the paired counterfactual ΔV certification
+        // (feature probe_delta_ab) beside the verdict, never replacing it.
+        #[cfg(feature = "probe_delta_ab")]
+        let probe_banner = if opts.probe_delta_ab {
+            " · probe-delta-ab ON"
+        } else {
+            ""
+        };
+        #[cfg(not(feature = "probe_delta_ab"))]
+        let probe_banner = "";
         println!(
-            "harness --corpus-ab: artifact {} · datasets {} · extra-cap {}",
+            "harness --corpus-ab: artifact {} · datasets {} · extra-cap {}{}",
             ab_path.display(),
             opts.datasets_dir.display(),
-            synth_extra_cap
+            synth_extra_cap,
+            probe_banner
         );
         let out = match runner::run_corpus_ab(&opts, &ab_path, synth_extra_cap) {
             Ok(r) => r,

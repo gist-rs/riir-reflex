@@ -121,6 +121,16 @@ vessel_public_read = ["modelless", "dep:reflexer-vessel", "reflexer-vessel/vesse
 # `--density-gate` A/B arm builds an armed engine (report-only POC; the
 # adoption verdict rides the paired A/B, never a default flip).
 density_gate = ["modelless", "katgpt-core/gmm_support"]
+# Plan 621 Phase 5 T5.1: the paired counterfactual ΔV certification lane
+# (`--corpus-ab --probe-delta-ab`) — katgpt-core `state_probe` (Plan 621;
+# FlyBy arXiv:2609.34327: the probe kernel + adaptive classifier) consumed
+# by the harness's A/B certification. The sign test over the DISCORDANT
+# pairs maps losslessly onto the kernel: classify(ε = 0.5) is the
+# moves-value / no-value / undetermined verdict, the adaptive prefix walk
+# discloses how many states certification needs. AUGMENTS, never replaces:
+# the V5 paired-LB95 gate law is unchanged — the record is additive
+# disclosure. Opt-in; never in default.
+probe_delta_ab = ["modelless", "katgpt-core/state_probe"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane

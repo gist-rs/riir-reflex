@@ -7441,6 +7441,14 @@ pub struct RunOptions {
     /// `--mc-lambda L` — pin the LCB λ, skipping the cal-side λ sweep. ≥ 0.
     #[cfg(feature = "mc_ensemble")]
     pub mc_lambda: Option<f32>,
+    /// Plan 621 Phase 5 T5.1 (`--probe-delta-ab`; needs the
+    /// `probe_delta_ab` feature — without it the flag refuses loud naming
+    /// the rebuild): arm the paired counterfactual ΔV certification on the
+    /// `--corpus-ab` lane — katgpt-core `state_probe` over the discordant
+    /// pairs (the sign test at ε = 0.5 + the adaptive-N disclosure).
+    /// Report-only; the V5 paired-LB95 gate law is unchanged. Default off.
+    #[cfg(feature = "probe_delta_ab")]
+    pub probe_delta_ab: bool,
     /// Fitted per-label head blend scale for the modelless lane (issue 030
     /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
     /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
