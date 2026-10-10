@@ -11,6 +11,18 @@ not-calibrated verdict three-posture (Benches 125 + 126).
 > laya-scale-class entrant) — `.research/009_LiquidAI_d1_Decision_Models.md` + issues 077+078.
 > d1's board table omits the Drex-1.5/Jev rows above d1-3B (subset-table law, again).
 
+> **Update 2026-10-10:** the hosted "Drex 1.5" this note scoped OUT opened as
+> `nace-ai/drex-v1.5` (9B, Qwen3_5 backbone + pointer head, ctx 16K–128K). The license
+> is NOT CC-BY-NC anymore but **Nace AI Open RAIL-M (modified)** — and its Attachment A
+> §2(c) (competitor clause, "decision models" named) carries NO research/personal-use
+> exception, so while our stack serves decision models even MEASUREMENT is owner-gated
+> (riir-reflex issue 085 T0). Their `llama.cpp` branch `drex-v1.5` serves both archs
+> (`edlm` + `qwen35`+pointer) over `/v1/systemone`. The DLM rows above stay the only
+> measured Drex cells; reflex.gist.rs carries no drex rows at all (lane never
+> registered in the site's publisher — issue 085 T1 publishes these cells; T2/T3 gate
+> on T0). Distill verdict on the fork: NO corpus (server-side surface, ggml untouched;
+> refine queue snapshot 2026-10-10).
+
 > External source: `nace-ai/drex-dlm` @ `6c63df209db96c32160e1b4dfc769efb56b21f89`
 > (cloned 2026-10-07; repo code MIT, model weights **CC BY-NC 4.0**). HF:
 > `nace-ai/drex-dlm` (BF16 safetensors, ~16 GB, 8B) + `nace-ai/drex-dlm-Q8_0` (pointer
