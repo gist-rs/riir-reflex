@@ -803,13 +803,10 @@ fn harness_main() {
         #[cfg(feature = "laya-riir")]
         let run = runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher);
         #[cfg(not(feature = "laya-riir"))]
-        let run = if matches!(distill_teacher.as_str(), "openthai" | "bekko" | "clef" | "pplx") {
-            runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher)
-        } else {
-            // Unreachable — the laya posture died above; kept for the
-            // compiler's feature-less arm.
-            unreachable!("laya without the feature refused above")
-        };
+        // Safe unconditionally: the laya case died above, and an unknown
+        // name is construct_teacher's own loud Err (the seam vocabulary),
+        // never a panic path.
+        let run = runner::run_distill(&opts, &distill_out, distill_limit, &distill_teacher);
         println!(
             "harness --distill: teacher {} · datasets {} · suites {:?} · limit {} · out {}",
             distill_teacher,
