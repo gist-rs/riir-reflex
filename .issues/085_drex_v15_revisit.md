@@ -1,6 +1,6 @@
 # Issue 085 — Drex v1.5 revisit: the open 9B release, the llama.cpp fork posture, and the missing site rows
 
-**Status:** OPEN — staged (CUDA build + sha256-verified GGUF ready on C:); T0 owner gate blocks the measurement, T1 site publication is unblocked.
+**Status:** OPEN — T1 DONE (reflex-site `5fc1649`, pushed 2026-10-10: the drex lane is registered + the DLM cells live in data/bench.json, edition 2026-10-10; site deploy is the manual wrangler step); T0 owner gate still blocks T2/T3.
 
 ## Trigger
 
@@ -69,10 +69,25 @@ meta string that hardcodes the DLM description needs a v1.5 variant.
       or the owner's non-competitor ruling, or skip v1.5) + decide the downloaded
       GGUF's fate (`C:\models\drex-v1.5-Q8_0.gguf`, sha256
       `7ff3285686e7bef7b477a37e6f260837381222c3e463cc802f61f617de2a4ed5`, matches HF LFS).
-- [ ] T1 (NOT blocked by T0): publish the EXISTING Drex-DLM cells (Benches 073/125/126)
+- [x] T1 (NOT blocked by T0): publish the EXISTING Drex-DLM cells (Benches 073/125/126)
       to reflex.gist.rs — register the `drex` lane in `LANE_DISPLAY` + filter/charts +
       the CC BY-NC measurement-only disclosure, following the pplx pattern
       (reflex-site `f1d9953`). This alone answers the user's question permanently.
+      DONE 2026-10-10 — reflex-site `5fc1649` (pushed): full-surface registration
+      (LANE_DISPLAY/AREA_LANES/LANE_KIND/LANE_TIMING/CROSSWALK_LANES/LANE_CLASSES/
+      carry block/extra-host rename) + edition 2026-10-10 (digest `7dfc19ac…`) +
+      archived outgoing table + changes.json row. Published cells: 4090-win BF16/CUDA
+      (bench 126 — quotable timing 106/167 ms, det ✓ 10/10; bench 073 NOT published —
+      superseded by 126, its det-✗ was the latency_ms-clock artifact 125 identified),
+      m3 Q8_0/Metal fork acc-only (bench 125 — preflight REFUSED, ms never quoted;
+      typed 0.5855 + ag_news 0.895). Crosswalk rows landed on both suites (the merge
+      stamps cases_digest from the suite row). Self-test 94/94, chart smoke PASS
+      (p50 17 lanes, drex plots), bench page PASS, pairing 18/0, mirrors in sync,
+      --rederive byte-identical, web-family S1–S4 PASS. Two publisher defects found
+      + fixed in the same commit: the finalize extra-host rename tuple was missing
+      clef/pplx/drex (a lane missing there silently renders as `other` — drex was
+      the first extra-host lane since the tuple was written), and the page smoke's
+      hostRowCount 4090-scope counter predated the new lanes.
 - [-] T2 (BLOCKED by T0, not by the GPU): measure drex-v1.5 on this box at the staged
       posture — serve: `C:\builds\nace-llama\bin\Release\llama-server.exe` (fork @
       `e8f79610…`, GGML_CUDA=ON, sm_89, VS2022 + CUDA 13.3) with
@@ -85,6 +100,10 @@ meta string that hardcodes the DLM description needs a v1.5 variant.
       held by the sibling training run (19.6/24.5 GB, 2026-10-10) — the GPU freeing
       alone does NOT start this task; T0 does.
 - [ ] T3 (after T2): publish the v1.5 rows via the same T1 registration + republish.
+      The registration half is DONE (T1, reflex-site `5fc1649`) — a v1.5 run needs a
+      NEW lane row per the scope law: `LANE_DISPLAY["drex-v1.5"] = "drex-v1.5 …"`, a
+      LANES registry entry + its own posture disclosure, NEVER reusing the `drex`
+      cells (different artifact, different license).
 
 ## References
 
