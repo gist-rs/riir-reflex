@@ -13,12 +13,9 @@
 //! records. `semantic_defects` stays: it is authored the same way but
 //! reads above chance and its wide eval discriminates.
 //!
-//! Pure data + builders (ungated), the `code_fixtures` shape: in-process
-//! synthetic fixtures with programmatic gold, self-split into three
-//! PAIRWISE-DISJOINT slices — corpus (the routing/reference texts), cal
-//! (the calibration slice, ≥16 so the fused-gate thresholds fit), eval —
-//! because a cal case scoring cos 1.0 against ITSELF inflates every
-//! cal-slice quantile (the measured self-inclusion leak, runner docs).
+//! (`code_fixtures` — the third in-process suite these builders once
+//! served — was RETIRED 2026-10-11, owner call: its frozen population,
+//! builders, and registry row are gone with it.)
 //!
 //! Fixture-design law (the degenerate-lane lesson, 2026-09-22): states
 //! are multi-sentence and class-distinctive by VOCABULARY — and they

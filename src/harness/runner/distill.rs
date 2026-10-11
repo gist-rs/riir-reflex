@@ -492,18 +492,17 @@ fn t3_skip_reason(suite: &str) -> &'static str {
              distillation there waits for the option-conditioned scorer \
              (riir-instinct Issue 005 E0 note)"
         }
-        _ => "not a T3 teacher suite (no train-row join: synthetic families and \
-              code_fixtures generate in-process; their students need the \
-              synthetic-suite rig first)",
+        _ => "not a T3 teacher suite (no train-row join: the synthetic family \
+              generates in-process; its students need the synthetic-suite rig first)",
     }
 }
 
 /// The distill teacher's row-backed suite set: the six Arm-A suites (576
 /// T2) plus `prompt_injections` (Issue 623, 2026-10-10 owner extension —
 /// the pplx capture slot; noul 2-class joins the FixedInt law). The
-/// synthetic families and code_fixtures stay out: they have no train rows
-/// for the doc/case join, and their students need the synthetic-suite rig
-/// first (T2 scope, riir-train Issue 623).
+/// synthetic family stays out: it has no train rows for the doc/case
+/// join, and its students need the synthetic-suite rig first (T2 scope,
+/// riir-train Issue 623).
 fn is_distill_suite(name: &str) -> bool {
     T3_SUITES.contains(&name) || name == "prompt_injections"
 }
@@ -889,7 +888,6 @@ mod tests {
             assert_eq!(KeyMap::for_suite(s), Some(KeyMap::FixedInt), "{s}");
         }
         assert_eq!(KeyMap::for_suite("typed_decisions"), None);
-        assert_eq!(KeyMap::for_suite("code_fixtures"), None);
         assert_eq!(T3_SUITES.len(), 6);
     }
 

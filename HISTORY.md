@@ -5,6 +5,23 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-11 — code_fixtures RETIRED from the harness (owner call; board 9 → 8)
+
+**Status: Resolved.** The last self-authored synthetic suite — harvested from
+this repo's own fn spans, n=32, BLAKE3-frozen fixture
+(`code_fixtures_frozen.json`), seat-marked `synthetic` — is REMOVED. It
+survived the 10-02 families retirement only because the engine read
+off-chance on it, and the gap row it carried (−12.5 vs pplx local) was the
+noisiest cell on the public board (ECE 0.186 at that population). Removed
+with it: the frozen population (`src/harness/code_frozen.rs` + the fixture),
+the builders + SUITES row + the in-process seat/prep arms (`runner.rs`), the
+e0/distill skip arms, the fixture-fleet history pin, the PAW per-shape specs
+(`scripts/paw_specs/code_fixtures.{module,is_pub}.txt`) + their lane/gate
+arms, and the `gen_code_frozen` generator example. The measured history stays
+in `.benchmarks/` — 001 (timing addenda), 044 (the frozen-population arc,
+incl. the commit-relative-harvest lesson), 087 (the first per-shape PAW
+cell), 116 — as records, never a re-open.
+
 ## 2026-10-10 — Issue 084 CLOSED: corpus dot-name test red on every Windows box — the trailing-dot fixture is unrepresentable on NTFS (visible-skip + interior-dot companion)
 
 **Status: Resolved** (reflex `bca951c`). `corpus::tests::directory_names_load_verbatim_including_dots`

@@ -320,9 +320,9 @@ required-features = ["modelless"]
 name = "harness_families_gates"
 required-features = ["modelless"]
 
-# Issue 049 T1-T3: the synthetic seat seam (semantic_defects +
-# code_fixtures seat marked synthetic; unknown-suite refusal names the
-# decision; the seated engine reproduces the manual build exactly).
+# Issue 049 T1-T3: the synthetic seat seam (semantic_defects seats marked
+# synthetic; unknown-suite refusal names the decision; the seated engine
+# reproduces the manual build exactly).
 [[test]]
 name = "harness_seat_gates"
 required-features = ["modelless"]
@@ -330,8 +330,8 @@ required-features = ["modelless"]
 # The four-time-recurrence wall (2026-10-02): every synthetic fixture
 # suite is hygiene-audited (fixture_hygiene::audit_slices) with the
 # population DERIVED from the registry — a new synthetic suite reds here
-# until its arm exists. semantic_defects re-asserts the overlap bounds;
-# code_fixtures is pinned at its measured history.
+# until its arm exists. semantic_defects re-asserts the overlap bounds of
+# the wide authoring law.
 [[test]]
 name = "fixture_fleet_hygiene"
 required-features = ["modelless"]
@@ -417,15 +417,6 @@ required-features = ["laya-riir"]
 [[example]]
 name = "typed_case_split"
 required-features = ["laya-riir-metal"]
-
-# The frozen code_fixtures population GENERATOR (issue 044 T4): harvests
-# the live tree with the frozen module's extractor and writes the
-# BLAKE3-pinned `src/harness/code_fixtures_frozen.json`. A regeneration is
-# a deliberate fixture change (new digest in the same commit) — never a
-# build step, never hand edits (the parse-time digest check refuses them).
-[[example]]
-name = "gen_code_frozen"
-required-features = ["modelless"]
 
 # Issue 066 PRE-CHECK — the LSL-gate model-class probe (measurement only,
 # never a gate): sketched-gaussianity on the REAL seat-corpus embedding

@@ -12,9 +12,10 @@
 //!   compiler_snapshot, timings, ...}` (HTTP 202 on success — the server
 //!   answers synchronously with `status` already `ready`). One program per
 //!   distinct question kind: the single-shape suites read the suite-wide
-//!   `scripts/paw_specs/{suite}.txt`; a multi-shape suite (`code_fixtures`'
-//!   `module` + `is_pub` questions share one input, so one program cannot
-//!   answer both) reads one `{suite}.{qid}.txt` per shape. The explicit
+//!   `scripts/paw_specs/{suite}.txt`; a multi-shape suite (several qids
+//!   over one input — `typed_decisions`' 15 shapes; the retired
+//!   `code_fixtures` was the first) reads one `{suite}.{qid}.txt` per
+//!   shape. The explicit
 //!   finetune compilers (`paw-ft-*`) go through
 //!   `POST /api/v1/compile/async` + `GET /api/v1/compile/{job_id}` polling
 //!   (`queued` / `compiling` / `ready` / `failed` / `cancelled`) — opt in
@@ -563,9 +564,9 @@ enum SpecScope {
     /// BLAKE3(spec))`).
     Suite,
     /// `{suite}.{qid}.txt` — one program for this question shape (the
-    /// multi-shape suites: code_fixtures' `module` + `is_pub` questions
-    /// share one input, so one program cannot answer both — the cache key
-    /// gains the qid).
+    /// multi-shape suites: `typed_decisions`' per-qid shapes share one
+    /// input, so one program cannot serve them all — the cache key gains
+    /// the qid).
     Question,
 }
 
@@ -937,8 +938,8 @@ pub(crate) fn resolve_shapes(
 /// per `(suite, question shape, compiler, spec)` across runs (the cache):
 /// one program per question shape — the single-shape suites (one question
 /// per case, suite-wide `{suite}.txt`) compile exactly as before; a
-/// multi-shape suite (`code_fixtures`' `module` + `is_pub` questions share
-/// one input) compiles one program per qid from `{suite}.{qid}.txt`.
+/// multi-shape suite (`typed_decisions`' per-qid shapes over one input)
+/// compiles one program per qid from `{suite}.{qid}.txt`.
 ///
 /// # Errors
 /// A spec that fails the option-naming guard, a question shape with no
@@ -1194,41 +1195,6 @@ mod tests {
         let q = &suites[0].cases[0].questions[0];
         assert!(check_spec_names_options("world\nsports\nbusiness\n", q).is_err());
         assert_eq!(load_spec(&dir, "no_such_suite").unwrap(), None);
-        // code_fixtures: the per-shape specs name every option of the frozen
-        // suite's two question kinds (the suite is generated in-process; the
-        // questions are derived exactly as the runner's code_case builds
-        // them). No suite-wide file may exist — the per-shape pair is the
-        // whole contract.
-        #[cfg(feature = "modelless")]
-        {
-            assert_eq!(load_spec(&dir, "code_fixtures").unwrap(), None);
-            let labels: Vec<String> = crate::harness::code_frozen::frozen_modules()
-                .iter()
-                .map(|m| m.label.clone())
-                .collect();
-            let module_q = SuiteQuestion {
-                qid: "module".into(),
-                kind: QKind::Choice,
-                instructions: String::new(),
-                criteria: Value::Object(
-                    labels.iter().map(|l| (l.clone(), Value::Null)).collect(),
-                ),
-            };
-            let is_pub_q = SuiteQuestion {
-                qid: "is_pub".into(),
-                kind: QKind::Noul,
-                instructions: String::new(),
-                criteria: Value::Null,
-            };
-            let module_spec = std::fs::read_to_string(dir.join("code_fixtures.module.txt"))
-                .expect("module spec committed");
-            check_spec_names_options(&module_spec, &module_q)
-                .expect("module spec names every frozen label");
-            let is_pub_spec = std::fs::read_to_string(dir.join("code_fixtures.is_pub.txt"))
-                .expect("is_pub spec committed");
-            check_spec_names_options(&is_pub_spec, &is_pub_q)
-                .expect("is_pub spec names false/true");
-        }
         // Benches 088/089 (the remaining dataset suites): prompt_injections
         // and xnli_en are fixed-shape single-question suites; massive's 59
         // intent tokens are data-derived so the option LINE SET is pinned by
@@ -1537,9 +1503,9 @@ mod tests {
         let _ = std::fs::remove_dir_all(cfg.cache_file.parent().unwrap());
     }
 
-    /// A two-shape suite (the code_fixtures class): one program per
-    /// question kind, two compiles, per-shape option parsing, per-shape
-    /// cache keys, and a full cache hit on the re-run.
+    /// A two-shape suite: one program per question kind, two compiles,
+    /// per-shape option parsing, per-shape cache keys, and a full cache
+    /// hit on the re-run.
     #[test]
     fn two_shape_suite_compiles_one_program_per_question_shape() {
         if !curl_available() {

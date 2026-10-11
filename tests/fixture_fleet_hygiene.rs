@@ -13,10 +13,11 @@
 //!   new synthetic suite joins by EXISTING and reds here until it carries
 //!   hygiene facts — no 12th-instance silence;
 //! - `semantic_defects` re-asserts the authoring law's overlap bounds
-//!   (the gates file owns its label ban + digest pin);
-//! - `code_fixtures` is pinned at its measured numbers, whatever they
-//!   are — a re-baseline of its frozen population must re-pin here
-//!   consciously, with the overlap stats moving in the record.
+//!   (the gates file owns its label ban + digest pin).
+//!
+//! (`code_fixtures` was pinned here at its measured triple — the fleet's
+//! WORST contamination, 0.9494/1.0000/15 — until its 2026-10-11
+//! retirement; the pin is history now, record in HISTORY.md.)
 //!
 //! Every run prints the fleet table — the numbers the records cite.
 
@@ -31,24 +32,6 @@ const WIDE_MAX_CASE_OVERLAP: f64 = 0.92;
 /// The wide-law population (`semantic_defects` — the gates file owns the
 /// label ban + the digest pin).
 const WIDE_FAMILIES: &[&str] = &["semantic_defects"];
-
-/// `code_fixtures`' measured hygiene (the 059 audit, 2026-10-02): mean
-/// 0.9494 · max 1.0000 · 15 of 16 eval cases share a 3-gram with the
-/// corpus pool — the fleet's WORST contamination, the measured basis of
-/// instinct issue 008 T8's unfalsifiable-memorization refusal (its eval
-/// snippets ARE the corpus's source vocabulary). RECORDED, not gated at
-/// the wide bounds: the population is FROZEN + digest-pinned
-/// (`code_frozen`), and a re-baseline is the same owner-visible decision
-/// the families' wide eval was. A re-baseline re-pins this triple with
-/// the reason; any silent drift reds here.
-const CODE_FIXTURES_PIN: (f64, f64, usize) = (0.9494, 1.0000, 15);
-
-// (No bootstrap placeholders remain — both history pins carry their
-// measured triples. A future pin edit goes through a measured run.)
-
-fn approx(a: f64, b: f64) -> bool {
-    (a - b).abs() < 5e-5
-}
 
 fn slice_strings(seat: &runner::seat::Seat) -> (Vec<String>, Vec<String>, Vec<String>) {
     let corpus: Vec<String> = seat.train.iter().map(|d| d.text.clone()).collect();
@@ -69,7 +52,6 @@ fn fixture_fleet_hygiene_is_measured_and_walled() {
     // adjudicated below. A new synthetic suite reds HERE — the audit's
     // arms must name it before it can land ungated.
     let mut covered: Vec<&str> = WIDE_FAMILIES.to_vec();
-    covered.push("code_fixtures");
     covered.sort_unstable();
     let mut derived = registry.clone();
     derived.sort_unstable();
@@ -115,21 +97,6 @@ fn fixture_fleet_hygiene_is_measured_and_walled() {
                 h.mean_unigram_overlap,
                 h.max_unigram_overlap,
                 h.trigram_hit_cases
-            );
-        } else if name == "code_fixtures" {
-            // Standing disclosure, pinned at the measured triple (see the
-            // const's doc for the recorded-not-gated decision).
-            assert!(
-                approx(h.mean_unigram_overlap, CODE_FIXTURES_PIN.0)
-                    && approx(h.max_unigram_overlap, CODE_FIXTURES_PIN.1)
-                    && h.trigram_hit_cases == CODE_FIXTURES_PIN.2,
-                "code_fixtures' hygiene moved (measured {:.4}/{:.4}/{} vs pin \
-                 {:?}) — a frozen-population re-baseline re-pins here with \
-                 the reason",
-                h.mean_unigram_overlap,
-                h.max_unigram_overlap,
-                h.trigram_hit_cases,
-                CODE_FIXTURES_PIN
             );
         }
     }

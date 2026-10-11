@@ -389,19 +389,6 @@ const SUITES: &[SuiteSpec] = &[
         synthetic: None,
         modelless_lane: true,
     },
-    SuiteSpec {
-        name: "code_fixtures",
-        dataset_dir: "code_fixtures",
-        test_cap: 0,
-        cal_cap: 0, // generated with its own gold-programmatic cal slice
-        corpus_cap_per_label: usize::MAX, // the builder fixes its own corpus
-        eval_split: "test",
-        named_only: false,
-        coverage_audit: true,
-        build: build_code_fixtures, // generated in-process; rows_file unused
-        synthetic: None, // legacy in-process path (prepare branch below)
-        modelless_lane: true,
-    },
     // ── RETIRED (owner call, 2026-10-02): the six Issue-004 harness
     // decision-point families (`harness_visibility` · `harness_permissions`
     // · `harness_tool_fit` · `harness_routing` · `harness_sensitivity` ·
@@ -409,6 +396,10 @@ const SUITES: &[SuiteSpec] = &[
     // modelless engine reads at chance on at the honest wide-eval
     // populations. Nobody benches them anymore; the final readings live in
     // git history and the instinct/reflex-site records.
+    // ── RETIRED (owner call, 2026-10-11): `code_fixtures` — the frozen
+    // in-process population harvested from this repo's own fn spans — is
+    // REMOVED the same way (the suite read off-chance on the modelless
+    // lane and carried the public board's noisiest comparison cell).
     // Issue 061: the code-defect family (perch-derived taxonomy, original
     // Rust fixtures; choice over clean + five defect classes).
     SuiteSpec {
@@ -439,11 +430,7 @@ fn synthetic_build_unused(_rows: &Value, _max_rows: usize) -> Suite {
 /// every fixture set before the families was authored ungated and
 /// measured its overlap only after the inflation was published).
 pub fn synthetic_suite_names() -> Vec<&'static str> {
-    SUITES
-        .iter()
-        .filter(|s| s.synthetic.is_some() || s.name == "code_fixtures")
-        .map(|s| s.name)
-        .collect()
+    SUITES.iter().filter(|s| s.synthetic.is_some()).map(|s| s.name).collect()
 }
 
 fn families_synth_semantic_defects() -> SynthData {
@@ -469,126 +456,13 @@ fn laya_checkpoints_for(suite: &str) -> &'static [&'static str] {
     }
 }
 
-// ── code fixtures (our own suite — no network, programmatic gold) ───────
-//
-// Issue 044 T4: the population is FROZEN — a BLAKE3-pinned committed
-// fixture (`crate::harness::code_frozen`) harvested ONCE from this repo's
-// own sources. The old live harvest made the suite commit-relative: files
-// moved, labels lost their corpus docs, and the published accuracy moved
-// with the tree (measured 0.2500 → 0.2917 with four of eight labels
-// unanswerable). The builders below read the frozen bytes; regenerating is
-// `cargo run --features modelless --example gen_code_frozen` (a deliberate
-// fixture change, never a build side effect).
-
-/// The option universe: the frozen module labels, in frozen (option) order.
-fn code_module_labels() -> Vec<String> {
-    crate::harness::code_frozen::frozen_modules()
-        .iter()
-        .map(|m| m.label.clone())
-        .collect()
-}
-
-fn code_case(mi: usize, f: &crate::harness::code_frozen::FrozenFn, labels: &[String], id: &str) -> SuiteCase {
-    let mut crit = serde_json::Map::new();
-    for label in labels {
-        crit.insert(label.clone(), Value::Null);
-    }
-    SuiteCase {
-        id: id.to_string(),
-        state: Value::String(f.src.clone()),
-        questions: vec![
-            crate::harness::suites::SuiteQuestion {
-                qid: "module".into(),
-                kind: QKind::Choice,
-                instructions: "Which module of the riir-reflex crate is this Rust function from?"
-                    .into(),
-                criteria: Value::Object(crit),
-            },
-            crate::harness::suites::SuiteQuestion {
-                qid: "is_pub".into(),
-                kind: QKind::Noul,
-                instructions: "Is this Rust function declared `pub`?".into(),
-                criteria: Value::Null,
-            },
-        ],
-        gold: vec![
-            crate::harness::suites::GoldAnswer {
-                idx: mi,
-                soft: vec![0.0; labels.len()],
-                gold_score: None,
-            },
-            crate::harness::suites::GoldAnswer {
-                idx: usize::from(f.is_pub),
-                soft: vec![0.0; 2],
-                gold_score: None,
-            },
-        ],
-    }
-}
-
-fn build_code_fixtures(_rows: &Value, _max_rows: usize) -> Suite {
-    let frozen = crate::harness::code_frozen::frozen_modules();
-    let labels = code_module_labels();
-    let mut cases = Vec::new();
-    for (mi, m) in frozen.iter().enumerate() {
-        for (k, f) in m.eval.iter().enumerate() {
-            cases.push(code_case(
-                mi,
-                f,
-                &labels,
-                &format!("code:{}:{k}", m.label),
-            ));
-        }
-    }
-    let (from, at) = crate::harness::code_frozen::frozen_provenance();
-    let _ = (from, at); // provenance is disclosed by code_frozen's own accessors
-    Suite {
-        name: "code_fixtures",
-        cases,
-        option_counts_note: "frozen modules × 2 real fn spans; gold programmatic (module, \
-                             is_pub); population BLAKE3-pinned (issue 044 T4) — \
-                             code_frozen::frozen_provenance() names the harvest",
-    }
-}
-
-/// The code-fixture calibration cases (gold-programmatic, same questions).
-pub fn code_fixtures_cal_cases() -> Vec<SuiteCase> {
-    let frozen = crate::harness::code_frozen::frozen_modules();
-    let labels = code_module_labels();
-    let mut cases = Vec::new();
-    for (mi, m) in frozen.iter().enumerate() {
-        for (i, f) in m.cal.iter().enumerate() {
-            // k = the absolute fn index in the harvested file (the cal
-            // slice starts at 2) — the historical id shape.
-            cases.push(code_case(
-                mi,
-                f,
-                &labels,
-                &format!("codecal:{}:{}", m.label, 2 + i),
-            ));
-        }
-    }
-    cases.shrink_to_fit();
-    cases
-}
-
-/// The code-fixture corpora: per module, the frozen docs slice — STRICTLY
-/// after the eval and calibration slices, so no cal/eval fn ever scores
-/// against itself in its own corpus (the self-inclusion leak measured on
-/// the first run).
-pub fn code_fixtures_docs() -> Vec<TrainDoc> {
-    let frozen = crate::harness::code_frozen::frozen_modules();
-    let mut docs = Vec::new();
-    for m in frozen {
-        for f in &m.docs {
-            docs.push(TrainDoc {
-                label: m.label.clone(),
-                text: f.src.clone(),
-            });
-        }
-    }
-    docs
-}
+// ── RETIRED (owner call, 2026-10-11): the code_fixtures builders
+// (`code_module_labels`, `code_case`, `build_code_fixtures`,
+// `code_fixtures_cal_cases`, `code_fixtures_docs`) and the frozen
+// population they read (`crate::harness::code_frozen`) are REMOVED with
+// the suite. The measured history: Bench 001 addenda + 044 (the frozen
+// population arc, incl. the commit-relative harvest lesson) + 087 (the
+// per-question-shape PAW programs) + 116.
 
 /// Load one dataset suite's RAW envelopes (test + train) — the save-corpus
 /// path's source of truth (Issue 007 P1: one corpus = ONE digest-pinned kv
@@ -2958,9 +2832,9 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // split is read once, at the selected cap, further down — closing the
     // protocol hole that deferred the banking77 promotion (a cap picked on
     // test would be a test-set-selected hyperparameter). Self-corpora
-    // suites (synthetic families, code_fixtures) ignore the caps by
-    // construction; the source string below discloses the n/a instead of
-    // silently running or silently dropping the ask.
+    // suites (the synthetic family; the fixed-corpus registry mark below)
+    // ignore the caps by construction; the source string below discloses
+    // the n/a instead of silently running or silently dropping the ask.
     let selection = if inp.cal_select_caps.is_empty()
         || spec.synthetic.is_some()
         || spec.corpus_cap_per_label == usize::MAX
@@ -3000,8 +2874,8 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // the selection (semantic_defects remains; the six Issue-004
     // families that carried the noul polarity lever were retired
     // 2026-10-02). `corpus_cap_per_label == usize::MAX` marks the
-    // registry-fixed-corpus suites (code_fixtures + the family); the
-    // synthetic eligibility rides the synthetic flag alone now.
+    // registry-fixed-corpus family suite; the synthetic eligibility rides
+    // the synthetic flag alone now.
     #[cfg(feature = "nb_scope")]
     let nb_selected = if inp.nb_select
         && (spec.synthetic.is_some()
@@ -3456,7 +3330,8 @@ fn run_modelless<const N: usize>(
         cal_cases.to_vec()
     };
     let (cal_eval, _) = if cal_cases.is_empty() {
-        // code_fixtures carries its own cal slice; empty here means no cal.
+        // Synthetic suites carry their own cal slice; empty here means no
+        // cal.
         (
             Eval {
                 probs: vec![],
@@ -6390,30 +6265,6 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         });
     }
 
-    if spec.name == "code_fixtures" {
-        let suite = build_code_fixtures(&Value::Null, 0);
-        let state_strs = suite
-            .cases
-            .iter()
-            .map(|c| serialize_state(&c.state))
-            .collect();
-        let cal_cases = code_fixtures_cal_cases();
-        let cal_state_strs = cal_cases
-            .iter()
-            .map(|c| serialize_state(&c.state))
-            .collect();
-        return Ok(Prepared {
-            labels: code_module_labels(),
-            suite,
-            train: code_fixtures_docs(),
-            state_strs,
-            cal_cases,
-            cal_state_strs,
-            pool_rows: Value::Null,
-            slices: None,
-        });
-    }
-
     let suite_dir = dir.join(spec.dataset_dir);
     let eval_rows = load_rows(&suite_dir, spec.eval_split)?;
     // Issue 039 T2: the test sample is a label-STRATIFIED round-robin over
@@ -6451,8 +6302,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     //   ↔ class label i — asserted against the option-key union below);
     // - typed_decisions: the WORKFLOW names (train docs carry them);
     // - derived-universe suites (massive / banking77): the union of option
-    //   keys over the TEST cases (train docs carry label_text);
-    // - code_fixtures: the fixed module labels (already set above).
+    //   keys over the TEST cases (train docs carry label_text).
     let option_key_union = {
         let mut u: Vec<String> = Vec::new();
         for case in &suite.cases {
@@ -6680,11 +6530,11 @@ pub mod seat {
         pub labels: Vec<String>,
         pub pool_rows: Value,
         /// Issue 049 T1's posture-fork defence: true when the seat came
-        /// from an in-process synthetic build (the harness families +
-        /// `code_fixtures`) rather than dataset files. The consumer cannot
-        /// mistake it for a dataset seat — a synthetic seat carries
-        /// authored fixtures with programmatic gold, and its published row
-        /// must disclose the posture (never render as a dataset row).
+        /// from an in-process synthetic build (`semantic_defects`) rather
+        /// than dataset files. The consumer cannot mistake it for a
+        /// dataset seat — a synthetic seat carries authored fixtures with
+        /// programmatic gold, and its published row must disclose the
+        /// posture (never render as a dataset row).
         pub synthetic: bool,
         /// The seated synth corpus (Plan 426 T5's V5-PASS lever, seated at
         /// Plan 426 T6): blake3-verified at [`prepare_seat_with_synth`],
@@ -6711,18 +6561,19 @@ pub mod seat {
         pub rows_dropped: usize,
     }
 
-    /// Prepare a suite by name. `semantic_defects` + `code_fixtures` seat
-    /// through their in-process builds (Issue 049 T1/T2 — the seat marks
-    /// them `synthetic`, so the posture fork the old blanket refusal
-    /// feared is now explicit; the six Issue-004 families that used to
-    /// seat here were retired 2026-10-02); dataset suites are unchanged.
+    /// Prepare a suite by name. `semantic_defects` seats through its
+    /// in-process build (Issue 049 T1 — the seat marks it `synthetic`, so
+    /// the posture fork the old blanket refusal feared is now explicit;
+    /// the six Issue-004 families and `code_fixtures` that used to seat
+    /// here were retired 2026-10-02 / 2026-10-11); dataset suites are
+    /// unchanged.
     pub fn prepare_seat(name: &str, dir: &Path) -> Result<Seat, String> {
         let spec = SUITES
             .iter()
             .find(|s| s.name == name)
             .ok_or_else(|| format!("seat: unknown suite {name}"))?
             as &SuiteSpec;
-        let synthetic = spec.synthetic.is_some() || name == "code_fixtures";
+        let synthetic = spec.synthetic.is_some();
         if synthetic && !spec.modelless_lane {
             // Unreachable over the current registry (Issue 045 made every
             // synthetic suite modelless) — the declared-inability refusal
@@ -7659,9 +7510,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         // or the suite is out of scope — G3 keeps results.json identical.
         #[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
         let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = {
-            let in_scope = spec.synthetic.is_none()
-                && spec.name != "typed_decisions"
-                && spec.name != "code_fixtures";
+            let in_scope = spec.synthetic.is_none() && spec.name != "typed_decisions";
             if !in_scope {
                 (None, None)
             } else {
@@ -8689,10 +8538,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             "engine context = state + prompt (wire criteria None) — the modelless \
              serving path"
                 .to_string(),
-            "synthetic fixtures (semantic_defects, code_fixtures): in-process \
-             fixtures with programmatic gold; the six Issue-004 harness \
-             families were retired 2026-10-02 (owner call — at-chance on \
-             the modelless lane at the honest populations)"
+            "synthetic fixtures (semantic_defects): in-process fixtures with \
+             programmatic gold; the six Issue-004 harness families (2026-10-02) \
+             and code_fixtures (2026-10-11) were retired — owner calls — so the \
+             modelless lane no longer answers any self-authored suite but the one \
+             that reads above chance"
                 .to_string(),
         ],
     };

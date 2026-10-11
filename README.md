@@ -314,7 +314,12 @@ pull), banking77 0.7700 → 0.8620):
 | xnli_en | 300 | 0.5233 ³ | **0.8600** | 0.1 ms | 99 ms |
 | massive_intent_en | 300 | **0.7800** ³ | 0.7500 | 0.1 ms | 159 ms |
 | banking77 | 500 | **0.8620** ³ | 0.4980 | 0.3 ms | 249 ms |
-| code_fixtures | 28 | 0.2143 | **0.5357** | 0.1 ms | 296 ms |
+
+(RETIRED 2026-10-11, owner call: `code_fixtures` — the last self-authored
+synthetic suite, harvested from this repo's own fn spans — is removed from
+the harness; board 9 → 8. It read off-chance on the modelless lane and its
+comparison gap was the board's noisiest cell. Its rows remain in the bench
+records — `.benchmarks/001`, `044`, `087`, `116` — as history.)
 
 ³⁵ Issue 052 (Bench 078): typed_decisions' TRAIN pull was birth-capped at
 800 of the dataset's 1200 rows — the whole security_incidents train block

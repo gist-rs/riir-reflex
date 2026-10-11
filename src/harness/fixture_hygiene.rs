@@ -11,7 +11,8 @@
 //!    (the `slice_guard` KNOWN_DIRTY pin — published rows measured on
 //!    dirty bytes);
 //! 3. `code_fixtures`' template-shared eval (the specialist lane's
-//!    unfalsifiable-memorization refusal, instinct issue 008 T8);
+//!    unfalsifiable-memorization refusal, instinct issue 008 T8; the
+//!    suite itself was retired 2026-10-11 — owner call);
 //! 4. the six harness families' evals — measured at the 059 wide-eval
 //!    landing: 0.68–0.78 mean unigram overlap against corpus∪cal,
 //!    per-case maxes at 1.00, 2–7 trigram-hit cases each — the published

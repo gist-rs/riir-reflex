@@ -313,8 +313,8 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path, kn_route: bool) -> Result<E0Suite, Str
 
 /// Run E0 over the requested suites (empty = every dataset suite).
 /// Report-only: never touches an eval lane, never reads gold, never arms
-/// the tables. Synthetic families + `code_fixtures` are skipped loud (no
-/// corpus pool; the NB lane is dataset-scoped).
+/// the tables. Synthetic families are skipped loud (no corpus pool; the
+/// NB lane is dataset-scoped).
 pub fn run_e0(opts: &RunOptions) -> Result<E0Output, String> {
     let mut suites = Vec::new();
     let mut skipped = Vec::new();
@@ -328,10 +328,6 @@ pub fn run_e0(opts: &RunOptions) -> Result<E0Output, String> {
                  measure",
                 spec.name
             ));
-            continue;
-        }
-        if spec.name == "code_fixtures" {
-            skipped.push("code_fixtures: generated in-process, no corpus pool".to_string());
             continue;
         }
         match e0_suite(spec, &opts.datasets_dir, opts.kn_route) {

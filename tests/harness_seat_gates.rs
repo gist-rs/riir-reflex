@@ -1,8 +1,9 @@
-//! Issue 049 T1+T2+T3's seat gates: the remaining synthetic family
-//! `semantic_defects` + `code_fixtures` seat through `prepare_seat`
-//! (marked `synthetic`), the seated path reproduces the runner's own
-//! build byte-for-byte, and unknown suites refuse. (The six Issue-004
-//! families that used to seat here were retired 2026-10-02.)
+//! Issue 049 T1+T3's seat gates: the synthetic family `semantic_defects`
+//! seats through `prepare_seat` (marked `synthetic`), the seated path
+//! reproduces the runner's own build byte-for-byte, and unknown suites
+//! refuse. (The six Issue-004 families retired 2026-10-02 and
+//! `code_fixtures` retired 2026-10-11 — owner calls; their seat arms are
+//! history.)
 //!
 //! Pins:
 //! - **marker** — every synthetic seat carries `synthetic: true` (the
@@ -49,26 +50,6 @@ fn synthetic_families_seat_marked_and_byte_identical() {
         );
         let _ = n;
     }
-}
-
-#[test]
-fn code_fixtures_seats_as_synthetic_the_recorded_decision() {
-    // Issue 049 T2's explicit decision: code_fixtures is in-process
-    // generated with its own programmatic cal slice — the same nature as
-    // the synthetic families — so it joins T1's branch, marked synthetic.
-    let seat = prepare_seat("code_fixtures", std::path::Path::new(".raw/datasets")).expect("seat");
-    assert!(
-        seat.synthetic,
-        "code_fixtures seat must carry the synthetic marker"
-    );
-    assert!(
-        !seat.suite.cases.is_empty(),
-        "code_fixtures seat must carry its cases"
-    );
-    assert!(
-        !seat.cal_cases.is_empty(),
-        "code_fixtures seat must carry its cal slice"
-    );
 }
 
 #[test]
@@ -171,10 +152,9 @@ fn seat_engine_accuracy_equals_the_manual_build() {
 
 #[test]
 fn synthetic_family_seats_cal_and_corpus_and_unknown_suites_refuse() {
-    // The family seats like code_fixtures — the synthetic marker, the
-    // pool-null rule, and the byte-identity pins apply to it unchanged
-    // (the FAMILIES loop above covers them; here the docs/cal presence
-    // is pinned alongside the refusal arm).
+    // The family's seat: the synthetic marker, the pool-null rule, and the
+    // byte-identity pins (the FAMILIES loop above covers them; here the
+    // docs/cal presence is pinned alongside the refusal arm).
     let seat = prepare_seat("semantic_defects", std::path::Path::new(".raw/datasets"))
         .expect("semantic_defects must seat");
     assert!(
