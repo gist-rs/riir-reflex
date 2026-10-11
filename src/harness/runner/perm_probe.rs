@@ -83,6 +83,13 @@ pub struct PermProbeOptions {
     /// Probe the AgentJev lane (their server must be serving — loud
     /// refusal).
     pub agentjev: bool,
+    /// Issue 086 T1 — also run the presentation-subspace certificate
+    /// (`--basis-split`): rank-gated presentation basis + per-suite
+    /// held-out leakage over the SAME sampled slots' perm pairs, routed
+    /// through the hashed-feature embed. Report-only; never touches a
+    /// decide path. Requires the `basis_cert` feature (the run refuses
+    /// loud without it, never a silent skip).
+    pub basis_split: bool,
 }
 
 // ────────────────────────────────────────────────────────── the record ──
@@ -154,6 +161,11 @@ pub struct PermSuiteReport {
     /// The slice-integrity summary line (the split provenance; None on
     /// the in-process suites).
     pub slice_summary: Option<String>,
+    /// Issue 086 T1 — the certificate report (`--basis-split`). Gated
+    /// with the lane: the type lives in the feature-gated module, so the
+    /// field (and the record key) exists only where the lane compiles.
+    #[cfg(feature = "basis_cert")]
+    pub basis_cert: Option<crate::harness::basis_cert::BasisCertReport>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -666,6 +678,214 @@ fn perm_laya(
     )
 }
 
+// ────────────────────────────── the basis-split certificate (issue 086 T1) ──
+
+/// The certificate over one suite's sampled slots: its OWN slot budget
+/// (the pair-budget law needs ≥ d fit pairs — the probe's default 40-slot
+/// sample is far below; see [`CERT_SLOT_CAP`]). The perm-pair GENERATORS
+/// are the probe's own (`perm_orderings` + `permuted_case`, same slot
+/// seeds); the certificate just samples more slots. Fit half = even-index
+/// slots, holdout = odd (deterministic stride law); the whitening
+/// population is the slots' identity renderings PLUS the suite's train
+/// docs (stride-capped, the pure core's cap). Casing pairs ride the
+/// holdout slots' identity renderings (expected Δ ≡ 0 — the tokenizer is
+/// case-insensitive).
+#[cfg(feature = "basis_cert")]
+fn basis_cert_suite(
+    prepared: &Prepared,
+    k: usize,
+    skips: &mut Vec<String>,
+) -> Option<crate::harness::basis_cert::BasisCertReport> {
+    use crate::harness::basis_cert::{
+        certify, render_presentation, CertPair, PairFamily, PresentationQuestion,
+        CERT_DIM, WHITEN_POP_CAP,
+    };
+    // The certificate's own choice-slot sample (all choice questions of
+    // each sampled case, the probe's slot shape).
+    let choice_cases: Vec<usize> = prepared
+        .suite
+        .cases
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.questions.iter().any(|q| q.kind == QKind::Choice))
+        .map(|(i, _)| i)
+        .collect();
+    if choice_cases.is_empty() {
+        skips.push("basis-cert: no choice questions in suite".to_string());
+        return None;
+    }
+    let sampled = stride_indices(choice_cases.len(), CERT_SLOT_CAP);
+    let slots: Vec<(usize, usize)> = sampled
+        .iter()
+        .flat_map(|&si| {
+            let ci = choice_cases[si];
+            let case = &prepared.suite.cases[ci];
+            (0..case.questions.len()).filter_map(move |qi| {
+                (case.questions[qi].kind == QKind::Choice).then_some((ci, qi))
+            })
+        })
+        .collect();
+    let embed = crate::embed::Embedder;
+    let embed_of = |q: &crate::harness::suites::SuiteQuestion,
+                        state: &str|
+     -> Option<[f32; CERT_DIM]> {
+        let obj = q.criteria.as_object()?;
+        let labels: Vec<String> = obj.keys().cloned().collect();
+        let descs: Vec<String> = labels
+            .iter()
+            .map(|l| {
+                obj.get(l)
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("")
+                    .to_string()
+            })
+            .collect();
+        let text = render_presentation(&PresentationQuestion {
+            state,
+            instructions: q.instructions.as_str(),
+            labels: &labels,
+            descs: &descs,
+        });
+        let mut v = [0.0f32; CERT_DIM];
+        embed.embed_into(text.as_bytes(), &mut v);
+        Some(v)
+    };
+
+    // Per-slot: identity embed + K−1 ordering Δs. Even slot → fit half,
+    // odd → holdout; casing pairs from the holdout half.
+    let mut fit: Vec<CertPair> = Vec::new();
+    let mut hold: Vec<CertPair> = Vec::new();
+    let mut casing: Vec<CertPair> = Vec::new();
+    let mut ident_pop: Vec<[f32; CERT_DIM]> = Vec::new();
+    for (slot_i, &(ci, qi)) in slots.iter().enumerate() {
+        let case = &prepared.suite.cases[ci];
+        let q = &case.questions[qi];
+        let Some(state_str) = prepared.state_strs.get(ci).map(String::as_str) else {
+            skips.push(format!(
+                "basis-cert {}#{}: no state string — slot dropped",
+                case.id, q.qid
+            ));
+            continue;
+        };
+        let Some(identity) = embed_of(q, state_str) else {
+            skips.push(format!(
+                "basis-cert {}#{}: not a choice question — slot dropped",
+                case.id, q.qid
+            ));
+            continue;
+        };
+        ident_pop.push(identity);
+        let n = q.criteria.as_object().map(|m| m.len()).unwrap_or(0);
+        let orderings = perm_orderings(n, k, slot_seed(&case.id, &q.qid));
+        for (rep, order) in orderings.iter().enumerate().skip(1) {
+            let pc = match permuted_case(case, qi, order, rep) {
+                Ok(pc) => pc,
+                Err(e) => {
+                    skips.push(format!("basis-cert {}#{}: {e}", case.id, q.qid));
+                    continue;
+                }
+            };
+            let Some(variant) = embed_of(&pc.questions[0], state_str) else {
+                continue;
+            };
+            let delta: Vec<f64> = variant
+                .iter()
+                .zip(identity.iter())
+                .map(|(a, b)| f64::from(*a) - f64::from(*b))
+                .collect();
+            let pair = CertPair {
+                family: PairFamily::Ordering,
+                delta,
+            };
+            if slot_i % 2 == 0 {
+                fit.push(pair);
+            } else {
+                hold.push(pair);
+            }
+        }
+        // The casing cross-check: the identity options case-flipped (the
+        // tokenizer must embed them identically; the pure core skips the
+        // null pairs and reports honestly).
+        if slot_i % 2 == 1
+            && let Some(obj) = q.criteria.as_object()
+        {
+            let labels: Vec<String> = obj.keys().cloned().collect();
+            let descs: Vec<String> = labels
+                .iter()
+                .map(|l| {
+                    obj.get(l)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+                .collect();
+            let flipped_labels: Vec<String> = labels
+                .iter()
+                .map(|l| {
+                    let mut c: Vec<char> = l.chars().collect();
+                    match c.first_mut() {
+                        Some(f) if f.is_lowercase() => {
+                            *f = f.to_ascii_uppercase();
+                        }
+                        Some(f) if f.is_uppercase() => {
+                            *f = f.to_ascii_lowercase();
+                        }
+                        _ => {}
+                    }
+                    c.iter().collect::<String>()
+                })
+                .collect();
+            let flipped_text = render_presentation(&PresentationQuestion {
+                state: state_str,
+                instructions: q.instructions.as_str(),
+                labels: &flipped_labels,
+                descs: &descs,
+            });
+            let mut fv = [0.0f32; CERT_DIM];
+            embed.embed_into(flipped_text.as_bytes(), &mut fv);
+            let delta: Vec<f64> = fv
+                .iter()
+                .zip(identity.iter())
+                .map(|(a, b)| f64::from(*a) - f64::from(*b))
+                .collect();
+            casing.push(CertPair {
+                family: PairFamily::Casing,
+                delta,
+            });
+        }
+    }
+
+    // Whitening population: slot identity renderings + train docs
+    // (deterministic stride cap).
+    for &ti in stride_indices(prepared.train.len(), WHITEN_POP_CAP).iter() {
+        let mut v = [0.0f32; CERT_DIM];
+        embed.embed_into(prepared.train[ti].text.as_bytes(), &mut v);
+        ident_pop.push(v);
+    }
+    if fit.is_empty() && hold.is_empty() {
+        return None;
+    }
+    let mut rep = certify(&fit, &hold, &casing, &ident_pop);
+    rep.lane = "hashed-feature embed (presentation rendering)".to_string();
+    eprintln!(
+        "    basis-cert: verdict {} · k {:?} · gap {:?} · leakage {:?} · fit {} + holdout {} pairs · pop {}",
+        rep.verdict,
+        rep.k,
+        rep.gap_ratio.map(|g| (g * 1000.0).round() / 1000.0),
+        rep.pair_leakage.map(|g| (g * 1000.0).round() / 1000.0),
+        rep.n_fit_pairs,
+        rep.n_holdout_pairs,
+        rep.n_whiten_samples,
+    );
+    Some(rep)
+}
+
+/// The certificate's own slot cap: 320 slots × (K−1) deltas = 1280 fit/hold
+/// pairs at the default K — ≈5× the d=256 structural floor and ≈1.3× the
+/// Research-618 ≈1k identification budget.
+#[cfg(feature = "basis_cert")]
+pub const CERT_SLOT_CAP: usize = 320;
+
 /// One suite's probe cell: prepare, sample, run the control + every
 /// enabled lane. Never panics — every failure lands in `skipped`, loud.
 fn perm_suite(
@@ -688,6 +908,8 @@ fn perm_suite(
                 lanes,
                 skipped,
                 slice_summary: None,
+                #[cfg(feature = "basis_cert")]
+                basis_cert: None,
             };
         }
     };
@@ -716,6 +938,8 @@ fn perm_suite(
             lanes,
             skipped,
             slice_summary,
+            #[cfg(feature = "basis_cert")]
+            basis_cert: None,
         };
     }
     let sampled = stride_indices(choice_cases.len(), popts.max_cases);
@@ -800,11 +1024,23 @@ fn perm_suite(
     #[cfg(not(feature = "laya-riir"))]
     let _ = laya_enabled;
 
+    // Issue 086 T1 — the presentation-subspace certificate over the suite
+    // (`--basis-split`; the CLI refuses loud without the feature, so this
+    // arm is only reached when compiled in).
+    #[cfg(feature = "basis_cert")]
+    let basis_cert = if popts.basis_split {
+        basis_cert_suite(&prepared, popts.k, &mut skipped)
+    } else {
+        None
+    };
+
     PermSuiteReport {
         suite: spec.name.to_string(),
         lanes,
         skipped,
         slice_summary,
+        #[cfg(feature = "basis_cert")]
+        basis_cert,
     }
 }
 
@@ -1053,6 +1289,46 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
                         .join("|"),
                     c.swing_pt,
                     c.flipped,
+                ));
+            }
+        }
+    }
+    // Issue 086 T1 — the presentation-subspace certificate section (the
+    // `--basis-split` modifier; absent = not requested).
+    #[cfg(feature = "basis_cert")]
+    if out.suites.iter().any(|s| s.basis_cert.is_some()) {
+        s.push_str(
+            "\n## Basis-split certificate (issue 086 T1 — presentation subspace, hashed-feature embed)\n\n",
+        );
+        s.push_str(
+            "Fit/holdout = even/odd slots; whitening = identity renderings + train docs (stride-capped); \
+             τ_gap 4.0. `unidentified_*` is a RESULT (order-insensitive embed), not a failure; \
+             `pair_leakage` is a generalization residual of the fitted presentation null space, never purity.\n\n",
+        );
+        s.push_str("| suite | verdict | k | gap | holdout leakage | agreement residual | casing residual | fit+hold pairs | whitening pop |\n");
+        s.push_str("|---|---|---|---|---|---|---|---|---|\n");
+        for suite in &out.suites {
+            if let Some(c) = &suite.basis_cert {
+                s.push_str(&format!(
+                    "| {} | {} | {} | {} | {} | {} | {} | {}+{} | {} |\n",
+                    suite.suite,
+                    c.verdict,
+                    c.k.map(|k| k.to_string()).unwrap_or_else(|| "—".into()),
+                    c.gap_ratio
+                        .map(|g| format!("{g:.2}"))
+                        .unwrap_or_else(|| "—".into()),
+                    c.pair_leakage
+                        .map(|g| format!("{g:.4}"))
+                        .unwrap_or_else(|| "—".into()),
+                    c.agreement_residual
+                        .map(|g| format!("{g:.4}"))
+                        .unwrap_or_else(|| "—".into()),
+                    c.casing_null_residual
+                        .map(|g| format!("{g:.4}"))
+                        .unwrap_or_else(|| "none (all null)".into()),
+                    c.n_fit_pairs,
+                    c.n_holdout_pairs,
+                    c.n_whiten_samples,
                 ));
             }
         }
@@ -1403,6 +1679,8 @@ mod tests {
                 }],
                 skipped: vec!["laya: feature off".to_string()],
                 slice_summary: Some("slice line".to_string()),
+                #[cfg(feature = "basis_cert")]
+                basis_cert: None,
             }],
         };
         let md = render_perm_probe_markdown(&out);

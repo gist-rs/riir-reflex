@@ -27,6 +27,12 @@ pub mod item_dump;
 // gate, and the canary. Ungated + pure; the lanes live in the runner half
 // (`runner/perm_probe.rs`) behind the `ChoiceOracle` seam.
 pub mod permutation;
+// Issue 086 T1 — the perm-pair presentation-subspace certificate (pure
+// core): rendering, pair collection types, and the certify() call into
+// katgpt-core `basis_split`. Gated with the lane (the feature forwards
+// katgpt-core/basis_split); the runner half is `runner/basis_cert.rs`.
+#[cfg(feature = "basis_cert")]
+pub mod basis_cert;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
 // Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm

@@ -131,6 +131,18 @@ density_gate = ["modelless", "katgpt-core/gmm_support"]
 # the V5 paired-LB95 gate law is unchanged — the record is additive
 # disclosure. Opt-in; never in default.
 probe_delta_ab = ["modelless", "katgpt-core/state_probe"]
+# Issue 086 T1: the perm-pair presentation-subspace certificate (the
+# `--perm-probe --basis-split` report mode) — katgpt-core `basis_split`
+# (Plan 625 / Research 618, SplitJEPA arXiv:2610.12349) consumed over the
+# existing perm-pair generators: rank-gated presentation basis + per-suite
+# held-out leakage + the casing-null cross-check, REPORT-ONLY (no
+# decide-path change; the modelless embed reading is order-insensitive by
+# construction and the gate is expected to say so — `Unidentified` is a
+# result, not a failure). Embed-only (`embed` is ungated); the score-side
+# agreement column rides the probe's own control lane when present.
+# Opt-in; never in default. The first wired consumer of `basis_split` —
+# the data unblocking the katgpt-rs-side promotion decision.
+basis_cert = ["katgpt-core/basis_split"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane

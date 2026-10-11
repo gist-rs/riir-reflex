@@ -287,6 +287,8 @@ fn harness_main() {
     let mut perm_probe = false;
     let mut perm_k = 0usize;
     let mut perm_max_cases = 0usize;
+    // Issue 086 T1 — the presentation-subspace certificate modifier.
+    let mut basis_split = false;
     let mut distill = false;
     // The distill mode's knobs (Plan 426 T1: the mode is no longer
     // laya-only — the openthai teacher runs on a default-features build,
@@ -450,6 +452,11 @@ fn harness_main() {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--perm-max-cases needs a number"));
             }
+            // Issue 086 T1: the perm-pair presentation-subspace certificate
+            // (`--perm-probe --basis-split`, report-only). Needs the
+            // `basis_cert` feature — refuses loud without it, never a
+            // silent skip.
+            "--basis-split" => basis_split = true,
             "--distill" => distill = true,
             "--ensemble-gate" => ensemble_gate = true,
             "--ensemble-out" => {
@@ -697,6 +704,14 @@ fn harness_main() {
         if perm_k != 0 && perm_k < 2 {
             die("--perm-k needs >= 2 orderings (the identity + at least one shuffle)");
         }
+        #[cfg(not(feature = "basis_cert"))]
+        if basis_split {
+            die(
+                "--basis-split needs the `basis_cert` feature (it forwards \
+                 katgpt-core/basis_split): rebuild with \
+                 --features basis_cert",
+            );
+        }
         let popts = runner::PermProbeOptions {
             k: if perm_k == 0 {
                 runner::DEFAULT_PERM_K
@@ -711,10 +726,11 @@ fn harness_main() {
             drex: opts.drex,
             d1: opts.d1,
             agentjev: opts.agentjev,
+            basis_split,
         };
         println!(
             "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             popts.k,
@@ -722,6 +738,7 @@ fn harness_main() {
             if popts.drex { " +drex" } else { "" },
             if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
+            if popts.basis_split { " +basis-cert" } else { "" },
         );
         let out = match runner::run_perm_probe(&opts, &popts) {
             Ok(r) => r,
