@@ -132,11 +132,16 @@ pub fn render_presentation(q: &PresentationQuestion<'_>) -> String {
 }
 
 /// Which perturbation family a pair belongs to: `Ordering` pairs are the
-/// fit/holdout population; `Casing` pairs are the cross-family check.
+/// fit/holdout population; `Casing` pairs (case flips) and `Rename` pairs
+/// (option-label renames) are the cross-family checks — DIFFERENT
+/// presentation-perturbation families the fitted ordering basis must NOT
+/// capture (Issue 086 T2's holdout law: the true cross-family arm is a
+/// different presentation change).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PairFamily {
     Ordering,
     Casing,
+    Rename,
 }
 
 /// A collected pair: the f64 embed difference (variant − identity
@@ -169,6 +174,11 @@ pub struct BasisCertReport {
     /// carried a nonzero Δ — the expected posture for a case-insensitive
     /// tokenizer).
     pub casing_null_residual: Option<f64>,
+    /// The label-rename cross-family residual (the ordering basis
+    /// evaluated on renamed-label pairs — low = the families are distinct,
+    /// high = the ordering basis generalizes to rename churn). `None` when
+    /// no rename pair carried a nonzero Δ.
+    pub rename_residual: Option<f64>,
     /// The shrinkage floor added to the moment diagonal
     /// (`δ = SHRINKAGE_REL · tr(M)/d`) — the numerical guard that keeps
     /// the eigensolve convergent on a (near-)rank-deficient moment and
@@ -184,14 +194,15 @@ pub struct BasisCertReport {
 ///
 /// Contract: `fit_pairs`/`holdout_pairs` carry `PairFamily::Ordering`
 /// deltas and the caller has already split the slots fit/holdout
-/// (deterministic stride); `casing_pairs` carry `PairFamily::Casing`.
+/// (deterministic stride); `cross_pairs` carry the off-family checks
+/// (`PairFamily::Casing` / `PairFamily::Rename`).
 pub fn certify(
     fit_pairs: &[CertPair],
     holdout_pairs: &[CertPair],
-    casing_pairs: &[CertPair],
+    cross_pairs: &[CertPair],
     whiten_pop: &[[f32; CERT_DIM]],
 ) -> BasisCertReport {
-    match certify_inner(fit_pairs, holdout_pairs, casing_pairs, whiten_pop) {
+    match certify_inner(fit_pairs, holdout_pairs, cross_pairs, whiten_pop) {
         Ok(r) => r,
         Err(msg) => error_report(fit_pairs.len(), holdout_pairs.len(), whiten_pop.len(), &msg),
     }
@@ -209,6 +220,7 @@ fn error_report(n_fit: usize, n_hold: usize, n_pop: usize, msg: &str) -> BasisCe
         pair_leakage: None,
         agreement_residual: None,
         casing_null_residual: None,
+        rename_residual: None,
         shrinkage_eps: None,
         tau_gap: TAU_GAP,
     }
@@ -217,7 +229,7 @@ fn error_report(n_fit: usize, n_hold: usize, n_pop: usize, msg: &str) -> BasisCe
 fn certify_inner(
     fit_pairs: &[CertPair],
     holdout_pairs: &[CertPair],
-    casing_pairs: &[CertPair],
+    cross_pairs: &[CertPair],
     whiten_pop: &[[f32; CERT_DIM]],
 ) -> Result<BasisCertReport, String> {
     let d = CERT_DIM;
@@ -243,6 +255,7 @@ fn certify_inner(
             pair_leakage: None,
             agreement_residual: None,
             casing_null_residual: None,
+            rename_residual: None,
             shrinkage_eps: None,
             tau_gap: TAU_GAP,
         });
@@ -261,6 +274,7 @@ fn certify_inner(
             pair_leakage: None,
             agreement_residual: None,
             casing_null_residual: None,
+            rename_residual: None,
             shrinkage_eps: None,
             tau_gap: TAU_GAP,
         });
@@ -375,6 +389,7 @@ fn certify_inner(
         pair_leakage: None,
         agreement_residual: None,
         casing_null_residual: None,
+        rename_residual: None,
         shrinkage_eps: Some(shrinkage_eps),
         tau_gap: TAU_GAP,
     };
@@ -399,30 +414,40 @@ fn certify_inner(
         out.pair_leakage = report.pair_leakage;
         out.agreement_residual = report.agreement_residual;
 
-        // ── the casing cross-check (off-family residual, nonzero pairs only) ──
-        let mut sq_sum = 0.0;
-        let mut counted = 0usize;
+        // ── the cross-family checks (off-family residuals, nonzero pairs only) ──
+        // The fitted ordering basis evaluated on DIFFERENT presentation
+        // changes (Issue 086 T2's holdout law). Each family reports its own
+        // residual; all-null families report None (honest absence).
         let mut proj = vec![0.0f64; d];
-        for p in casing_pairs {
-            if p.delta.iter().all(|&v| v == 0.0) {
-                continue;
+        for family in [PairFamily::Casing, PairFamily::Rename] {
+            let mut sq_sum = 0.0;
+            let mut counted = 0usize;
+            for p in cross_pairs.iter().filter(|p| p.family == family) {
+                if p.delta.iter().all(|&v| v == 0.0) {
+                    continue;
+                }
+                katgpt_core::basis_split::project_invariant_into(
+                    &basis, *k, d, &p.delta, &mut bx_scratch, &mut proj,
+                )
+                .map_err(|e| format!("{family:?} project: {e}"))?;
+                let (mut num, mut den) = (0.0, 0.0);
+                for (i, pv) in proj.iter().enumerate() {
+                    num += pv * pv;
+                    den += p.delta[i] * p.delta[i];
+                }
+                if den > 0.0 {
+                    sq_sum += num / den;
+                    counted += 1;
+                }
             }
-            katgpt_core::basis_split::project_invariant_into(
-                &basis, *k, d, &p.delta, &mut bx_scratch, &mut proj,
-            )
-            .map_err(|e| format!("casing project: {e}"))?;
-            let (mut num, mut den) = (0.0, 0.0);
-            for (i, pv) in proj.iter().enumerate() {
-                num += pv * pv;
-                den += p.delta[i] * p.delta[i];
+            if counted > 0 {
+                let residual = sq_sum / counted as f64;
+                match family {
+                    PairFamily::Casing => out.casing_null_residual = Some(residual),
+                    PairFamily::Rename => out.rename_residual = Some(residual),
+                    PairFamily::Ordering => {}
+                }
             }
-            if den > 0.0 {
-                sq_sum += num / den;
-                counted += 1;
-            }
-        }
-        if counted > 0 {
-            out.casing_null_residual = Some(sq_sum / counted as f64);
         }
     } else if let katgpt_core::basis_split::Verdict::Unidentified(
         katgpt_core::basis_split::UnidentifiedReason::GapBelowTau { k, gap_ratio, .. },
@@ -633,6 +658,56 @@ mod tests {
         assert!(
             ea.iter().zip(eb.iter()).any(|(x, y)| x != y),
             "boundary bigrams must move the embed (or the certificate is vacuous)"
+        );
+    }
+
+    /// The T2 cross-family law: the rename arm carries NONZERO deltas (a
+    /// real token change — unlike the casing arm's null) and the ordering
+    /// basis must NOT capture it wholesale (the families are distinct;
+    /// the residual is reported, its size is the finding).
+    #[test]
+    fn rename_pairs_carry_nonzero_delta_and_report() {
+        let identity = render("s", "pick", &[("alpha", "ship"), ("beta", "hold")]);
+        let renamed = render("s", "pick", &[("alpha_2", "ship"), ("beta_2", "hold")]);
+        let p = pair_from(&identity, &renamed, PairFamily::Rename);
+        assert!(
+            p.delta.iter().any(|&v| v != 0.0),
+            "a rename must move the embed (new tokens)"
+        );
+        // Fit pairs with a planted direction so the certified branch runs.
+        let opts: [(&str, &str); 2] = [("alpha", "ship"), ("beta", "hold")];
+        let mk = |marker: &str, state: String| {
+            let owned: Vec<(String, String)> = opts
+                .iter()
+                .map(|(l, d)| ((*l).to_string(), format!("{d} {marker}")))
+                .collect();
+            let labels: Vec<String> = owned.iter().map(|(l, _)| l.clone()).collect();
+            let descs: Vec<String> = owned.iter().map(|(_, d)| d.clone()).collect();
+            render_presentation(&PresentationQuestion {
+                state: &state,
+                instructions: "pick",
+                labels: &labels,
+                descs: &descs,
+            })
+        };
+        let mut fit = Vec::new();
+        for i in 0..300usize {
+            let state = format!("rename case {i} status nominal");
+            fit.push(pair_from(
+                &mk("plain", state.clone()),
+                &mk("rtag_x", state),
+                PairFamily::Ordering,
+            ));
+        }
+        let pop = whiten_pop(320, "rename");
+        let rep = certify(&fit, &fit, &[p], &pop);
+        assert_eq!(rep.verdict, "sufficient_variation", "got {rep:?}");
+        let residual = rep
+            .rename_residual
+            .expect("a nonzero rename pair must report a residual");
+        assert!(
+            (0.0..=1.0).contains(&residual),
+            "residual is a fraction of ‖Δ‖², got {residual}"
         );
     }
 }

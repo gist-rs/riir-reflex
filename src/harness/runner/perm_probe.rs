@@ -680,6 +680,14 @@ fn perm_laya(
 
 // ────────────────────────────── the basis-split certificate (issue 086 T1) ──
 
+/// The T2 label-rename: every option label suffixed "_2" — a parallel,
+/// deterministic, token-changing rename (a DIFFERENT presentation-change
+/// family from ordering).
+#[cfg(feature = "basis_cert")]
+fn renamed_labels(labels: &[String]) -> Vec<String> {
+    labels.iter().map(|l| format!("{l}_2")).collect()
+}
+
 /// The certificate over one suite's sampled slots: its OWN slot budget
 /// (the pair-budget law needs ≥ d fit pairs — the probe's default 40-slot
 /// sample is far below; see [`CERT_SLOT_CAP`]). The perm-pair GENERATORS
@@ -752,10 +760,11 @@ fn basis_cert_suite(
     };
 
     // Per-slot: identity embed + K−1 ordering Δs. Even slot → fit half,
-    // odd → holdout; casing pairs from the holdout half.
+    // odd → holdout; the cross-family pairs (casing + rename) from the
+    // holdout half.
     let mut fit: Vec<CertPair> = Vec::new();
+    let mut cross: Vec<CertPair> = Vec::new();
     let mut hold: Vec<CertPair> = Vec::new();
-    let mut casing: Vec<CertPair> = Vec::new();
     let mut ident_pop: Vec<[f32; CERT_DIM]> = Vec::new();
     for (slot_i, &(ci, qi)) in slots.iter().enumerate() {
         let case = &prepared.suite.cases[ci];
@@ -803,12 +812,14 @@ fn basis_cert_suite(
                 hold.push(pair);
             }
         }
-        // The casing cross-check: the identity options case-flipped (the
-        // tokenizer must embed them identically; the pure core skips the
-        // null pairs and reports honestly).
-        if slot_i % 2 == 1
-            && let Some(obj) = q.criteria.as_object()
-        {
+        // The cross-family checks on the holdout half: (a) CASING — the
+        // identity options case-flipped (the tokenizer must embed them
+        // identically; the pure core skips the null pairs and reports
+        // honestly); (b) RENAME — every option label suffixed "_2" (a
+        // DIFFERENT presentation change; low residual = the families are
+        // distinct).
+        if slot_i % 2 == 1 {
+            let Some(obj) = q.criteria.as_object() else { continue };
             let labels: Vec<String> = obj.keys().cloned().collect();
             let descs: Vec<String> = labels
                 .iter()
@@ -819,6 +830,7 @@ fn basis_cert_suite(
                         .to_string()
                 })
                 .collect();
+            // (a) casing: first char of each label case-swapped.
             let flipped_labels: Vec<String> = labels
                 .iter()
                 .map(|l| {
@@ -835,23 +847,25 @@ fn basis_cert_suite(
                     c.iter().collect::<String>()
                 })
                 .collect();
-            let flipped_text = render_presentation(&PresentationQuestion {
-                state: state_str,
-                instructions: q.instructions.as_str(),
-                labels: &flipped_labels,
-                descs: &descs,
-            });
-            let mut fv = [0.0f32; CERT_DIM];
-            embed.embed_into(flipped_text.as_bytes(), &mut fv);
-            let delta: Vec<f64> = fv
-                .iter()
-                .zip(identity.iter())
-                .map(|(a, b)| f64::from(*a) - f64::from(*b))
-                .collect();
-            casing.push(CertPair {
-                family: PairFamily::Casing,
-                delta,
-            });
+            for (labels_v, family) in [
+                (&flipped_labels, PairFamily::Casing),
+                (&renamed_labels(&labels), PairFamily::Rename),
+            ] {
+                let text = render_presentation(&PresentationQuestion {
+                    state: state_str,
+                    instructions: q.instructions.as_str(),
+                    labels: labels_v,
+                    descs: &descs,
+                });
+                let mut fv = [0.0f32; CERT_DIM];
+                embed.embed_into(text.as_bytes(), &mut fv);
+                let delta: Vec<f64> = fv
+                    .iter()
+                    .zip(identity.iter())
+                    .map(|(a, b)| f64::from(*a) - f64::from(*b))
+                    .collect();
+                cross.push(CertPair { family, delta });
+            }
         }
     }
 
@@ -865,7 +879,7 @@ fn basis_cert_suite(
     if fit.is_empty() && hold.is_empty() {
         return None;
     }
-    let mut rep = certify(&fit, &hold, &casing, &ident_pop);
+    let mut rep = certify(&fit, &hold, &cross, &ident_pop);
     rep.lane = "hashed-feature embed (presentation rendering)".to_string();
     eprintln!(
         "    basis-cert: verdict {} · k {:?} · gap {:?} · leakage {:?} · fit {} + holdout {} pairs · pop {}",
@@ -1305,12 +1319,12 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
              τ_gap 4.0. `unidentified_*` is a RESULT (order-insensitive embed), not a failure; \
              `pair_leakage` is a generalization residual of the fitted presentation null space, never purity.\n\n",
         );
-        s.push_str("| suite | verdict | k | gap | holdout leakage | agreement residual | casing residual | fit+hold pairs | whitening pop |\n");
-        s.push_str("|---|---|---|---|---|---|---|---|---|\n");
+        s.push_str("| suite | verdict | k | gap | holdout leakage | agreement residual | casing residual | rename residual | fit+hold pairs | whitening pop |\n");
+        s.push_str("|---|---|---|---|---|---|---|---|---|---|\n");
         for suite in &out.suites {
             if let Some(c) = &suite.basis_cert {
                 s.push_str(&format!(
-                    "| {} | {} | {} | {} | {} | {} | {} | {}+{} | {} |\n",
+                    "| {} | {} | {} | {} | {} | {} | {} | {} | {}+{} | {} |\n",
                     suite.suite,
                     c.verdict,
                     c.k.map(|k| k.to_string()).unwrap_or_else(|| "—".into()),
@@ -1326,6 +1340,9 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
                     c.casing_null_residual
                         .map(|g| format!("{g:.4}"))
                         .unwrap_or_else(|| "none (all null)".into()),
+                    c.rename_residual
+                        .map(|g| format!("{g:.4}"))
+                        .unwrap_or_else(|| "—".into()),
                     c.n_fit_pairs,
                     c.n_holdout_pairs,
                     c.n_whiten_samples,
