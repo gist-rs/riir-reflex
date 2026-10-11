@@ -1,6 +1,6 @@
 # Issue 085 — Drex v1.5 revisit: the open 9B release, the llama.cpp fork posture, and the missing site rows
 
-**Status:** OPEN — T1 DONE (reflex-site `5fc1649`, pushed 2026-10-10: the drex lane is registered + the DLM cells live in data/bench.json, edition 2026-10-10; site deploy is the manual wrangler step); T0 owner gate still blocks T2/T3.
+**Status:** OPEN — T1 DONE (reflex-site `5fc1649`, pushed 2026-10-10: the drex lane is registered + the DLM cells live in data/bench.json, edition 2026-10-10; site deploy is the manual wrangler step); T0 RESOLVED 2026-10-11 (owner-delegated Claude verdict: permission-first, GGUF deleted) — T2/T3 now block on the OWNER'S permission email + Nace's explicit written reply only.
 
 ## Trigger
 
@@ -65,10 +65,34 @@ meta string that hardcodes the DLM description needs a v1.5 variant.
 
 ## Tasks
 
-- [ ] T0 owner gate: the RAIL-M §2(c) ruling (written permission via nischay@nace.ai,
-      or the owner's non-competitor ruling, or skip v1.5) + decide the downloaded
-      GGUF's fate (`C:\models\drex-v1.5-Q8_0.gguf`, sha256
-      `7ff3285686e7bef7b477a37e6f260837381222c3e463cc802f61f617de2a4ed5`, matches HF LFS).
+- [x] T0 owner gate RESOLVED 2026-10-11 (owner-delegated Claude-verdict ping-pong,
+      `#Verdict: AGREE` with one modification adopted in full): **ruling = option (a)
+      permission-first, option (c) skip as the automatic fallback.**
+      - **GGUF DELETED 2026-10-11** — `C:\models\drex-v1.5-Q8_0.gguf`, sha256
+        re-verified immediately before deletion =
+        `7ff3285686e7bef7b477a37e6f260837381222c3e463cc802f61f617de2a4ed5`
+        (byte-identical to the HF LFS original recorded at download). Verdict reasoning:
+        if §2(c) reaches us the copy was unlicensed from the start — holding it is not
+        neutral, and deletion is cheap + reversible (public HF artifact + the recorded
+        sha256 makes a re-download verifiable byte-for-byte). The fork build at
+        `C:\builds\nace-llama` is NOT the licensed artifact (MIT llama.cpp code) and
+        stays.
+      - **The OWNER sends the permission email from their own identity** (never an
+        agent — outward-facing, and the permission must name the actual licensee) to
+        §4's contact nischay@nace.ai. Verdict conditions on the request: (1) ask
+        separately for run+evaluate AND for public publication of the results on a site
+        that carries commercial copy — evaluation-only permission would not cover T3;
+        (2) describe our business honestly (we run decision-model products — permission
+        obtained by hiding that would not protect us); (3) commit to no distillation,
+        no serving of their weights, attribution given, a separate `drex-v1.5` lane row
+        (never the DLM row).
+      - **Only an explicit written grant unblocks T2.** Silence or an unclear answer
+        counts as NO: 14 days unanswered, or a denial → close T2/T3 as
+        skipped-per-license (option c), no re-download. If the owner still wants the
+        row after a NO, the next step is a lawyer's opinion on §2(c), never option (b).
+      - The published CC BY-NC DLM row (T1) is UNCHANGED by this ruling — CC BY-NC
+        governs copyright acts; it does not add a contract term over
+        "running/evaluating" the way RAIL-M §6 does. T1 is not reopened.
 - [x] T1 (NOT blocked by T0): publish the EXISTING Drex-DLM cells (Benches 073/125/126)
       to reflex.gist.rs — register the `drex` lane in `LANE_DISPLAY` + filter/charts +
       the CC BY-NC measurement-only disclosure, following the pplx pattern
@@ -88,7 +112,8 @@ meta string that hardcodes the DLM description needs a v1.5 variant.
       clef/pplx/drex (a lane missing there silently renders as `other` — drex was
       the first extra-host lane since the tuple was written), and the page smoke's
       hostRowCount 4090-scope counter predated the new lanes.
-- [-] T2 (BLOCKED by T0, not by the GPU): measure drex-v1.5 on this box at the staged
+- [-] T2 (BLOCKED on Nace's explicit WRITTEN permission per the T0 ruling — NOT on
+      the GPU): measure drex-v1.5 on this box at the staged
       posture — serve: `C:\builds\nace-llama\bin\Release\llama-server.exe` (fork @
       `e8f79610…`, GGML_CUDA=ON, sm_89, VS2022 + CUDA 13.3) with
       `C:\models\drex-v1.5-Q8_0.gguf`:
@@ -96,9 +121,10 @@ meta string that hardcodes the DLM description needs a v1.5 variant.
       (the `-b/-ub` flags are LOAD-BEARING — Bench 125's `GGML_ASSERT(n_outputs_max)`
       lesson), then
       `DREX_SERVE_URL=http://127.0.0.1:8097 cargo run --release --bin harness -- --drex --suites typed_decisions,sst5 --skip-laya --out .benchmarks/138_drex_v15_4090`
-      (bench highwater read 137 at filing — re-check at write). Box note: the GPU is
-      held by the sibling training run (19.6/24.5 GB, 2026-10-10) — the GPU freeing
-      alone does NOT start this task; T0 does.
+      (bench highwater read 137 at filing — re-check at write). On permission: the
+      GGUF must be RE-DOWNLOADED from `nace-ai/drex-v1.5-Q8_0` and re-verified against
+      the recorded sha256 before serving (deleted per T0). Box note: the GPU freeing
+      alone does NOT start this task; the written permission does.
 - [ ] T3 (after T2): publish the v1.5 rows via the same T1 registration + republish.
       The registration half is DONE (T1, reflex-site `5fc1649`) — a v1.5 run needs a
       NEW lane row per the scope law: `LANE_DISPLAY["drex-v1.5"] = "drex-v1.5 …"`, a
