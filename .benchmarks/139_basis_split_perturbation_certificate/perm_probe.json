@@ -1,0 +1,6240 @@
+{
+  "meta": {
+    "date_utc": "2026-10-12T10:42:49Z",
+    "git_sha": "1d396d1",
+    "host": "shikuwa",
+    "datasets_dir": "E:/git/riir-reflex/.raw/datasets",
+    "k": 5,
+    "max_cases": 60,
+    "seed": 125239297,
+    "gate_rule": "per lane x suite: MEDIAN top-pick swing across orderings <= 2 pt; max + flip rate disclosed beside. The modelless control holds a stricter contract: flips allowed ONLY on an exact top-2 tie (the deterministic first-position tie-break) and median swing within the L1 normalizer's measured fp envelope (0.01 pt) — strict byte-identity stays a disclosed column (the L1 sum reorders with the presentation and moves ULPs by design). A control red refuses the run verdict.",
+    "sampling_rule": "the suite's choice-carrying cases in dataset order, first of every ceil(n/max_cases) stride (deterministic); ALL choice questions of each sampled case. The canary case rides every lane as the liveness cell (never in the suite medians).",
+    "invariance_rule": "label-space mapping: option LABELS are the invariant under permutation (indexes move); every comparison happens on labels mapped back to the original criteria order.",
+    "route_binding": "by-name + index-anchored (score, k == N, index-named domains; issue 079)",
+    "latency_note": "latency columns deliberately absent — this is a distribution-stability probe; the latency/determinism axes live in the det benches (126/127).",
+    "laya_device": null,
+    "box_start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 1.68,
+      "swap_used_mb": 1070.0,
+      "load_source": "cpu_util_pct_x_cores/100",
+      "gpu_util_pct": 5.0,
+      "gpu_mem_mib": 343.0,
+      "latency_quotable": true,
+      "refusals": []
+    },
+    "box_end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 2.16,
+      "swap_used_mb": 1070.0,
+      "load_source": "cpu_util_pct_x_cores/100",
+      "gpu_util_pct": 5.0,
+      "gpu_mem_mib": 343.0,
+      "latency_quotable": true,
+      "refusals": []
+    }
+  },
+  "red_cells": 0,
+  "suites": [
+    {
+      "suite": "typed_decisions",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 87,
+          "n_orderings": 5,
+          "median_swing_pt": 0.0,
+          "max_swing_pt": 2.9802322387695312e-6,
+          "flips": 44,
+          "flip_rate": 0.5057471264367817,
+          "control_invariant": false,
+          "verdict": "PASS",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "beta",
+            "pick_labels": [
+              "beta",
+              "beta",
+              "beta",
+              "beta",
+              "beta"
+            ],
+            "p_ref": [
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343
+            ],
+            "swing_pt": 0.0,
+            "flipped": false
+          },
+          "cases": [
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "stop",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "failure",
+                "harmful"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:7",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "stop",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:7",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "partial",
+                "harmful",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "harmful",
+                "failure",
+                "partial"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:21",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:21",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "failure",
+                "success",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "observe",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "failure",
+                "harmful",
+                "partial"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:35",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:35",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "partial",
+                "harmful",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "harmful",
+                "success",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:49",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:49",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "success",
+                "failure",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "success",
+                "success",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:63",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:63",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "partial",
+                "failure",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "harmful",
+                "failure",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:77",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:77",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "partial",
+                "failure",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "failure",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:91",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:91",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "success",
+                "failure",
+                "partial"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "partial",
+                "partial",
+                "partial",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "customer_service:105",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:105",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:119",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:119",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "account",
+              "pick_labels": [
+                "account",
+                "billing",
+                "account",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20278668403625488,
+                0.20278668403625488,
+                0.20278668403625488,
+                0.20278668403625488,
+                0.20278668403625488
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:133",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:133",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:147",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:147",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:161",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:161",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:175",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:175",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:189",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:189",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344523131847382
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:203",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:210",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:217",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:224",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583477497101
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:231",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:238",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:245",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:252",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:259",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:266",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:273",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:280",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:287",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "invoice_processing:294",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "security_incidents:301",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:308",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "security_incidents:315",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "monitor",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:322",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:329",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:336",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "security_incidents:343",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:350",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "monitor",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:357",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:364",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:371",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:378",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:385",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:392",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            },
+            {
+              "case_id": "security_incidents:399",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "contain",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-287d5f73a11932cd) · cal 100 (fnv1a64-0b6e8426558b0d1e) · pool 1100 (fnv1a64-a1679de56e9278b1) · OK",
+      "basis_cert": {
+        "lane": "hashed-feature embed (presentation rendering)",
+        "n_fit_pairs": 600,
+        "n_holdout_pairs": 600,
+        "n_whiten_samples": 667,
+        "verdict": "sufficient_variation",
+        "k": 202,
+        "gap_ratio": 68.19292117334882,
+        "pair_leakage": 0.23115945937064655,
+        "agreement_residual": 0.4719800654221162,
+        "casing_null_residual": null,
+        "rename_residual": 0.18029117289898233,
+        "shrinkage_eps": 6.219881742381193e-10,
+        "tau_gap": 4.0
+      },
+      "basis_perturb": {
+        "n_cases": 31,
+        "n_directions": 32,
+        "k_total": 202,
+        "median_delta_norm": 0.08192319422960281,
+        "n_route_active_cases": 0,
+        "rungs": [
+          {
+            "label": "fp_1x",
+            "eps": 1.1920928955078125e-7,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "fp_16x",
+            "eps": 1.9073486328125e-6,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "fp_256x",
+            "eps": 0.000030517578125,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "delta_1e-3",
+            "eps": 0.00008192319422960281,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "delta_1e-2",
+            "eps": 0.0008192319422960281,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "delta_1e-1",
+            "eps": 0.008192319422960281,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          },
+          {
+            "label": "delta_1x",
+            "eps": 0.08192319422960281,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0,
+            "max_conf_delta": 0.0
+          }
+        ],
+        "verdict": "vacuous_no_response"
+      }
+    },
+    {
+      "suite": "ag_news",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 58,
+          "n_orderings": 5,
+          "median_swing_pt": 0.0,
+          "max_swing_pt": 5.9604644775390625e-6,
+          "flips": 0,
+          "flip_rate": 0.0,
+          "control_invariant": false,
+          "verdict": "PASS",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "alpha",
+            "pick_labels": [
+              "alpha",
+              "delta",
+              "gamma",
+              "alpha",
+              "alpha"
+            ],
+            "p_ref": [
+              0.20338784158229828,
+              0.20338784158229828,
+              0.20338784158229828,
+              0.20338784158229828,
+              0.20338784158229828
+            ],
+            "swing_pt": 0.0,
+            "flipped": true
+          },
+          "cases": [
+            {
+              "case_id": "ag_news:0",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.26442891359329224,
+                0.26442891359329224,
+                0.26442891359329224,
+                0.26442891359329224,
+                0.26442891359329224
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:7",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25366413593292236,
+                0.25366413593292236,
+                0.25366413593292236,
+                0.25366413593292236,
+                0.25366413593292236
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:14",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2578667998313904,
+                0.2578667998313904,
+                0.2578667998313904,
+                0.2578667998313904,
+                0.2578667998313904
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:21",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.25229230523109436,
+                0.25229230523109436,
+                0.25229230523109436,
+                0.25229230523109436,
+                0.25229230523109436
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:28",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.25223249197006226,
+                0.25223249197006226,
+                0.25223249197006226,
+                0.25223246216773987,
+                0.25223249197006226
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:35",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.26380833983421326,
+                0.26380833983421326,
+                0.26380833983421326,
+                0.26380833983421326,
+                0.26380833983421326
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:42",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25241729617118835,
+                0.25241729617118835,
+                0.25241732597351074,
+                0.25241729617118835,
+                0.25241729617118835
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:49",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.25648462772369385,
+                0.25648462772369385,
+                0.25648462772369385,
+                0.25648462772369385,
+                0.25648462772369385
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:56",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.2609657347202301,
+                0.2609657347202301,
+                0.2609657347202301,
+                0.2609657347202301,
+                0.2609657347202301
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:63",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2633623778820038,
+                0.26336240768432617,
+                0.26336240768432617,
+                0.26336240768432617,
+                0.2633623778820038
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:70",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25522395968437195,
+                0.25522395968437195,
+                0.25522395968437195,
+                0.25522395968437195,
+                0.25522395968437195
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:77",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2536093294620514,
+                0.2536093294620514,
+                0.2536093294620514,
+                0.2536093294620514,
+                0.2536093294620514
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:84",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25611427426338196,
+                0.25611427426338196,
+                0.25611427426338196,
+                0.25611427426338196,
+                0.25611427426338196
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:91",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.26370707154273987,
+                0.2637070417404175,
+                0.2637070417404175,
+                0.2637070417404175,
+                0.2637070417404175
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:98",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25971856713294983,
+                0.25971856713294983,
+                0.25971856713294983,
+                0.25971856713294983,
+                0.25971856713294983
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:105",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2758021652698517,
+                0.2758021652698517,
+                0.2758021652698517,
+                0.27580222487449646,
+                0.27580222487449646
+              ],
+              "swing_pt": 5.9604644775390625e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:112",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.2610757350921631,
+                0.2610757350921631,
+                0.2610757350921631,
+                0.2610757350921631,
+                0.2610757350921631
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:119",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2519204020500183,
+                0.2519204020500183,
+                0.2519204020500183,
+                0.2519204020500183,
+                0.2519204020500183
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:126",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2588311433792114,
+                0.2588311433792114,
+                0.2588311433792114,
+                0.2588311433792114,
+                0.2588311433792114
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:133",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.269996702671051,
+                0.269996702671051,
+                0.269996702671051,
+                0.269996702671051,
+                0.269996702671051
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:140",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2537323832511902,
+                0.2537323832511902,
+                0.2537323832511902,
+                0.2537323832511902,
+                0.2537323832511902
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:147",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2554698884487152,
+                0.2554698884487152,
+                0.2554698884487152,
+                0.2554698884487152,
+                0.2554698884487152
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:154",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.25313064455986023,
+                0.25313064455986023,
+                0.25313064455986023,
+                0.25313064455986023,
+                0.25313064455986023
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:161",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.25161516666412354,
+                0.25161516666412354,
+                0.25161516666412354,
+                0.25161516666412354,
+                0.25161516666412354
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:168",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.26347455382347107,
+                0.26347455382347107,
+                0.26347455382347107,
+                0.26347455382347107,
+                0.26347455382347107
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:175",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25418421626091003,
+                0.25418421626091003,
+                0.25418421626091003,
+                0.25418421626091003,
+                0.25418421626091003
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:182",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.25825217366218567,
+                0.25825217366218567,
+                0.25825217366218567,
+                0.25825217366218567,
+                0.25825217366218567
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:189",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2677706480026245,
+                0.2677706480026245,
+                0.2677706480026245,
+                0.2677706480026245,
+                0.2677706480026245
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:196",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25132468342781067,
+                0.25132468342781067,
+                0.2513246536254883,
+                0.2513246536254883,
+                0.2513246536254883
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:203",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2874050438404083,
+                0.2874050438404083,
+                0.28740501403808594,
+                0.28740501403808594,
+                0.2874050438404083
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:210",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2533206343650818,
+                0.2533206343650818,
+                0.2533206343650818,
+                0.2533206343650818,
+                0.2533206343650818
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:217",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25384852290153503,
+                0.2538485527038574,
+                0.25384852290153503,
+                0.2538485527038574,
+                0.25384852290153503
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:224",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.2555093765258789,
+                0.2555093765258789,
+                0.2555093765258789,
+                0.2555093765258789,
+                0.2555093765258789
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:231",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.26532089710235596,
+                0.26532089710235596,
+                0.26532089710235596,
+                0.26532089710235596,
+                0.26532089710235596
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:238",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.26774483919143677,
+                0.26774483919143677,
+                0.26774483919143677,
+                0.26774483919143677,
+                0.26774483919143677
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:245",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25278303027153015,
+                0.25278303027153015,
+                0.25278303027153015,
+                0.25278300046920776,
+                0.25278303027153015
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:252",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.25803714990615845,
+                0.25803714990615845,
+                0.25803714990615845,
+                0.25803714990615845,
+                0.25803714990615845
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:259",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2528829872608185,
+                0.25288301706314087,
+                0.2528829872608185,
+                0.2528829872608185,
+                0.2528829872608185
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:266",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2577165365219116,
+                0.25771650671958923,
+                0.2577165365219116,
+                0.2577165365219116,
+                0.2577165365219116
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:273",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.25257962942123413,
+                0.25257962942123413,
+                0.25257962942123413,
+                0.25257962942123413,
+                0.25257962942123413
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:280",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.26683950424194336,
+                0.26683950424194336,
+                0.26683950424194336,
+                0.26683950424194336,
+                0.26683950424194336
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:287",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2550174295902252,
+                0.25501748919487,
+                0.2550174593925476,
+                0.2550174593925476,
+                0.2550174593925476
+              ],
+              "swing_pt": 5.9604644775390625e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:294",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2795821726322174,
+                0.2795821726322174,
+                0.2795821726322174,
+                0.2795821726322174,
+                0.2795821726322174
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:301",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.25424250960350037,
+                0.25424250960350037,
+                0.25424250960350037,
+                0.25424250960350037,
+                0.25424250960350037
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:308",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2555016577243805,
+                0.2555016577243805,
+                0.2555016577243805,
+                0.2555016577243805,
+                0.2555016577243805
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:315",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.270376056432724,
+                0.270376056432724,
+                0.270376056432724,
+                0.270376056432724,
+                0.270376056432724
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:322",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sci_tech",
+              "pick_labels": [
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech",
+                "sci_tech"
+              ],
+              "p_ref": [
+                0.2610631585121155,
+                0.2610631585121155,
+                0.2610631585121155,
+                0.2610631585121155,
+                0.26106318831443787
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:329",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2539460062980652,
+                0.2539460062980652,
+                0.2539460062980652,
+                0.2539460062980652,
+                0.2539460062980652
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:336",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25493258237838745,
+                0.25493258237838745,
+                0.25493258237838745,
+                0.25493258237838745,
+                0.25493258237838745
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:343",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2610454261302948,
+                0.2610454261302948,
+                0.2610454261302948,
+                0.2610454261302948,
+                0.2610454261302948
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:350",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.2587413787841797,
+                0.2587413787841797,
+                0.2587413787841797,
+                0.2587413787841797,
+                0.2587413787841797
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:357",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.25424426794052124,
+                0.25424429774284363,
+                0.25424429774284363,
+                0.25424429774284363,
+                0.25424429774284363
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:364",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2910301089286804,
+                0.2910301387310028,
+                0.2910301387310028,
+                0.2910301089286804,
+                0.2910301387310028
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:371",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2546858489513397,
+                0.2546858489513397,
+                0.2546858489513397,
+                0.2546858489513397,
+                0.2546858489513397
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:378",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.25180160999298096,
+                0.25180160999298096,
+                0.25180163979530334,
+                0.25180160999298096,
+                0.25180160999298096
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:385",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "sports",
+              "pick_labels": [
+                "sports",
+                "sports",
+                "sports",
+                "sports",
+                "sports"
+              ],
+              "p_ref": [
+                0.25912296772003174,
+                0.25912296772003174,
+                0.25912296772003174,
+                0.25912296772003174,
+                0.25912296772003174
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:392",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "world",
+              "pick_labels": [
+                "world",
+                "world",
+                "world",
+                "world",
+                "world"
+              ],
+              "p_ref": [
+                0.2600788474082947,
+                0.26007887721061707,
+                0.26007887721061707,
+                0.2600788474082947,
+                0.26007887721061707
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "ag_news:399",
+              "qid": "topic",
+              "n_options": 4,
+              "ref_pick": "business",
+              "pick_labels": [
+                "business",
+                "business",
+                "business",
+                "business",
+                "business"
+              ],
+              "p_ref": [
+                0.25155314803123474,
+                0.25155314803123474,
+                0.25155314803123474,
+                0.25155314803123474,
+                0.25155314803123474
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-238133933bb8d6fc) · cal 200 (fnv1a64-96c58e69e7c6048e) · pool 19800 (fnv1a64-996876e41929dc33) · OK",
+      "basis_cert": {
+        "lane": "hashed-feature embed (presentation rendering)",
+        "n_fit_pairs": 400,
+        "n_holdout_pairs": 400,
+        "n_whiten_samples": 708,
+        "verdict": "sufficient_variation",
+        "k": 111,
+        "gap_ratio": 3880.560976024992,
+        "pair_leakage": 0.5789274887980007,
+        "agreement_residual": 0.743343262015842,
+        "casing_null_residual": null,
+        "rename_residual": 0.5317397728544564,
+        "shrinkage_eps": 3.445494549011683e-10,
+        "tau_gap": 4.0
+      },
+      "basis_perturb": {
+        "n_cases": 31,
+        "n_directions": 32,
+        "k_total": 111,
+        "median_delta_norm": 0.11995203027459668,
+        "n_route_active_cases": 31,
+        "rungs": [
+          {
+            "label": "fp_1x",
+            "eps": 1.1920928955078125e-7,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 5.960464477539063e-8,
+            "max_conf_delta": 1.1920928955078125e-7
+          },
+          {
+            "label": "fp_16x",
+            "eps": 1.9073486328125e-6,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 1.1920928955078125e-7,
+            "max_conf_delta": 1.7881393432617188e-7
+          },
+          {
+            "label": "fp_256x",
+            "eps": 0.000030517578125,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 1.2516975402832031e-6,
+            "max_conf_delta": 1.7881393432617188e-7
+          },
+          {
+            "label": "delta_1e-3",
+            "eps": 0.00011995203027459668,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 4.708766937255859e-6,
+            "max_conf_delta": 5.364418029785156e-7
+          },
+          {
+            "label": "delta_1e-2",
+            "eps": 0.001199520302745967,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.000046759843826293945,
+            "max_conf_delta": 4.76837158203125e-6
+          },
+          {
+            "label": "delta_1e-1",
+            "eps": 0.01199520302745967,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0004672408103942871,
+            "max_conf_delta": 0.00004690885543823242
+          },
+          {
+            "label": "delta_1x",
+            "eps": 0.11995203027459668,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.004679292440414429,
+            "max_conf_delta": 0.0004985332489013672
+          }
+        ],
+        "verdict": "pass"
+      }
+    },
+    {
+      "suite": "emotion",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 58,
+          "n_orderings": 5,
+          "median_swing_pt": 1.4901161193847656e-6,
+          "max_swing_pt": 2.9802322387695312e-6,
+          "flips": 0,
+          "flip_rate": 0.0,
+          "control_invariant": false,
+          "verdict": "PASS",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "beta",
+            "pick_labels": [
+              "beta",
+              "beta",
+              "beta",
+              "beta",
+              "beta"
+            ],
+            "p_ref": [
+              0.2044295221567154,
+              0.2044295221567154,
+              0.2044295072555542,
+              0.2044295072555542,
+              0.2044295072555542
+            ],
+            "swing_pt": 1.4901161193847656e-6,
+            "flipped": false
+          },
+          "cases": [
+            {
+              "case_id": "emotion:0",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.17251747846603394,
+                0.17251749336719513,
+                0.17251747846603394,
+                0.17251749336719513,
+                0.17251747846603394
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:7",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16884705424308777,
+                0.16884705424308777,
+                0.16884705424308777,
+                0.16884705424308777,
+                0.16884705424308777
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:14",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.16922122240066528,
+                0.16922122240066528,
+                0.1692212074995041,
+                0.1692212074995041,
+                0.16922122240066528
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:21",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.1695633977651596,
+                0.1695633977651596,
+                0.1695633977651596,
+                0.1695633977651596,
+                0.1695633977651596
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:28",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16842500865459442,
+                0.16842502355575562,
+                0.16842502355575562,
+                0.16842502355575562,
+                0.16842500865459442
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:35",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16901421546936035,
+                0.16901421546936035,
+                0.16901421546936035,
+                0.16901421546936035,
+                0.16901421546936035
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:42",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16893929243087769,
+                0.16893929243087769,
+                0.16893929243087769,
+                0.16893929243087769,
+                0.16893929243087769
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:49",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.1701609343290329,
+                0.1701609343290329,
+                0.1701609343290329,
+                0.1701609492301941,
+                0.1701609492301941
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:56",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16877812147140503,
+                0.16877812147140503,
+                0.16877812147140503,
+                0.16877812147140503,
+                0.16877812147140503
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:63",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16895858943462372,
+                0.1689586043357849,
+                0.16895858943462372,
+                0.16895858943462372,
+                0.16895858943462372
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:70",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.1693626493215561,
+                0.16936267912387848,
+                0.1693626493215561,
+                0.1693626493215561,
+                0.16936267912387848
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:77",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.1800222545862198,
+                0.1800222545862198,
+                0.18002226948738098,
+                0.18002226948738098,
+                0.18002226948738098
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:84",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16880524158477783,
+                0.16880524158477783,
+                0.16880524158477783,
+                0.16880524158477783,
+                0.16880524158477783
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:91",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16923096776008606,
+                0.16923096776008606,
+                0.16923098266124725,
+                0.16923096776008606,
+                0.16923098266124725
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:98",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16883297264575958,
+                0.16883297264575958,
+                0.16883297264575958,
+                0.16883297264575958,
+                0.1688329577445984
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:105",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16914942860603333,
+                0.16914942860603333,
+                0.16914942860603333,
+                0.16914942860603333,
+                0.16914942860603333
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:112",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.17000824213027954,
+                0.17000824213027954,
+                0.17000824213027954,
+                0.17000824213027954,
+                0.17000824213027954
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:119",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16919292509555817,
+                0.16919291019439697,
+                0.16919291019439697,
+                0.16919291019439697,
+                0.16919291019439697
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:126",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16954831779003143,
+                0.16954834759235382,
+                0.16954834759235382,
+                0.16954834759235382,
+                0.16954831779003143
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:133",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16890205442905426,
+                0.16890208423137665,
+                0.16890208423137665,
+                0.16890208423137665,
+                0.16890208423137665
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:140",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.17043982446193695,
+                0.17043982446193695,
+                0.17043982446193695,
+                0.17043982446193695,
+                0.17043982446193695
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:147",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16799645125865936,
+                0.16799645125865936,
+                0.16799645125865936,
+                0.16799645125865936,
+                0.16799645125865936
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:154",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.16953790187835693,
+                0.16953788697719574,
+                0.16953788697719574,
+                0.16953790187835693,
+                0.16953788697719574
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:161",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16851869225502014,
+                0.16851869225502014,
+                0.16851869225502014,
+                0.16851869225502014,
+                0.16851870715618134
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:168",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16929727792739868,
+                0.16929727792739868,
+                0.1692972630262375,
+                0.16929727792739868,
+                0.16929727792739868
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:175",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.1760770082473755,
+                0.1760769933462143,
+                0.1760769933462143,
+                0.1760769933462143,
+                0.1760769933462143
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:182",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16921399533748627,
+                0.16921399533748627,
+                0.16921401023864746,
+                0.16921399533748627,
+                0.16921399533748627
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:189",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16868062317371368,
+                0.1686806082725525,
+                0.1686806082725525,
+                0.1686806082725525,
+                0.16868062317371368
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:196",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16883526742458344,
+                0.16883526742458344,
+                0.16883526742458344,
+                0.16883526742458344,
+                0.16883528232574463
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:203",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.1692824810743332,
+                0.169282466173172,
+                0.1692824810743332,
+                0.1692824810743332,
+                0.169282466173172
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:210",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16916723549365997,
+                0.16916726529598236,
+                0.16916723549365997,
+                0.16916726529598236,
+                0.16916723549365997
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:217",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16885718703269958,
+                0.16885718703269958,
+                0.16885718703269958,
+                0.1688571572303772,
+                0.1688571572303772
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:224",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16916172206401825,
+                0.16916172206401825,
+                0.16916172206401825,
+                0.16916170716285706,
+                0.16916172206401825
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:231",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16925591230392456,
+                0.16925591230392456,
+                0.16925591230392456,
+                0.16925591230392456,
+                0.16925591230392456
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:238",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16913019120693207,
+                0.16913019120693207,
+                0.16913019120693207,
+                0.16913016140460968,
+                0.16913016140460968
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:245",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16900566220283508,
+                0.16900566220283508,
+                0.16900566220283508,
+                0.16900567710399628,
+                0.16900566220283508
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:252",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16910915076732635,
+                0.16910915076732635,
+                0.16910915076732635,
+                0.16910916566848755,
+                0.16910915076732635
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:259",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16992543637752533,
+                0.16992543637752533,
+                0.16992543637752533,
+                0.16992543637752533,
+                0.16992543637752533
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:266",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16850274801254272,
+                0.16850274801254272,
+                0.16850276291370392,
+                0.16850274801254272,
+                0.16850274801254272
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:273",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16890208423137665,
+                0.16890208423137665,
+                0.16890208423137665,
+                0.16890208423137665,
+                0.16890208423137665
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:280",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16955454647541046,
+                0.16955454647541046,
+                0.16955454647541046,
+                0.16955454647541046,
+                0.16955454647541046
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:287",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16911141574382782,
+                0.16911140084266663,
+                0.16911140084266663,
+                0.16911141574382782,
+                0.16911140084266663
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:294",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16868892312049866,
+                0.16868893802165985,
+                0.16868893802165985,
+                0.16868893802165985,
+                0.16868893802165985
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:301",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16898705065250397,
+                0.16898702085018158,
+                0.16898705065250397,
+                0.16898702085018158,
+                0.16898702085018158
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:308",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.17037013173103333,
+                0.17037011682987213,
+                0.17037011682987213,
+                0.17037011682987213,
+                0.17037013173103333
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:315",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16867566108703613,
+                0.16867566108703613,
+                0.16867566108703613,
+                0.16867566108703613,
+                0.16867566108703613
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:322",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "fear",
+              "pick_labels": [
+                "fear",
+                "fear",
+                "fear",
+                "fear",
+                "fear"
+              ],
+              "p_ref": [
+                0.16832168400287628,
+                0.16832168400287628,
+                0.16832168400287628,
+                0.16832168400287628,
+                0.16832168400287628
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:329",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16905924677848816,
+                0.16905924677848816,
+                0.16905924677848816,
+                0.16905924677848816,
+                0.16905923187732697
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:336",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.1692337989807129,
+                0.16923381388187408,
+                0.1692337989807129,
+                0.1692337989807129,
+                0.1692337989807129
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:343",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.17148715257644653,
+                0.17148715257644653,
+                0.17148715257644653,
+                0.17148715257644653,
+                0.17148715257644653
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:350",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16883233189582825,
+                0.16883233189582825,
+                0.16883233189582825,
+                0.16883233189582825,
+                0.16883233189582825
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:357",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "love",
+              "pick_labels": [
+                "love",
+                "love",
+                "love",
+                "love",
+                "love"
+              ],
+              "p_ref": [
+                0.17140544950962067,
+                0.17140546441078186,
+                0.17140544950962067,
+                0.17140544950962067,
+                0.17140544950962067
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:364",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16970805823802948,
+                0.16970805823802948,
+                0.16970805823802948,
+                0.16970805823802948,
+                0.16970805823802948
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:371",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16997605562210083,
+                0.16997605562210083,
+                0.16997605562210083,
+                0.16997605562210083,
+                0.16997605562210083
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:378",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16888760030269623,
+                0.16888758540153503,
+                0.16888758540153503,
+                0.16888760030269623,
+                0.16888758540153503
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:385",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16950136423110962,
+                0.16950136423110962,
+                0.16950136423110962,
+                0.16950136423110962,
+                0.16950136423110962
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:392",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.16969379782676697,
+                0.16969379782676697,
+                0.16969379782676697,
+                0.16969379782676697,
+                0.16969381272792816
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            },
+            {
+              "case_id": "emotion:399",
+              "qid": "emotion",
+              "n_options": 6,
+              "ref_pick": "joy",
+              "pick_labels": [
+                "joy",
+                "joy",
+                "joy",
+                "joy",
+                "joy"
+              ],
+              "p_ref": [
+                0.17035186290740967,
+                0.17035187780857086,
+                0.17035186290740967,
+                0.17035186290740967,
+                0.17035186290740967
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-36f3eb1067bed96a) · cal 200 (fnv1a64-f2ec48ed7070889c) · pool 15799 (fnv1a64-8ef2b2af400721fd) · OK",
+      "basis_cert": {
+        "lane": "hashed-feature embed (presentation rendering)",
+        "n_fit_pairs": 400,
+        "n_holdout_pairs": 400,
+        "n_whiten_samples": 710,
+        "verdict": "sufficient_variation",
+        "k": 124,
+        "gap_ratio": 1268.6181308729829,
+        "pair_leakage": 0.4999654413615243,
+        "agreement_residual": 0.7057147720770968,
+        "casing_null_residual": null,
+        "rename_residual": 0.4667765042660129,
+        "shrinkage_eps": 1.9078223079016763e-9,
+        "tau_gap": 4.0
+      },
+      "basis_perturb": {
+        "n_cases": 31,
+        "n_directions": 32,
+        "k_total": 124,
+        "median_delta_norm": 0.23118845606649377,
+        "n_route_active_cases": 31,
+        "rungs": [
+          {
+            "label": "fp_1x",
+            "eps": 1.1920928955078125e-7,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 2.9802322387695312e-8,
+            "max_conf_delta": 1.1920928955078125e-7
+          },
+          {
+            "label": "fp_16x",
+            "eps": 1.9073486328125e-6,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 4.470348358154297e-8,
+            "max_conf_delta": 1.7881393432617188e-7
+          },
+          {
+            "label": "fp_256x",
+            "eps": 0.000030517578125,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 3.725290298461914e-7,
+            "max_conf_delta": 1.7881393432617188e-7
+          },
+          {
+            "label": "delta_1e-3",
+            "eps": 0.00023118845606649377,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 2.7120113372802734e-6,
+            "max_conf_delta": 1.7881393432617188e-7
+          },
+          {
+            "label": "delta_1e-2",
+            "eps": 0.002311884560664938,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.00002707540988922119,
+            "max_conf_delta": 1.1920928955078125e-6
+          },
+          {
+            "label": "delta_1e-1",
+            "eps": 0.02311884560664938,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0011154860258102417,
+            "max_conf_delta": 0.000012159347534179688
+          },
+          {
+            "label": "delta_1x",
+            "eps": 0.23118845606649377,
+            "comparisons": 1984,
+            "flips": 0,
+            "max_prob_delta": 0.0030122101306915283,
+            "max_conf_delta": 0.00016021728515625
+          }
+        ],
+        "verdict": "pass"
+      }
+    },
+    {
+      "suite": "banking77",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 56,
+          "n_orderings": 5,
+          "median_swing_pt": 3.725290298461914e-7,
+          "max_swing_pt": 8.381903171539307e-7,
+          "flips": 0,
+          "flip_rate": 0.0,
+          "control_invariant": false,
+          "verdict": "PASS",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "beta",
+            "pick_labels": [
+              "beta",
+              "beta",
+              "beta",
+              "beta",
+              "beta"
+            ],
+            "p_ref": [
+              0.20451708137989044,
+              0.20451708137989044,
+              0.20451708137989044,
+              0.20451708137989044,
+              0.20451708137989044
+            ],
+            "swing_pt": 0.0,
+            "flipped": false
+          },
+          "cases": [
+            {
+              "case_id": "banking77:0",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "activate my card",
+              "pick_labels": [
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card"
+              ],
+              "p_ref": [
+                0.014711868949234486,
+                0.014711868017911911,
+                0.014711866155266762,
+                0.014711866155266762,
+                0.014711865223944187
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:9",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card not working",
+              "pick_labels": [
+                "card not working",
+                "card not working",
+                "card not working",
+                "card not working",
+                "card not working"
+              ],
+              "p_ref": [
+                0.01652437075972557,
+                0.01652437075972557,
+                0.01652437075972557,
+                0.01652437262237072,
+                0.01652437262237072
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:18",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.018217526376247406,
+                0.018217522650957108,
+                0.018217528238892555,
+                0.018217524513602257,
+                0.018217522650957108
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:27",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card linking",
+              "pick_labels": [
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking"
+              ],
+              "p_ref": [
+                0.014804522506892681,
+                0.014804527163505554,
+                0.014804529957473278,
+                0.01480452623218298,
+                0.014804527163505554
+              ],
+              "swing_pt": 7.450580596923828e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:36",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "atm support",
+              "pick_labels": [
+                "atm support",
+                "atm support",
+                "atm support",
+                "atm support",
+                "atm support"
+              ],
+              "p_ref": [
+                0.020191924646496773,
+                0.02019192837178707,
+                0.020191924646496773,
+                0.02019193023443222,
+                0.02019192837178707
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:45",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "declined card payment",
+              "pick_labels": [
+                "declined card payment",
+                "declined card payment",
+                "declined card payment",
+                "declined card payment",
+                "declined card payment"
+              ],
+              "p_ref": [
+                0.018386445939540863,
+                0.018386445939540863,
+                0.018386444076895714,
+                0.018386442214250565,
+                0.018386445939540863
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:54",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "failed transfer",
+              "pick_labels": [
+                "failed transfer",
+                "failed transfer",
+                "failed transfer",
+                "failed transfer",
+                "failed transfer"
+              ],
+              "p_ref": [
+                0.01736343838274479,
+                0.01736343838274479,
+                0.01736343652009964,
+                0.017363443970680237,
+                0.017363442108035088
+              ],
+              "swing_pt": 7.450580596923828e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:63",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "getting virtual card",
+              "pick_labels": [
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card"
+              ],
+              "p_ref": [
+                0.015443206764757633,
+                0.015443206764757633,
+                0.015443206764757633,
+                0.015443208627402782,
+                0.015443208627402782
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:72",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "exchange charge",
+              "pick_labels": [
+                "exchange charge",
+                "exchange charge",
+                "exchange charge",
+                "exchange charge",
+                "exchange charge"
+              ],
+              "p_ref": [
+                0.01598944701254368,
+                0.01598944701254368,
+                0.01598944142460823,
+                0.01598944142460823,
+                0.01598944328725338
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:81",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "age limit",
+              "pick_labels": [
+                "age limit",
+                "age limit",
+                "age limit",
+                "age limit",
+                "age limit"
+              ],
+              "p_ref": [
+                0.015496266074478626,
+                0.015496267937123775,
+                0.015496265143156052,
+                0.015496265143156052,
+                0.015496263280510902
+              ],
+              "swing_pt": 4.6566128730773926e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:90",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "change pin",
+              "pick_labels": [
+                "change pin",
+                "change pin",
+                "change pin",
+                "change pin",
+                "change pin"
+              ],
+              "p_ref": [
+                0.014610717073082924,
+                0.014610713347792625,
+                0.01461071614176035,
+                0.014610713347792625,
+                0.01461071241647005
+              ],
+              "swing_pt": 4.6566128730773926e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:99",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "activate my card",
+              "pick_labels": [
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card"
+              ],
+              "p_ref": [
+                0.014527523890137672,
+                0.014527521096169949,
+                0.014527522958815098,
+                0.014527522958815098,
+                0.014527522027492523
+              ],
+              "swing_pt": 2.7939677238464355e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:108",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "get physical card",
+              "pick_labels": [
+                "get physical card",
+                "get physical card",
+                "get physical card",
+                "get physical card",
+                "get physical card"
+              ],
+              "p_ref": [
+                0.01657652109861374,
+                0.016576524823904037,
+                0.016576524823904037,
+                0.01657652109861374,
+                0.016576524823904037
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:117",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "pending card payment",
+              "pick_labels": [
+                "pending card payment",
+                "pending card payment",
+                "pending card payment",
+                "pending card payment",
+                "pending card payment"
+              ],
+              "p_ref": [
+                0.015441779047250748,
+                0.015441776253283024,
+                0.015441776253283024,
+                0.015441778115928173,
+                0.015441779047250748
+              ],
+              "swing_pt": 2.7939677238464355e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:126",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "pending top up",
+              "pick_labels": [
+                "pending top up",
+                "pending top up",
+                "pending top up",
+                "pending top up",
+                "pending top up"
+              ],
+              "p_ref": [
+                0.015008187852799892,
+                0.015008185990154743,
+                0.015008186921477318,
+                0.015008185990154743,
+                0.015008185990154743
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:135",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.014680110849440098,
+                0.014680108986794949,
+                0.014680110849440098,
+                0.014680110849440098,
+                0.014680110849440098
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:144",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "terminate account",
+              "pick_labels": [
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account"
+              ],
+              "p_ref": [
+                0.015288030728697777,
+                0.015288029797375202,
+                0.0152880335226655,
+                0.015288030728697777,
+                0.015288036316633224
+              ],
+              "swing_pt": 6.51925802230835e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:153",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "country support",
+              "pick_labels": [
+                "country support",
+                "country support",
+                "country support",
+                "country support",
+                "country support"
+              ],
+              "p_ref": [
+                0.019717002287507057,
+                0.019717004150152206,
+                0.019717002287507057,
+                0.019717004150152206,
+                0.019717004150152206
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:162",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "automatic top up",
+              "pick_labels": [
+                "automatic top up",
+                "automatic top up",
+                "automatic top up",
+                "automatic top up",
+                "automatic top up"
+              ],
+              "p_ref": [
+                0.014941127970814705,
+                0.01494112703949213,
+                0.014941127970814705,
+                0.014941131696105003,
+                0.014941129833459854
+              ],
+              "swing_pt": 4.6566128730773926e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:171",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "cancel transfer",
+              "pick_labels": [
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer"
+              ],
+              "p_ref": [
+                0.014284210279583931,
+                0.014284209348261356,
+                0.014284208416938782,
+                0.014284205622971058,
+                0.014284208416938782
+              ],
+              "swing_pt": 4.6566128730773926e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:180",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "terminate account",
+              "pick_labels": [
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account"
+              ],
+              "p_ref": [
+                0.014874786138534546,
+                0.014874785207211971,
+                0.014874783344566822,
+                0.01487478706985712,
+                0.014874783344566822
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:189",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "compromised card",
+              "pick_labels": [
+                "compromised card",
+                "compromised card",
+                "compromised card",
+                "compromised card",
+                "compromised card"
+              ],
+              "p_ref": [
+                0.01586306095123291,
+                0.01586305908858776,
+                0.01586306281387806,
+                0.01586306095123291,
+                0.01586306467652321
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:198",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "request refund",
+              "pick_labels": [
+                "request refund",
+                "request refund",
+                "request refund",
+                "request refund",
+                "request refund"
+              ],
+              "p_ref": [
+                0.015234822407364845,
+                0.015234825201332569,
+                0.015234826132655144,
+                0.015234826132655144,
+                0.01523482333868742
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:207",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "change pin",
+              "pick_labels": [
+                "change pin",
+                "change pin",
+                "change pin",
+                "change pin",
+                "change pin"
+              ],
+              "p_ref": [
+                0.01541728526353836,
+                0.015417286194860935,
+                0.015417288988828659,
+                0.015417290851473808,
+                0.01541728526353836
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:216",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up by card charge",
+              "pick_labels": [
+                "top up by card charge",
+                "top up by card charge",
+                "top up by card charge",
+                "top up by card charge",
+                "top up by card charge"
+              ],
+              "p_ref": [
+                0.017278090119361877,
+                0.017278093844652176,
+                0.017278093844652176,
+                0.017278090119361877,
+                0.017278091982007027
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:225",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "activate my card",
+              "pick_labels": [
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card",
+                "activate my card"
+              ],
+              "p_ref": [
+                0.014659924432635307,
+                0.014659926295280457,
+                0.014659928157925606,
+                0.014659924432635307,
+                0.014659927226603031
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:234",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "exchange rate",
+              "pick_labels": [
+                "exchange rate",
+                "exchange rate",
+                "exchange rate",
+                "exchange rate",
+                "exchange rate"
+              ],
+              "p_ref": [
+                0.019076446071267128,
+                0.019076446071267128,
+                0.019076447933912277,
+                0.019076446071267128,
+                0.019076447933912277
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:243",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "age limit",
+              "pick_labels": [
+                "age limit",
+                "age limit",
+                "age limit",
+                "age limit",
+                "age limit"
+              ],
+              "p_ref": [
+                0.016368703916668892,
+                0.016368703916668892,
+                0.016368703916668892,
+                0.016368700191378593,
+                0.016368703916668892
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:252",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "cancel transfer",
+              "pick_labels": [
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer",
+                "cancel transfer"
+              ],
+              "p_ref": [
+                0.01632584072649479,
+                0.01632584258913994,
+                0.016325844451785088,
+                0.016325844451785088,
+                0.016325846314430237
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:261",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "unable to verify identity",
+              "pick_labels": [
+                "unable to verify identity",
+                "unable to verify identity",
+                "unable to verify identity",
+                "unable to verify identity",
+                "unable to verify identity"
+              ],
+              "p_ref": [
+                0.015543399378657341,
+                0.015543398447334766,
+                0.015543396584689617,
+                0.015543395653367043,
+                0.015543399378657341
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:270",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "wrong amount of cash received",
+              "pick_labels": [
+                "wrong amount of cash received",
+                "wrong amount of cash received",
+                "wrong amount of cash received",
+                "wrong amount of cash received",
+                "wrong amount of cash received"
+              ],
+              "p_ref": [
+                0.017404863610863686,
+                0.017404865473508835,
+                0.017404865473508835,
+                0.017404858022928238,
+                0.017404861748218536
+              ],
+              "swing_pt": 7.450580596923828e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:279",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card swallowed",
+              "pick_labels": [
+                "card swallowed",
+                "card swallowed",
+                "card swallowed",
+                "card swallowed",
+                "card swallowed"
+              ],
+              "p_ref": [
+                0.014497347176074982,
+                0.014497346244752407,
+                0.014497347176074982,
+                0.014497345313429832,
+                0.014497346244752407
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:288",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "failed transfer",
+              "pick_labels": [
+                "failed transfer",
+                "failed transfer",
+                "failed transfer",
+                "failed transfer",
+                "failed transfer"
+              ],
+              "p_ref": [
+                0.01563088968396187,
+                0.01563088782131672,
+                0.01563088782131672,
+                0.015630893409252167,
+                0.015630893409252167
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:297",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.014865122735500336,
+                0.014865120872855186,
+                0.014865120872855186,
+                0.014865119010210037,
+                0.014865119941532612
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:306",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.014635028317570686,
+                0.01463503111153841,
+                0.01463503111153841,
+                0.014635032042860985,
+                0.01463503111153841
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:315",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card arrival",
+              "pick_labels": [
+                "card arrival",
+                "card arrival",
+                "card arrival",
+                "card arrival",
+                "card arrival"
+              ],
+              "p_ref": [
+                0.016234111040830612,
+                0.016234111040830612,
+                0.016234111040830612,
+                0.016234111040830612,
+                0.016234111040830612
+              ],
+              "swing_pt": 0.0,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:324",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.015991682186722755,
+                0.015991680324077606,
+                0.015991684049367905,
+                0.015991682186722755,
+                0.015991680324077606
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:333",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up limits",
+              "pick_labels": [
+                "top up limits",
+                "top up limits",
+                "top up limits",
+                "top up limits",
+                "top up limits"
+              ],
+              "p_ref": [
+                0.015716591849923134,
+                0.01571659743785858,
+                0.015716593712568283,
+                0.015716593712568283,
+                0.01571659743785858
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:342",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "disposable card limits",
+              "pick_labels": [
+                "disposable card limits",
+                "disposable card limits",
+                "disposable card limits",
+                "disposable card limits",
+                "disposable card limits"
+              ],
+              "p_ref": [
+                0.015241025015711784,
+                0.015241025015711784,
+                0.015241025015711784,
+                0.015241021290421486,
+                0.01524102408438921
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:351",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "declined transfer",
+              "pick_labels": [
+                "declined transfer",
+                "declined transfer",
+                "declined transfer",
+                "declined transfer",
+                "declined transfer"
+              ],
+              "p_ref": [
+                0.01794958859682083,
+                0.01794958859682083,
+                0.017949586734175682,
+                0.01794959045946598,
+                0.017949583008885384
+              ],
+              "swing_pt": 7.450580596923828e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:360",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "declined card payment",
+              "pick_labels": [
+                "declined card payment",
+                "declined card payment",
+                "declined card payment",
+                "declined card payment",
+                "declined card payment"
+              ],
+              "p_ref": [
+                0.016372350975871086,
+                0.016372352838516235,
+                0.016372350975871086,
+                0.016372350975871086,
+                0.016372350975871086
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:369",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up limits",
+              "pick_labels": [
+                "top up limits",
+                "top up limits",
+                "top up limits",
+                "top up limits",
+                "top up limits"
+              ],
+              "p_ref": [
+                0.01685321517288685,
+                0.01685321517288685,
+                0.01685321517288685,
+                0.01685321517288685,
+                0.016853217035531998
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:378",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card arrival",
+              "pick_labels": [
+                "card arrival",
+                "card arrival",
+                "card arrival",
+                "card arrival",
+                "card arrival"
+              ],
+              "p_ref": [
+                0.014560278505086899,
+                0.014560278505086899,
+                0.014560279436409473,
+                0.014560283161699772,
+                0.0145602747797966
+              ],
+              "swing_pt": 8.381903171539307e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:387",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "exchange rate",
+              "pick_labels": [
+                "exchange rate",
+                "exchange rate",
+                "exchange rate",
+                "exchange rate",
+                "exchange rate"
+              ],
+              "p_ref": [
+                0.02022472210228443,
+                0.02022472396492958,
+                0.02022472396492958,
+                0.02022472396492958,
+                0.02022472582757473
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:396",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card linking",
+              "pick_labels": [
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking"
+              ],
+              "p_ref": [
+                0.014735166914761066,
+                0.014735165983438492,
+                0.014735165983438492,
+                0.014735165983438492,
+                0.014735166914761066
+              ],
+              "swing_pt": 9.313225746154785e-8,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:405",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card linking",
+              "pick_labels": [
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking"
+              ],
+              "p_ref": [
+                0.014985094778239727,
+                0.014985092915594578,
+                0.014985092915594578,
+                0.014985091984272003,
+                0.014985092915594578
+              ],
+              "swing_pt": 2.7939677238464355e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:414",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "verify my identity",
+              "pick_labels": [
+                "verify my identity",
+                "verify my identity",
+                "verify my identity",
+                "verify my identity",
+                "verify my identity"
+              ],
+              "p_ref": [
+                0.0181037075817585,
+                0.01810370944440365,
+                0.01810370571911335,
+                0.01810370944440365,
+                0.0181037075817585
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:423",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "passcode forgotten",
+              "pick_labels": [
+                "passcode forgotten",
+                "passcode forgotten",
+                "passcode forgotten",
+                "passcode forgotten",
+                "passcode forgotten"
+              ],
+              "p_ref": [
+                0.015035315416753292,
+                0.015035315416753292,
+                0.015035317279398441,
+                0.015035315416753292,
+                0.015035314485430717
+              ],
+              "swing_pt": 2.7939677238464355e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:432",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "terminate account",
+              "pick_labels": [
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account"
+              ],
+              "p_ref": [
+                0.01632988266646862,
+                0.01632988080382347,
+                0.01632988266646862,
+                0.01632988266646862,
+                0.01632988266646862
+              ],
+              "swing_pt": 1.862645149230957e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:441",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "receiving money",
+              "pick_labels": [
+                "receiving money",
+                "receiving money",
+                "receiving money",
+                "receiving money",
+                "receiving money"
+              ],
+              "p_ref": [
+                0.016087908297777176,
+                0.016087910160422325,
+                0.016087906435132027,
+                0.016087906435132027,
+                0.016087906435132027
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:450",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "getting virtual card",
+              "pick_labels": [
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card",
+                "getting virtual card"
+              ],
+              "p_ref": [
+                0.01651063561439514,
+                0.01651063561439514,
+                0.01651063561439514,
+                0.016510633751749992,
+                0.01651063747704029
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:459",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "topping up by card",
+              "pick_labels": [
+                "topping up by card",
+                "topping up by card",
+                "topping up by card",
+                "topping up by card",
+                "topping up by card"
+              ],
+              "p_ref": [
+                0.018041377887129784,
+                0.018041376024484634,
+                0.018041374161839485,
+                0.018041376024484634,
+                0.018041379749774933
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:468",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "pending card payment",
+              "pick_labels": [
+                "pending card payment",
+                "pending card payment",
+                "pending card payment",
+                "pending card payment",
+                "pending card payment"
+              ],
+              "p_ref": [
+                0.015571420080959797,
+                0.015571418218314648,
+                0.015571418218314648,
+                0.015571417286992073,
+                0.015571417286992073
+              ],
+              "swing_pt": 2.7939677238464355e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:477",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "terminate account",
+              "pick_labels": [
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account",
+                "terminate account"
+              ],
+              "p_ref": [
+                0.014870155602693558,
+                0.014870159327983856,
+                0.014870158396661282,
+                0.014870156534016132,
+                0.014870155602693558
+              ],
+              "swing_pt": 3.725290298461914e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:486",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "card linking",
+              "pick_labels": [
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking",
+                "card linking"
+              ],
+              "p_ref": [
+                0.014870231039822102,
+                0.014870229177176952,
+                0.0148702347651124,
+                0.014870230108499527,
+                0.014870230108499527
+              ],
+              "swing_pt": 5.587935447692871e-7,
+              "flipped": false
+            },
+            {
+              "case_id": "banking77:495",
+              "qid": "intent",
+              "n_options": 77,
+              "ref_pick": "top up failed",
+              "pick_labels": [
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed",
+                "top up failed"
+              ],
+              "p_ref": [
+                0.014646087773144245,
+                0.01464608870446682,
+                0.014646091498434544,
+                0.01464608684182167,
+                0.014646087773144245
+              ],
+              "swing_pt": 4.6566128730773926e-7,
+              "flipped": false
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 500 (fnv1a64-cb0b5cbcb0cdfcce) · cal 200 (fnv1a64-8f14f68a2e55799f) · pool 9793 (fnv1a64-14a38d138e218d1b) · OK",
+      "basis_cert": {
+        "lane": "hashed-feature embed (presentation rendering)",
+        "n_fit_pairs": 500,
+        "n_holdout_pairs": 500,
+        "n_whiten_samples": 740,
+        "verdict": "sufficient_variation",
+        "k": 255,
+        "gap_ratio": 145.7551827722619,
+        "pair_leakage": 0.005311489717511147,
+        "agreement_residual": 0.06080329735895604,
+        "casing_null_residual": null,
+        "rename_residual": 0.0009047818495963523,
+        "shrinkage_eps": 1.926248355457128e-9,
+        "tau_gap": 4.0
+      },
+      "basis_perturb": {
+        "n_cases": 32,
+        "n_directions": 32,
+        "k_total": 255,
+        "median_delta_norm": 0.1434997301673489,
+        "n_route_active_cases": 32,
+        "rungs": [
+          {
+            "label": "fp_1x",
+            "eps": 1.1920928955078125e-7,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 3.725290298461914e-9,
+            "max_conf_delta": 1.862645149230957e-9
+          },
+          {
+            "label": "fp_16x",
+            "eps": 1.9073486328125e-6,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 1.30385160446167e-8,
+            "max_conf_delta": 1.1175870895385742e-8
+          },
+          {
+            "label": "fp_256x",
+            "eps": 0.000030517578125,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 1.601874828338623e-7,
+            "max_conf_delta": 1.601874828338623e-7
+          },
+          {
+            "label": "delta_1e-3",
+            "eps": 0.0001434997301673489,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 7.282942533493042e-7,
+            "max_conf_delta": 7.245689630508423e-7
+          },
+          {
+            "label": "delta_1e-2",
+            "eps": 0.001434997301673489,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 0.0008213697001338005,
+            "max_conf_delta": 0.00026446953415870667
+          },
+          {
+            "label": "delta_1e-1",
+            "eps": 0.014349973016734891,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 0.0008335234597325325,
+            "max_conf_delta": 0.000285537913441658
+          },
+          {
+            "label": "delta_1x",
+            "eps": 0.1434997301673489,
+            "comparisons": 2048,
+            "flips": 0,
+            "max_prob_delta": 0.0020703431218862534,
+            "max_conf_delta": 0.0013324152678251266
+          }
+        ],
+        "verdict": "pass"
+      }
+    }
+  ]
+}

@@ -117,10 +117,10 @@ pub fn solve_mc_into<const N: usize, const D: usize>(
     // answer on return.
     for sample in 1..n {
         let perturb = Some((sample as u32, cfg.p_drop, seed));
-        eng.solve_sample_into(req, sc, perturb)?;
+        eng.solve_sample_into(req, sc, perturb, None)?;
         observe_sample(req, sc, hists);
     }
-    eng.solve_sample_into(req, sc, None)?;
+    eng.solve_sample_into(req, sc, None, None)?;
     observe_sample(req, sc, hists);
     Ok(())
 }

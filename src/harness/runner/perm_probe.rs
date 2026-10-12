@@ -166,6 +166,10 @@ pub struct PermSuiteReport {
     /// field (and the record key) exists only where the lane compiles.
     #[cfg(feature = "basis_cert")]
     pub basis_cert: Option<crate::harness::basis_cert::BasisCertReport>,
+    /// Issue 086 T3 — the Thm-3 perturbation certificate (`--basis-split`,
+    /// requires the modelless engine + a certified split).
+    #[cfg(feature = "basis_cert")]
+    pub basis_perturb: Option<BasisPerturbReport>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -525,13 +529,36 @@ fn probe_lane(
 /// route-binding posture rides the invocation (`--no-kn-route`, issue
 /// 079) — the knob is an ENGINE posture, not a lever, so the plain-
 /// posture refusal below does not apply to it.
+/// Issue 086 T1+T2+T3 — the certificate lane's fit artifacts: the T1/T2
+/// report plus T3's perturbation basis (the certified variant directions)
+/// and the delta-scale anchor (median raw fit-pair delta norm).
+#[cfg(feature = "basis_cert")]
+struct BasisCertLane {
+    report: crate::harness::basis_cert::BasisCertReport,
+    directions: Option<crate::harness::basis_cert::BasisDirections>,
+    median_delta_norm: Option<f64>,
+}
+
+/// The modelless lane's full outcome: the control report plus the issue-086
+/// certificate lanes (which run INSIDE the const-generic fn — the engine
+/// type differs per N and cannot cross the dispatch boundary).
+struct ModellessOutcome {
+    report: PermLaneReport,
+    #[cfg(feature = "basis_cert")]
+    basis_cert: Option<crate::harness::basis_cert::BasisCertReport>,
+    #[cfg(feature = "basis_cert")]
+    basis_perturb: Option<BasisPerturbReport>,
+    #[cfg(feature = "basis_cert")]
+    basis_skips: Vec<String>,
+}
+
 fn perm_modelless<const N: usize>(
     spec: &SuiteSpec,
     prepared: &Prepared,
     slots: &[(usize, usize)],
-    k: usize,
+    popts: &PermProbeOptions,
     kn_route: bool,
-) -> Result<PermLaneReport, String> {
+) -> Result<ModellessOutcome, String> {
     let inp = ModellessInput {
         spec,
         cascade_worthiness: false,
@@ -622,7 +649,7 @@ fn perm_modelless<const N: usize>(
     };
     let canary = canary_case();
     let mut skips = Vec::new();
-    probe_lane(
+    let report = probe_lane(
         &mut oracle,
         LaneRun {
             name: "modelless",
@@ -632,9 +659,42 @@ fn perm_modelless<const N: usize>(
         &canary,
         slots,
         prepared,
-        k,
+        popts.k,
         &mut skips,
-    )
+    )?;
+    drop(oracle); // release &mut engine for the perturbation lane
+    // Issue 086 T1+T3 — the certificate lanes run HERE (the engine's const
+    // N is in scope; the outcomes are non-generic). T1 fits the presentation
+    // basis from perm-pair renderings; T3 perturbs the DEPLOYED engine's
+    // embeddings along the certified directions through the additive hook.
+    #[cfg(feature = "basis_cert")]
+    let mut basis_skips: Vec<String> = Vec::new();
+    #[cfg(feature = "basis_cert")]
+    let (basis_cert, basis_perturb) = if popts.basis_split {
+        match basis_cert_suite(prepared, popts.k, &mut basis_skips) {
+            Some(lane) => {
+                let perturb = match (lane.directions.as_ref(), lane.median_delta_norm) {
+                    (Some(dirs), Some(med)) => {
+                        basis_perturb_suite(&mut engine, prepared, dirs, med, &mut basis_skips)
+                    }
+                    _ => None,
+                };
+                (Some(lane.report), perturb)
+            }
+            None => (None, None),
+        }
+    } else {
+        (None, None)
+    };
+    Ok(ModellessOutcome {
+        report,
+        #[cfg(feature = "basis_cert")]
+        basis_cert,
+        #[cfg(feature = "basis_cert")]
+        basis_perturb,
+        #[cfg(feature = "basis_cert")]
+        basis_skips,
+    })
 }
 
 /// The laya cell for one suite — its PRIMARY checkpoint only (typed for
@@ -703,9 +763,9 @@ fn basis_cert_suite(
     prepared: &Prepared,
     k: usize,
     skips: &mut Vec<String>,
-) -> Option<crate::harness::basis_cert::BasisCertReport> {
+) -> Option<BasisCertLane> {
     use crate::harness::basis_cert::{
-        certify, render_presentation, CertPair, PairFamily, PresentationQuestion,
+        certify_with_directions, render_presentation, CertPair, PairFamily, PresentationQuestion,
         CERT_DIM, WHITEN_POP_CAP,
     };
     // The certificate's own choice-slot sample (all choice questions of
@@ -879,7 +939,17 @@ fn basis_cert_suite(
     if fit.is_empty() && hold.is_empty() {
         return None;
     }
-    let mut rep = certify(&fit, &hold, &cross, &ident_pop);
+    // T3's delta-scale anchor: the median raw fit-pair delta norm (the
+    // amplitude a REAL ordering flip moves the embedding by).
+    let mut norms: Vec<f64> = fit
+        .iter()
+        .map(|p| p.delta.iter().map(|v| v * v).sum::<f64>().sqrt())
+        .collect();
+    norms.sort_by(|a, b| a.total_cmp(b));
+    let median_delta_norm = (!norms.is_empty()).then(|| {
+        norms[norms.len() / 2]
+    });
+    let (mut rep, directions) = certify_with_directions(&fit, &hold, &cross, &ident_pop);
     rep.lane = "hashed-feature embed (presentation rendering)".to_string();
     eprintln!(
         "    basis-cert: verdict {} · k {:?} · gap {:?} · leakage {:?} · fit {} + holdout {} pairs · pop {}",
@@ -891,7 +961,11 @@ fn basis_cert_suite(
         rep.n_holdout_pairs,
         rep.n_whiten_samples,
     );
-    Some(rep)
+    Some(BasisCertLane {
+        report: rep,
+        directions,
+        median_delta_norm,
+    })
 }
 
 /// The certificate's own slot cap: 320 slots × (K−1) deltas = 1280 fit/hold
@@ -899,6 +973,252 @@ fn basis_cert_suite(
 /// Research-618 ≈1k identification budget.
 #[cfg(feature = "basis_cert")]
 pub const CERT_SLOT_CAP: usize = 320;
+
+// ── Issue 086 T3 — the Thm-3 perturbation certificate on the scorer ──
+
+/// Cases sampled for the perturbation certificate (stride; the fit used
+/// 320 — the perturbation arm re-SOLVES per direction × rung × sign, so
+/// its budget is solve-count-shaped, not pair-count-shaped).
+#[cfg(feature = "basis_cert")]
+pub const PERTURB_CASE_CAP: usize = 32;
+
+/// Directions probed per case: the TOP-eigenvalue basis rows (the split
+/// sorts descending — the first rows carry the dominant variant energy).
+#[cfg(feature = "basis_cert")]
+pub const PERTURB_DIR_CAP: usize = 32;
+
+/// The scored-output tolerance at the gate rung (probabilities and
+/// confidence are O(1) sigmoid outputs; 1e-3 is the disclosed bar —
+/// drift larger than this at fp-envelope amplitude means the scorer's
+/// continuous readout moves under representation noise).
+#[cfg(feature = "basis_cert")]
+pub const PERTURB_PROB_TOL: f64 = 1e-3;
+
+/// One amplitude rung's aggregate over every (case, direction, sign)
+/// comparison.
+#[cfg(feature = "basis_cert")]
+#[derive(Debug, Clone, Serialize)]
+pub struct PerturbRung {
+    pub label: String,
+    /// The absolute epsilon (‖y‖₂ = 1 — the L2-normalized embed's own
+    /// scale — for the fp rungs; the median fit-delta norm × fraction for
+    /// the delta rungs).
+    pub eps: f64,
+    pub comparisons: usize,
+    /// Discrete-output mismatches: pick index OR abstain bit changed.
+    pub flips: usize,
+    pub max_prob_delta: f64,
+    pub max_conf_delta: f64,
+}
+
+/// Issue 086 T3 — the Thm-3 perturbation certificate over one suite: the
+/// deployed engine's discrete outputs under additive `ε·v_k` perturbation
+/// of BOTH embeddings it consumes (the per-question context embedding and
+/// the per-request state embedding), along the certified presentation
+/// directions, at a ladder from the fp envelope upward. The GATE rung is
+/// `fp_1x` (one norm-ULP — the amplitude any summation reorder could
+/// produce); the higher rungs measure MARGIN, they do not gate.
+#[cfg(feature = "basis_cert")]
+#[derive(Debug, Clone, Serialize)]
+pub struct BasisPerturbReport {
+    pub n_cases: usize,
+    pub n_directions: usize,
+    /// The certified variant dimension (may exceed `n_directions` — the
+    /// cap is disclosed, not silent).
+    pub k_total: usize,
+    /// Median raw fit-pair delta norm (the delta-rung anchor).
+    pub median_delta_norm: f64,
+    /// Cases whose options resolve by-name to domains (the route terms
+    /// consume the state embedding; drafter-only cases are embedding-inert
+    /// on the score side by construction — disclosed, never pooled away).
+    pub n_route_active_cases: usize,
+    pub rungs: Vec<PerturbRung>,
+    /// `pass` | `fail_flips_at_fp` | `fail_score_drift_at_fp` |
+    /// `vacuous_no_response`.
+    pub verdict: String,
+}
+
+/// The Thm-3 certificate lane: perturbs along the fitted presentation
+/// directions through the ENGINE's own solve path (the `solve_sample_into`
+/// additive hook), comparing discrete outcomes + scored readouts against
+/// the unperturbed solve. Report-only; no decide-path change.
+#[cfg(feature = "basis_cert")]
+fn basis_perturb_suite<const N: usize>(
+    engine: &mut DecisionEngine<N, EMBED_DIM>,
+    prepared: &Prepared,
+    dirs: &crate::harness::basis_cert::BasisDirections,
+    median_delta_norm: f64,
+    skips: &mut Vec<String>,
+) -> Option<BasisPerturbReport> {
+    use katgpt_core::decision_wire::QuestionKind;
+
+    let choice_cases: Vec<usize> = prepared
+        .suite
+        .cases
+        .iter()
+        .enumerate()
+        .filter(|(_, c)| c.questions.iter().any(|q| q.kind == QKind::Choice))
+        .map(|(i, _)| i)
+        .collect();
+    if choice_cases.is_empty() {
+        skips.push("basis-perturb: no choice questions in suite".to_string());
+        return None;
+    }
+    let sampled = stride_indices(choice_cases.len(), PERTURB_CASE_CAP);
+    let n_dirs = dirs.k.min(PERTURB_DIR_CAP);
+    if n_dirs == 0 {
+        skips.push("basis-perturb: zero certified directions".to_string());
+        return None;
+    }
+    let mut dirs_f32: Vec<[f32; EMBED_DIM]> = Vec::with_capacity(n_dirs);
+    for row in 0..n_dirs {
+        let mut a = [0.0f32; EMBED_DIM];
+        for (j, v) in dirs.dirs[row].iter().enumerate() {
+            a[j] = *v as f32;
+        }
+        dirs_f32.push(a);
+    }
+    // The amplitude ladder: fp rungs are multiples of f32::EPSILON (the
+    // embed is L2-normalized — ‖y‖ = 1 — so EPSILON IS one norm-ULP);
+    // delta rungs are fractions of the median raw fit-pair delta norm
+    // (the amplitude a REAL ordering flip moves the embedding by).
+    let mut rung_defs: Vec<(String, f64)> = Vec::with_capacity(7);
+    for (label, c) in [
+        ("fp_1x", 1.0f64),
+        ("fp_16x", 16.0),
+        ("fp_256x", 256.0),
+    ] {
+        rung_defs.push((label.to_string(), c * f64::from(f32::EPSILON)));
+    }
+    for (label, f) in [
+        ("delta_1e-3", 1e-3f64),
+        ("delta_1e-2", 1e-2),
+        ("delta_1e-1", 1e-1),
+        ("delta_1x", 1.0),
+    ] {
+        rung_defs.push((label.to_string(), f * median_delta_norm));
+    }
+    let mut rungs: Vec<PerturbRung> = rung_defs
+        .iter()
+        .map(|(l, e)| PerturbRung {
+            label: l.clone(),
+            eps: *e,
+            comparisons: 0,
+            flips: 0,
+            max_prob_delta: 0.0,
+            max_conf_delta: 0.0,
+        })
+        .collect();
+    let mut sc = Scratch::<EMBED_DIM>::new();
+    let mut n_route_active = 0usize;
+    let domain_names: Vec<String> = engine.domain_names().iter().map(|s| s.to_string()).collect();
+    for &si in sampled.iter() {
+        let ci = choice_cases[si];
+        let case = &prepared.suite.cases[ci];
+        let Some(state_str) = prepared.state_strs.get(ci).map(String::as_str) else {
+            skips.push(format!(
+                "basis-perturb {}: no state string — case dropped",
+                case.id
+            ));
+            continue;
+        };
+        let req = match engine_request(case, state_str) {
+            Ok(r) => r,
+            Err(e) => {
+                skips.push(format!("basis-perturb {}: {e}", case.id));
+                continue;
+            }
+        };
+        sc.prepare(req.questions.len());
+        if engine.solve_into(&req, &mut sc).is_err() {
+            skips.push(format!("basis-perturb {}: base solve failed", case.id));
+            continue;
+        }
+        let base = engine.to_response(&req, &sc);
+        // Route-active classification (mirrors the engine's by-name arm:
+        // a choice question whose options ARE domain names consumes the
+        // state embedding through the route terms).
+        let route_active = req.questions.iter().any(|q| {
+            q.kind != QuestionKind::Noul
+                && q.options.len() <= N
+                && q.options
+                    .iter()
+                    .all(|o| domain_names.iter().any(|n| n == o))
+        });
+        if route_active {
+            n_route_active += 1;
+        }
+        for (ri, (_, eps)) in rung_defs.iter().enumerate() {
+            let eps32 = *eps as f32;
+            for dir in dirs_f32.iter() {
+                for sign in [1.0f32, -1.0f32] {
+                    if engine
+                        .solve_sample_into(&req, &mut sc, None, Some((dir, sign * eps32)))
+                        .is_err()
+                    {
+                        skips.push(format!("basis-perturb {}: perturbed solve failed", case.id));
+                        continue;
+                    }
+                    let pert = engine.to_response(&req, &sc);
+                    let rung = &mut rungs[ri];
+                    rung.comparisons += 1;
+                    for (b, p) in base.answers.iter().zip(pert.answers.iter()) {
+                        if b.outcome != p.outcome {
+                            rung.flips += 1;
+                        }
+                        for (bp, pp) in b.probabilities.iter().zip(p.probabilities.iter()) {
+                            let d = (f64::from(*bp) - f64::from(*pp)).abs();
+                            if d > rung.max_prob_delta {
+                                rung.max_prob_delta = d;
+                            }
+                        }
+                        let dc = (f64::from(b.confidence) - f64::from(p.confidence)).abs();
+                        if dc > rung.max_conf_delta {
+                            rung.max_conf_delta = dc;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    // Verdict: the gate rung is fp_1x (the fp envelope).
+    let gate = &rungs[0];
+    let total_comparisons: usize = rungs.iter().map(|r| r.comparisons).sum();
+    let all_inert = rungs
+        .iter()
+        .all(|r| r.flips == 0 && r.max_prob_delta == 0.0 && r.max_conf_delta == 0.0);
+    let verdict = if total_comparisons == 0 {
+        "vacuous_no_comparisons"
+    } else if all_inert {
+        // Nothing moved even at a full median-delta amplitude along every
+        // direction: the embedding path is inert for this suite's posture
+        // (drafter-only scoring + no gate crossing) — an honest loud
+        // verdict, never a silent pass (the absent-work defense).
+        "vacuous_no_response"
+    } else if gate.flips > 0 {
+        "fail_flips_at_fp"
+    } else if gate.max_prob_delta > PERTURB_PROB_TOL || gate.max_conf_delta > PERTURB_PROB_TOL {
+        "fail_score_drift_at_fp"
+    } else {
+        "pass"
+    };
+    eprintln!(
+        "    basis-perturb: {} case(s) × {} dir(s) × 7 rungs · route-active {} · verdict {}",
+        sampled.len(),
+        n_dirs,
+        n_route_active,
+        verdict
+    );
+    Some(BasisPerturbReport {
+        n_cases: sampled.len(),
+        n_directions: n_dirs,
+        k_total: dirs.k,
+        median_delta_norm,
+        n_route_active_cases: n_route_active,
+        rungs,
+        verdict: verdict.to_string(),
+    })
+}
 
 /// One suite's probe cell: prepare, sample, run the control + every
 /// enabled lane. Never panics — every failure lands in `skipped`, loud.
@@ -924,6 +1244,8 @@ fn perm_suite(
                 slice_summary: None,
                 #[cfg(feature = "basis_cert")]
                 basis_cert: None,
+                #[cfg(feature = "basis_cert")]
+                basis_perturb: None,
             };
         }
     };
@@ -954,6 +1276,8 @@ fn perm_suite(
             slice_summary,
             #[cfg(feature = "basis_cert")]
             basis_cert: None,
+            #[cfg(feature = "basis_cert")]
+            basis_perturb: None,
         };
     }
     let sampled = stride_indices(choice_cases.len(), popts.max_cases);
@@ -975,10 +1299,10 @@ fn perm_suite(
     );
 
     // The control (modelless) — the const-generic dispatch, the run()'s
-    // table.
+    // table. The issue-086 certificate lanes ride inside (const-generic N).
     macro_rules! dispatch {
         ($n:literal) => {
-            perm_modelless::<$n>(spec, &prepared, &slots, popts.k, kn_route)
+            perm_modelless::<$n>(spec, &prepared, &slots, popts, kn_route)
         };
     }
     let modelless = match prepared.labels.len() {
@@ -999,8 +1323,20 @@ fn perm_suite(
              table in perm_probe.rs"
         )),
     };
+    #[cfg(feature = "basis_cert")]
+    let mut basis_cert: Option<crate::harness::basis_cert::BasisCertReport> = None;
+    #[cfg(feature = "basis_cert")]
+    let mut basis_perturb: Option<BasisPerturbReport> = None;
     match modelless {
-        Ok(r) => lanes.push(r),
+        Ok(outcome) => {
+            lanes.push(outcome.report);
+            #[cfg(feature = "basis_cert")]
+            {
+                basis_cert = outcome.basis_cert;
+                basis_perturb = outcome.basis_perturb;
+                skipped.extend(outcome.basis_skips);
+            }
+        }
         Err(e) => skipped.push(format!("modelless: {e}")),
     }
 
@@ -1038,16 +1374,6 @@ fn perm_suite(
     #[cfg(not(feature = "laya-riir"))]
     let _ = laya_enabled;
 
-    // Issue 086 T1 — the presentation-subspace certificate over the suite
-    // (`--basis-split`; the CLI refuses loud without the feature, so this
-    // arm is only reached when compiled in).
-    #[cfg(feature = "basis_cert")]
-    let basis_cert = if popts.basis_split {
-        basis_cert_suite(&prepared, popts.k, &mut skipped)
-    } else {
-        None
-    };
-
     PermSuiteReport {
         suite: spec.name.to_string(),
         lanes,
@@ -1055,6 +1381,8 @@ fn perm_suite(
         slice_summary,
         #[cfg(feature = "basis_cert")]
         basis_cert,
+        #[cfg(feature = "basis_cert")]
+        basis_perturb,
     }
 }
 
@@ -1346,6 +1674,49 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
                     c.n_fit_pairs,
                     c.n_holdout_pairs,
                     c.n_whiten_samples,
+                ));
+            }
+        }
+    }
+    // Issue 086 T3 — the Thm-3 perturbation certificate section (the
+    // `--basis-split` modifier; absent = not requested / not certified).
+    #[cfg(feature = "basis_cert")]
+    if out.suites.iter().any(|s| s.basis_perturb.is_some()) {
+        s.push_str(
+            "\n## Basis-perturb certificate (issue 086 T3 — Thm-3, the scorer under ε·v_k along the presentation basis)\n\n",
+        );
+        s.push_str(
+            "GATE rung = `fp_1x` (one norm-ULP — ‖y‖ = 1 on the L2-normalized embed: the amplitude any \
+             summation reorder could produce). Discrete outputs (pick + abstain) must be bit-identical there \
+             and scored outputs within 1e-3; the higher rungs measure margin, they do not gate. \
+             `vacuous_no_response` = even a full median-delta perturbation moved nothing (an inert posture, \
+             honestly disclosed — never a pass).\n\n",
+        );
+        s.push_str("| suite | verdict | cases | dirs (of k) | route-active | median ‖Δ‖ | gate flips | gate max Δp | first-flip rung |\n");
+        s.push_str("|---|---|---|---|---|---|---|---|---|\n");
+        for suite in &out.suites {
+            if let Some(p) = &suite.basis_perturb {
+                let gate = p.rungs.first();
+                let first_flip = p
+                    .rungs
+                    .iter()
+                    .find(|r| r.flips > 0)
+                    .map(|r| r.label.clone())
+                    .unwrap_or_else(|| "—".into());
+                s.push_str(&format!(
+                    "| {} | {} | {} | {} (of {}) | {}/{} | {:.4} | {} | {} | {} |\n",
+                    suite.suite,
+                    p.verdict,
+                    p.n_cases,
+                    p.n_directions,
+                    p.k_total,
+                    p.n_route_active_cases,
+                    p.n_cases,
+                    p.median_delta_norm,
+                    gate.map(|g| g.flips).unwrap_or(0),
+                    gate.map(|g| format!("{:.2e}", g.max_prob_delta))
+                        .unwrap_or_else(|| "—".into()),
+                    first_flip,
                 ));
             }
         }
@@ -1698,6 +2069,8 @@ mod tests {
                 slice_summary: Some("slice line".to_string()),
                 #[cfg(feature = "basis_cert")]
                 basis_cert: None,
+                #[cfg(feature = "basis_cert")]
+                basis_perturb: None,
             }],
         };
         let md = render_perm_probe_markdown(&out);

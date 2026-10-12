@@ -1207,7 +1207,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         req: &DecisionRequest,
         sc: &mut Scratch<D>,
     ) -> Result<(), EngineError> {
-        self.solve_sample_into(req, sc, None)
+        self.solve_sample_into(req, sc, None, None)
     }
 
     /// The single-sample core with an optional input-perturbation hook —
@@ -1224,12 +1224,25 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
     /// drafter delta is UNAFFECTED by embedding perturbation — a
     /// drafter-only question has zero sample variance by construction, and
     /// the honest readout is a degenerate histogram, never a silent reroute.
-    #[cfg_attr(not(feature = "mc_ensemble"), allow(unused_variables))]
+    ///
+    /// `additive` is the Thm-3 perturbation-certificate hook (Issue 086
+    /// T3, `basis_cert`): `Some((direction, epsilon))` adds
+    /// `epsilon * direction[i]` to BOTH embeddings in place, after embed,
+    /// before every consumer. `None` skips it — byte-identical by
+    /// construction (the `perturb` law one layer up). The direction is a
+    /// shared-ref array reference, so the hook is allocation-free and
+    /// applies unchanged to the per-request state embed and the
+    /// per-question context embed.
+    #[cfg_attr(
+        not(all(feature = "mc_ensemble", feature = "basis_cert")),
+        allow(unused_variables)
+    )]
     pub(crate) fn solve_sample_into(
         &mut self,
         req: &DecisionRequest,
         sc: &mut Scratch<D>,
         perturb: Option<(u32, f32, u64)>,
+        additive: Option<(&[f32; D], f32)>,
     ) -> Result<(), EngineError> {
         req.validate()?;
         sc.reset();
@@ -1252,6 +1265,16 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         // the shared span; a hashed bag has no coupling at all).
         let mut state_q = [0.0f32; D];
         self.embedder.embed_into(req.state.as_bytes(), &mut state_q);
+        // The Thm-3 additive certificate hook (issue 086 T3): perturb the
+        // state embedding BEFORE its route/head consumers derive from it —
+        // every state-embedding consumer downstream sees the perturbed
+        // vector, exactly as it would see any other input change.
+        #[cfg(feature = "basis_cert")]
+        if let Some((dir, eps)) = additive {
+            for (qv, dv) in state_q.iter_mut().zip(dir.iter()) {
+                *qv += eps * dv;
+            }
+        }
         // Unperturbed cosine terms — state alone (the route/heads shared
         // input). MC perturbation is per-question BY DESIGN (its seed folds
         // `qi`), so the perturbed arm re-derives from this base below — the
@@ -1322,6 +1345,16 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 sc.ctx.extend_from_slice(c.as_bytes());
             }
             self.embedder.embed_into(&sc.ctx, &mut sc.q);
+            // The Thm-3 additive certificate hook's second surface: the
+            // per-question context embedding (drives `pick_domain` + the
+            // distance gate). Applied AFTER embed, BEFORE every consumer —
+            // byte-identical when the hook is `None`.
+            #[cfg(feature = "basis_cert")]
+            if let Some((dir, eps)) = additive {
+                for (qv, dv) in sc.q.iter_mut().zip(dir.iter()) {
+                    *qv += eps * dv;
+                }
+            }
             #[cfg(feature = "mc_ensemble")]
             if let Some((sample, p_drop, seed)) = perturb {
                 let sseed = seed
