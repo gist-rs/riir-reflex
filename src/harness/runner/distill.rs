@@ -90,15 +90,27 @@ pub enum KeyMap {
 
 impl KeyMap {
     /// `None` = not a T3 teacher suite (named loud skip upstream).
+    ///
+    /// The law: the keymap must match the DOC-LABEL SPELLING the suite's
+    /// `train_row_label` rule produces, not the raw dataset column —
+    /// ag_news/emotion/xnli_en labels are the OPTION-KEY names (the
+    /// Issue-077 content binding in suites.rs), sst5/prompt_injections
+    /// fall through to int-strings. Issue 623 T1 (2026-10-11): the first
+    /// pplx capture caught the mismatch — name-labeled docs under
+    /// FixedInt fail the per-row gold pin on row 0, loud (the
+    /// fail-closed pin did its job).
     #[must_use]
     pub fn for_suite(suite: &str) -> Option<Self> {
         match suite {
-            "massive_intent_en" | "banking77" => Some(Self::Name),
+            "massive_intent_en" | "banking77" | "ag_news" | "emotion"
+            | "xnli_en" => Some(Self::Name),
             // Issue 623 (2026-10-10 owner extension): the pplx capture slot
             // rides the same FixedInt law — noul 2-class, int labels, the
             // full 2-class universe presented (the gold pin verifies it).
-            "prompt_injections" => Some(Self::FixedInt),
-            "ag_news" | "emotion" | "sst5" | "xnli_en" => Some(Self::FixedInt),
+            // sst5: train_row_label's catch-all arm keeps the int-string
+            // spelling, so FixedInt is correct here (proven by the
+            // 8544-row clef capture, 2026-10-11).
+            "prompt_injections" | "sst5" => Some(Self::FixedInt),
             _ => None,
         }
     }
@@ -884,7 +896,15 @@ mod tests {
     fn keymap_dispatches_the_t3_suites() {
         assert_eq!(KeyMap::for_suite("massive_intent_en"), Some(KeyMap::Name));
         assert_eq!(KeyMap::for_suite("banking77"), Some(KeyMap::Name));
-        for s in ["ag_news", "emotion", "sst5", "xnli_en", "prompt_injections"] {
+        // Issue 623 T1 (2026-10-11): the option-KEY-name suites — their
+        // train_row_label produces names, so Name is the only join that
+        // survives the per-row gold pin (the first pplx capture proved
+        // FixedInt REDs on row 0 for these).
+        for s in ["ag_news", "emotion", "xnli_en"] {
+            assert_eq!(KeyMap::for_suite(s), Some(KeyMap::Name), "{s}");
+        }
+        // The catch-all-arm int-string suites.
+        for s in ["sst5", "prompt_injections"] {
             assert_eq!(KeyMap::for_suite(s), Some(KeyMap::FixedInt), "{s}");
         }
         assert_eq!(KeyMap::for_suite("typed_decisions"), None);
