@@ -48,3 +48,6 @@ x/
 .benchmarks/082_cuda_full_harness/
 .benchmarks/pool_fix_4090/
 .benchmarks/smoke_4090/
+
+# python bytecode — never tracked
+__pycache__/

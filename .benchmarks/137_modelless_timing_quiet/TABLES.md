@@ -1,7 +1,7 @@
 # Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)
 
-- run: `197e855` on `m3` (2026-10-10T06:52:15Z) · profile release · laya feature false
-- box state (Issue 021): start power=AC Power mode=high load=4.00 swap=2405M · end power=AC Power mode=high load=2.50 swap=2381M — latency QUOTABLE
+- run: `8bc3791` on `m3` (2026-10-10T07:18:26Z) · profile release · laya feature false
+- box state (Issue 021): start power=AC Power mode=high load=3.20 swap=2381M · end power=AC Power mode=high load=4.04 swap=2381M — latency QUOTABLE
 - laya device posture: n/a (compiled without laya-riir)
 - laya-python lane: off (pass --laya-python to add the reference lane)
 - clm lane: off (pass --clm to add the comparison lane; .issues/027)
@@ -58,7 +58,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 4329 | 0.2296 | 0.0573 | 0.0437 | 0.7721 | 1.8430 | 0.6643 | 0.3202 | 0.2060 | 0.78/0.78 | 0.1388 | 0.373 ms | 1.819 ms (44) | ✓ | s 0.0100 / d 0.5756 (n 200) |
+| modelless | 4329 | 0.2296 | 0.0573 | 0.0437 | 0.7721 | 1.8430 | 0.6643 | 0.3202 | 0.2060 | 0.78/0.78 | 0.1388 | 0.397 ms | 2.446 ms (44) | ✓ | s 0.0100 / d 0.5756 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **G1 (modelless readout ECE):** raw 0.2060 · calibrated 0.2060 · conformal-naive floor 0.4061 → **FAIL** (does not beat both)
@@ -99,7 +99,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 6173 | 0.7055 | 0.4291 | 0.2042 | 0.5001 | 0.6933 | 0.3751 | 0.6970 | 0.0061 | 1.00/0.47 | 0.3040 | 0.291 ms | 0.431 ms (62) | ✓ | s 0.4550 / d 0.6012 (n 200) |
+| modelless | 6173 | 0.7055 | 0.4291 | 0.2042 | 0.5001 | 0.6933 | 0.3751 | 0.6970 | 0.0061 | 1.00/0.47 | 0.3040 | 0.303 ms | 0.482 ms (62) | ✓ | s 0.4550 / d 0.6012 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **G1 (modelless readout ECE):** raw 0.1098 · calibrated 0.0061 · conformal-naive floor 0.0614 → **PASS** (beats both the uncalibrated output AND the floor)
@@ -130,7 +130,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 2571 | 0.4982 | 0.1016 | 0.2923 | 0.7941 | 1.5852 | 0.5904 | 0.4350 | 0.2681 | 1.00/0.08 | 0.5129 | 0.245 ms | 0.379 ms (26) | ✓ | s 0.2301 / d 0.4153 (n 200) |
+| modelless | 2571 | 0.4982 | 0.1016 | 0.2923 | 0.7941 | 1.5852 | 0.5904 | 0.4350 | 0.2681 | 1.00/0.08 | 0.5129 | 0.257 ms | 0.397 ms (26) | ✓ | s 0.2301 / d 0.4153 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **G1 (modelless readout ECE):** raw 0.0041 · calibrated 0.2681 · conformal-naive floor 0.4870 → **FAIL** (does not beat both)
@@ -161,7 +161,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 2000 | 0.5700 | 0.5393 | 0.2154 | 0.6434 | 1.1467 | 0.3059 | 0.6680 | 0.0946 | 1.00/0.63 | 0.5747 | 0.762 ms | 1.623 ms (5) | ✓ | s 0.5650 / d 0.9122 (n 100) |
+| modelless | 2000 | 0.5700 | 0.5393 | 0.2154 | 0.6434 | 1.1467 | 0.3059 | 0.6680 | 0.0946 | 1.00/0.63 | 0.5747 | 0.776 ms | 1.724 ms (5) | ✓ | s 0.5650 / d 0.9122 (n 100) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -209,7 +209,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 400 | 0.8825 | 0.8742 | 0.4783 | 0.5053 | 0.9630 | 0.0469 | 0.9400 | 0.0459 | 1.00/0.49 | 0.9510 | 0.143 ms | 0.240 ms (5) | ✓ | s 0.8359 / d 0.4105 (n 200) |
+| modelless | 400 | 0.8825 | 0.8742 | 0.4783 | 0.5053 | 0.9630 | 0.0469 | 0.9400 | 0.0459 | 1.00/0.49 | 0.9510 | 0.152 ms | 0.272 ms (5) | ✓ | s 0.8359 / d 0.4105 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -249,7 +249,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 400 | 0.8850 | 0.8014 | 0.6182 | 0.6593 | 1.3643 | 0.0360 | 0.9750 | 0.0488 | 1.00/0.46 | 0.9349 | 0.110 ms | 0.121 ms (5) | ✓ | s 0.7631 / d 0.4265 (n 200) |
+| modelless | 400 | 0.8850 | 0.8014 | 0.6182 | 0.6593 | 1.3643 | 0.0360 | 0.9750 | 0.0488 | 1.00/0.46 | 0.9349 | 0.115 ms | 0.130 ms (5) | ✓ | s 0.7631 / d 0.4265 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -289,7 +289,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 600 | 0.3967 | 0.3210 | 0.1389 | 0.7604 | 1.5156 | 0.5365 | 0.4700 | 0.1086 | 1.00/0.53 | 0.4057 | 0.090 ms | 0.094 ms (7) | ✓ | s 0.2813 / d 0.4166 (n 200) |
+| modelless | 600 | 0.3967 | 0.3210 | 0.1389 | 0.7604 | 1.5156 | 0.5365 | 0.4700 | 0.1086 | 1.00/0.53 | 0.4057 | 0.094 ms | 0.113 ms (7) | ✓ | s 0.2813 / d 0.4166 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -341,7 +341,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 116 | 0.7672 | 0.7643 | 0.1336 | 0.3365 | 0.5194 | 0.0949 | 0.8966 | 0.0949 | 1.00/0.68 | 0.9459 | 0.076 ms | 0.085 ms (2) | ✓ | s 0.7991 / d 0.4619 (n 100) |
+| modelless | 116 | 0.7672 | 0.7643 | 0.1336 | 0.3365 | 0.5194 | 0.0949 | 0.8966 | 0.0949 | 1.00/0.68 | 0.9459 | 0.069 ms | 0.101 ms (2) | ✓ | s 0.7991 / d 0.4619 (n 100) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -391,7 +391,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 300 | 0.5233 | 0.5061 | 0.1383 | 0.6178 | 1.0287 | 0.3120 | 0.6400 | 0.1119 | 1.00/0.54 | 0.6087 | 0.084 ms | 0.088 ms (4) | ✓ | s 0.5569 / d 0.5110 (n 200) |
+| modelless | 300 | 0.5233 | 0.5061 | 0.1383 | 0.6178 | 1.0287 | 0.3120 | 0.6400 | 0.1119 | 1.00/0.54 | 0.6087 | 0.087 ms | 0.103 ms (4) | ✓ | s 0.5569 / d 0.5110 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -429,7 +429,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 300 | 0.7800 | 0.7698 | 0.6352 | 0.7856 | 2.0599 | 0.0553 | 0.9667 | 0.0790 | 0.51/0.31 | 0.7681 | 0.111 ms | 0.133 ms (4) | ✓ | s 0.1106 / d 0.5259 (n 200) |
+| modelless | 300 | 0.7800 | 0.7698 | 0.6352 | 0.7856 | 2.0599 | 0.0553 | 0.9667 | 0.0790 | 0.51/0.31 | 0.7681 | 0.116 ms | 0.143 ms (4) | ✓ | s 0.1106 / d 0.5259 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -467,7 +467,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 500 | 0.8420 | 0.8362 | 0.8194 | 0.9688 | 3.8215 | 0.0599 | 0.9720 | 0.0517 | 1.00/0.48 | 0.9349 | 0.357 ms | 0.666 ms (6) | ✓ | s 0.7478 / d 0.5549 (n 200) |
+| modelless | 500 | 0.8420 | 0.8362 | 0.8194 | 0.9688 | 3.8215 | 0.0599 | 0.9720 | 0.0517 | 1.00/0.48 | 0.9349 | 0.384 ms | 0.723 ms (6) | ✓ | s 0.7478 / d 0.5549 (n 200) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -487,7 +487,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 32 | 0.3750 | 0.1640 | 0.0948 | 0.6858 | 1.3870 | 0.4073 | 0.6250 | 0.0938 | 1.00/0.34 | 0.2857 | 0.215 ms | 0.372 ms (1, max@case9) | ✓ | s 0.4607 / d 0.3365 (n 64) |
+| modelless | 32 | 0.3750 | 0.1640 | 0.0948 | 0.6858 | 1.3870 | 0.4073 | 0.6250 | 0.0938 | 1.00/0.34 | 0.2857 | 0.219 ms | 0.409 ms (1, max@case9) | ✓ | s 0.4607 / d 0.3365 (n 64) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **JDI crosswalk (reference-only):** JDI-comparable crosswalk, NOT a JDI board row — different corpus, protocol caps, hardware; board membership requires their full frozen suite. Chance = majority gold-class share of the slice ACTUALLY EVALUATED (plan 011 B3 — the board's pinned chance values stay reference columns); skill = (acc − chance)/(1 − chance) clipped [0,1]. Coverage per row: answered = n (all), unsupported 0, errors 0 — the harness law: a lane refuses-and-fails-loud, it never silently skips a case. The harness families carry no JDI columns (Issue 059 law); cascade compositions are excluded (composed postures, not lanes).
@@ -523,7 +523,7 @@
 
 | lane · model | n | acc | macro F1 | ECE(maxp) | Brier | NLL | AURC | acc@50 | readout-ECE | abst(raw/cal) | sel-acc(cal) | p50 | p99 (support) | det | gate-fit (ρ=.30) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| modelless | 102 | 0.4412 | 0.4335 | 0.2347 | 0.7987 | 1.6978 | 0.4301 | 0.4902 | 0.4358 | 0.50/0.50 | 0.4314 | 0.024 ms | 0.026 ms (2) | ✓ | s 0.0027 / d 0.5209 (n 18) |
+| modelless | 102 | 0.4412 | 0.4335 | 0.2347 | 0.7987 | 1.6978 | 0.4301 | 0.4902 | 0.4358 | 0.50/0.50 | 0.4314 | 0.025 ms | 0.033 ms (2) | ✓ | s 0.0027 / d 0.5209 (n 18) |
 | laya · (absent) | — the laya lane did not run for this suite (feature off / weights missing) — see absences above |
 
 **G1 (modelless readout ECE):** raw 0.4358 · calibrated 0.4358 · conformal-naive floor 0.1945 → **NO CLAIM** (the calibrator never fitted (cal window below the occupancy floor) — nothing to pass or fail)
