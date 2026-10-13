@@ -45,6 +45,10 @@ the mint surface (riir-rethink Issue 024 v1 — the Plan 007 P0 hosted lane;
 | xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
 | wanli_en | `alisawuffles/WANLI` (AI2) | **CC BY 4.0** (AI2's own page states "License: CC BY" — [allenai.org/data/wanli](https://allenai.org/data/wanli); HF tag `cc-by-4.0` — both read 2026-10-08). Open derivative question carried for the owner (verbatim from rethink Research 002): the corpus is GPT-3-generated with MultiNLI examples used as in-context SEEDS (never copied); MNLI's own terms are not stated at its primary page, so whether seed-influence reaches the generated text is an open derivative question carried on this row for the owner | Liu et al., 2022 (WANLI: Worker-and-AI Collaboration for Natural Language Inference Dataset Creation) | ✓ |
 | emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
+| winogrande_jdi | `allenai/winogrande` | **none on the hub** (no licence tag, no `cardData.license` — probe 2026-10-13; the manifest law applies: resolved by the card/repo, never guessed — resolve before any paid lane) | Sakaguchi et al., 2021 (WinoGrande) | ⚠ resolve before any paid lane |
+| hellaswag_jdi | `Rowan/hellaswag` | **none on the hub** (no licence tag, no `cardData.license` — probe 2026-10-13; content is ADaM-derived source sentences + adversarially filtered machine generations, so upstream terms ride along — resolve before any paid lane) | Zellers et al., 2019 (HellaSwag) | ⚠ resolve before any paid lane |
+| anli_jdi | `facebook/anli` | **CC BY-NC 4.0** (hub tag + `cardData.license` — probe 2026-10-13; the xnli_en sibling's own verdict, same publisher) | Nie et al., 2020 (ANLI) | ⛔ benchmark-only |
+| mmlupro_jdi | `TIGER-Lab/MMLU-Pro` | **MIT** (hub tag + `cardData.license` — probe 2026-10-13; content derives from MMLU + STEM sites whose upstream terms ride along — re-read before any paid lane) | Wang et al., 2024 (MMLU-Pro) | ✓ (probe-verified — upstream-content caveat noted) |
 
 Attribution page for the ✓ rows before the hosted lane opens: **LANDED
 2026-10-07** (rethink `7dd4f8a` `site/attributions.html` + the reflex-side
@@ -730,6 +734,113 @@ measurement: `.benchmarks/130_wanli_en_baseline` (A0 0.3100).
 | `train-198.json` | 2f834c8f6d7ebce03e7feae70f428bc9a3181d0a868b3c227cd18e6b4681c030 | 29463 |
 | `train-199.json` | 66586999f12ca74a42ec17b23964c3aa67fb3205f71db38b2b579729333c61b5 | 28818 |
 
+### 12. winogrande_jdi — `allenai/winogrande` (config `winogrande_debiased`) — the JDI panel tranche 1 (Plan 012 A1 / issue 087)
+
+The pronoun-resolution board row: the JDI board's WinoGrande cases (1267)
+ARE this split — `validation` (the labeled eval split; HF `test` is
+unlabeled). 2-choice: keys are the dataset COLUMN names [option1, option2],
+the option TEXTS ride the criteria descriptions (the JDI positional-wire
+convention — the macro-F1 column here measures position-accuracy; the
+board's metric is accuracy), gold = int(answer) − 1. `train` fetched at cap
+4000 for the corpus pool (dataset total 9248; a bounded pool is enough for
+the corpus, the fetch stays light). Features carry NO ClassLabel for the
+option universe (plain string columns).
+
+Fetch 2026-10-13 (two passes — a 429 limiter wall mid-run on the train
+split; the skip logic resumed exactly, final pass clean). Licence probe:
+NONE on the hub (no tag, no `cardData.license`) — ⚠ row in the VERIFIED
+licence table.
+
+| split | rows | files |
+|---|---|---|
+| `validation` | 1267 | 13 (`validation-000..012`) |
+| `train` | 4000 | 40 (`train-000..039`) |
+
+### 13. hellaswag_jdi — `Rowan/hellaswag` (config `default`) — the JDI panel tranche 1 (Plan 012 A2 / issue 087)
+
+The 4-way continuation board row: validation (10042 rows = the board's
+cases), eval universe fetched at 8000 (the eval cap lives in the harness —
+the banking77 posture; the registry test_cap is 2000, the B5-disclosed
+trim). Keys are positional [1..4], the four endings ride the criteria
+descriptions, gold = int(label) ("0".."3"). `train` fetched at the same
+8000 bound for the corpus pool. Features carry NO ClassLabel for the option
+universe (plain string columns; `label` is a plain string).
+**Sampling rule (verdict round 1, 2026-10-13):** the validation file
+CLUSTERS by `activity_label` — a first-N cap reads a handful of activities
+(the first run's ENC row read 0.4195 on the biased sample). The eval sample
+is HASH-ORDERED: fnv1a64 over the row's `ind` field, ascending, first
+test_cap — deterministic; the corrected row reads ENC 0.3635 (rethink Bench
+067, `hashampled_reread/`, sample digest `fnv1a64-61e6ad438aadff5b`).
+
+Fetch 2026-10-13 (second pass, after the limiter cooled — clean, 0
+failed_requests). Licence probe: NONE on the hub — ⚠ row in the VERIFIED
+licence table.
+
+| split | rows | files |
+|---|---|---|
+| `validation` | 8000 (of 10042) | 80 (`validation-000..079`) |
+| `train` | 8000 | 80 (`train-000..079`) |
+
+### 14. anli_jdi — `facebook/anli` (config `plain_text`) — the JDI panel tranche 1 (Plan 012 A3 / issue 087)
+
+The NLI board row: the board's 3200 cases ARE the three-way union
+`test_r1`(1000) + `test_r2`(1000) + `test_r3`(1200), concatenated in that
+order — the suite's `eval_split` is the comma-list
+`test_r1,test_r2,test_r3` (`load_rows` concatenates the components in the
+order given; the fetch stores one page set per component). SAME 3-choice
+wire as xnli_en — the ClassLabel order [entailment, neutral, contradiction]
+was verified on the fetched features (the `label` names array matches
+XNLI_KEYS exactly) — so the criteria/keys reuse the xnli consts verbatim
+and the board's macro-F1 metric stays clean (real class labels). Train
+rounds: `train_r1` fetched at cap 4000 ONLY (r2/r3 trains are huge — one
+round's pool is enough for the corpus and keeps the fetch bounded), stored
+AS the suite's `train` split (the 6th `fetch_suite` arg).
+
+Fetch 2026-10-13 (second pass — clean, 0 failed_requests). Licence probe:
+`cc-by-nc-4.0` (tag + `cardData.license`) — the xnli_en verdict, ⛔
+benchmark-only.
+
+| split | rows | files |
+|---|---|---|
+| `test_r1` | 1000 | 10 |
+| `test_r2` | 1000 | 10 |
+| `test_r3` | 1200 | 12 |
+| `train` (train_r1) | 4000 | 40 |
+
+### 15. mmlupro_jdi — `TIGER-Lab/MMLU-Pro` (config `default`) — the JDI panel tranche 1 (Plan 012 A4 / issue 087)
+
+The knowledge board row: the board's 12032 cases ARE the `test` split,
+fetched WHOLE (universe rows; the registry test_cap is 2000 — the eval cap
+lives in the harness). VARIABLE option count (4..10): keys are the LETTERS
+the case's options fill, IN ORDER ("A".. — the board's own letter
+convention), descs = the option texts, gold = `answer_index`. NO train
+split exists — the 70-row `validation` split (the few-shot prompt pool) is
+fetched AS the suite's `train` (the corpus/cal pool), so the corpus is
+STARVED BY CONSTRUCTION (disclosed in the builder's option_counts_note and
+the registry; the A0 floor on this suite reads corpus-thin). The registry
+cal_cap is 32, not 200: a 200-row cal front identity-splits the 70-row pool
+to EMPTY and the corpus guard refuses the suite (the pool-after-cal law).
+Features carry NO ClassLabel for the option universe (plain string columns).
+**Sampling rule (verdict round 1, 2026-10-13):** the test file CLUSTERS by
+subject — a first-N cap reads a handful of subjects. The eval sample is
+HASH-ORDERED: fnv1a64 over the row's `question_id`, ascending, first
+test_cap (rethink Bench 067, `hashampled_reread/`, sample digest
+`fnv1a64-6a2d24628ce7b916`).
+
+Fetch 2026-10-13 (second pass — clean, 0 failed_requests). Licence probe:
+`mit` (tag + `cardData.license`); content derives from MMLU + STEM sites —
+upstream terms ride along.
+
+| split | rows | files |
+|---|---|---|
+| `test` | 12032 | 121 (`test-000..120`) |
+| `train` (validation) | 70 | 1 |
+
+The per-page blake3 digests are re-derivable per the manifest header
+(`b3sum` over each file) — this tranche's sections record counts + splits,
+not the per-file table (the digests live in the files themselves until a
+board publish pins them).
+
 ## ClassLabel orders (verified)
 
 Quote the exact `features` names arrays from the fetched JSON (first page
@@ -738,6 +849,9 @@ file, `.features[] | select(.type._type == "ClassLabel")`):
 - **ag_news** `label`: `["World", "Sports", "Business", "Sci/Tech"]`
 - **emotion** `label`: `["sadness", "joy", "love", "anger", "fear", "surprise"]`
 - **xnli_en** `label`: `["entailment", "neutral", "contradiction"]`
+- **anli_jdi** `label`: `["entailment", "neutral", "contradiction"]`
+  (Plan 012 — verified identical to xnli_en on the fetched features; the
+  index identity the board's macro-F1 metric depends on)
 - **thai_wisesight** `category`: `["pos", "neu", "neg", "q"]` (Plan 003;
   the builder's fixed criteria order)
 

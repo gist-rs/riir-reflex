@@ -58,12 +58,14 @@ use crate::harness::pair_heads::{
     ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
 };
 use crate::harness::suites::{
-    QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc, build_ag_news, build_banking77_mteb,
-    build_emotion,
-    build_massive_intent_en, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
+    QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc, build_ag_news, build_anli_jdi,
+    build_banking77_mteb, build_emotion,
+    build_hellaswag_jdi, build_massive_intent_en, build_mmlupro_jdi, build_prompt_injections,
+    build_s1mb_choice, build_s1mb_noul,
     build_s1mb_score, build_sst5, build_thai_sib200,
     build_thai_wisesight, build_typed_decisions,
-    build_wanli_en, build_xnli_en, stratified_selection_slices, stratified_split, train_docs,
+    build_wanli_en, build_winogrande_jdi, build_xnli_en, stratified_selection_slices,
+    stratified_split, train_docs,
     train_row_label,
 };
 use crate::pyjson::serialize_state;
@@ -330,6 +332,76 @@ const SUITES: &[SuiteSpec] = &[
         named_only: true,
         coverage_audit: true,
         build: build_wanli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    // Plan 012 Phase A (the JDI panel tranche 1, issue 087): the four
+    // choice-shaped public board rows whose official splits ARE the board's
+    // `cases` counts (1267 / 10042 / 3200 / 12032). `named_only` (the
+    // wanli/thai precedent — an opt-in via `--suites`, never a default-run
+    // member; Phase B runs them explicitly). Option keys are POSITIONS with
+    // the texts riding the criteria descriptions (the xnli pattern), except
+    // anli_jdi which keeps the real XNLI_KEYS class labels (macro-F1 clean —
+    // and macro-F1 IS the board's metric there). MMLU-Pro's cal pool is the
+    // 70-row validation split (no train split exists), so its cal_cap stays
+    // UNDER 70 — a 200-row cal front would identity-split the pool to EMPTY
+    // and the corpus guard would refuse the suite (the pool-after-cal law).
+    SuiteSpec {
+        name: "winogrande_jdi",
+        dataset_dir: "winogrande_jdi",
+        test_cap: 0, // all 1267 validation rows — the board's population
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "validation",
+        named_only: true,
+        coverage_audit: true,
+        build: build_winogrande_jdi,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "hellaswag_jdi",
+        dataset_dir: "hellaswag_jdi",
+        test_cap: 2000, // the B5-disclosed cap; laya-full would be ~10 min
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "validation",
+        named_only: true,
+        coverage_audit: true,
+        build: build_hellaswag_jdi,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "anli_jdi",
+        dataset_dir: "anli_jdi",
+        test_cap: 0, // all 3200 rows of the r1+r2+r3 union — the board's population
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        // The comma-list: load_rows concatenates test_r1 → test_r2 → test_r3
+        // in the order given (the board's concatenation order).
+        eval_split: "test_r1,test_r2,test_r3",
+        named_only: true,
+        coverage_audit: true,
+        build: build_anli_jdi,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    SuiteSpec {
+        name: "mmlupro_jdi",
+        dataset_dir: "mmlupro_jdi",
+        test_cap: 2000,
+        // 32, not 200: the corpus/cal pool is the 70-row validation split
+        // (no train split exists) — a 200-row cal front identity-splits the
+        // pool to empty and the corpus guard refuses (see the block comment
+        // above). The starved corpus is the suite's disclosed by-construction
+        // condition.
+        cal_cap: 32,
+        corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: true,
+        coverage_audit: true,
+        build: build_mmlupro_jdi,
         synthetic: None,
         modelless_lane: true,
     },
@@ -1464,9 +1536,37 @@ pub struct RunOutput {
 
 // ── data loading ────────────────────────────────────────────────────────
 
-/// Concatenate `.rows[].row` across every `test-*.json` (or `train-*.json`)
-/// page file, in sorted filename order, into one synthetic envelope.
+/// Concatenate `.rows[].row` across every `<split>-*.json` (or a
+/// comma-LIST of splits — Plan 012's `anli_jdi` reads the three-way
+/// `test_r1,test_r2,test_r3` union) page file(s), per component in sorted
+/// filename order, concatenated component-by-component in the order given,
+/// into one synthetic envelope. Every existing caller passes a single split
+/// (no comma) and is unchanged.
 fn load_rows(dir: &Path, split: &str) -> Result<Value, String> {
+    let mut rows: Vec<Value> = Vec::new();
+    if split.contains(',') {
+        for part in split.split(',').map(str::trim).filter(|p| !p.is_empty()) {
+            let component = load_rows_split(dir, part)
+                .map_err(|e| format!("split list [{split}]: {e}"))?;
+            rows.extend(component);
+        }
+    } else {
+        rows = load_rows_split(dir, split)?;
+    }
+    // Re-wrap in the datasets-server ENVELOPE shape the suite builders
+    // consume (`{"rows": [{"row_idx": N, "row": {...}}]}`) — the builders
+    // read `.rows[i].row`, never bare rows.
+    let wrapped: Vec<Value> = rows
+        .into_iter()
+        .enumerate()
+        .map(|(i, row)| serde_json::json!({ "row_idx": i, "row": row }))
+        .collect();
+    Ok(serde_json::json!({ "rows": wrapped }))
+}
+
+/// The per-split half of [`load_rows`]: every `{split}-*.json` page under
+/// `dir`, sorted, concatenated into bare rows.
+fn load_rows_split(dir: &Path, split: &str) -> Result<Vec<Value>, String> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(dir)
         .map_err(|e| format!("read_dir {}: {e}", dir.display()))?
         .filter_map(|e| e.ok().map(|e| e.path()))
@@ -1495,15 +1595,7 @@ fn load_rows(dir: &Path, split: &str) -> Result<Value, String> {
             }
         }
     }
-    // Re-wrap in the datasets-server ENVELOPE shape the suite builders
-    // consume (`{"rows": [{"row_idx": N, "row": {...}}]}`) — the builders
-    // read `.rows[i].row`, never bare rows.
-    let wrapped: Vec<Value> = rows
-        .into_iter()
-        .enumerate()
-        .map(|(i, row)| serde_json::json!({ "row_idx": i, "row": row }))
-        .collect();
-    Ok(serde_json::json!({ "rows": wrapped }))
+    Ok(rows)
 }
 
 // ── engine construction ─────────────────────────────────────────────────
@@ -6383,6 +6475,16 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             // string maps through the SAME order, so the expected-key pin is
             // the same set.
             "wanli_en" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
+            // Plan 012: the JDI panel — anli shares the xnli ClassLabel
+            // order; winogrande/hellaswag are fixed positional wires with
+            // their own consts.
+            "anli_jdi" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
+            "winogrande_jdi" => {
+                Some(crate::harness::suites::WINOGRANDE_JDI_KEYS.to_vec())
+            }
+            "hellaswag_jdi" => {
+                Some(crate::harness::suites::HELLASWAG_JDI_KEYS.to_vec())
+            }
             "thai_wisesight" => Some(crate::harness::suites::WISESIGHT_KEYS.to_vec()),
             "prompt_injections" => Some(vec!["0", "1"]),
             _ => None,
@@ -6391,10 +6493,22 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             let spelled: Vec<&str> = labels.iter().map(String::as_str).collect();
             assert_eq!(
                 spelled, expected,
-                "suite {}: the option-key universe drifted from the fetch law — \
-                 the engine domains would silently rebind (issue 077's content \
+                "suite {}: the option-key universe drifted from the fetch law — \\
+                 the engine domains would silently rebind (issue 077's content \\
                  binding keys corpora to option CONTENT, so the set is pinned)",
                 spec.name
+            );
+        }
+        // Plan 012: mmlupro_jdi's union is DATA-DERIVED per eval slice (the
+        // letters the presented cases' option counts fill), so the pin is
+        // MEMBERSHIP in the A..J letter convention, not equality.
+        if spec.name == "mmlupro_jdi" {
+            assert!(
+                labels
+                    .iter()
+                    .all(|l| crate::harness::suites::MMLUPRO_JDI_LETTERS.contains(&l.as_str())),
+                "mmlupro_jdi: the option-key union drifted off the A..J letter \\
+                 convention — {labels:?}"
             );
         }
     }

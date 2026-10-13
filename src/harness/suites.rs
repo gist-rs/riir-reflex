@@ -743,6 +743,288 @@ pub fn build_wanli_en(rows_file: &Value, max_rows: usize) -> Suite {
     }
 }
 
+// ── the JDI panel tranche 1 (Plan 012 A1–A4 — the Jev Decision Index's
+// choice-shaped public benchmarks as suites; opt-in only, never a default-run
+// member: the wanli/thai precedent, `named_only: true` in the registry) ────
+//
+// The four board rows whose official splits ARE the board's `cases` counts,
+// cast to the choice wire with a FIXED label universe (positional keys + the
+// option TEXTS as criteria descriptions — the xnli pattern, so the engine
+// label universes stay small). The option keys are POSITIONS (the JDI wire
+// convention), so these suites' `macro_f1` columns measure position-
+// accuracy — the board's metric for them is accuracy anyway; anli_jdi keeps
+// real class labels (macro-F1 clean, and macro-F1 IS the board's metric
+// there).
+
+/// Plan 012: the JDI suites' option-key spellings, as MODULE consts so the
+/// builders AND [`train_row_label`] share ONE spelling (the Issue-077
+/// content-binding law). anli_jdi reuses [`XNLI_KEYS`] (the ClassLabel
+/// order is the same three names — verified at the port).
+pub(crate) const WINOGRANDE_JDI_KEYS: [&str; 2] = ["option1", "option2"];
+pub(crate) const HELLASWAG_JDI_KEYS: [&str; 4] = ["1", "2", "3", "4"];
+pub(crate) const MMLUPRO_JDI_LETTERS: [&str; 10] = [
+    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
+];
+
+/// Plan 012 A1 — `winogrande_jdi` (allenai/winogrande, config
+/// `winogrande_debiased`, split `validation` — 1267 rows, the labeled eval
+/// split; HF `test` is unlabeled): 2-choice pronoun resolution — which
+/// option the sentence's `_` blank stands for. Keys are the DATASET COLUMN
+/// names [option1, option2]; the option TEXTS ride the criteria
+/// descriptions; gold = int(answer) − 1 (the dataset spells it "1"/"2").
+/// Rows missing any field or carrying an out-of-range answer are skipped
+/// (the missing-field law).
+#[must_use]
+pub fn build_winogrande_jdi(rows_file: &Value, max_rows: usize) -> Suite {
+    let keys: Vec<String> = WINOGRANDE_JDI_KEYS.iter().map(|k| (*k).to_string()).collect();
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(sentence), Some(o1), Some(o2), Some(answer)) = (
+            row_str(row, "sentence"),
+            row_str(row, "option1"),
+            row_str(row, "option2"),
+            row_i64(row, "answer"),
+        ) else {
+            continue;
+        };
+        let Some(idx) = answer.checked_sub(1).and_then(|i| usize::try_from(i).ok()) else {
+            continue;
+        };
+        if idx >= keys.len() {
+            continue;
+        }
+        let descs = vec![Some(o1.to_string()), Some(o2.to_string())];
+        cases.push(SuiteCase {
+            id: format!("winogrande_jdi:{pos}"),
+            state: json!({ "sentence": sentence }),
+            questions: vec![choice_q(
+                "filler",
+                "Which option does the blank `_` in `sentence` stand for?",
+                &keys,
+                Some(descs),
+            )],
+            gold: vec![GoldAnswer {
+                idx,
+                soft: vec![0.0; keys.len()],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "winogrande_jdi",
+        cases,
+        option_counts_note: "2 fixed options keyed by the dataset columns [option1, option2] \
+                             — the option TEXTS ride the criteria descriptions (the JDI \
+                             positional-wire convention)",
+    }
+}
+
+/// Plan 012 A2 — `hellaswag_jdi` (Rowan/hellaswag, config `default`, split
+/// `validation` — 10042 rows): 4-choice commonsense continuation — which
+/// ending most plausibly continues `ctx`. Keys are the positional [1..4];
+/// descs = the four ending texts; gold = int(label) (the dataset spells it
+/// "0".."3", and tolerates a JSON number — `value_as_i64` reads both).
+/// Rows missing a field, carrying a non-4 `endings` array, a non-string
+/// ending, or an out-of-range label are skipped (the missing-field law).
+#[must_use]
+pub fn build_hellaswag_jdi(rows_file: &Value, max_rows: usize) -> Suite {
+    let keys: Vec<String> = HELLASWAG_JDI_KEYS.iter().map(|k| (*k).to_string()).collect();
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(activity_label), Some(ctx), Some(endings), Some(label)) = (
+            row_str(row, "activity_label"),
+            row_str(row, "ctx"),
+            row.get("endings").and_then(Value::as_array),
+            row_i64(row, "label"),
+        ) else {
+            continue;
+        };
+        if endings.len() != keys.len() {
+            continue;
+        }
+        let Some(idx) = usize::try_from(label).ok() else {
+            continue;
+        };
+        if idx >= keys.len() {
+            continue;
+        }
+        let descs: Vec<Option<String>> =
+            endings.iter().map(|e| e.as_str().map(str::to_string)).collect();
+        if descs.iter().any(Option::is_none) {
+            continue;
+        }
+        cases.push(SuiteCase {
+            id: format!("hellaswag_jdi:{pos}"),
+            // key order activity_label then ctx — the serialized state bytes
+            // depend on it (§1.3, the xnli premise→hypothesis law)
+            state: json!({ "activity_label": activity_label, "ctx": ctx }),
+            questions: vec![choice_q(
+                "ending",
+                "Which ending most plausibly continues `ctx`?",
+                &keys,
+                Some(descs),
+            )],
+            gold: vec![GoldAnswer {
+                idx,
+                soft: vec![0.0; keys.len()],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "hellaswag_jdi",
+        cases,
+        option_counts_note: "4 fixed positional options [1..4] — the ending TEXTS ride the \
+                             criteria descriptions (the JDI positional-wire convention); the \
+                             eval sample is HASH-ORDERED (fnv1a64 over `ind`, ascending, first \
+                             test_cap) because the validation file clusters by activity_label — \
+                             a first-N cap would read a handful of activities (Plan 012, \
+                             verdict round 1)",
+    }
+}
+
+/// Plan 012 A3 — `anli_jdi` (facebook/anli, config `plain_text`, the
+/// three-way union of `test_r1`+`test_r2`+`test_r3` — 3200 rows, read by
+/// the comma-list `eval_split`): the SAME 3-choice wire as
+/// [`build_xnli_en`], copied verbatim — ANLI's `label` ClassLabel order is
+/// [entailment, neutral, contradiction], the XNLI_KEYS order, so the index
+/// identity holds and the board's macro-F1 stays clean (real class labels,
+/// not positions). The eval envelope arrives PRE-CONCATENATED
+/// (r1→r2→r3, `load_rows`'s comma-list order), so case ids are positions
+/// in the union.
+#[must_use]
+pub fn build_anli_jdi(rows_file: &Value, max_rows: usize) -> Suite {
+    const NLI_CRIT: [(&str, &str); 3] = [
+        ("entailment", "the premise implies the hypothesis is true"),
+        (
+            "neutral",
+            "the premise neither implies nor contradicts the hypothesis",
+        ),
+        (
+            "contradiction",
+            "the premise implies the hypothesis is false",
+        ),
+    ];
+    debug_assert_eq!(
+        NLI_CRIT.len(),
+        XNLI_KEYS.len(),
+        "anli shares the xnli key consts — they must stay in sync"
+    );
+    let keys: Vec<String> = NLI_CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
+    let descs: Vec<Option<String>> = NLI_CRIT
+        .iter()
+        .map(|(_, d)| Some((*d).to_string()))
+        .collect();
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(premise), Some(hypothesis), Some(label)) = (
+            row_str(row, "premise"),
+            row_str(row, "hypothesis"),
+            row_i64(row, "label"),
+        ) else {
+            continue;
+        };
+        cases.push(SuiteCase {
+            id: format!("anli_jdi:{pos}"),
+            // key order premise then hypothesis — the serialized state bytes
+            // depend on it (§1.3); identical to build_xnli_en's state shape.
+            state: json!({ "premise": premise, "hypothesis": hypothesis }),
+            questions: vec![choice_q(
+                "relation",
+                "What is the relationship between `premise` and `hypothesis`?",
+                &keys,
+                Some(descs.clone()),
+            )],
+            gold: vec![GoldAnswer {
+                idx: label as usize,
+                soft: vec![0.0; 3],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "anli_jdi",
+        cases,
+        option_counts_note: "3 fixed options in ClassLabel order [entailment, neutral, \
+                             contradiction] — the XNLI_KEYS order verbatim (the index \
+                             identity holds, macro-F1 clean)",
+    }
+}
+
+/// Plan 012 A4 — `mmlupro_jdi` (TIGER-Lab/MMLU-Pro, config `default`, split
+/// `test` — 12032 rows): VARIABLE option count (4..10), keys are the LETTERS
+/// this case's options fill, IN ORDER ("A".. — the board's own letter
+/// convention), descs = the option texts; gold = `answer_index`. Rows
+/// missing a field, with fewer than two options, more options than letters,
+/// a non-string option, or a gold beyond the presented options are skipped
+/// (the missing-field law). No train split exists — the 70-row validation
+/// split (the few-shot prompt pool) is fetched AS the corpus/cal pool, so
+/// the A0 floor on this suite reads corpus-thin BY CONSTRUCTION (disclosed
+/// here and in the registry/manifest).
+#[must_use]
+pub fn build_mmlupro_jdi(rows_file: &Value, max_rows: usize) -> Suite {
+    let all = rows_of(rows_file);
+    let mut cases = Vec::new();
+    for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
+        let (Some(question), Some(category), Some(options), Some(answer_index)) = (
+            row_str(row, "question"),
+            row_str(row, "category"),
+            row.get("options").and_then(Value::as_array),
+            row_i64(row, "answer_index"),
+        ) else {
+            continue;
+        };
+        if options.len() < 2 || options.len() > MMLUPRO_JDI_LETTERS.len() {
+            continue;
+        }
+        let Some(idx) = usize::try_from(answer_index).ok() else {
+            continue;
+        };
+        if idx >= options.len() {
+            continue;
+        }
+        let keys: Vec<String> = (0..options.len())
+            .map(|i| MMLUPRO_JDI_LETTERS[i].to_string())
+            .collect();
+        let descs: Vec<Option<String>> =
+            options.iter().map(|o| o.as_str().map(str::to_string)).collect();
+        if descs.iter().any(Option::is_none) {
+            continue;
+        }
+        cases.push(SuiteCase {
+            id: format!("mmlupro_jdi:{pos}"),
+            // key order question then category — the serialized state bytes
+            // depend on it (§1.3)
+            state: json!({ "question": question, "category": category }),
+            questions: vec![choice_q(
+                "answer",
+                "Which option answers `question`?",
+                &keys,
+                Some(descs),
+            )],
+            gold: vec![GoldAnswer {
+                idx,
+                soft: vec![0.0; keys.len()],
+                gold_score: None,
+            }],
+        });
+    }
+    Suite {
+        name: "mmlupro_jdi",
+        cases,
+        option_counts_note: "per-case 4..10 options keyed A.. by position (the board's own \
+                             letter convention) — corpus/cal pool is the 70-row validation \
+                             split (no train split exists), so the corpus is starved BY \
+                             CONSTRUCTION; the eval sample is HASH-ORDERED (fnv1a64 over \
+                             `question_id`, ascending, first test_cap) because the test file \
+                             clusters by subject — a first-N cap would read a handful of \
+                             subjects (Plan 012, verdict round 1)",
+    }
+}
+
 // ── Thai probe suites (Plan 003 T3.1/T3.2 — opt-in only, never a default-run
 // member: the G-ISO-2 non-contamination law, `named_only: true` in the
 // registry) ─────────────────────────────────────────────────────────────────
@@ -1163,6 +1445,27 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
         // builder maps it through XNLI_KEYS position). An unknown gold
         // string fails the rule and the row drops, like a malformed int.
         "wanli_en" => row_str(row, "gold").map(str::to_string),
+        // Plan 012 (the JDI panel): the four tranche-1 suites bind corpora
+        // to the OPTION-KEY spelling the engine domains carry (the Issue-077
+        // content binding) — each arm maps the row's gold through the SAME
+        // key order the builder presents, and an out-of-range gold fails the
+        // rule (the row drops, like a malformed label).
+        "winogrande_jdi" => row_i64(row, "answer")
+            .and_then(|a| a.checked_sub(1).and_then(|i| usize::try_from(i).ok()))
+            .and_then(|i| WINOGRANDE_JDI_KEYS.get(i))
+            .map(|k| (*k).to_string()),
+        "hellaswag_jdi" => row_i64(row, "label")
+            .and_then(|l| usize::try_from(l).ok())
+            .and_then(|i| HELLASWAG_JDI_KEYS.get(i))
+            .map(|k| (*k).to_string()),
+        "anli_jdi" => row_i64(row, "label")
+            .and_then(|l| usize::try_from(l).ok())
+            .and_then(|i| XNLI_KEYS.get(i))
+            .map(|k| (*k).to_string()),
+        "mmlupro_jdi" => row_i64(row, "answer_index")
+            .and_then(|i| usize::try_from(i).ok())
+            .and_then(|i| MMLUPRO_JDI_LETTERS.get(i))
+            .map(|k| (*k).to_string()),
         _ => row_i64(row, "label").map(|l| l.to_string()),
     }
 }
@@ -1308,6 +1611,30 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
             rest: serde_json::json!({ "rows": [] }),
         };
     }
+    // Plan 012 (verdict round 1): the two JDI-capped suites are CATEGORY-
+    // CLUSTERED in file order (MMLU-Pro's test split groups by subject;
+    // HellaSwag's validation groups by activity_label), so a gold-label
+    // round-robin still reaches only the first few clusters. Their eval
+    // sample is HASH-ORDERED instead: fnv1a64 over the row's own identity
+    // field (the same ungated fold as [`crate::harness::runner::corpus_digest`]
+    // — `pub mod harness` is blake3-free at --no-default-features), ascending,
+    // first `budget`. Deterministic across hosts/toolchains; the run's
+    // cases_digest pins the resulting sample either way.
+    if matches!(suite, "hellaswag_jdi" | "mmlupro_jdi") {
+        let mut keyed: Vec<(u64, usize)> = rows
+            .iter()
+            .enumerate()
+            .map(|(ri, row)| (jdi_row_identity_hash(suite, row), ri))
+            .collect();
+        keyed.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
+        let picks: Vec<usize> = keyed.into_iter().map(|(_, ri)| ri).take(budget).collect();
+        let rest: Vec<usize> = (0..rows.len()).filter(|ri| !picks.contains(ri)).collect();
+        return StratSplit {
+            n_picks: picks.len(),
+            front: wrap_rows(&rows, &picks),
+            rest: wrap_rows(&rows, &rest),
+        };
+    }
     // Bucket by the row's own label, first appearance = label order. Rows
     // failing the label rule never build cases (the builders skip them), so
     // they stay in `rest` and never spend front budget.
@@ -1346,6 +1673,30 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
         front: wrap_rows(&rows, &picks),
         rest: wrap_rows(&rows, &rest),
     }
+}
+
+/// Row identity for the hash-ordered JDI samples (Plan 012, verdict round
+/// 1): the dataset's own unique id field — `question_id` for MMLU-Pro,
+/// `ind` for HellaSwag — folded through the house FNV-1a 64 (ungated; the
+/// same law as the corpus digest). A row missing its id field falls back to
+/// its canonical serialized bytes, so a malformed row still lands
+/// deterministically.
+fn jdi_row_identity_hash(suite: &str, row: &Value) -> u64 {
+    let identity: String = match suite {
+        "mmlupro_jdi" => row
+            .get("question_id")
+            .and_then(value_as_i64)
+            .map(|v| v.to_string()),
+        "hellaswag_jdi" => row.get("ind").and_then(value_as_i64).map(|v| v.to_string()),
+        _ => None,
+    }
+    .unwrap_or_else(|| row.to_string());
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in identity.as_bytes() {
+        h ^= u64::from(b);
+        h = h.wrapping_mul(0x0010_0000_01b3);
+    }
+    h
 }
 
 /// Train rows per suite. Label/text rules:
@@ -1421,6 +1772,46 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
                 Some(TrainDoc {
                     label: train_row_label(suite, r)?,
                     text: format!("{}\n{}", row_str(r, "premise")?, row_str(r, "hypothesis")?),
+                })
+            })
+            .collect(),
+        // Plan 012 (the JDI panel): winogrande/hellaswag/mmlupro corpus
+        // text is the query state's one meaningful content field (the
+        // ag_news precedent); anli_jdi is the xnli pair-as-unit shape (the
+        // state is byte-identical to xnli_en's).
+        "winogrande_jdi" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: row_str(r, "sentence")?.to_string(),
+                })
+            })
+            .collect(),
+        "hellaswag_jdi" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: row_str(r, "ctx")?.to_string(),
+                })
+            })
+            .collect(),
+        "anli_jdi" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: format!("{}\n{}", row_str(r, "premise")?, row_str(r, "hypothesis")?),
+                })
+            })
+            .collect(),
+        "mmlupro_jdi" => rows
+            .iter()
+            .filter_map(|r| {
+                Some(TrainDoc {
+                    label: train_row_label(suite, r)?,
+                    text: row_str(r, "question")?.to_string(),
                 })
             })
             .collect(),

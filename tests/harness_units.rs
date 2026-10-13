@@ -1129,3 +1129,314 @@ fn macro_f1_of_known_answer() {
     // (F1_c = 0 for it): gold [0], picks [1] → classes {0,1}, mean = 0.
     approx(macro_f1_of(&[0], &[1]), 0.0);
 }
+
+// ── the JDI panel tranche 1 (plan 012 A1–A4) ────────────────────────────────
+
+/// winogrande_jdi: keys are the dataset COLUMN names [option1, option2],
+/// the option TEXTS ride the criteria descriptions, gold = int(answer) − 1
+/// ("2" → idx 1), state = {sentence} only, and rows missing a field or
+/// carrying an out-of-range answer are skipped (the missing-field law).
+#[test]
+fn winogrande_jdi_gold_and_options() {
+    let file = json!({
+        "features": [],
+        "rows": [
+            {"row_idx": 0, "row": {"sentence": "Ian volunteers _ time.",
+             "option1": "his", "option2": "her", "answer": "2"}},
+            {"row_idx": 1, "row": {"sentence": "The trophy fits _.",
+             "option1": "it", "option2": "the suitcase", "answer": "1"}},
+            {"row_idx": 2, "row": {"sentence": "no options here", "answer": "1"}},
+            {"row_idx": 3, "row": {"sentence": "answer out of range",
+             "option1": "a", "option2": "b", "answer": "3"}}
+        ]
+    });
+    let suite = build_winogrande_jdi(&file, 0);
+    assert_eq!(suite.name, "winogrande_jdi");
+    assert!(!suite.option_counts_note.is_empty());
+    assert_eq!(suite.cases.len(), 2, "missing-field and out-of-range rows skip");
+
+    let case = &suite.cases[0];
+    assert_eq!(case.id, "winogrande_jdi:0");
+    assert_eq!(case.state, json!({"sentence": "Ian volunteers _ time."}));
+    let q = &case.questions[0];
+    assert_eq!(q.qid, "filler");
+    assert_eq!(q.kind, QKind::Choice);
+    assert_eq!(
+        q.instructions,
+        "Which option does the blank `_` in `sentence` stand for?"
+    );
+    let crit = q.criteria.as_object().unwrap();
+    let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
+    assert_eq!(keys, vec!["option1", "option2"], "keys are the column names");
+    assert_eq!(crit["option1"], json!("his"));
+    assert_eq!(crit["option2"], json!("her"), "the option TEXTS are the descs");
+    assert_eq!(case.gold[0].idx, 1, "answer \"2\" → idx 1");
+    assert_eq!(case.gold[0].soft, vec![0.0; 2]);
+    assert_eq!(case.gold[0].gold_score, None);
+    assert_eq!(suite.cases[1].gold[0].idx, 0, "answer \"1\" → idx 0");
+
+    // max_rows = FIRST-N
+    let suite = build_winogrande_jdi(&file, 1);
+    assert_eq!(suite.cases.len(), 1);
+    assert_eq!(suite.cases[0].id, "winogrande_jdi:0");
+}
+
+/// hellaswag_jdi: positional keys [1..4], the four endings as descriptions,
+/// gold = int(label) (string "3" → idx 3; a JSON number reads the same),
+/// state = {activity_label, ctx} in that order, and rows with a non-4
+/// endings array / non-string ending / out-of-range label skip.
+#[test]
+fn hellaswag_jdi_gold_and_options() {
+    let file = json!({
+        "features": [],
+        "rows": [
+            {"row_idx": 0, "row": {"activity_label": "Roof shingle removal",
+             "ctx": "A man is sitting on a roof. He",
+             "endings": ["starts pulling up roofing.", "starts nailing it down.",
+                          "starts singing.", "starts rapping."],
+             "label": "3"}},
+            {"row_idx": 1, "row": {"activity_label": "Home and Garden",
+             "ctx": "Someone buys flowers. They",
+             "endings": ["water them.", "eat them.", "burn them.", "sell them."],
+             "label": 0}},
+            {"row_idx": 2, "row": {"activity_label": "Broken",
+             "ctx": "Only three endings here.",
+             "endings": ["a", "b", "c"], "label": "0"}},
+            {"row_idx": 3, "row": {"activity_label": "Broken",
+             "ctx": "Non-string ending.",
+             "endings": ["a", "b", 3, "d"], "label": "0"}},
+            {"row_idx": 4, "row": {"activity_label": "Broken",
+             "ctx": "Label out of range.",
+             "endings": ["a", "b", "c", "d"], "label": "4"}},
+            {"row_idx": 5, "row": {"ctx": "no activity label",
+             "endings": ["a", "b", "c", "d"], "label": "0"}}
+        ]
+    });
+    let suite = build_hellaswag_jdi(&file, 0);
+    assert_eq!(suite.name, "hellaswag_jdi");
+    assert_eq!(suite.cases.len(), 2, "malformed rows skip");
+
+    let case = &suite.cases[0];
+    assert_eq!(case.id, "hellaswag_jdi:0");
+    let state = case.state.as_object().unwrap();
+    let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
+    assert_eq!(
+        state_keys,
+        vec!["activity_label", "ctx"],
+        "state key order is normative (serialized bytes depend on it)"
+    );
+    let q = &case.questions[0];
+    assert_eq!(q.qid, "ending");
+    assert_eq!(q.instructions, "Which ending most plausibly continues `ctx`?");
+    let crit = q.criteria.as_object().unwrap();
+    let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
+    assert_eq!(keys, vec!["1", "2", "3", "4"], "positional keys in order");
+    assert_eq!(crit["4"], json!("starts rapping."), "the ending TEXTS are the descs");
+    assert_eq!(case.gold[0].idx, 3, "label \"3\" → idx 3");
+    assert_eq!(case.gold[0].soft, vec![0.0; 4]);
+    assert_eq!(suite.cases[1].gold[0].idx, 0, "a JSON-number label reads the same");
+
+    // max_rows = FIRST-N
+    let suite = build_hellaswag_jdi(&file, 1);
+    assert_eq!(suite.cases.len(), 1);
+    assert_eq!(suite.cases[0].id, "hellaswag_jdi:0");
+}
+
+/// anli_jdi: the xnli builder shape VERBATIM — same keys/descs (the
+/// XNLI_KEYS ClassLabel order), same state key order premise→hypothesis,
+/// gold = the int ClassLabel (label 2 → contradiction idx 2).
+#[test]
+fn anli_jdi_matches_xnli_shape() {
+    let file = json!({
+        "features": [],
+        "rows": [
+            {"row_idx": 0, "row": {"premise": "P1", "hypothesis": "H1", "label": 2,
+             "reason": "", "uid": "ex0"}},
+            {"row_idx": 1, "row": {"premise": "P2", "hypothesis": "H2", "label": 0}}
+        ]
+    });
+    let suite = build_anli_jdi(&file, 0);
+    assert_eq!(suite.name, "anli_jdi");
+    assert_eq!(suite.cases.len(), 2);
+    let case = &suite.cases[0];
+    assert_eq!(case.id, "anli_jdi:0");
+    let state = case.state.as_object().unwrap();
+    let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
+    assert_eq!(state_keys, vec!["premise", "hypothesis"], "xnli state shape verbatim");
+    let q = &case.questions[0];
+    assert_eq!(q.qid, "relation");
+    assert_eq!(
+        q.instructions,
+        "What is the relationship between `premise` and `hypothesis`?"
+    );
+    // The xnli criteria, key for key and desc for desc (the index identity
+    // the macro-F1 board metric depends on).
+    let xnli = json!({
+        "features": [],
+        "rows": [{"row_idx": 0, "row": {"premise": "P", "hypothesis": "H", "label": 0}}]
+    });
+    let xnli_q = &build_xnli_en(&xnli, 0).cases[0].questions[0];
+    assert_eq!(q.criteria, xnli_q.criteria, "criteria identical to xnli_en");
+    assert_eq!(case.gold[0].idx, 2, "label 2 → contradiction idx 2");
+    assert_eq!(case.gold[0].soft, vec![0.0; 3]);
+    assert_eq!(suite.cases[1].gold[0].idx, 0);
+}
+
+/// mmlupro_jdi: keys are the LETTERS the case's options fill, IN ORDER
+/// ("A".."D" for four options, "A".."J" for ten), descs = the option
+/// texts, gold = answer_index, state = {question, category} in that order,
+/// and the skip law (options < 2, more options than letters, gold beyond
+/// the presented options, non-string option).
+#[test]
+fn mmlupro_jdi_variable_options_and_skips() {
+    let file = json!({
+        "features": [],
+        "rows": [
+            {"row_idx": 0, "row": {"question_id": "math__0", "question": "What is 2+2?",
+             "category": "math",
+             "options": ["3", "4", "5", "6"], "answer": "D", "answer_index": 3}},
+            {"row_idx": 1, "row": {"question_id": "law__1", "question": "Ten options here?",
+             "category": "law",
+             "options": ["o0", "o1", "o2", "o3", "o4", "o5", "o6", "o7", "o8", "o9"],
+             "answer": "C", "answer_index": 2}},
+            {"row_idx": 2, "row": {"question_id": "broken__2", "question": "One option.",
+             "category": "math", "options": ["only"], "answer": "A", "answer_index": 0}},
+            {"row_idx": 3, "row": {"question_id": "broken__3", "question": "Gold beyond options.",
+             "category": "math", "options": ["a", "b"], "answer": "C", "answer_index": 2}},
+            {"row_idx": 4, "row": {"question_id": "broken__4", "question": "Non-string option.",
+             "category": "math", "options": ["a", 2], "answer": "A", "answer_index": 0}},
+            {"row_idx": 5, "row": {"question_id": "broken__5", "question": "No category.",
+             "options": ["a", "b"], "answer": "A", "answer_index": 0}}
+        ]
+    });
+    let suite = build_mmlupro_jdi(&file, 0);
+    assert_eq!(suite.name, "mmlupro_jdi");
+    assert!(
+        suite.option_counts_note.contains("starved"),
+        "the note discloses the by-construction starved corpus"
+    );
+    assert_eq!(suite.cases.len(), 2, "skip-law rows drop");
+
+    let case = &suite.cases[0];
+    assert_eq!(case.id, "mmlupro_jdi:0");
+    let state = case.state.as_object().unwrap();
+    let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
+    assert_eq!(state_keys, vec!["question", "category"], "state key order is normative");
+    let q = &case.questions[0];
+    assert_eq!(q.qid, "answer");
+    assert_eq!(q.instructions, "Which option answers `question`?");
+    let crit = q.criteria.as_object().unwrap();
+    let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
+    assert_eq!(keys, vec!["A", "B", "C", "D"], "four options → keys A..D in order");
+    assert_eq!(crit["D"], json!("6"), "the option TEXTS are the descs");
+    assert_eq!(case.gold[0].idx, 3, "answer_index 3 → idx 3");
+    assert_eq!(case.gold[0].soft, vec![0.0; 4]);
+
+    let ten = &suite.cases[1];
+    let keys: Vec<&str> = ten.questions[0]
+        .criteria
+        .as_object()
+        .unwrap()
+        .keys()
+        .map(String::as_str)
+        .collect();
+    assert_eq!(keys, vec!["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"]);
+    assert_eq!(ten.gold[0].idx, 2);
+    assert_eq!(ten.gold[0].soft, vec![0.0; 10]);
+
+    // max_rows = FIRST-N
+    let suite = build_mmlupro_jdi(&file, 1);
+    assert_eq!(suite.cases.len(), 1);
+    assert_eq!(suite.cases[0].id, "mmlupro_jdi:0");
+}
+
+/// The JDI tranche-1 count floors over the FETCHED populations (plan 012
+/// A6): winogrande_jdi 1267 (the full validation split), anli_jdi 3200 (the
+/// r1+r2+r3 union through the comma-list `load_rows` — this exercises the
+/// multi-split load path end-to-end), hellaswag_jdi 8000 (the fetched eval
+/// universe; the 2000 eval cap is the runner's concern), mmlupro_jdi 12032
+/// (the full test split). Each suite's arm runs INDEPENDENTLY; an absent
+/// suite skips LOUD (the slice_leak pattern) and never masks the others;
+/// JDI_REQUIRE_DATA=1 fails the skip.
+#[test]
+fn jdi_tranche1_fetched_count_floors() {
+    let require = std::env::var("JDI_REQUIRE_DATA").is_ok_and(|v| v == "1");
+    let root = std::path::Path::new(".raw/datasets");
+    let envelope = |suite: &str| -> Option<serde_json::Value> {
+        if !root.join(suite).exists() {
+            let msg =
+                format!("jdi_tranche1_fetched_count_floors: SKIP — .raw/datasets/{suite} absent");
+            if require {
+                panic!("{msg} (JDI_REQUIRE_DATA=1)");
+            }
+            println!("{msg} — that suite was NOT measured; this is NOT a pass for it");
+            return None;
+        }
+        Some(
+            riir_reflex::harness::runner::load_suite_envelope(root, suite)
+                .unwrap_or_else(|e| panic!("{suite}: {e}")),
+        )
+    };
+
+    if let Some(env) = envelope("winogrande_jdi") {
+        let test_rows = env["test_rows"].clone();
+        let suite = build_winogrande_jdi(&test_rows, 0);
+        assert_eq!(suite.cases.len(), 1267, "the full validation split is the population");
+        let docs = train_docs(&env["train_rows"].clone(), "winogrande_jdi");
+        assert!(!docs.is_empty(), "the train pool yields corpus docs");
+        assert!(
+            docs.iter().all(|d| d.label == "option1" || d.label == "option2"),
+            "corpus labels bind to the option-key spelling"
+        );
+    }
+
+    if let Some(env) = envelope("hellaswag_jdi") {
+        let test_rows = env["test_rows"].clone();
+        let suite = build_hellaswag_jdi(&test_rows, 0);
+        assert_eq!(suite.cases.len(), 8000, "the fetched eval universe");
+        assert!(
+            suite
+                .cases
+                .iter()
+                .all(|c| c.gold[0].idx < c.questions[0].criteria.as_object().unwrap().len()),
+            "every gold lands inside its case's presented keys"
+        );
+    }
+
+    if let Some(env) = envelope("anli_jdi") {
+        let test_rows = env["test_rows"].clone();
+        let suite = build_anli_jdi(&test_rows, 0);
+        assert_eq!(suite.cases.len(), 3200, "the r1+r2+r3 union (comma-list load)");
+        assert!(
+            suite.cases.iter().all(|c| c.gold[0].idx < 3),
+            "every gold is one of the three class labels"
+        );
+    }
+
+    if let Some(env) = envelope("mmlupro_jdi") {
+        let test_rows = env["test_rows"].clone();
+        let suite = build_mmlupro_jdi(&test_rows, 0);
+        assert_eq!(suite.cases.len(), 12032, "the full test split is the population");
+        // The option-key union over the FULL test split spans all ten
+        // letters — the runner's 10-domain dispatch posture (any 2000-cap
+        // stratified front spans every bucket by construction, so the union
+        // stays 10).
+        let mut letters: Vec<&str> = Vec::new();
+        for c in &suite.cases {
+            for k in c.questions[0].criteria.as_object().unwrap().keys() {
+                if !letters.contains(&k.as_str()) {
+                    letters.push(k.as_str());
+                }
+            }
+        }
+        assert_eq!(
+            letters,
+            vec!["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"],
+            "the full-test option-key union is the ten-letter convention"
+        );
+    }
+
+    // No summary assert: an all-absent box (fresh clone) skips loud above —
+    // the seat-gates convention. JDI_REQUIRE_DATA=1 turns every skip into a
+    // failure for the dev lane.
+}

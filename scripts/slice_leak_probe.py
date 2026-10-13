@@ -122,7 +122,15 @@ def probe(suite):
 
 def main():
     suites = sys.argv[1:] or sorted(
-        d for d in os.listdir(ROOT) if not d.startswith("_") and os.path.isdir(os.path.join(ROOT, d))
+        d for d in os.listdir(ROOT)
+        if not d.startswith("_") and os.path.isdir(os.path.join(ROOT, d))
+        # Plan 012 (the JDI panel): the tranche-1 suites' eval splits are
+        # NOT `test` (validation / the test_r1+r2+r3 union) — the train-vs-
+        # test probe reads UNSEEN there by construction, which the Rust
+        # oracle asserts never happens. The in-harness `slice_leak` report
+        # covers them at run time (eval_case_text + train_docs carry the
+        # arms). Explicit `argv` naming still scans one by force.
+        and not d.endswith("_jdi")
     )
     for suite in suites:
         print(probe(suite))

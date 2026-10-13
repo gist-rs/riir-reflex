@@ -474,6 +474,16 @@ pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> 
             s.get("premise")?.as_str()?,
             s.get("hypothesis")?.as_str()?
         )),
+        // Plan 012 (the JDI panel): the same content fields the corpus side
+        // reads via `train_docs` — anli is the xnli pair-as-unit shape.
+        "winogrande_jdi" => s.get("sentence")?.as_str().map(str::to_string),
+        "hellaswag_jdi" => s.get("ctx")?.as_str().map(str::to_string),
+        "anli_jdi" => Some(format!(
+            "{}\n{}",
+            s.get("premise")?.as_str()?,
+            s.get("hypothesis")?.as_str()?
+        )),
+        "mmlupro_jdi" => s.get("question")?.as_str().map(str::to_string),
         _ => None,
     }
 }

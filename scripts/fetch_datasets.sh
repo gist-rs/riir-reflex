@@ -153,9 +153,16 @@ EOF
 }
 
 # fetch_suite <suite> <urlencoded-dataset> <urlencoded-config>
-#             <urlencoded-split> <cap: number | "all">
+#             <urlencoded-split> <cap: number | "all"> [<as-split>]
+#
+# <as-split> (Plan 012): the FILENAME prefix, when the stored split must
+# differ from the fetched one — mmlupro_jdi has no train split, so its
+# 70-row validation pool is stored as the suite's `train` (the corpus/cal
+# pool the harness reads), and anli_jdi's train_r1 rounds are stored as
+# `train`. Defaults to <split> (every pre-existing caller is unchanged).
 fetch_suite() {
     suite=$1; ds=$2; cfg=$3; split=$4; cap=$5
+    as_split="${6:-$split}"
     dir="$OUT/$suite"
     mkdir -p "$dir"
     part=0
@@ -167,7 +174,7 @@ fetch_suite() {
             break
         fi
         pagenum=$(printf '%03d' "$part")
-        file="$dir/$split-$pagenum.json"
+        file="$dir/$as_split-$pagenum.json"
         want=$PAGE
         if [ "$cap" != "all" ]; then
             want=$((cap - total))
@@ -178,7 +185,7 @@ fetch_suite() {
         if [ "$FORCE" != "1" ] && [ -s "$file" ] && rows_valid "$file"; then
             n=$(rows_count "$file" 2>/dev/null || echo 0)
             if [ "$n" -gt 0 ]; then
-                log "  skip   $suite/$split-$pagenum ($n rows)"
+                log "  skip   $suite/$as_split-$pagenum ($n rows)"
                 total=$((total + n))
                 files=$((files + 1))
                 if [ "$n" -lt "$want" ]; then
@@ -206,14 +213,14 @@ fetch_suite() {
         fi
         if [ "$ok" -eq 0 ]; then
             rm -f "$tmp"
-            log "  FAIL   $suite/$split-$pagenum (http error, offset=$offset)"
+            log "  FAIL   $suite/$as_split-$pagenum (http error, offset=$offset)"
             FAILED=$((FAILED + 1))
             suite_failed=1
             break
         fi
         if ! rows_valid "$tmp"; then
             rm -f "$tmp"
-            log "  FAIL   $suite/$split-$pagenum (JSON error body, offset=$offset)"
+            log "  FAIL   $suite/$as_split-$pagenum (JSON error body, offset=$offset)"
             FAILED=$((FAILED + 1))
             suite_failed=1
             break
@@ -221,7 +228,7 @@ fetch_suite() {
         n=$(rows_count "$tmp" 2>/dev/null || echo 0)
         if [ "$n" -eq 0 ]; then
             rm -f "$tmp"
-            log "  done   $suite/$split (no more rows at offset=$offset)"
+            log "  done   $suite/$as_split (no more rows at offset=$offset)"
             break
         fi
         mv "$tmp" "$file"
@@ -229,7 +236,7 @@ fetch_suite() {
         ROWS=$((ROWS + n))
         total=$((total + n))
         files=$((files + 1))
-        log "  fetch  $suite/$split-$pagenum rows=$n offset=$offset"
+        log "  fetch  $suite/$as_split-$pagenum rows=$n offset=$offset"
         if [ "$n" -lt "$PAGE" ]; then
             break
         fi
@@ -240,15 +247,15 @@ fetch_suite() {
         sleep "$SLEEP"
     done
     if [ "$part" -ge "$MAX_PARTS" ]; then
-        log "  FAIL   $suite/$split hit MAX_PARTS=$MAX_PARTS guard"
+        log "  FAIL   $suite/$as_split hit MAX_PARTS=$MAX_PARTS guard"
         FAILED=$((FAILED + 1))
         suite_failed=1
     fi
-    rows_total=$(jq -r '.num_rows_total // "?"' "$dir/$split-000.json" 2>/dev/null || echo "?")
+    rows_total=$(jq -r '.num_rows_total // "?"' "$dir/$as_split-000.json" 2>/dev/null || echo "?")
     if [ "$suite_failed" -eq 0 ]; then
-        log "  ==     $suite/$split: $total rows in $files file(s) (dataset total: $rows_total)"
+        log "  ==     $suite/$as_split: $total rows in $files file(s) (dataset total: $rows_total)"
     else
-        log "  ==     $suite/$split: $total rows in $files file(s) BEFORE FAILURE (dataset total: $rows_total)"
+        log "  ==     $suite/$as_split: $total rows in $files file(s) BEFORE FAILURE (dataset total: $rows_total)"
     fi
     sleep "$SLEEP"
 }
@@ -459,6 +466,22 @@ main() {
         log "[probe] wanli_en /splits"
         probe_splits wanli_en "alisawuffles%2FWANLI"
     fi
+    if want_suite winogrande_jdi; then
+        log "[probe] winogrande_jdi /splits"
+        probe_splits winogrande_jdi "allenai%2Fwinogrande"
+    fi
+    if want_suite hellaswag_jdi; then
+        log "[probe] hellaswag_jdi /splits"
+        probe_splits hellaswag_jdi "Rowan%2Fhellaswag"
+    fi
+    if want_suite anli_jdi; then
+        log "[probe] anli_jdi /splits"
+        probe_splits anli_jdi "facebook%2Fanli"
+    fi
+    if want_suite mmlupro_jdi; then
+        log "[probe] mmlupro_jdi /splits"
+        probe_splits mmlupro_jdi "TIGER-Lab%2FMMLU-Pro"
+    fi
 
     # Licence probes (riir-rethink Issue 023 T1): one hub call per selected
     # suite — the drift tripwire beside the manifest's VERIFIED table.
@@ -496,6 +519,20 @@ main() {
     fi
     if want_suite wanli_en; then
         probe_license wanli_en "alisawuffles/WANLI"
+    fi
+    # Plan 012 (the JDI panel tranche 1): the four board rows' licence
+    # probes — the hub-side tripwire beside the manifest's VERIFIED rows.
+    if want_suite winogrande_jdi; then
+        probe_license winogrande_jdi "allenai/winogrande"
+    fi
+    if want_suite hellaswag_jdi; then
+        probe_license hellaswag_jdi "Rowan/hellaswag"
+    fi
+    if want_suite anli_jdi; then
+        probe_license anli_jdi "facebook/anli"
+    fi
+    if want_suite mmlupro_jdi; then
+        probe_license mmlupro_jdi "TIGER-Lab/MMLU-Pro"
     fi
 
     # 1. typed_decisions — test: ALL rows; train: ALL 1200 rows (Issue 052:
@@ -627,6 +664,55 @@ main() {
         log "[suite] wanli_en config=default split=train cap=$TRAIN_CAP"
         fetch_suite wanli_en "alisawuffles%2FWANLI" default train "$TRAIN_CAP"
         dedupe_train wanli_en
+    fi
+
+    # 12. winogrande_jdi — Plan 012 A1 (the JDI panel tranche 1): the
+    #     pronoun-resolution board row (validation 1267 = the board's cases;
+    #     HF `test` is unlabeled). Train fetched for the corpus pool.
+    if want_suite winogrande_jdi; then
+        log "[suite] winogrande_jdi allenai/winogrande config=winogrande_debiased split=validation cap=all (the board's population; eval cap lives in the harness)"
+        fetch_suite winogrande_jdi "allenai%2Fwinogrande" winogrande_debiased validation all
+        log "[suite] winogrande_jdi config=winogrande_debiased split=train cap=4000 (the corpus pool)"
+        fetch_suite winogrande_jdi "allenai%2Fwinogrande" winogrande_debiased train 4000
+    fi
+
+    # 13. hellaswag_jdi — Plan 012 A2: the 4-way continuation board row
+    #     (validation 10042). Eval universe fetched at 8000 (the eval cap
+    #     lives in the harness — the banking77 posture); train at the same
+    #     bound (the corpus pool needs no more).
+    if want_suite hellaswag_jdi; then
+        log "[suite] hellaswag_jdi Rowan/hellaswag config=default split=validation cap=8000 (eval universe; eval cap lives in the harness)"
+        fetch_suite hellaswag_jdi "Rowan%2Fhellaswag" default validation 8000
+        log "[suite] hellaswag_jdi config=default split=train cap=8000 (the corpus pool)"
+        fetch_suite hellaswag_jdi "Rowan%2Fhellaswag" default train 8000
+    fi
+
+    # 14. anli_jdi — Plan 012 A3: the NLI board row = test_r1+test_r2+test_r3
+    #     concatenated in that order (3200 = the board's cases); the harness
+    #     reads the comma-list eval split (load_rows). Train rounds: train_r1
+    #     ONLY (r2/r3 trains are huge; one round's pool is enough for the
+    #     corpus and keeps the fetch bounded) — stored as the suite's `train`.
+    if want_suite anli_jdi; then
+        log "[suite] anli_jdi facebook/anli config=plain_text split=test_r1 cap=all (1000 rows)"
+        fetch_suite anli_jdi "facebook%2Fanli" plain_text test_r1 all
+        log "[suite] anli_jdi config=plain_text split=test_r2 cap=all (1000 rows)"
+        fetch_suite anli_jdi "facebook%2Fanli" plain_text test_r2 all
+        log "[suite] anli_jdi config=plain_text split=test_r3 cap=all (1200 rows)"
+        fetch_suite anli_jdi "facebook%2Fanli" plain_text test_r3 all
+        log "[suite] anli_jdi config=plain_text split=train_r1 cap=4000 (round-1 pool only; stored as the suite's train)"
+        fetch_suite anli_jdi "facebook%2Fanli" plain_text train_r1 4000 train
+    fi
+
+    # 15. mmlupro_jdi — Plan 012 A4: the knowledge board row (test 12032;
+    #     universe rows, the eval cap lives in the harness). NO train split
+    #     exists — the 70-row validation split (the few-shot prompt pool) is
+    #     fetched AS the suite's `train` (the corpus/cal pool; the starved
+    #     corpus is disclosed in the registry + the manifest).
+    if want_suite mmlupro_jdi; then
+        log "[suite] mmlupro_jdi TIGER-Lab/MMLU-Pro config=default split=test cap=all (universe rows; eval cap lives in the harness)"
+        fetch_suite mmlupro_jdi "TIGER-Lab%2FMMLU-Pro" default test all
+        log "[suite] mmlupro_jdi config=default split=validation cap=all (70 rows — no train split exists; stored AS the suite's train = the corpus/cal pool)"
+        fetch_suite mmlupro_jdi "TIGER-Lab%2FMMLU-Pro" default validation all train
     fi
 
     log ""
