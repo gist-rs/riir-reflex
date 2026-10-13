@@ -151,6 +151,11 @@ pub(crate) enum TeacherForward {
     /// The pplx-decider loopback service (reflex Issue 082's lane as the
     /// Issue-623 teacher, ungated). Same keyed-probs tail as clef.
     Pplx { lane: crate::lanes::pplx::PplxLane, provenance: String },
+    /// The vLLM-SR d3 loopback service (riir-train Issue 629 T2's B3-arm
+    /// teacher, ungated — Apache-2.0 at tag v3.1.0, verified 629 T0). Same
+    /// SystemOne wire as pplx (their server is adapted from pplx's);
+    /// same keyed-probs tail.
+    D3 { lane: crate::lanes::d3::D3Lane, provenance: String },
 }
 
 impl TeacherForward {
@@ -163,6 +168,7 @@ impl TeacherForward {
             Self::Bekko { .. } => "bekko",
             Self::Clef { .. } => "clef",
             Self::Pplx { .. } => "pplx",
+            Self::D3 { .. } => "d3",
         }
     }
 
@@ -175,6 +181,7 @@ impl TeacherForward {
             Self::Openthai { provenance, .. } => provenance,
             Self::Bekko { oracle } => &oracle.model,
             Self::Clef { provenance, .. } | Self::Pplx { provenance, .. } => provenance,
+            Self::D3 { provenance, .. } => provenance,
         }
     }
 
@@ -242,6 +249,13 @@ impl TeacherForward {
                 lane.decide(case)
                     .map(|_| ())
                     .map_err(|e| format!("pplx warmup: {e}"))
+            }
+            // d3's health ran at construct (the pplx law); warmup is the
+            // loud proof + the cold-path absorb.
+            Self::D3 { lane, .. } => {
+                lane.decide(case)
+                    .map(|_| ())
+                    .map_err(|e| format!("d3 warmup: {e}"))
             }
         }
     }
@@ -318,6 +332,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("pplx forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &answers, "pplx")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::D3 { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("d3 forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "d3")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -462,6 +484,14 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::Pplx { lane, provenance })
         }
+        "d3" => {
+            // The pplx law verbatim: health at construct, provenance off
+            // /health (serve version-true with --name d3-v3.1.0 — their
+            // health carries no checkpoint field).
+            let lane = crate::lanes::d3::D3Lane::default();
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::D3 { lane, provenance })
+        }
         "laya" => {
             #[cfg(feature = "laya-riir")]
             {
@@ -491,7 +521,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
         }
         other => Err(format!(
             "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
-             'bekko', 'clef' and 'pplx')"
+             'bekko', 'clef', 'pplx' and 'd3')"
         )),
     }
 }

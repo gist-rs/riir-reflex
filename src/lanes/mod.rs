@@ -51,3 +51,10 @@ pub mod d1;
 // (`crate::harness::suites` + the std-only `crate::lanes::http_mini` +
 // std + serde_json).
 pub mod pplx;
+// riir-train Issue 629 T2 (the B3 arm): the vLLM-SR d3 comparison lane —
+// the SAME TypeSafe `/v1/systemone` wire as pplx (their `d3_server.py` is
+// adapted FROM pplx's autojev server; Apache-2.0 UNGATED at tag v3.1.0 —
+// teacher-eligible). The wire functions are REUSED from the pplx lane
+// (one wire, many oracles); this module owns the endpoint + the health
+// shape. Ungated: the same import law.
+pub mod d3;
