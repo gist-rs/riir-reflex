@@ -98,7 +98,9 @@ different cap (the digest-pin law).
       0.9540/mf1 0.9536 on the published pin (bench 113), which the record cites until the
       tranche cells land. When the window completes: fold the four clef columns into rethink
       bench 067 (the aggregate script already carries the clef lane) — the same window also
-      feeds rethink 032 T3.5's router.
+      feeds rethink 032 T3.5's router. **Fold-in law (verdict round 2): show the ABSENCE COUNT
+      per suite beside each clef cell — a clef cell with absences is a partial row and must
+      never be averaged as if complete.**
 - [x] B3 `results.json` + `tables.md` into rethink `.benchmarks/067_jdi_public_skill_read/`
       (the scoring-run record lives in rethink per the decision-index-beat records table;
       reflex owns the instrument, rethink the board consumption). LANDED — the record dir
