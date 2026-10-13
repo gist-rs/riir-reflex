@@ -5,7 +5,7 @@ choice-shaped public benchmarks as suites (Plan 012 Phase A/B), so riir-rethink 
 score the serving ladder on the board's own `public_skill` axis. Plan: [012](../.plans/012_jdi_panel_read.md).
 Cross-repo: the record + board consumption live in rethink (`.benchmarks/067_jdi_public_skill_read/`);
 reflex owns lanes/adapters/suites — never a fork of the harness for a rethink need.
-**Progress 2026-10-13: Phase A + B1 + B3 + Phase C LANDED** — the floor read exists (rethink
+**Progress 2026-10-13: Phase A + B1 + B3 + Phase C LANDED (reflex `8d1a9f7`, rethink `aba7389`)** — the floor read exists (rethink
 Bench 067: **A0 4.40 / ENC 12.99 zeros-included** public_skill on the served 5/37 rows vs the
 58.0 M1 bar; verdict round 1 applied: hash-ordered sampling on the two category-clustered
 caps — the first-N sample was measurably easier, HellaSwag ENC 0.4195→0.3635 — and

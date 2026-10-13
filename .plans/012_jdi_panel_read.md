@@ -1,6 +1,6 @@
 # Plan 012 — the JDI panel read: score the serving ladder on the Jev Decision Index's own axis
 
-**Status:** IN PROGRESS — filed 2026-10-13 (M3). Feeds riir-rethink Issue 032 T1 (the SubQ Snap
+**Status:** IN PROGRESS — filed 2026-10-13 (M3). Landed: reflex `8d1a9f7`. Feeds riir-rethink Issue 032 T1 (the SubQ Snap
 beat lane's floor read). Grounding: `.research/005` (the JDI structure study), the LIVE board
 snapshot 0.3.2 @ `2026-10-12T13:25:35Z` (sha256 `5d405036…ebe49`, fetched direct-curl per the B1
 law), riir-rethink `.research/004`.
