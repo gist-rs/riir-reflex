@@ -1380,6 +1380,17 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub pplx: Option<LaneResult>,
+    /// riir-train 629 T2: the vLLM-SR d3 (27B) comparison lane's row — the
+    /// JDI board's d3 entrant (Apache-2.0, UNGATED — teacher-eligible;
+    /// tag v3.1.0) served through their `d3_server.py` on the SAME
+    /// TypeSafe `/v1/systemone` wire the pplx lane speaks (the d3 server
+    /// is adapted FROM pplx's autojev server; `src/lanes/d3.rs`), measured
+    /// over HTTP. The JDI-panel scoring read (the per-family spot check
+    /// vs the board's published per-benchmark numbers — the lossy-surface
+    /// law — and the B3 arm's public-panel column). Absent (never a
+    /// fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub d3: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1499,6 +1510,13 @@ pub struct RunMeta {
     /// checkpoint basename from /health, PPLX_DEVICE the posture stamp; a
     /// local-serve read, the hosted posture owner-gated and never pooled).
     pub pplx_lane: String,
+    /// Whether the vLLM-SR d3 comparison lane ran (riir-train 629 T2), and
+    /// its serving posture when it did (their d3_server.py — the model id
+    /// from /health, serve version-true with `--name d3-v3.1.0`;
+    /// `D3_DEVICE` the quant-posture disclosure stamp, e.g. `cuda:0+nf4`
+    /// — the lossy-surface law: the posture is PINNED and quoted beside
+    /// every number).
+    pub d3_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6218,6 +6236,144 @@ fn run_pplx_lane(
     ))
 }
 
+/// The vLLM-SR d3 comparison lane (riir-train 629 T2): the JDI board's d3
+/// entrant (Apache-2.0, UNGATED — teacher-eligible; tag v3.1.0), served
+/// through their `d3_server.py` on the SAME TypeSafe `/v1/systemone` wire
+/// (their server is adapted FROM pplx's autojev server; the wire functions
+/// are REUSED from the pplx lane — one wire, many oracles), measured over
+/// HTTP — the pplx lane's shape verbatim (same cases, same metrics tail
+/// through [`assemble_laya_lane_result`]).
+///
+/// Env: `D3_SERVE_URL` (default `http://127.0.0.1:8794`), `D3_TIMEOUT_MS`
+/// (default 300000 — the offload/quant posture is slow per forward),
+/// `D3_DEVICE` (the quant-posture disclosure stamp, e.g. `cuda:0+nf4` —
+/// the lossy-surface law: which quant produced the scores is PINNED and
+/// quoted beside every number), `D3_API_KEY` (optional bearer). The
+/// `/health` handshake captures the served model id (serve version-true
+/// with `--name d3-v3.1.0`; their health carries no checkpoint field,
+/// unlike pplx's) and refuses while their lazy first load is still
+/// `"loading"`. The no-clock law: their body carries no timing anywhere,
+/// so the determinism compare is verbatim — the column measures compute
+/// determinism (device wobble included), never their clock.
+///
+/// This is the JDI-panel scoring half of 629 T2: the per-family spot
+/// check of the quantized teacher's option-scores against the board's
+/// published per-benchmark numbers (the lossy-surface rule) — run over
+/// the tranche-1 JDI suites (`winogrande_jdi`, `hellaswag_jdi`,
+/// `anli_jdi`, `mmlupro_jdi`, Plan 012) BEFORE trusting the captures.
+fn run_d3_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::d3::D3Lane;
+
+    let t_start = Instant::now();
+    let lane = D3Lane::default();
+    let (model, device) = lane.info()?;
+    eprintln!("    [d3] service up: {model} on {device}");
+
+    // WARMUP (the clm lane's cold-start law, the pplx lane's shape): one
+    // FIXED throwaway request (never a case's — no cache pollution of
+    // measured latencies) absorbs the first-forward path (kernel compile
+    // / offload page-in).
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("d3 warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N d3 row against
+    // a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // The repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, tokens) = lane
+            .decide(case)
+            .map_err(|e| format!("d3 lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        input_tokens += tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law) — VERBATIM compare on this wire (the no-clock law).
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("d3 determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("d3 determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!("    [d3] input tokens summed: {input_tokens}");
+
+    Ok(assemble_laya_lane_result(
+        "d3",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 /// The occupancy floor below which a split-half conformal floor is noise:
 /// 40 pairs → 20/20 (the modelless lane's dedicated cal window is the G1
 /// reference shape; this lane's floor is the cheap split-half companion and
@@ -7335,6 +7491,17 @@ pub struct RunOptions {
     /// teacher candidacy (riir-train 623). An unreachable server is a
     /// LOUD error, never a silent skip. Default off.
     pub pplx: bool,
+    /// Also run the vLLM-SR d3 comparison lane (riir-train 629 T2): the
+    /// JDI board's `vLLM-SR d3 (27B)` (Apache-2.0, UNGATED —
+    /// teacher-eligible; tag v3.1.0, Qwen3.8-27B backbone + 256-code
+    /// readout, the pplx head class) served through their `d3_server.py`
+    /// on the same `/v1/systemone` wire at `D3_SERVE_URL` (default
+    /// `http://127.0.0.1:8794`; serve their side with `--port 8794`).
+    /// The JDI-panel scoring read: the per-family spot check vs the
+    /// board's published numbers gates the teacher captures (the
+    /// lossy-surface law — an unreachable server is a LOUD error, never
+    /// a silent skip). Default off.
+    pub d3: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -8098,6 +8265,33 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // vLLM-SR d3 comparison lane (riir-train 629 T2): the JDI board's
+        // d3 entrant through their d3_server.py (Apache-2.0, UNGATED —
+        // teacher-eligible; tag v3.1.0), measured over HTTP — same cases,
+        // the same metrics tail. The JDI-panel scoring half of 629 T2
+        // (the per-family spot check vs the board's published numbers).
+        let d3_result = if opts.d3 {
+            eprintln!("    d3: running…");
+            match run_d3_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    d3: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (d3): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -8249,6 +8443,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             drex: drex_result,
             d1: d1_result,
             pplx: pplx_result,
+            d3: d3_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -8602,6 +8797,39 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)"
                 .to_string()
         },
+        d3_lane: if opts.d3 {
+            let url = std::env::var(crate::lanes::d3::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::d3::DEFAULT_SERVE_URL.into());
+            let device = std::env::var(crate::lanes::d3::DEVICE_ENV)
+                .unwrap_or_else(|_| "cuda:0".to_string());
+            format!(
+                "on — vLLM-SR d3 27B (tag v3.1.0, Qwen3.8-27B backbone + 256-code \
+                 d3-code-readout head, the pplx head class; Apache-2.0, UNGATED — \
+                 teacher-eligible; not affiliated) served through THEIR \
+                 d3_server.py via {url} on {device} (comparison lane, never \
+                 a product lane): same cases, their /v1/systemone contract (the \
+                 wire REUSED from the pplx lane — their server is adapted FROM \
+                 pplx's autojev server, bounds 255/2-10 identical), gold-label \
+                 scoring; liveness = GET /health (refuses while their lazy first \
+                 load is 'loading'), the model id read from /health (never \
+                 hardcoded — serve version-true with --name d3-v3.1.0, their \
+                 health carries no checkpoint field); the 52GB bf16 checkpoint \
+                 exceeds a 24GB card — the local serve runs the PATCHED loader \
+                 (env-knobbed offload/NF4), and the quant posture is PINNED via \
+                 D3_DEVICE and quoted here (the lossy-surface law: which quant \
+                 produced the scores gates the captures — riir-train 629 T2's \
+                 per-family spot check vs the board's published numbers); \
+                 latency = client round-trip INCLUDING the network hop to the \
+                 serve box; input tokens reported beside the metrics; the \
+                 no-clock law: their body carries no timing, determinism = \
+                 verbatim observed-repeat (compute, device wobble included); \
+                 riir-train 629 T2"
+            )
+        } else {
+            "off (pass --d3 to add the comparison lane; serve their d3_server.py \
+             on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)"
+                .to_string()
+        },
         paw_lane: if opts.paw {
             format!(
                 "on — ProgramAsWeights (MIT SDK, not affiliated) over their hosted \
@@ -8751,6 +8979,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- drex lane: {}\n", out.meta.drex_lane));
     s.push_str(&format!("- d1 lane: {}\n", out.meta.d1_lane));
     s.push_str(&format!("- pplx lane: {}\n", out.meta.pplx_lane));
+    s.push_str(&format!("- d3 lane: {}\n", out.meta.d3_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(

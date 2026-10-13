@@ -20,7 +20,7 @@
 //!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--paw] [--paw-local] [--cascade]
+//!                                      [--d1] [--pplx] [--d3] [--paw] [--paw-local] [--cascade]
 //!                                      [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -251,6 +251,7 @@ fn harness_main() {
         drex: false,
         d1: false,
         pplx: false,
+        d3: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -471,7 +472,7 @@ fn harness_main() {
                 distill_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx)"));
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx | d3)"));
             }
             "--distill-out" => {
                 i += 1;
@@ -565,6 +566,7 @@ fn harness_main() {
             "--drex" => opts.drex = true,
             "--d1" => opts.d1 = true,
             "--pplx" => opts.pplx = true,
+            "--d3" => opts.d3 = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -1172,6 +1174,7 @@ fn harness_main() {
                 &suite.drex,
                 &suite.d1,
                 &suite.pplx,
+                &suite.d3,
             ]
             .into_iter()
             .flatten()
