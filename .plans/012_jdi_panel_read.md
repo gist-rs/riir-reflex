@@ -1,9 +1,12 @@
 # Plan 012 — the JDI panel read: score the serving ladder on the Jev Decision Index's own axis
 
-**Status:** IN PROGRESS — filed 2026-10-13 (M3). Landed: reflex `8d1a9f7`. Feeds riir-rethink Issue 032 T1 (the SubQ Snap
-beat lane's floor read). Grounding: `.research/005` (the JDI structure study), the LIVE board
+**Status:** COMPLETE 2026-10-14 — filed 2026-10-13 (M3). Landed: reflex `8d1a9f7`; B2 clef
+fold landed 2026-10-14 (this commit; rethink bench 067 carries the three-lane record). Feeds
+riir-rethink Issue 032 T1 (the SubQ Snap beat lane's floor read, DONE at Bench 067) and T3.5's
+router (the clef score column over the tranche-1 rows). Grounding: `.research/005` (the JDI
+structure study), the LIVE board
 snapshot 0.3.2 @ `2026-10-12T13:25:35Z` (sha256 `5d405036…ebe49`, fetched direct-curl per the B1
-law), riir-rethink `.research/004`.
+law), riir-rethink `.research/004`. Phases D/E stay QUEUED (`- [-]`, each its own session slice).
 
 ## The board formula — verified exactly (the T0 finding this plan is built on)
 
@@ -88,19 +91,20 @@ different cap (the digest-pin law).
       box state per `scripts/bench_preflight.sh` quoted beside every number. LANDED 2026-10-13:
       preflight PASSED (`load=5.11 powermode=2(high)`), 4 suites + the banking77 re-read, both
       lanes, ~7 min total; rows in rethink Bench 067.
-- [ ] B2 clef reference column (the local `clef-flash-4bit` rig) — UN-DEFERRED at verdict
-      round 1 (benchmarks are not deferred): the DETACHED RUN IS IN FLIGHT since 2026-10-13
-      (~8 h at the rig's measured ~3.4 s/case over 8467 tranche cases; runner
-      `/tmp/jdi_clef_b2_runner.sh`, per-suite out dirs under `/tmp/jdi_clef_b2/`, DONE-marker
-      resume, server log `/tmp/clef_srv_jdi.log`, rig `.raw/clef_srv/` + its pinned `.venv`,
-      `CLEF_RUN_PATH=/v1/clef-lane` — the lane's local posture needs the route set, discovered
-      on the first launch). Rig proven: benches 113/118/119; carries banking77
-      0.9540/mf1 0.9536 on the published pin (bench 113), which the record cites until the
-      tranche cells land. When the window completes: fold the four clef columns into rethink
-      bench 067 (the aggregate script already carries the clef lane) — the same window also
-      feeds rethink 032 T3.5's router. **Fold-in law (verdict round 2): show the ABSENCE COUNT
-      per suite beside each clef cell — a clef cell with absences is a partial row and must
-      never be averaged as if complete.**
+- [x] B2 clef reference column (the local `clef-flash-4bit` rig) — UN-DEFERRED at verdict
+      round 1 (benchmarks are not deferred): **RUN COMPLETE + FOLDED 2026-10-14.** The detached
+      runner executed all four tranche suites 2026-10-13 04:45–06:20Z (instrument `9061f98`,
+      local rig port 8792, det ✓ ×4, ZERO case absences — each harness run PASSED clean).
+      Cells: wino 0.9708 · hellaswag 0.9875 · anli mF1 0.5550 · mmlupro 0.6280; banking77
+      CARRIED from bench 113 per the carry law. Folded into rethink bench 067 (three lanes:
+      **clef 71.00 subset / 36.71 zeros-included**); raw artifacts at
+      `rethink .benchmarks/067_jdi_public_skill_read/clef_read/`. Disclosures in the record:
+      the digest delta on wino/anli (pre-commit WIP build vs the committed 8d1a9f7
+      instrument — same population, the B2 run's modelless lane reproduced the tranche A0
+      rows bit-identically, the witness), latency NOT QUOTABLE (sibling load), and the
+      runner's DONE-marker false negative (its `absence` grep trips on the deliberate
+      laya-absent row; data was never at risk). The T3.5 router feed: the clef score column
+      over the tranche-1 rows is now in the record next to A0/ENC.
 - [x] B3 `results.json` + `tables.md` into rethink `.benchmarks/067_jdi_public_skill_read/`
       (the scoring-run record lives in rethink per the decision-index-beat records table;
       reflex owns the instrument, rethink the board consumption). LANDED — the record dir
@@ -149,10 +153,18 @@ different cap (the digest-pin law).
 
 ## Validation
 
-- [ ] `cargo test` green; clippy `-D warnings` (default + all-features); count floors pin the
-      four new suites.
-- [ ] The aggregate script reproduces the board's own printed figures from the shipped
+- [x] `cargo test` green; clippy `-D warnings` (default + all-features); count floors pin the
+      four new suites. **SATISFIED at A6 landing (2026-10-13, commit `8d1a9f7`): 5 new tests,
+      clippy default + all-features green, `cargo test` 499 passed / 0 failed / 1 ignored. The
+      B2 fold (2026-10-14) changed no code — data + docs only; that green state stands.**
+- [x] The aggregate script reproduces the board's own printed figures from the shipped
       per-benchmark results (the T0 verification, re-run in the record) BEFORE our rows are
       aggregated through it — the instrument proves itself on known answers first.
-- [ ] Every quoted number carries: edition `0.3.2`, `generated_utc`, snapshot sha256, box
-      state (preflight) for latency rows.
+      **SATISFIED: STEP 1 runs on every invocation (aggregate.py main); re-proven in both the
+      2026-10-13 fold and the 2026-10-14 B2 fold (`aggregated.md` STEP 1: clean anchors 1/1
+      OK, gold-weight pin re-verified).**
+- [x] Every quoted number carries: edition `0.3.2`, `generated_utc`, snapshot sha256, box
+      state (preflight) for latency rows. **SATISFIED: bench 067 RESULTS.md carries the
+      edition/generated_utc/sha256 header + the preflight line; the B2 fold adds the clef
+      provenance block (instrument commit, run window, rig posture, box-state refusals,
+      latency-not-quotable).**
