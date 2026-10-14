@@ -50,9 +50,16 @@ Inputs: `.raw/distill_teacher_d3` ⊕ `.raw/distill_teacher_pplx_v2` ⊕ `.raw/d
   spread (e.g. emotion 0.625 at 200 vs 0.6246 full; massive 0.9450 at 200 vs
   0.9375 full).
 
-## 4. The mmlupro full-pop re-read (the new sample pin)
+## 4. The mmlupro full-pop re-read — SAME DIGEST, SAME NUMBER (the §15 pin is stable; a deeper finding filed)
 
-APPENDED AT COMPLETION below (the population was topped to 12,032/12,032 at 09:05; the re-read mints the full-pop sample digest superseding the partial-era `6a2d24628ce7b916`).
+The 15:45 re-read over the topped-up 12,032-row population reproduced
+`cases_digest 6a2d24628ce7b916` and d3 acc **0.7270** byte-identically — the
+sample does not move with the top-up. Investigation (six candidate ordering
+laws replicated, one emptying-a-tail-page scratch experiment, one new unit
+test) could NOT reproduce the sample under ANY replicable law — the sample is
+provably tail-insensitive yet matches neither first-N nor the documented
+hash-order — **filed as reflex `.issues/088`**. The Bench-143 number stands as
+a real measurement; the sampling-law question is the issue's.
 
 ## Provenance
 

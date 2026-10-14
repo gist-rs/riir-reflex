@@ -951,22 +951,21 @@ train 10003 / test 3080.
 ## Gaps
 
 - **mmlupro_jdi on the 4090 box (2026-10-14):** the `/rows` endpoint
-  rate-walled mid-fetch TWICE (the wall that broke ~07:00 re-armed by
-  08:40, broke again ~09:0x). **TOPPED UP 2026-10-14 ~09:05: test
-  12,032/12,032 rows in 121 files, 0 failed requests** (the idempotent
-  resume completed the 18 missing pages); the validation→train leg (70
-  rows) was fetched via `/first-rows` during the wall (one response,
-  written as `train-000.json` in the `/rows` envelope shape). ⚠ **The §15
-  pin `fnv1a64-6a2d24628ce7b916` is a PARTIAL-population digest:** the
-  2026-10-14 spotcheck (Bench 143) reproduced it BYTE-IDENTICALLY over
-  the then-10,300-row population — so the rethink-Bench-067
-  `hashampled_reread` sample it was minted from sat on the SAME partial
-  copy, not the 12,032-row fetch the §15 table describes. Consequence:
-  the NEXT harness read over the full population mints a NEW sample
-  digest (superseding this one — record the supersession here); the
-  partial-era pin joins the record as the Bench-143 population
-  identity. Spot-check accuracy reads stand with disclosure (−0.34 pp
-  vs the board's full-pop number, inside subsample noise).
+  rate-walled mid-fetch TWICE. **TOPPED UP 2026-10-14 ~09:01: test
+  12,032/12,032 rows in 121 files, 0 failed requests**; the
+  validation→train leg (70 rows) was fetched via `/first-rows` during the
+  wall (one response, written as `train-000.json` in the `/rows`
+  envelope shape). ⚠ **The §15 sample pin `fnv1a64-6a2d24628ce7b916` is
+  stable across the partial→full transition** (the fullpop re-read at
+  15:45 reproduced it byte-identically) — an earlier draft of this entry
+  called the pin "partial-era"; that was WRONG, retracted. The deeper
+  finding: the eval sample is stable under TAIL-PAGE APPENDS **and**
+  under emptying a tail page, and its served gold sequence matches
+  NEITHER the documented hash-order law NOR first-N under independent
+  replication — **filed as reflex `.issues/088`** (the sampling law
+  documented in-source is not what runs end-to-end; the digest still
+  functions as a population-identity witness, the accuracy numbers are
+  real measurements of the served questions).
 - ~~banking77~~ — **RESOLVED 2026-09-22** by retargeting the fetch at the
   parquet-backed mirror `mteb/banking77` (the reference's own bench_apps
   variant). `PolyAI/banking77` itself REMAINS unavailable on the

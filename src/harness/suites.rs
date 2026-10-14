@@ -2159,6 +2159,39 @@ mod stratified_split_tests {
         let s = stratified_split(&envelope(rows), "massive_intent_en", 2);
         assert_eq!(front_texts(&s), ["a0", "p0"]);
     }
+
+    #[test]
+    fn mmlupro_jdi_sample_is_hash_ordered_not_first_n() {
+        // The Bench-143/144 question, settled by execution: 30 rows with
+        // question_ids 0..30, budget 5 — the picks must be the 5 SMALLEST
+        // fnv1a64(decimal qid) hashes, NOT the first-N prefix, and a
+        // TAIL append must be able to change the selection.
+        let rows: Vec<serde_json::Value> = (0..30)
+            .map(|i| serde_json::json!({ "question_id": i, "text": format!("t{i}") }))
+            .collect();
+        let s = stratified_split(&envelope(rows), "mmlupro_jdi", 5);
+        assert_eq!(s.n_picks, 5);
+        let picked: Vec<String> = front_texts(&s);
+        // Recompute the expected set by the same hash law.
+        let mut keyed: Vec<(u64, usize)> = (0..30)
+            .map(|i| {
+                let id = i.to_string();
+                let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+                for &b in id.as_bytes() {
+                    h ^= u64::from(b);
+                    h = h.wrapping_mul(0x0010_0000_01b3);
+                }
+                (h, i)
+            })
+            .collect();
+        keyed.sort();
+        let want: Vec<String> = keyed.iter().take(5).map(|(_, i)| format!("t{i}")).collect();
+        assert_eq!(picked, want, "the mmlupro sample must be hash-ordered");
+        // And it is definitively not the first-N prefix (t0..t4) unless the
+        // hash order says so — assert against the trivial law explicitly.
+        let first_n: Vec<String> = (0..5).map(|i| format!("t{i}")).collect();
+        assert_ne!(picked, first_n, "hash order must not coincide with file order here");
+    }
 }
 
 #[cfg(test)]

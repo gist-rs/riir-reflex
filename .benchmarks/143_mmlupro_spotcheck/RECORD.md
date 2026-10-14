@@ -14,7 +14,17 @@
 
 ## Disclosures (load-bearing)
 
-1. **The population is PARTIAL and the pin is partial-era.** The local test fetch holds 10,300/12,032 rows (qids 70..10504, holes at both ends — the 429 wall scattered the failed pages; 12 of 14 subjects present). The run's `cases_digest` = `fnv1a64-6a2d24628ce7b916` — BYTE-IDENTICAL to the manifest §15 pin, which therefore was minted over the SAME partial population on the rethink side (Bench 067 `hashampled_reread`), not the full 12,032 the manifest's fetch table describes. Recorded in the dataset-manifest Gaps; any FROZEN claim read needs the top-up + a NEW full-population pin first.
+1. **The population and the pin (CORRECTED post-read).** The run read 2,000 real
+   mmlupro questions; at run time the local fetch held 10,300/12,032 test rows
+   (topped to full 12,032/12,032 the same morning). The full-population re-read
+   (15:45, §below) reproduced `cases_digest 6a2d24628ce7b916` and acc 0.7270
+   BYTE-IDENTICALLY — the sample is **stable across the top-up**; an earlier
+   draft here called the pin "partial-era" (retracted — see the manifest Gaps
+   entry). The DEEPER finding: the sample is provably insensitive to tail-page
+   content AND matches neither the documented hash-order law nor first-N
+   under independent replication — **filed as reflex `.issues/088`** (the
+   sampling law needs instrumentation; the numbers here are real measurements
+   of the served questions).
 2. **INTERLEAVED with the leg-A capture** (both clients serialized on the one serve, 08:36–08:56): the p50 565 ms is contention-contaminated — accuracy unaffected (deterministic per-request scoring), latency NOT quotable.
 3. The −Δ direction is consistent with Bench 142's corrected table (small systematic −Δ, the T4 comparability caveat).
 
