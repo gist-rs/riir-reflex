@@ -178,6 +178,15 @@ cargo run --release --features nb_scope --bin harness -- --e0 \
 cargo run --release --features laya-riir-metal --bin harness -- --distill \
   --datasets-dir .raw/datasets_t20k --distill-out .raw/distill_teacher
 
+# The T2.5 modelless teacher router (riir-train Issue 629 T2.5; offline — no
+# GPU, no test row): sigmoid-gated per-suite blend over CAPTURED RIDT columns
+# (T=0.01, never softmax; per-row gold-pin join verification; emits the routed
+# RIDT artifact + passthrough byte-copy; the verdict is T4's frozen read):
+cargo run --release --bin harness -- --teacher-router \
+  .raw/distill_teacher_d3,.raw/distill_teacher_pplx_v2,.raw/distill_teacher_clef \
+  --router-out .raw/distill_router
+```
+
 # CLM comparison lane (Issue 019, opt-in `clm-lane`; prose law byte-pinned to
 # sha `cca045ff` via scripts/clm_goldens.py; Bench 059 = the T-Rex re-run):
 cargo test --features clm-lane --lib lanes::
