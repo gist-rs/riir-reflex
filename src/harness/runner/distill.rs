@@ -658,6 +658,128 @@ fn map_targets(
     }
 }
 
+/// The RIDT bin writer, shared by the distill lane and the T2.5 teacher
+/// router (riir-train Issue 629 T2.5) — ONE byte layout, two producers.
+/// Layout: `RIDT` magic · u32 version · u32 header_len · header JSON ·
+/// per row (gold u32, pick u32, n_classes × f32), all little-endian.
+pub(crate) struct TeacherBinWriter {
+    bytes: Vec<u8>,
+}
+
+impl TeacherBinWriter {
+    /// Serializes `header` once; `n_classes` is implied by the header's
+    /// `classes` array on read.
+    pub(crate) fn new(header: &serde_json::Value) -> Result<Self, String> {
+        let header_bytes =
+            serde_json::to_string(header).map_err(|e| format!("header json: {e}"))?.into_bytes();
+        let mut bytes = Vec::with_capacity(1 << 20);
+        bytes.extend_from_slice(TEACHER_MAGIC);
+        bytes.extend_from_slice(&TEACHER_VERSION.to_le_bytes());
+        bytes.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
+        bytes.extend_from_slice(&header_bytes);
+        Ok(Self { bytes })
+    }
+
+    pub(crate) fn push_row(&mut self, gold_c: u32, pick_c: u32, q: &[f32]) {
+        self.bytes.extend_from_slice(&gold_c.to_le_bytes());
+        self.bytes.extend_from_slice(&pick_c.to_le_bytes());
+        for v in q {
+            self.bytes.extend_from_slice(&v.to_le_bytes());
+        }
+    }
+
+    /// The finished artifact bytes (magic-first; blake3 + write at the call
+    /// site so every producer shares the sidecar law too).
+    pub(crate) fn into_bytes(self) -> Vec<u8> {
+        self.bytes
+    }
+}
+
+/// A captured teacher column, read back for routing (Issue 629 T2.5): the
+/// header plus the row-aligned gold/pick/q triplets. The per-row gold pins
+/// double as the CROSS-CAPTURE ALIGNMENT witness — two captures over the
+/// same datasets dir must agree on every row's gold or the join is refused.
+pub(crate) struct TeacherColumn {
+    pub header: serde_json::Value,
+    pub gold: Vec<u32>,
+    pub pick: Vec<u32>,
+    pub q: Vec<Vec<f32>>,
+}
+
+/// Read one `<suite>_teacher.bin` (the RIDT format `TeacherBinWriter`
+/// emits). Fails loud on magic/version/truncation/shape drift.
+pub(crate) fn read_teacher_bin(bytes: &[u8]) -> Result<TeacherColumn, String> {
+    let fail = |why: &str| format!("RIDT read: {why}");
+    if bytes.len() < 12 || &bytes[..4] != TEACHER_MAGIC {
+        return Err(fail("bad magic (not a RIDT teacher bin)"));
+    }
+    let version = u32::from_le_bytes(
+        bytes[4..8]
+            .try_into()
+            .map_err(|_| fail("version bytes"))?,
+    );
+    if version != TEACHER_VERSION {
+        return Err(fail(&format!("unsupported version {version}")));
+    }
+    let header_len = u32::from_le_bytes(
+        bytes[8..12]
+            .try_into()
+            .map_err(|_| fail("header-len bytes"))?,
+    ) as usize;
+    let header_end = 12usize.checked_add(header_len).ok_or_else(|| fail("header len overflow"))?;
+    if bytes.len() < header_end {
+        return Err(fail("truncated header"));
+    }
+    let header: serde_json::Value =
+        serde_json::from_slice(&bytes[12..header_end]).map_err(|e| fail(&format!("header json: {e}")))?;
+    let classes = header
+        .get("classes")
+        .and_then(serde_json::Value::as_array)
+        .ok_or_else(|| fail("header carries no classes array"))?;
+    let n_classes = classes.len();
+    if n_classes == 0 || n_classes > 4096 {
+        return Err(fail(&format!("implausible class count {n_classes}")));
+    }
+    let n_rows = header
+        .get("n_rows")
+        .and_then(serde_json::Value::as_u64)
+        .ok_or_else(|| fail("header carries no n_rows"))? as usize;
+    let row_len = 8 + n_classes * 4;
+    let body = &bytes[header_end..];
+    if body.len() != n_rows.checked_mul(row_len).ok_or_else(|| fail("row-count overflow"))? {
+        return Err(fail(&format!(
+            "body is {} byte(s), header says {n_rows} row(s) × {row_len} = expected {}",
+            body.len(),
+            n_rows * row_len
+        )));
+    }
+    let mut gold = Vec::with_capacity(n_rows);
+    let mut pick = Vec::with_capacity(n_rows);
+    let mut q = Vec::with_capacity(n_rows);
+    for r in 0..n_rows {
+        let base = header_end + r * row_len;
+        let u = |off: usize| -> u32 {
+            u32::from_le_bytes(bytes[base + off..base + off + 4].try_into().expect("row slice"))
+        };
+        let g = u(0) as usize;
+        let p = u(4) as usize;
+        if g >= n_classes || p >= n_classes {
+            return Err(fail(&format!("row {r}: class index out of range (gold {g}, pick {p})")));
+        }
+        let mut row_q = Vec::with_capacity(n_classes);
+        for c in 0..n_classes {
+            let off = 8 + c * 4;
+            row_q.push(f32::from_le_bytes(
+                bytes[base + off..base + off + 4].try_into().expect("q slice"),
+            ));
+        }
+        gold.push(g as u32);
+        pick.push(p as u32);
+        q.push(row_q);
+    }
+    Ok(TeacherColumn { header, gold, pick, q })
+}
+
 /// Distill one suite's train rows through the selected teacher
 /// (Plan 426 T1: `--distill-teacher`, default laya — the 576 T3 posture).
 fn distill_suite(
@@ -723,13 +845,7 @@ fn distill_suite(
     if let Some(license) = teacher.license() {
         header["license"] = serde_json::Value::String(license.to_string());
     }
-    let header_bytes = serde_json::to_string(&header).expect("header json").into_bytes();
-
-    let mut out_bytes: Vec<u8> = Vec::with_capacity(1 << 20);
-    out_bytes.extend_from_slice(TEACHER_MAGIC);
-    out_bytes.extend_from_slice(&TEACHER_VERSION.to_le_bytes());
-    out_bytes.extend_from_slice(&(header_bytes.len() as u32).to_le_bytes());
-    out_bytes.extend_from_slice(&header_bytes);
+    let mut out_writer = TeacherBinWriter::new(&header)?;
 
     // One discarded warmup forward: compiles the laya Metal pipelines /
     // warms their server's cold path so the per-row latency stat is not
@@ -761,11 +877,7 @@ fn distill_suite(
         )
         .map_err(|e| format!("{}: {e}", case.id))?;
         hits += usize::from(pick_c == gold_c);
-        out_bytes.extend_from_slice(&(gold_c as u32).to_le_bytes());
-        out_bytes.extend_from_slice(&(pick_c as u32).to_le_bytes());
-        for v in &q {
-            out_bytes.extend_from_slice(&v.to_le_bytes());
-        }
+        out_writer.push_row(gold_c as u32, pick_c as u32, &q);
         if durs_ms.len().is_multiple_of(2000) {
             eprintln!(
                 "  [distill {}] {}/{} rows · teacher acc so far {:.3}",
@@ -776,6 +888,7 @@ fn distill_suite(
             );
         }
     }
+    let out_bytes = out_writer.into_bytes();
 
     let (p50, p99, _support) = percentile_us(&durs_ms);
     let teacher_accuracy = hits as f64 / docs.len() as f64;

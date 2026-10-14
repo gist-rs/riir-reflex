@@ -110,6 +110,9 @@ pub use e0::{render_e0_markdown, run_e0, E0Meta, E0Output, E0Suite, E0ViewStats}
 mod distill;
 pub use distill::{render_distill_markdown, run_distill, DistillMeta, DistillOutput, DistillSuite};
 
+mod router;
+pub use router::{render_router_markdown, run_teacher_router, RouterReport, RouterSuite};
+
 mod ensemble;
 pub use ensemble::{
     render_ensemble_gate_markdown, run_ensemble_gate, EnsembleGateMeta, EnsembleGateOutput,

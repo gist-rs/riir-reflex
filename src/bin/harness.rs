@@ -300,6 +300,11 @@ fn harness_main() {
     let mut ensemble_out = std::path::PathBuf::from(".raw/ensemble_gate");
     let mut distill_out = std::path::PathBuf::from(".raw/distill_teacher");
     let mut distill_limit = 0usize;
+    // riir-train Issue 629 T2.5 — the modelless teacher router over captured
+    // RIDT columns (exclusive early-exit like --distill; offline — no GPU,
+    // no test row).
+    let mut teacher_router: Option<Vec<std::path::PathBuf>> = None;
+    let mut router_out = std::path::PathBuf::from(".raw/distill_router");
     // Plan 426 T5: the synth + corpus-AB modes (exclusive early-exit like
     // --e0/--distill).
     let mut synth_corpus = false;
@@ -480,6 +485,26 @@ fn harness_main() {
                     .get(i)
                     .map(std::path::PathBuf::from)
                     .unwrap_or_else(|| die("--distill-out needs a path"));
+            }
+            "--teacher-router" => {
+                i += 1;
+                let dirs = args
+                    .get(i)
+                    .cloned()
+                    .unwrap_or_else(|| die("--teacher-router needs a comma list of capture dirs"));
+                let parsed: Vec<std::path::PathBuf> =
+                    dirs.split(',').map(std::path::PathBuf::from).collect();
+                if parsed.len() < 2 {
+                    die("--teacher-router needs >= 2 capture dirs (comma-separated) — a single dir is a passthrough, not a router");
+                }
+                teacher_router = Some(parsed);
+            }
+            "--router-out" => {
+                i += 1;
+                router_out = args
+                    .get(i)
+                    .map(std::path::PathBuf::from)
+                    .unwrap_or_else(|| die("--router-out needs a path"));
             }
             "--synth-corpus" => synth_corpus = true,
             "--synth-plan" => synth_plan = true,
@@ -786,7 +811,7 @@ fn harness_main() {
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 8] = [
+        let modes: [(&str, bool); 9] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--distill", distill),
@@ -795,6 +820,7 @@ fn harness_main() {
             ("--synth-plan", synth_plan),
             ("--synth-density-pilot", synth_density_pilot),
             ("--corpus-ab", corpus_ab.is_some()),
+            ("--teacher-router", teacher_router.is_some()),
         ];
         let active: Vec<&str> = modes
             .iter()
@@ -877,6 +903,53 @@ fn harness_main() {
         println!(
             "harness --distill: PASSED — {} suite(s) dumped, {} absence(s); wrote {} + {}",
             out.suites.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    if let Some(router_dirs) = teacher_router {
+        // riir-train Issue 629 T2.5 — the MODELLESS teacher router: a
+        // sigmoid-gated per-suite blend over CAPTURED columns (train rows
+        // only, offline). Early-exit like --distill; no dataset, no GPU, no
+        // test row is touched. The routed artifacts + manifest land in
+        // --router-out; the verdict on them is T4's single frozen read.
+        println!(
+            "harness --teacher-router: inputs {} · out {}",
+            router_dirs
+                .iter()
+                .map(|p| p.display().to_string())
+                .collect::<Vec<_>>()
+                .join(", "),
+            router_out.display()
+        );
+        let out = match runner::run_teacher_router(&router_dirs, &router_out) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&router_out) {
+            die(&format!("create {}: {e}", router_out.display()));
+        }
+        let json_path = router_out.join("router.json");
+        let md_path = router_out.join("ROUTER.md");
+        let json = serde_json::to_string_pretty(&out).expect("router serialize");
+        let md = runner::render_router_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        for e in &out.skipped {
+            eprintln!("harness --teacher-router: absence: {e}");
+        }
+        println!(
+            "harness --teacher-router: DONE — {} suite(s) ({} routed, {} passthrough), {} skip(s); wrote {} + {}",
+            out.suites.len(),
+            out.suites.iter().filter(|s| s.gate.is_some()).count(),
+            out.suites.iter().filter(|s| s.gate.is_none()).count(),
             out.skipped.len(),
             json_path.display(),
             md_path.display()
