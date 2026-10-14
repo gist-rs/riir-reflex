@@ -734,7 +734,7 @@ measurement: `.benchmarks/130_wanli_en_baseline` (A0 0.3100).
 | `train-198.json` | 2f834c8f6d7ebce03e7feae70f428bc9a3181d0a868b3c227cd18e6b4681c030 | 29463 |
 | `train-199.json` | 66586999f12ca74a42ec17b23964c3aa67fb3205f71db38b2b579729333c61b5 | 28818 |
 
-### 12. winogrande_jdi — `allenai/winogrande` (config `winogrande_debiased`) — the JDI panel tranche 1 (Plan 012 A1 / issue 087)
+### 12. winogrande_jdi — `allenai/winogrande` (config `winogrande_debiased`) — the JDI panel tranche 1 (Plan 012 A1; reflex issue 087 closed 2026-10-14 → HISTORY.md)
 
 The pronoun-resolution board row: the JDI board's WinoGrande cases (1267)
 ARE this split — `validation` (the labeled eval split; HF `test` is
@@ -756,7 +756,7 @@ licence table.
 | `validation` | 1267 | 13 (`validation-000..012`) |
 | `train` | 4000 | 40 (`train-000..039`) |
 
-### 13. hellaswag_jdi — `Rowan/hellaswag` (config `default`) — the JDI panel tranche 1 (Plan 012 A2 / issue 087)
+### 13. hellaswag_jdi — `Rowan/hellaswag` (config `default`) — the JDI panel tranche 1 (Plan 012 A2; reflex issue 087 closed 2026-10-14 → HISTORY.md)
 
 The 4-way continuation board row: validation (10042 rows = the board's
 cases), eval universe fetched at 8000 (the eval cap lives in the harness —
@@ -781,7 +781,7 @@ licence table.
 | `validation` | 8000 (of 10042) | 80 (`validation-000..079`) |
 | `train` | 8000 | 80 (`train-000..079`) |
 
-### 14. anli_jdi — `facebook/anli` (config `plain_text`) — the JDI panel tranche 1 (Plan 012 A3 / issue 087)
+### 14. anli_jdi — `facebook/anli` (config `plain_text`) — the JDI panel tranche 1 (Plan 012 A3; reflex issue 087 closed 2026-10-14 → HISTORY.md)
 
 The NLI board row: the board's 3200 cases ARE the three-way union
 `test_r1`(1000) + `test_r2`(1000) + `test_r3`(1200), concatenated in that
@@ -807,7 +807,7 @@ benchmark-only.
 | `test_r3` | 1200 | 12 |
 | `train` (train_r1) | 4000 | 40 |
 
-### 15. mmlupro_jdi — `TIGER-Lab/MMLU-Pro` (config `default`) — the JDI panel tranche 1 (Plan 012 A4 / issue 087)
+### 15. mmlupro_jdi — `TIGER-Lab/MMLU-Pro` (config `default`) — the JDI panel tranche 1 (Plan 012 A4; reflex issue 087 closed 2026-10-14 → HISTORY.md)
 
 The knowledge board row: the board's 12032 cases ARE the `test` split,
 fetched WHOLE (universe rows; the registry test_cap is 2000 — the eval cap

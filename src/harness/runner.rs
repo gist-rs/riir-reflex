@@ -338,7 +338,8 @@ const SUITES: &[SuiteSpec] = &[
         synthetic: None,
         modelless_lane: true,
     },
-    // Plan 012 Phase A (the JDI panel tranche 1, issue 087): the four
+    // Plan 012 Phase A (the JDI panel tranche 1; reflex issue 087 closed
+    // 2026-10-14 → HISTORY.md): the four
     // choice-shaped public board rows whose official splits ARE the board's
     // `cases` counts (1267 / 10042 / 3200 / 12032). `named_only` (the
     // wanli/thai precedent — an opt-in via `--suites`, never a default-run
