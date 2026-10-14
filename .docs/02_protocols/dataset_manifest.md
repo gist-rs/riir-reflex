@@ -952,19 +952,23 @@ train 10003 / test 3080.
 
 - **mmlupro_jdi on the 4090 box (2026-10-14):** the `/rows` endpoint
   rate-walled mid-fetch TWICE (the wall that broke ~07:00 re-armed by
-  08:40). Posture: `test` 10,300/12,032 rows (103 of 121 pages — the tail
-  ~1,732 rows, roughly the last 2 subject clusters, absent) and the
-  validation→train leg fetched via `/first-rows` (the 70-row split fits a
-  single first-rows response; written as `train-000.json` in the
-  `/rows` envelope shape — features + rows + num_rows_total). The
-  partial population shifts the harness's hash-ordered 2000-row sample
-  (slice digest `fd1290994c5a0790` vs the full-population pin
-  `6a2d24628ce7b916`) — the spot-check accuracy read (Bench 143) is
-  valid WITH disclosure (12 of 14 subjects present), but any FROZEN
-  claim read on this suite requires the top-up (`SUITES=mmlupro_jdi
-  bash scripts/fetch_datasets.sh` resumes at page 103) + digest match
-  first. The M3's 2026-10-13 fetch (this manifest's table) is the
-  complete reference posture.
+  08:40). Posture: `test` 10,300/12,032 rows (103 of 121 pages; qids
+  70..10504 with holes at both ends — the failed pages scattered, not a
+  clean tail) and the validation→train leg fetched via `/first-rows`
+  (the 70-row split fits one first-rows response; written as
+  `train-000.json` in the `/rows` envelope shape). ⚠ **The §15 pin
+  `fnv1a64-6a2d24628ce7b916` is a PARTIAL-population digest:** the
+  2026-10-14 spotcheck (Bench 143) reproduced it BYTE-IDENTICALLY over
+  this 10,300-row population — so the rethink-Bench-067 `hashampled_reread`
+  sample it was minted from sat on the SAME partial copy, not the
+  12,032-row fetch the §15 table describes. Consequence: the 12-of-14
+  subject sample is the population BOTH boxes' current records pin;
+  any FROZEN claim read must first top up (`SUITES=mmlupro_jdi bash
+  scripts/fetch_datasets.sh` resumes at the failed pages) and mint a
+  NEW sample pin from the full 12,032 — superseding this one, recorded
+  here. Spot-check accuracy reads (Bench 143) are valid WITH disclosure
+  (the −0.34 pp vs the board's full-pop number sits inside the
+  subsample noise).
 - ~~banking77~~ — **RESOLVED 2026-09-22** by retargeting the fetch at the
   parquet-backed mirror `mteb/banking77` (the reference's own bench_apps
   variant). `PolyAI/banking77` itself REMAINS unavailable on the
