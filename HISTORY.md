@@ -5,6 +5,32 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-14 — Issue 087 CLOSED: the JDI panel instrument complete end-to-end (Plan 012 A+B+C+the B2 clef fold) — the floor read exists as rethink Bench 067's three-lane record
+
+**Status: Resolved.** The harness gained the JDI panel's four choice-shaped
+public benchmarks as suites (`winogrande_jdi` / `hellaswag_jdi` / `anli_jdi`
+/ `mmlupro_jdi` — the official splits ARE the board's row counts,
+1267/10042/3200/12032), the ladder ran on them, and the record lives in
+riir-rethink (`.benchmarks/067_jdi_public_skill_read/`, three lanes: **A0 4.40
+/ ENC 12.99 / clef 36.71 zeros-included public_skill** vs the 58.0 M1 bar;
+clef subset 71.00). Landing commits: reflex `8d1a9f7` (suites + instrument,
+gates green 499/0/1) · rethink `aba7389` + the B2 fold `fcbf34d` (bench 067)
+· reflex B2 close `c8e7152` (Plan 012 COMPLETE). The B2 clef column:
+detached rig run 2026-10-13 (det ✓ ×4, zero case absences), folded 2026-10-14
+with four disclosures in the record (the wino/anli digest delta = the
+pre-commit WIP build vs the committed `8d1a9f7` instrument — same population,
+witnessed by the B2 modelless lane reproducing the tranche A0 rows
+bit-identically; latency not quotable under sibling load; the runner
+DONE-marker false negative; banking77's clef cell carried from bench 113).
+The aggregate's merge is per-lane latest-wins since the fold (whole-set
+replacement would clobber the tranche ENC rows). Laws carried: B5 crosswalk
+caveat (never a board row), edition law (0.3.2 + generated_utc + snapshot
+sha256 on every quoted number), grammar-not-answers (frozen test reads, never
+corpus fill). Tranche-2 + composition reads stay QUEUED in Plan 012 Phases
+D/E (`- [-]`, each its own session slice); the rethink router (032 T3.5) got
+its clef input from the fold, the pplx capture remains its gap. Removed file:
+`.issues/087_jdi_panel_read.md`; full life via `git log --follow`.
+
 ## 2026-10-11 — code_fixtures RETIRED from the harness (owner call; board 9 → 8)
 
 **Status: Resolved.** The last self-authored synthetic suite — harvested from
