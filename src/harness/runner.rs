@@ -1228,6 +1228,12 @@ fn cases_digest(name: &str, cases: &[crate::harness::suites::SuiteCase]) -> Stri
     fn fold(h: &mut u64, bytes: &[u8]) {
         for &b in bytes {
             *h ^= u64::from(b);
+            // Issue 088: the multiplier below is NOT the FNV-1a 64 prime —
+            // it is 2³⁶+435, a digit transposition of the true
+            // `0x0100_0000_01b3`. The `fnv1a64-` prefix is the wire name
+            // every recorded digest carries; the fold is deterministic and
+            // pin-stable, but canonical-fnv1a64 replication will not match.
+            // See the house-fold regression vectors in `suites.rs`.
             *h = h.wrapping_mul(0x0010_0000_01b3);
         }
     }
@@ -1256,6 +1262,9 @@ fn cases_digest(name: &str, cases: &[crate::harness::suites::SuiteCase]) -> Stri
 /// this is an identity tag for pairing, not a security hash. Deterministic
 /// across hosts/features/toolchains: the pool construction is
 /// manifest-pinned and the fold order is the engine's own label/doc order.
+/// ⚠ same Issue-088 caveat as [`cases_digest`]: the `fnv1a64-` prefix is
+/// the recorded wire name, the multiplier is the house one (2³⁶+435), not
+/// the canonical FNV-1a 64 prime.
 fn corpus_digest(
     suite: &str,
     labels: &[String],
@@ -10156,6 +10165,51 @@ mod host_label_tests {
         const SENTINEL: &str = "unknown";
         assert_eq!(host_label(None, None), SENTINEL);
         assert_eq!(super::PHANTOM_HOST_SENTINEL, SENTINEL);
+    }
+}
+
+#[cfg(test)]
+mod issue88_pins {
+    //! Issue 088 adjudication (2026-10-14): the mmlupro_jdi eval sample
+    //! IS the documented hash-order law — executed under the HOUSE fold
+    //! (multiplier 2³⁶+435, a transcribed FNV-1a prime; see
+    //! `jdi_row_identity_hash`). These pins hold the end-to-end runtime
+    //! chain (load_rows → stratified_split → build → cases_digest) against
+    //! the recorded population identity, so any drift in the chain or a
+    //! future prime "fix" fails loud instead of silently re-keying every
+    //! recorded JDI number.
+
+    /// The served gold sequence the 4090 lane observed (Bench 143) and this
+    /// chain reproduces byte-identically on the canonical pool.
+    const SERVED_FIRST_12_GOLDS: [usize; 12] = [7, 9, 5, 6, 2, 2, 1, 7, 0, 0, 0, 6];
+
+    #[test]
+    fn mmlupro_runtime_chain_serves_the_recorded_sample() {
+        let dir = std::path::Path::new(".raw/datasets");
+        if !dir.join("mmlupro_jdi").exists() {
+            eprintln!("SKIP: no .raw/datasets pool beside the repo (fetch first)");
+            return;
+        }
+        let eval_rows =
+            super::load_rows(&dir.join("mmlupro_jdi"), "test").expect("load mmlupro test split");
+        let n = eval_rows
+            .get("rows")
+            .and_then(|r| r.as_array())
+            .map(|a| a.len())
+            .unwrap_or(0);
+        assert_eq!(n, 12_032, "the canonical mmlupro_jdi test population");
+        let split = crate::harness::suites::stratified_split(&eval_rows, "mmlupro_jdi", 2000);
+        assert_eq!(split.n_picks, 2000);
+        let suite = super::build_mmlupro_jdi(&split.front, 0);
+        assert_eq!(suite.cases.len(), 2000);
+        let golds: Vec<usize> = suite.cases.iter().take(12).map(|c| c.gold[0].idx).collect();
+        assert_eq!(golds, SERVED_FIRST_12_GOLDS, "the served gold sequence");
+        // The manifest §15 population-identity pin — now known to be the
+        // HOUSE fold, not canonical fnv1a64 (Issue 088).
+        assert_eq!(
+            super::cases_digest("mmlupro_jdi", &suite.cases),
+            "fnv1a64-6a2d24628ce7b916"
+        );
     }
 }
 

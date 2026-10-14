@@ -1018,10 +1018,11 @@ pub fn build_mmlupro_jdi(rows_file: &Value, max_rows: usize) -> Suite {
         option_counts_note: "per-case 4..10 options keyed A.. by position (the board's own \
                              letter convention) — corpus/cal pool is the 70-row validation \
                              split (no train split exists), so the corpus is starved BY \
-                             CONSTRUCTION; the eval sample is HASH-ORDERED (fnv1a64 over \
-                             `question_id`, ascending, first test_cap) because the test file \
-                             clusters by subject — a first-N cap would read a handful of \
-                             subjects (Plan 012, verdict round 1)",
+                             CONSTRUCTION; the eval sample is HASH-ORDERED (the house fold \
+                             over `question_id` — NOT canonical fnv1a64, see \
+                             jdi_row_identity_hash / Issue 088 — ascending, first test_cap) \
+                             because the test file clusters by subject — a first-N cap would \
+                             read a handful of subjects (Plan 012, verdict round 1)",
     }
 }
 
@@ -1615,10 +1616,14 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
     // CLUSTERED in file order (MMLU-Pro's test split groups by subject;
     // HellaSwag's validation groups by activity_label), so a gold-label
     // round-robin still reaches only the first few clusters. Their eval
-    // sample is HASH-ORDERED instead: fnv1a64 over the row's own identity
-    // field (the same ungated fold as [`crate::harness::runner::corpus_digest`]
-    // — `pub mod harness` is blake3-free at --no-default-features), ascending,
-    // first `budget`. Deterministic across hosts/toolchains; the run's
+    // sample is HASH-ORDERED instead: the house fold over the row's own
+    // identity field (the same ungated fold as
+    // [`crate::harness::runner::corpus_digest`] — `pub mod harness` is
+    // blake3-free at --no-default-features), ascending, first `budget`.
+    // ⚠ the house multiplier is NOT the FNV-1a 64 prime (Issue 088) —
+    // deterministic and pin-stable, but canonical-fnv1a64 replication
+    // will not reproduce these orders.
+    // Deterministic across hosts/toolchains; the run's
     // cases_digest pins the resulting sample either way.
     if matches!(suite, "hellaswag_jdi" | "mmlupro_jdi") {
         let mut keyed: Vec<(u64, usize)> = rows
@@ -1681,6 +1686,18 @@ pub fn stratified_split(rows_file: &Value, suite: &str, budget: usize) -> StratS
 /// same law as the corpus digest). A row missing its id field falls back to
 /// its canonical serialized bytes, so a malformed row still lands
 /// deterministically.
+///
+/// ⚠ **The house multiplier is NOT the FNV-1a 64 prime** (Issue 088
+/// adjudication, 2026-10-14): the literal below is `0x0010_0000_01b3`
+/// (2³⁶+435) — a digit transposition of the true prime `0x0100_0000_01b3`
+/// (2⁴⁰+435) — and the offset is the standard FNV one. The fold is fully
+/// deterministic and has pinned every recorded JDI sample + digest, but an
+/// external replication with canonical fnv1a64 will NOT reproduce these
+/// orders (`fold("9400") = 0x10b13a74d09bdec0` house vs `0x15109e34d09bdec0`
+/// canonical — the regression vector below pins the house value). Changing
+/// the multiplier would re-order every JDI sample and invalidate every
+/// recorded number for them — a measured-wire break, deliberately NOT
+/// taken; the constant stays and the docs name it.
 fn jdi_row_identity_hash(suite: &str, row: &Value) -> u64 {
     let identity: String = match suite {
         "mmlupro_jdi" => row
@@ -2191,6 +2208,42 @@ mod stratified_split_tests {
         // hash order says so — assert against the trivial law explicitly.
         let first_n: Vec<String> = (0..5).map(|i| format!("t{i}")).collect();
         assert_ne!(picked, first_n, "hash order must not coincide with file order here");
+    }
+
+    /// Issue 088 adjudication (2026-10-14): the house fold's multiplier is
+    /// `0x0010_0000_01b3` (2³⁶+435) — a digit transposition of the true
+    /// FNV-1a 64 prime `0x0100_0000_01b3` — and the offset is standard.
+    /// These vectors pin the HOUSE law so (a) external replication can
+    /// reproduce it, and (b) any future "fix the prime" move fails loud
+    /// here before it silently re-orders every JDI sample and invalidates
+    /// every recorded JDI number and digest (the measured-wire break the
+    /// adjudication declined to take).
+    #[test]
+    fn house_fold_known_vectors_not_canonical_fnv1a64() {
+        let fold = |s: &str| {
+            let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+            for &b in s.as_bytes() {
+                h ^= u64::from(b);
+                h = h.wrapping_mul(0x0010_0000_01b3);
+            }
+            h
+        };
+        assert_eq!(fold(""), 0xcbf2_9ce4_8422_2325, "empty folds to the offset");
+        // The Issue-088 discovery vector: canonical fnv1a64("9400") is
+        // 0x15109e34d09bdec0; the house fold differs in the high 32 bits.
+        assert_eq!(fold("9400"), 0x10b1_3a74_d09b_dec0);
+        // And the divergence is in the multiplier, not the offset: the
+        // canonical fold of the same byte differs.
+        let canonical = |s: &str| {
+            let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+            for &b in s.as_bytes() {
+                h ^= u64::from(b);
+                h = h.wrapping_mul(0x0100_0000_01b3);
+            }
+            h
+        };
+        assert_eq!(canonical("9400"), 0x1510_9e34_d09b_dec0);
+        assert_ne!(fold("9400"), canonical("9400"));
     }
 }
 

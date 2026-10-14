@@ -5,6 +5,41 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-14 — Issue 088 CLOSED: the mmlupro_jdi "unreplicable sample law" was a TRANSCRIBED PRIME — the law runs as documented, under a house fold that is not fnv1a64
+
+**Status: Resolved (docs + pins; the prime itself stays, owner-gated).**
+The 4090 lane (Bench 143/144, riir-train 629 T2) observed the mmlupro_jdi
+sample stable across population changes yet matching NO replicable ordering
+law, and filed `.issues/088`. Adjudicated on the M3 the same day: the ROOT
+CAUSE is a digit transposition in the fold's multiplier —
+`0x0010_0000_01b3` (2³⁶+435) where the FNV-1a 64 prime is
+`0x0100_0000_01b3` (2⁴⁰+435) — offset standard, so the harness digest
+family (`cases_digest`, `corpus_digest`, `slice_guard` fold,
+`jdi_row_identity_hash`) is deterministic but NOT canonical fnv1a64 despite
+the `fnv1a64-` wire prefix; `permutation.rs` alone carries the true prime.
+Verified end-to-end on the canonical pool: load_rows → stratified_split →
+build → cases_digest reproduces the recorded digest
+`6a2d24628ce7b916` AND the served gold sequence [7,9,5,6,2,2,1,7,0,0,0,6]
+byte-identically under the house fold (Python replication with the true
+multiplier matches the served order exactly; the 4090 author's canonical-fnv
+replication therefore could never match — their methodology was sound). The
+test-113 insensitivity is ALSO reproducible under the house fold: the
+structured multiplier keeps all 100 of that page's qids outside the top-2000
+(the uniform-hash expectation does not apply). Landed: docs corrected at
+every law site (suites.rs `jdi_row_identity_hash` + the builder note,
+runner.rs `cases_digest`/`corpus_digest`, slice_guard fold, dataset-manifest
+§15 both JDI rows); regression vectors
+`house_fold_known_vectors_not_canonical_fnv1a64` (house "9400" =
+`0x10b13a74d09bdec0` vs canonical `0x15109e34d09bdec0`) + the end-to-end
+`mmlupro_runtime_chain_serves_the_recorded_sample` (dataset-gated, skip
+loud). **The multiplier itself is NOT fixed**: doing so re-orders every JDI
+sample (different questions served) and invalidates every recorded JDI
+number, digest pin (manifest §15, bench records, cross-repo seat records
+via `Seat::cases_digest`), i.e. a measured-wire break — an owner-gated call,
+deliberately not taken; the vectors above make any future fix LOUD.
+Clippy `-D warnings` clean; 384 lib tests + all suites green. Removed file:
+`.issues/088_mmlupro_sample_law.md`; full life via `git log --follow`.
+
 ## 2026-10-14 — Issue 087 CLOSED: the JDI panel instrument complete end-to-end (Plan 012 A+B+C+the B2 clef fold) — the floor read exists as rethink Bench 067's three-lane record
 
 **Status: Resolved.** The harness gained the JDI panel's four choice-shaped

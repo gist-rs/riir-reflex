@@ -239,6 +239,8 @@ impl SliceFacts {
 /// `cases_digest`/`corpus_digest` fold. Kept local on purpose: these are
 /// RAW-slice digests, a different identity axis, and must not change when
 /// the consumed-corpus digest's law changes.
+/// ⚠ Issue 088: the multiplier is the house one (2³⁶+435), NOT the
+/// canonical FNV-1a 64 prime — see `jdi_row_identity_hash` in suites.rs.
 fn fold(h: &mut u64, bytes: &[u8]) {
     for &b in bytes {
         *h ^= u64::from(b);

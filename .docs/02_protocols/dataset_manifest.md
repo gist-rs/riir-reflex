@@ -768,9 +768,15 @@ universe (plain string columns; `label` is a plain string).
 **Sampling rule (verdict round 1, 2026-10-13):** the validation file
 CLUSTERS by `activity_label` — a first-N cap reads a handful of activities
 (the first run's ENC row read 0.4195 on the biased sample). The eval sample
-is HASH-ORDERED: fnv1a64 over the row's `ind` field, ascending, first
-test_cap — deterministic; the corrected row reads ENC 0.3635 (rethink Bench
-067, `hashampled_reread/`, sample digest `fnv1a64-61e6ad438aadff5b`).
+is HASH-ORDERED: the house fold over the row's `ind` field, ascending,
+first test_cap — deterministic; the corrected row reads ENC 0.3635 (rethink
+Bench 067, `hashampled_reread/`, sample digest `fnv1a64-61e6ad438aadff5b`).
+⚠ **Issue-088 adjudication (2026-10-14):** the house fold's multiplier is
+`0x0010_0000_01b3` (2³⁶+435) — a digit transposition of the canonical
+FNV-1a 64 prime `0x0100_0000_01b3` — so the `fnv1a64-` digest prefix is a
+MISNOMER for these pins: deterministic and stable, but external replication
+with canonical fnv1a64 will NOT reproduce them. The regression vectors live
+in `suites.rs` (`house_fold_known_vectors_not_canonical_fnv1a64`).
 
 Fetch 2026-10-13 (second pass, after the limiter cooled — clean, 0
 failed_requests). Licence probe: NONE on the hub — ⚠ row in the VERIFIED
@@ -823,9 +829,11 @@ to EMPTY and the corpus guard refuses the suite (the pool-after-cal law).
 Features carry NO ClassLabel for the option universe (plain string columns).
 **Sampling rule (verdict round 1, 2026-10-13):** the test file CLUSTERS by
 subject — a first-N cap reads a handful of subjects. The eval sample is
-HASH-ORDERED: fnv1a64 over the row's `question_id`, ascending, first
+HASH-ORDERED: the house fold over the row's `question_id`, ascending, first
 test_cap (rethink Bench 067, `hashampled_reread/`, sample digest
-`fnv1a64-6a2d24628ce7b916`).
+`fnv1a64-6a2d24628ce7b916`). ⚠ the multiplier is the house one (2³⁶+435,
+NOT canonical fnv1a64 — the Issue-088 adjudication, see the hellaswag §15
+note); external replication must fold with `0x0010_0000_01b3`.
 
 Fetch 2026-10-13 (second pass — clean, 0 failed_requests). Licence probe:
 `mit` (tag + `cardData.license`); content derives from MMLU + STEM sites —
@@ -950,22 +958,34 @@ train 10003 / test 3080.
 
 ## Gaps
 
-- **mmlupro_jdi on the 4090 box (2026-10-14):** the `/rows` endpoint
-  rate-walled mid-fetch TWICE. **TOPPED UP 2026-10-14 ~09:01: test
-  12,032/12,032 rows in 121 files, 0 failed requests**; the
-  validation→train leg (70 rows) was fetched via `/first-rows` during the
-  wall (one response, written as `train-000.json` in the `/rows`
-  envelope shape). ⚠ **The §15 sample pin `fnv1a64-6a2d24628ce7b916` is
-  stable across the partial→full transition** (the fullpop re-read at
-  15:45 reproduced it byte-identically) — an earlier draft of this entry
-  called the pin "partial-era"; that was WRONG, retracted. The deeper
-  finding: the eval sample is stable under TAIL-PAGE APPENDS **and**
-  under emptying a tail page, and its served gold sequence matches
-  NEITHER the documented hash-order law NOR first-N under independent
-  replication — **filed as reflex `.issues/088`** (the sampling law
-  documented in-source is not what runs end-to-end; the digest still
-  functions as a population-identity witness, the accuracy numbers are
-  real measurements of the served questions).
+- ~~mmlupro_jdi on the 4090 box (2026-10-14)~~ — **RESOLVED 2026-10-14
+  (Issue-088 adjudication).** The `/rows` endpoint rate-walled mid-fetch
+  TWICE; **TOPPED UP 2026-10-14 ~09:01: test 12,032/12,032 rows in 121
+  files, 0 failed requests**; the validation→train leg (70 rows) was
+  fetched via `/first-rows` during the wall (one response, written as
+  `train-000.json` in the `/rows` envelope shape). The §15 sample pin
+  `fnv1a64-6a2d24628ce7b916` is stable across the partial→full transition
+  (the fullpop re-read at 15:45 reproduced it byte-identically) AND under
+  emptying a middle page — the earlier draft's "the served gold sequence
+  matches NEITHER the documented hash-order law NOR first-N" is
+  **REFUTED**: the ROOT CAUSE was the house fold's multiplier —
+  `0x0010_0000_01b3` (2³⁶+435), a digit transposition of the FNV-1a 64
+  prime `0x0100_0000_01b3` (2⁴⁰+435) — so the law RUNS as documented in
+  structure, but under a mis-documented fold the 4090's canonical-fnv1a64
+  replication could never match it. Verified on the M3 against the
+  canonical pool: the runtime chain (load_rows → stratified_split → build
+  → cases_digest) reproduces the recorded digest AND the served gold
+  sequence [7,9,5,6,2,2,1,7,0,0,0,6] byte-identically under the house
+  fold; the test-113 insensitivity is also reproducible (the structured
+  multiplier keeps all 100 of that page's qids outside the top-2000 — the
+  uniform-hash expectation does not apply). Docs corrected at every law
+  site (suites.rs `jdi_row_identity_hash`, runner.rs `cases_digest` /
+  `corpus_digest`, slice_guard fold, §15 both JDI rows); regression
+  vectors landed (`house_fold_known_vectors_not_canonical_fnv1a64` + the
+  end-to-end `mmlupro_runtime_chain_serves_the_recorded_sample`). **The
+  prime itself stays** — fixing it would re-order every JDI sample and
+  invalidate every recorded JDI number and digest (a measured-wire break,
+  an owner-gated call, deliberately not taken).
 - ~~banking77~~ — **RESOLVED 2026-09-22** by retargeting the fetch at the
   parquet-backed mirror `mteb/banking77` (the reference's own bench_apps
   variant). `PolyAI/banking77` itself REMAINS unavailable on the
