@@ -348,6 +348,18 @@ required-features = ["modelless"]
 name = "fixture_fleet_hygiene"
 required-features = ["modelless"]
 
+# Issue 090 C1 — the rubric-covariance + template probes: the score readout
+# = Σ q_i·v_i identities (v→10v scales ×10; v→v+c shifts c·Σp; argmax
+# value-blind, first-index tie) pinned on the readout seam AND on live
+# engine distributions, plus the route-agreement pins (state route ==
+# option routes; the score/choice template type and option ORDER never
+# move the corpus route). Whole-file #![cfg(feature = "modelless")]; this
+# row keeps a feature-less selection skipping loudly instead of printing a
+# green zero.
+[[test]]
+name = "rubric_covariance_probes"
+required-features = ["modelless"]
+
 # Issue 024 G1/G2: the Rust leak index reproduces the probe's per-suite
 # counts EXACTLY over `.raw/datasets` (loud UNSEEN skip when absent), and
 # the per-row classify loop allocates nothing once warm.
