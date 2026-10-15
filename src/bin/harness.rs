@@ -20,8 +20,8 @@
 //!                                       refuses LOUD at run start)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--d3] [--paw] [--paw-local] [--cascade]
-//!                                      [--cascade-worthiness-lcb F]
+//!                                      [--d1] [--pplx] [--d3] [--jeva] [--paw] [--paw-local]
+//!                                      [--cascade] [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
 //!                                      [--drafter-fix <off|per_byte|ncd|shared_prefix|key_only>]
@@ -98,6 +98,22 @@
 //! `/decisions/v1/systemone` wire; the served dtype + calibration posture
 //! ride the run meta. An unreachable server is a loud absence, never a
 //! silent skip.
+//! `--jeva` adds the Jeva comparison lane (Issue 090 B1, feeding
+//! riir-train 632): `LIQIIIII/Jeva-4B` (arXiv:2610.18773; Qwen3.5-4B
+//! backbone + 13.37M decision head — the first decision-native PAPER
+//! model on our split; weights license **UNDECLARED → measurement +
+//! teacher-capture posture, adoption FAIL-CLOSED** per riir-train 632
+//! T0) answered over HTTP at `JEVA_SERVE_URL` (default
+//! `http://127.0.0.1:8095` — OUR reference stdlib server
+//! `scripts/jeva_server.py` over their in-repo `jeva.Jeva`; the venv
+//! needs their repo + torch/transformers). Our `/decide` contract (the
+//! wire pinned from their types.py + inference.py); noul reads their
+//! CONDITIONAL q_true (the paper's A3 readout); the served dtype +
+//! allow_null posture ride /health and the run meta; `--perm-probe` /
+//! `--null-probe` accept the lane (their 0.00% order-flip bar is the
+//! B2 0-flip floor's target; their max-based coverage gate ρ is the A1
+//! probe's subject — arm it server-side with JEVA_ALLOW_NULL=1). An
+//! unreachable server is a loud absence, never a silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -252,6 +268,7 @@ fn harness_main() {
         d1: false,
         pplx: false,
         d3: false,
+        jeva: false,
         paw: false,
         paw_local: false,
         corpus_cap_override: 0,
@@ -620,6 +637,7 @@ fn harness_main() {
             "--d1" => opts.d1 = true,
             "--pplx" => opts.pplx = true,
             "--d3" => opts.d3 = true,
+            "--jeva" => opts.jeva = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -781,11 +799,12 @@ fn harness_main() {
             drex: opts.drex,
             d1: opts.d1,
             agentjev: opts.agentjev,
+            jeva: opts.jeva,
             basis_split,
         };
         println!(
             "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             popts.k,
@@ -793,6 +812,7 @@ fn harness_main() {
             if popts.drex { " +drex" } else { "" },
             if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
+            if popts.jeva { " +jeva" } else { "" },
             if popts.basis_split { " +basis-cert" } else { "" },
         );
         let out = match runner::run_perm_probe(&opts, &popts) {
@@ -858,10 +878,11 @@ fn harness_main() {
             drex: opts.drex,
             d1: opts.d1,
             agentjev: opts.agentjev,
+            jeva: opts.jeva,
         };
         println!(
             "harness --null-probe: datasets {} · suites {:?} · ladder {:?} · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             nopts.k_set,
@@ -869,6 +890,7 @@ fn harness_main() {
             if nopts.drex { " +drex" } else { "" },
             if nopts.d1 { " +d1" } else { "" },
             if nopts.agentjev { " +agentjev" } else { "" },
+            if nopts.jeva { " +jeva" } else { "" },
         );
         let out = match runner::run_null_probe(&opts, &nopts) {
             Ok(r) => r,

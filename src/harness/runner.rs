@@ -1416,6 +1416,16 @@ pub struct SuiteResult {
     /// fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub d3: Option<LaneResult>,
+    /// reflex Issue 090 B1 (feeding riir-train 632): the Jeva comparison
+    /// lane's row — `LIQIIIII/Jeva-4B` (arXiv:2610.18773; Qwen3.5-4B
+    /// backbone + 13.37M decision head, the first decision-native PAPER
+    /// model; weights license UNDECLARED → measurement + teacher-capture
+    /// posture, adoption fail-closed — 632 T0) served by OUR reference
+    /// stdlib server (`scripts/jeva_server.py`) over their in-repo
+    /// `jeva.Jeva`, measured over HTTP on our split. Absent (never a
+    /// fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub jeva: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1542,6 +1552,11 @@ pub struct RunMeta {
     /// — the lossy-surface law: the posture is PINNED and quoted beside
     /// every number).
     pub d3_lane: String,
+    /// Whether the Jeva comparison lane ran (reflex Issue 090 B1), and
+    /// its serving posture when it did (our `scripts/jeva_server.py` —
+    /// the model id + RESOLVED dtype + allow_null posture from /health;
+    /// weights license UNDECLARED, the 632-T0 restricted posture).
+    pub jeva_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6131,6 +6146,172 @@ fn run_d1_lane(
     Ok(result)
 }
 
+/// Env: `JEVA_SERVE_URL` (default `http://127.0.0.1:8095`, OUR reference
+/// stdlib server `scripts/jeva_server.py` over their in-repo `jeva.Jeva`
+/// — the d1 reference-server law: their class, our listener). The
+/// `/health` probe + the warmup capture the model id; never a hardcoded
+/// name (the gliner law). The mirror of [`run_d1_lane`] on the jeva wire
+/// (Issue 090 B1, feeding riir-train 632 T2) — one shape, one metrics
+/// tail, the SAME shared confidence-readout assembly.
+fn run_jeva_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::jeva::JevaLane;
+
+    let t_start = Instant::now();
+    let lane = JevaLane::default();
+    lane.health()?;
+
+    // WARMUP (the cold-start law, the drex/d1 shape): one FIXED
+    // throwaway request absorbs the service's cold path AND captures
+    // the model id (the response's own `model` field — never a
+    // hardcoded name).
+    let model;
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        let raw = lane.decide_raw(&warm).map_err(|e| format!("jeva warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("jeva warmup response: {e}"))?;
+        model = JevaLane::model_of(&parsed);
+        lane.decide(&warm)
+            .map_err(|e| format!("jeva warmup: {e}"))?;
+    }
+    eprintln!("    [jeva] service up: {model}");
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N jeva row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut their_confs: Vec<Vec<Option<f64>>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // Plan 001 task 9: the repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut server_latency_ms: f64 = 0.0;
+    let mut input_tokens: u64 = 0;
+    let mut output_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (outcome, _client_ms) = lane
+            .decide(case)
+            .map_err(|e| format!("jeva lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        if let Some(w) = outcome.latency_ms {
+            server_latency_ms += w;
+        }
+        input_tokens += outcome.input_tokens;
+        output_tokens += outcome.output_tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law): a lane that cannot repeat byte-identically flags
+        // its det column. Single-pass logit reads promise determinism by
+        // construction — the check is the flag, never an assumption.
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("jeva determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("jeva determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(outcome.answers.len());
+        let mut cpicks = Vec::with_capacity(outcome.answers.len());
+        let mut cconfs = Vec::with_capacity(outcome.answers.len());
+        for (p, pick, conf) in outcome.answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+        their_confs.push(outcome.confidences);
+    }
+    eprintln!(
+        "    [jeva] server latency sum: {server_latency_ms:.0} ms · in {input_tokens} tok · out {output_tokens} tok \
+         (out is their ALWAYS-ZERO answer-slot law made visible)"
+    );
+
+    // Issue 076 T2's shared machinery (one assemble path for every
+    // comparison lane): the per-kind cells over THEIR wire confidence +
+    // the split-half conformal floor companion — the stdout line names
+    // them so a run's transcript carries the audit. Jeva's confidence =
+    // max(ρ, max joint) — read as-is (the ECE/Brier cells test it, never
+    // assume it).
+    let readout = assemble_drex_conf_readout(cases, &picks, &their_confs);
+    if let Some(r) = &readout {
+        let cell = |c: &Option<crate::lanes::drex::DrexConfCell>| match c {
+            Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
+            None => "absent (no wire confidence)".to_string(),
+        };
+        let floor = r
+            .floor_ece
+            .map_or_else(|| "below the occupancy floor".to_string(), |e| format!("ece={e:.4}"));
+        eprintln!(
+            "    [jeva] their-confidence cells: choice {} · score {} · floor {} \
+             (cal {} / test {})",
+            cell(&r.choice),
+            cell(&r.score),
+            floor,
+            r.floor_n_cal,
+            r.floor_n_test
+        );
+    }
+
+    let mut result = assemble_laya_lane_result(
+        "jeva",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    );
+    result.drex_conf_readout = readout;
+    Ok(result)
+}
+
 /// The pplx-decider comparison lane (Issue 082): Perplexity's
 /// `pplx-decider-v1.1-27b` (the JDI 2026-10-07 #1; Apache-2.0, UNGATED —
 /// teacher-eligible, the read decides riir-train 623's pick) served
@@ -7527,6 +7708,14 @@ pub struct RunOptions {
     /// lossy-surface law — an unreachable server is a LOUD error, never
     /// a silent skip). Default off.
     pub d3: bool,
+    /// Also run the Jeva comparison lane (Issue 090 B1, feeding
+    /// riir-train 632): `LIQIIIII/Jeva-4B` (arXiv:2610.18773; weights
+    /// license UNDECLARED — measurement + teacher-capture posture,
+    /// adoption fail-closed per 632 T0) served by OUR reference server
+    /// `scripts/jeva_server.py` at `JEVA_SERVE_URL` (default
+    /// `http://127.0.0.1:8095`). An unreachable server is a LOUD error,
+    /// never a silent skip. Default off.
+    pub jeva: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -8317,6 +8506,33 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // Jeva comparison lane (Issue 090 B1, feeding riir-train 632):
+        // LIQIIIII/Jeva-4B (arXiv:2610.18773; weights license UNDECLARED
+        // — measurement + teacher-capture posture, adoption fail-closed)
+        // through OUR reference server, measured over HTTP — same cases,
+        // the same metrics tail.
+        let jeva_result = if opts.jeva {
+            eprintln!("    jeva: running…");
+            match run_jeva_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    jeva: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (jeva): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -8469,6 +8685,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             d1: d1_result,
             pplx: pplx_result,
             d3: d3_result,
+            jeva: jeva_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -8853,6 +9070,42 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             "off (pass --d3 to add the comparison lane; serve their d3_server.py \
              on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)"
+                .to_string()
+        },
+        jeva_lane: if opts.jeva {
+            let url = std::env::var(crate::lanes::jeva::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::jeva::DEFAULT_SERVE_URL.into());
+            let posture = crate::lanes::jeva::JevaLane::default()
+                .info()
+                .map_or_else(|e| format!("(health unreadable: {e})"), |(p, _)| p);
+            format!(
+                "on — Jeva-4B (LIQIIIII/Jeva-4B, arXiv:2610.18773; Qwen3.5-4B \
+                 backbone + 13.37M decision head — the first decision-native \
+                 PAPER model on our split; weights license UNDECLARED → \
+                 MEASUREMENT + TEACHER-CAPTURE posture, adoption FAIL-CLOSED, \
+                 riir-train 632 T0; not affiliated) served through OUR \
+                 reference stdlib server scripts/jeva_server.py over their \
+                 in-repo jeva.Jeva via {url} ({posture}): same cases, our \
+                 /decide contract (the wire pinned from their types.py + \
+                 inference.py at the pin), gold-label scoring; liveness = GET \
+                 /health, the model id read from the response's own model \
+                 field (never hardcoded); the SERVED DTYPE is the RESOLVED \
+                 param dtype off /health (never assumed from the config); \
+                 the allow_null posture is server-side (JEVA_ALLOW_NULL, \
+                 default 0 = the forced-pick comparison posture; 1 arms \
+                 their coverage gate for the A1 probe); probabilities read \
+                 as-is (never renormalized); noul reads their CONDITIONAL \
+                 q_true (the paper's A3 readout); determinism = the \
+                 observed-repeat check over the volatile-stripped body \
+                 (latency_ms + usage — their input_tokens moves with the \
+                 hybrid option cache, a cache-hit delta is not \
+                 non-determinism); reflex Issue 090 B1 + riir-train 632 T2"
+            )
+        } else {
+            "off (pass --jeva to add the comparison lane; serve OUR reference \
+             server scripts/jeva_server.py on JEVA_SERVE_URL, default \
+             http://127.0.0.1:8095, under the venv python with their repo \
+             installed — reflex Issue 090 B1)"
                 .to_string()
         },
         paw_lane: if opts.paw {

@@ -254,6 +254,15 @@ pub(crate) enum TeacherForward {
     /// SystemOne wire as pplx (their server is adapted from pplx's);
     /// same keyed-probs tail.
     D3 { lane: crate::lanes::d3::D3Lane, provenance: String },
+    /// The Jeva loopback service (reflex Issue 090 B2's capture rider,
+    /// feeding riir-train 632 T2): OUR reference server
+    /// (`scripts/jeva_server.py`) over their in-repo `jeva.Jeva`. Weights
+    /// license UNDECLARED (632 T0): capture-for-MEASUREMENT allowed,
+    /// adoption fail-closed — the RIDT header carries the license note
+    /// (the bekko attribution law). Same keyed-probs tail as clef/pplx/d3
+    /// (the capture posture is the server's default allow_null=0 — joint
+    /// == conditional, no ρ dilution in the teacher targets).
+    Jeva { lane: crate::lanes::jeva::JevaLane, provenance: String },
 }
 
 impl TeacherForward {
@@ -267,6 +276,7 @@ impl TeacherForward {
             Self::Clef { .. } => "clef",
             Self::Pplx { .. } => "pplx",
             Self::D3 { .. } => "d3",
+            Self::Jeva { .. } => "jeva",
         }
     }
 
@@ -279,7 +289,7 @@ impl TeacherForward {
             Self::Openthai { provenance, .. } => provenance,
             Self::Bekko { oracle } => &oracle.model,
             Self::Clef { provenance, .. } | Self::Pplx { provenance, .. } => provenance,
-            Self::D3 { provenance, .. } => provenance,
+            Self::D3 { provenance, .. } | Self::Jeva { provenance, .. } => provenance,
         }
     }
 
@@ -292,6 +302,11 @@ impl TeacherForward {
             Self::Bekko { .. } => {
                 Some("MIT (hotchpotch/bekko-system-one — Copyright (c) 2026 Yuichi \
                       Tatsumi; verified 2026-10-02)")
+            }
+            Self::Jeva { .. } => {
+                Some("UNDECLARED (LIQIIIII/Jeva-4B weights; code Apache-2.0 \
+                      LiQiiiii/Jeva) — capture-for-measurement posture per \
+                      riir-train 632 T0; adoption fail-closed")
             }
             _ => None,
         }
@@ -354,6 +369,14 @@ impl TeacherForward {
                 lane.decide(case)
                     .map(|_| ())
                     .map_err(|e| format!("d3 warmup: {e}"))
+            }
+            // The jeva law: health at construct filled the provenance;
+            // warmup is the loud proof + the cold-path absorb (their
+            // hybrid option cache warms on the first pass).
+            Self::Jeva { lane, .. } => {
+                lane.decide(case)
+                    .map(|_| ())
+                    .map_err(|e| format!("jeva warmup: {e}"))
             }
         }
     }
@@ -438,6 +461,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("d3 forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &answers, "d3")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Jeva { lane, .. } => {
+                let (outcome, client_ms) = lane
+                    .decide(case)
+                    .map_err(|e| format!("jeva forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &outcome.answers, "jeva")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -590,6 +621,16 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::D3 { lane, provenance })
         }
+        "jeva" => {
+            // The pplx law verbatim: health at construct, provenance off
+            // /health (model + resolved dtype + allow_null posture). The
+            // capture posture is the server's allow_null=0 default (joint
+            // == conditional — no ρ dilution in the teacher targets).
+            let lane = crate::lanes::jeva::JevaLane::default();
+            lane.health()?;
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Jeva { lane, provenance })
+        }
         "laya" => {
             #[cfg(feature = "laya-riir")]
             {
@@ -619,7 +660,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
         }
         other => Err(format!(
             "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
-             'bekko', 'clef', 'pplx' and 'd3')"
+             'bekko', 'clef', 'pplx', 'd3' and 'jeva')"
         )),
     }
 }

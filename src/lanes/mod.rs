@@ -58,3 +58,11 @@ pub mod pplx;
 // (one wire, many oracles); this module owns the endpoint + the health
 // shape. Ungated: the same import law.
 pub mod d3;
+// reflex Issue 090 B1 (feeding riir-train 632 T2): the Jeva comparison
+// lane — LIQIIIII/Jeva-4B (arXiv:2610.18773; weights license UNDECLARED
+// → measurement + teacher-capture posture, adoption fail-closed — 632
+// T0) served by OUR reference stdlib server `scripts/jeva_server.py`
+// over their in-repo `jeva.Jeva`. Ungated: the same import law
+// (`crate::harness::suites` + the std-only `crate::lanes::http_mini` +
+// std + serde_json).
+pub mod jeva;

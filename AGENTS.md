@@ -276,6 +276,20 @@ DREX_SERVE_URL=http://127.0.0.1:8000 \
 D1_SERVE_URL=http://127.0.0.1:8078 \
   cargo run --release --bin harness -- --d1 --suites typed_decisions --skip-laya
 
+# Jeva comparison lane (Issue 090 B1, feeding riir-train 632 T2): the first
+# decision-native PAPER model on our split — LIQIIIII/Jeva-4B (arXiv:2610.18773;
+# Qwen3.5-4B backbone + 13.37M decision head). Weights license UNDECLARED →
+# MEASUREMENT + TEACHER-CAPTURE posture, adoption FAIL-CLOSED (632 T0). OUR
+# reference stdlib server over their in-repo jeva.Jeva; the venv needs their
+# repo + torch/transformers (uv venv .raw/jeva-env; uv pip install -e .raw/jeva
+# — repo cloned at the pin). Noul reads their CONDITIONAL q_true (the paper's
+# A3 readout); --perm-probe/--null-probe accept the lane (their 0.00% order-
+# flip bar is the B2 0-flip floor's target; arm the coverage gate server-side
+# with JEVA_ALLOW_NULL=1 for the A1 posture). The distill seam knows
+# --distill-teacher jeva (the B2 capture rider — RIDT carries the license note):
+JEVA_SERVE_URL=http://127.0.0.1:8095 \
+  cargo run --release --bin harness -- --jeva --suites typed_decisions --skip-laya
+
 # Corpus-synthesis lane (riir-train plan 426 T5, `8426cef`): sealed SYNT v2
 # artifact + blake3 sidecar, openthai agreement VETO. --synth-plan is
 # REPORT-ONLY; --synth-corpus writes; --corpus-ab is the V5 gate (paired LB95,

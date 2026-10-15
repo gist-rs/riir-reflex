@@ -83,6 +83,10 @@ pub struct PermProbeOptions {
     /// Probe the AgentJev lane (their server must be serving — loud
     /// refusal).
     pub agentjev: bool,
+    /// Probe the Jeva lane (Issue 090 B1: our reference server must be
+    /// serving — loud refusal). Their paper's own 0.00% order-flip bar
+    /// (mean TV 3.17e-8) is the B2 0-flip floor's target shape.
+    pub jeva: bool,
     /// Issue 086 T1 — also run the presentation-subspace certificate
     /// (`--basis-split`): rank-gated presentation basis + per-suite
     /// held-out leakage over the SAME sampled slots' perm pairs, routed
@@ -297,6 +301,24 @@ impl ChoiceOracle for AgentJevOracle {
                 pick: *pick,
             })
             .ok_or_else(|| format!("agentjev ({}): no answers in response", case.id))
+    }
+}
+
+struct JevaOracle {
+    lane: crate::lanes::jeva::JevaLane,
+}
+
+impl ChoiceOracle for JevaOracle {
+    fn answer(&mut self, case: &SuiteCase) -> Result<OrderingAnswer, String> {
+        let (outcome, _client_ms) = self.lane.decide(case)?;
+        outcome
+            .answers
+            .first()
+            .map(|(probs, pick, _)| OrderingAnswer {
+                probs: probs.clone(),
+                pick: *pick,
+            })
+            .ok_or_else(|| format!("jeva ({}): no answers in response", case.id))
     }
 }
 
@@ -1461,6 +1483,28 @@ pub fn run_perm_probe(
             name: "agentjev",
             model: format!("{model} ({provenance})"),
             oracle: Box::new(AgentJevOracle { lane }),
+        });
+    }
+    if popts.jeva {
+        let lane = crate::lanes::jeva::JevaLane::default();
+        lane.health()
+            .map_err(|e| format!("--perm-probe --jeva: {e}"))?;
+        // Provenance from /health (model + resolved dtype + allow_null
+        // posture); the canary round doubles as the lane's warm-up.
+        let (provenance, _device) = lane
+            .info()
+            .map_err(|e| format!("--perm-probe --jeva: {e}"))?;
+        let canary = canary_case();
+        let raw = lane
+            .decide_raw(&canary)
+            .map_err(|e| format!("--perm-probe --jeva warmup: {e}"))?;
+        let parsed: Value = serde_json::from_str(&raw)
+            .map_err(|e| format!("--perm-probe --jeva warmup parse: {e}"))?;
+        let model = crate::lanes::jeva::JevaLane::model_of(&parsed);
+        shared.push(SharedLane {
+            name: "jeva",
+            model: format!("{model} ({provenance})"),
+            oracle: Box::new(JevaOracle { lane }),
         });
     }
     let laya_enabled = !opts.skip_laya;

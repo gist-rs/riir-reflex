@@ -78,6 +78,13 @@ pub struct NullProbeOptions {
     pub drex: bool,
     pub d1: bool,
     pub agentjev: bool,
+    /// Probe the Jeva lane (Issue 090 B1: our reference server must be
+    /// serving — loud refusal). The A1 probe's most interesting subject:
+    /// their max-based coverage gate ρ is exactly the max-of-K drift the
+    /// probe measures; the oracle reads their REAL abstention (`choice:
+    /// null` under the server's JEVA_ALLOW_NULL=1 posture) and their
+    /// noul q_true (the paper's A3 conditional readout).
+    pub jeva: bool,
 }
 
 // ────────────────────────────────────────────────────────── the record ──
@@ -241,6 +248,58 @@ macro_rules! triple_lane {
 
 triple_lane!(DrexNullOracle, crate::lanes::drex::DrexLane, "drex");
 triple_lane!(D1NullOracle, crate::lanes::d1::D1Lane, "d1");
+
+/// The Jeva null oracle — NOT the shared triple_lane macro: A1's whole
+/// subject is their coverage gate, so the oracle carries their REAL
+/// abstention (the response's `choice: null`, reachable only under the
+/// server's JEVA_ALLOW_NULL=1 posture) and implements the noul leg from
+/// their conditional q_true (the paper's A3 readout — a genuine noul
+/// readout, unlike drex/d1's absent one).
+struct JevaNullOracle {
+    lane: crate::lanes::jeva::JevaLane,
+    /// Whether the serve posture armed their coverage gate (off /health) —
+    /// `can_abstain` is true only under it (the forced-pick posture
+    /// structurally cannot abstain and the A1 abstain columns read n/a,
+    /// never zero).
+    can_abstain: bool,
+}
+
+impl NullOracle for JevaNullOracle {
+    fn answer_null(&mut self, case: &SuiteCase) -> Result<AugAnswer, String> {
+        let (outcome, _ms) = self.lane.decide(case)?;
+        let first = outcome
+            .answers
+            .first()
+            .ok_or_else(|| format!("jeva ({}): no answers in response", case.id))?;
+        let abstained = outcome.abstained.first().copied().unwrap_or(false);
+        Ok(AugAnswer {
+            probs: first.0.clone(),
+            pick: first.1,
+            abstained,
+            confidence: first.2,
+            drafter_only: None,
+        })
+    }
+
+    fn answer_noul(&mut self, case: &SuiteCase) -> Result<Option<NoulAnswer>, String> {
+        let (outcome, _ms) = self.lane.decide(case)?;
+        let (probs, pick, conf) = outcome
+            .answers
+            .first()
+            .ok_or_else(|| format!("jeva ({}): no answers in response", case.id))?;
+        // The noul triple IS the readout: probs = [1-q_true, q_true].
+        let p_yes = *probs.get(1).unwrap_or(&f64::NAN);
+        Ok(Some(NoulAnswer {
+            p_yes,
+            yes: Some(*pick == 1),
+            confidence: *conf,
+        }))
+    }
+
+    fn can_abstain(&self) -> bool {
+        self.can_abstain
+    }
+}
 
 struct AgentJevNullOracle {
     lane: crate::lanes::agentjev::AgentJevLane,
@@ -859,6 +918,23 @@ pub fn run_null_probe(
             name: "agentjev",
             model: format!("{model} ({provenance})"),
             oracle: Box::new(AgentJevNullOracle { lane }),
+        });
+    }
+    if nopts.jeva {
+        let lane = crate::lanes::jeva::JevaLane::default();
+        lane.health()
+            .map_err(|e| format!("--null-probe --jeva: {e}"))?;
+        let (provenance, _device) = lane
+            .info()
+            .map_err(|e| format!("--null-probe --jeva: {e}"))?;
+        let can_abstain = provenance.contains("allow_null=on");
+        let canary = crate::harness::permutation::canary_case();
+        lane.decide(&canary)
+            .map_err(|e| format!("--null-probe --jeva warmup: {e}"))?;
+        shared.push(SharedNullLane {
+            name: "jeva",
+            model: format!("({provenance})"),
+            oracle: Box::new(JevaNullOracle { lane, can_abstain }),
         });
     }
 
