@@ -5,6 +5,26 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-16 — Issue 091 CLOSED: jdi_tranche1_fetched_count_floors now skips LOUD on a present-but-PARTIAL fetch
+
+**Status: Resolved (fix `c48779f`, canary-proven both arms).** The count
+floor's skip logic covered only the ABSENT-dir case; a dir present but short
+(measured posture: hellaswag_jdi 6400/8000 after a flaked datasets-server
+fetch — later completed to 8000 on disk, verified by direct row count before
+the fix landed) flowed into the count assert and read as a code failure. The
+fix splits the directions: a SHORT envelope (`test_rows.rows.len() < pinned`)
+skips loud with `fetched/pinned` disclosed and `JDI_REQUIRE_DATA=1` still
+turns it into a failure; a count OVER the pin falls through to the assert
+(pin drift = a re-pin decision, never a silent skip); a FULL envelope whose
+builder output lands short stays a hard red (the builder-regression
+direction this floor exists to catch). ⛔ The first version of the fix read
+`env["test_rows"]` instead of `env["test_rows"]["rows"]` — the datasets-server
+ENVELOPE shape — so every suite read 0 rows and the test passed by skipping
+EVERYTHING (the green-everything trap, caught by the all-suities-skip output
+before commit); the corrected count reads the same source the builders
+iterate. Canaries: pin 8001 → `SKIP — 8000/8001` + test ok; same pin +
+`JDI_REQUIRE_DATA=1` → panic, FAILED. Both proved by execution.
+
 ## 2026-10-15 — Issue 089 CLOSED: the margin-null T1 — perm-disagreement carries NO signal on the modelless lane (0/345 untied slots); the residual laya signal closes it as a comparison note
 
 **Status: Resolved (Bench 145; the issue's pre-registered scope statement
