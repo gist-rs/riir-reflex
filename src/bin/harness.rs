@@ -217,84 +217,16 @@ fn main() {
 
 fn harness_main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
-    let mut opts = RunOptions {
-        datasets_dir: std::env::current_dir()
+    // The no-flags base lives in `RunOptions::lanes_off` — the single
+    // struct-literal home (instinct issue 023's class fix: a field add
+    // reds THAT literal in this repo's build, never a downstream
+    // consumer's). Flags below override on top.
+    let mut opts = RunOptions::lanes_off(
+        std::env::current_dir()
             .map(|d| d.join(DEFAULT_DATASETS_DIR))
             .unwrap_or_else(|_| DEFAULT_DATASETS_DIR.into()),
-        suites: Vec::new(),
-        laya_max_questions: 0,
-        skip_laya: false,
-        dump_items: false,
-        cascade: false,
-        cascade_worthiness: false,
-        // Issue 042 T3 (a), promoted per the issue's own trigger (a second
-        // independent lane run reproduced 10/10 at 0.16 — byte-identical
-        // probe deltas, recorded in the 042 HISTORY row): the measured
-        // arm bar sits in the (0.150, 0.288] gap that separated every
-        // probe family measured (Bench 063 fused, Bench 066 distance +
-        // combined). An explicit --cascade-worthiness-margin overrides.
-        cascade_worthiness_margin: 0.16,
-        // Issue 046 lever 4: the support-aware arm leg — off by default
-        // (byte-identical with the lever-3 lane).
-        cascade_worthiness_lcb: None,
-        gate_fit_selection: false,
-        gate_distance_only: false,
-        // Issue 056 direction 0 — PROMOTED default-on 2026-09-30 (verdict
-        // round 2, the units-bug adjudication): the gate-fit probe observes
-        // on the SAME scale the deployed gate applies. At a monotone fit the
-        // percentile-coherent threshold reproduces the raw gate's fitted
-        // target exactly, so this can never lose to the pre-calibration
-        // baseline. `--no-gate-fit-calibrated` restores the old
-        // fit-on-raw/apply-on-calibrated posture for measurement.
-        gate_fit_calibrated: true,
-        // Issue 079 — the legacy `k == N` index-alignment route binding is
-        // the incumbent default; `--no-kn-route` runs the content-bound
-        // posture (route terms arm only via by-name resolution) so both
-        // sides of the bench-128 position-binding finding are measurable
-        // in one binary.
-        kn_route: true,
-        // Issue 079 — the drafter-only corrections are OFF by default (the
-        // shipped scores, byte-identical); `--drafter-fix <mode>` arms one
-        // for the content-bound posture's tuning axis.
-        drafter_fix: riir_reflex::engine::DrafterFix::Off,
-        laya_python: false,
-        clm: false,
-        gliner: false,
-        bekko: false,
-        agentjev: false,
-        clef: false,
-        openthai: false,
-        drex: false,
-        d1: false,
-        pplx: false,
-        d3: false,
-        jeva: false,
-        paw: false,
-        paw_local: false,
-        corpus_cap_override: 0,
-        cal_select_caps: Vec::new(),
-        pair_head_ab: false,
-        nli_feature_ab: false,
-        nli_m1: false,
-        #[cfg(feature = "mc_ensemble")]
-        mc_ab: false,
-        #[cfg(feature = "mc_ensemble")]
-        mc_samples: 0,
-        #[cfg(feature = "mc_ensemble")]
-        mc_p_drop: None,
-        #[cfg(feature = "mc_ensemble")]
-        mc_lambda: None,
-        head_scale: 0.0,
-        head_select: false,
-        nb_select: false,
-        oc_select: false,
-        ridge_select: false,
-        genome_select: false,
-        genome_accept_margin: 0.05,
-        density_gate: false,
-        #[cfg(feature = "probe_delta_ab")]
-        probe_delta_ab: false,
-    };
+        Vec::new(),
+    );
     let mut out_dir = std::path::PathBuf::from(".benchmarks/001_phase1_tables");
     let mut runs_kv = false;
     let mut kv_dir: Option<std::path::PathBuf> = None;

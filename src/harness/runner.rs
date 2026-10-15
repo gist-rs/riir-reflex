@@ -7861,11 +7861,103 @@ pub struct RunOptions {
     /// Issue 072 (`--dump-items`; rethink 028 T1's instrument): persist the
     /// per-item outcome records every lane already materialized in memory
     /// to `<out>/items/<suite>.jsonl` (one JSONL line per answered
+    /// (one JSONL line per answered
     /// question; join key `(case_id, q_idx)`). Measurement-only: no lane
     /// behavior changes, `results.json` stays byte-identical. Default off
     /// = no file written (the records are still built — the same walk the
     /// metrics read — and dropped).
     pub dump_items: bool,
+}
+
+impl RunOptions {
+    /// The no-flags CLI posture: every optional comparison lane, probe,
+    /// and selection lever OFF; the promoted engine defaults ON
+    /// (`gate_fit_calibrated`, `kn_route`); measurement margins at their
+    /// house values. THE single struct-literal home for `RunOptions` —
+    /// `harness_main` resolves its no-flags base through this constructor,
+    /// and out-of-repo consumers (instinct's A0 drift pin) build on it
+    /// instead of enumerating fields, so a lane field added upstream is
+    /// off-by-construction downstream and never an E0063 break there
+    /// (instinct issue 023, the pplx → d3 → jeva lineage). Posture deltas
+    /// are the caller's explicit overrides on the returned value.
+    pub fn lanes_off(datasets_dir: PathBuf, suites: Vec<String>) -> Self {
+        Self {
+            datasets_dir,
+            suites,
+            laya_max_questions: 0,
+            skip_laya: false,
+            dump_items: false,
+            cascade: false,
+            cascade_worthiness: false,
+            // Issue 042 T3 (a), promoted per the issue's own trigger (a second
+            // independent lane run reproduced 10/10 at 0.16 — byte-identical
+            // probe deltas, recorded in the 042 HISTORY row): the measured
+            // arm bar sits in the (0.150, 0.288] gap that separated every
+            // probe family measured (Bench 063 fused, Bench 066 distance +
+            // combined). An explicit --cascade-worthiness-margin overrides.
+            cascade_worthiness_margin: 0.16,
+            // Issue 046 lever 4: the support-aware arm leg — off by default
+            // (byte-identical with the lever-3 lane).
+            cascade_worthiness_lcb: None,
+            gate_fit_selection: false,
+            gate_distance_only: false,
+            // Issue 056 direction 0 — PROMOTED default-on 2026-09-30 (verdict
+            // round 2, the units-bug adjudication): the gate-fit probe observes
+            // on the SAME scale the deployed gate applies. At a monotone fit the
+            // percentile-coherent threshold reproduces the raw gate's fitted
+            // target exactly, so this can never lose to the pre-calibration
+            // baseline. `--no-gate-fit-calibrated` restores the old
+            // fit-on-raw/apply-on-calibrated posture for measurement.
+            gate_fit_calibrated: true,
+            // Issue 079 — the legacy `k == N` index-alignment route binding is
+            // the incumbent default; `--no-kn-route` runs the content-bound
+            // posture (route terms arm only via by-name resolution) so both
+            // sides of the bench-128 position-binding finding are measurable
+            // in one binary.
+            kn_route: true,
+            // Issue 079 — the drafter-only corrections are OFF by default (the
+            // shipped scores, byte-identical); `--drafter-fix <mode>` arms one
+            // for the content-bound posture's tuning axis.
+            drafter_fix: crate::engine::DrafterFix::Off,
+            laya_python: false,
+            clm: false,
+            gliner: false,
+            bekko: false,
+            agentjev: false,
+            clef: false,
+            openthai: false,
+            drex: false,
+            d1: false,
+            pplx: false,
+            d3: false,
+            jeva: false,
+            paw: false,
+            paw_local: false,
+            corpus_cap_override: 0,
+            cal_select_caps: Vec::new(),
+            pair_head_ab: false,
+            nli_feature_ab: false,
+            nli_m1: false,
+            #[cfg(feature = "mc_ensemble")]
+            mc_ab: false,
+            #[cfg(feature = "mc_ensemble")]
+            mc_samples: 0,
+            #[cfg(feature = "mc_ensemble")]
+            mc_p_drop: None,
+            #[cfg(feature = "mc_ensemble")]
+            mc_lambda: None,
+            head_scale: 0.0,
+            head_select: false,
+            nb_select: false,
+            oc_select: false,
+            ridge_select: false,
+            genome_select: false,
+            genome_accept_margin: 0.05,
+            density_gate: false,
+            #[cfg(feature = "probe_delta_ab")]
+            probe_delta_ab: false,
+        }
+    }
 }
 
 /// Run the harness. Suite-level failures (missing datasets, engine build
