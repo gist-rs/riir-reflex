@@ -1,0 +1,776 @@
+{
+  "meta": {
+    "date_utc": "2026-10-14T01:05:38Z",
+    "git_sha": "7d1ce45",
+    "host": "4090-windows",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": ".raw\\datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "on — vLLM-SR d3 27B (tag v3.1.0, Qwen3.8-27B backbone + 256-code d3-code-readout head, the pplx head class; Apache-2.0, UNGATED — teacher-eligible; not affiliated) served through THEIR d3_server.py via http://127.0.0.1:8794 on cuda:0+nf4 (comparison lane, never a product lane): same cases, their /v1/systemone contract (the wire REUSED from the pplx lane — their server is adapted FROM pplx's autojev server, bounds 255/2-10 identical), gold-label scoring; liveness = GET /health (refuses while their lazy first load is 'loading'), the model id read from /health (never hardcoded — serve version-true with --name d3-v3.1.0, their health carries no checkpoint field); the 52GB bf16 checkpoint exceeds a 24GB card — the local serve runs the PATCHED loader (env-knobbed offload/NF4), and the quant posture is PINNED via D3_DEVICE and quoted here (the lossy-surface law: which quant produced the scores gates the captures — riir-train 629 T2's per-family spot check vs the board's published numbers); latency = client round-trip INCLUDING the network hop to the serve box; input tokens reported beside the metrics; the no-clock law: their body carries no timing, determinism = verbatim observed-repeat (compute, device wobble included); riir-train 629 T2",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 2.88,
+        "swap_used_mb": 2243.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 21.0,
+        "gpu_mem_mib": 24082.0,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 1.92,
+        "swap_used_mb": 2246.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 5.0,
+        "gpu_mem_mib": 24082.0,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "winogrande_jdi",
+      "n_cases": 1267,
+      "n_questions": 1267,
+      "cases_digest": "fnv1a64-293400e84e987360",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 1267,
+          "accuracy": 0.48303078137332284,
+          "macro_f1": 0.4817083262292553,
+          "ece": 0.022865519245120546,
+          "brier": 0.5001320236603982,
+          "nll": 0.6932789172490561,
+          "aurc": 0.5069453232668389,
+          "mean_confidence": 0.5039870673121668,
+          "acc_at_50_coverage": 0.48973143759873616,
+          "acc_at_80_coverage": 0.4876604146100691
+        },
+        "readout_ece": 0.03193661836347145,
+        "readout_brier": 0.2507300748079816,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.2920284135753749,
+          "selective_accuracy": 0.4793756967670011,
+          "selective_n": 897
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 370,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.46157376899809555,
+        "readout_ece_calibrated": 0.03193661836347145,
+        "floor_ece": 0.23661880023717247,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.027,
+        "latency_p99_ms": 0.037,
+        "latency_tail_support": 13,
+        "latency_extremes": {
+          "first_ms": 0.032,
+          "max_ms": 0.07,
+          "argmax_case": 969
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.1178863,
+        "n_cases": 1267,
+        "n_questions": 1267,
+        "score_threshold": 0.51489663,
+        "distance_threshold": 0.38110268,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.51489663,
+            "status": "fitted",
+            "targetAccuracy": 0.515,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.38110268,
+            "status": "fitted",
+            "targetAccuracy": 0.53571427,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "option2",
+            "pred": "option1",
+            "count": 365,
+            "share_of_errors": 0.5572519083969466
+          },
+          {
+            "gold": "option1",
+            "pred": "option2",
+            "count": 290,
+            "share_of_errors": 0.44274809160305345
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.5043409629044988,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.5097648438811302
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.0114705914258957
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.5097648438811302
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2156a30f478fb873"
+      },
+      "laya": {},
+      "d3": {
+        "lane": "d3",
+        "model": "d3-v3.1.0-nf4",
+        "hard": {
+          "n": 1267,
+          "accuracy": 0.9455406471981057,
+          "macro_f1": 0.9455372544915271,
+          "ece": 0.01672277283538627,
+          "brier": 0.08172432859581139,
+          "nll": 0.1512357167229007,
+          "aurc": 0.011691464904083631,
+          "mean_confidence": 0.9465805325067104,
+          "acc_at_50_coverage": 0.990521327014218,
+          "acc_at_80_coverage": 0.983218163869694
+        },
+        "readout_ece": 0.15186727798364386,
+        "readout_brier": 0.09638848559654846,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 209.0,
+        "latency_p99_ms": 255.0,
+        "latency_tail_support": 13,
+        "latency_extremes": {
+          "first_ms": 211.0,
+          "max_ms": 267.0,
+          "argmax_case": 710
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 279.555432,
+        "n_cases": 1267,
+        "n_questions": 1267,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.5043409629044988,
+        "jdi_skill": 0.8901273885350317
+      },
+      "slices": {
+        "n_test": 1267,
+        "n_cal": 200,
+        "n_pool": 2600,
+        "test_digest": "fnv1a64-0ef002022382a371",
+        "cal_digest": "fnv1a64-9992eb67b3f083c0",
+        "pool_digest": "fnv1a64-b7db35074a243872",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "hellaswag_jdi",
+      "n_cases": 2000,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-9866fa6f82bd69ac",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.2515,
+          "macro_f1": 0.25088539967767765,
+          "ece": 0.00527711980044843,
+          "brier": 0.7500957002756987,
+          "nll": 1.3864654887281667,
+          "aurc": 0.760135576175091,
+          "mean_confidence": 0.25677711980044843,
+          "acc_at_50_coverage": 0.239,
+          "acc_at_80_coverage": 0.24625
+        },
+        "readout_ece": 0.04318081043660643,
+        "readout_brier": 0.1901659806403321,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.3935,
+          "selective_accuracy": 0.2539159109645507,
+          "selective_n": 1213
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 787,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.2512103379368782,
+        "readout_ece_calibrated": 0.04318081043660643,
+        "floor_ece": 0.31032835820895516,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.073,
+        "latency_p99_ms": 0.155,
+        "latency_tail_support": 21,
+        "latency_extremes": {
+          "first_ms": 0.099,
+          "max_ms": 0.357,
+          "argmax_case": 562
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.4014578,
+        "n_cases": 2000,
+        "n_questions": 2000,
+        "score_threshold": 0.2920691,
+        "distance_threshold": 0.39526105,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.2920691,
+            "status": "fitted",
+            "targetAccuracy": 0.295,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.39526105,
+            "status": "fitted",
+            "targetAccuracy": 0.3,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "2",
+            "pred": "1",
+            "count": 147,
+            "share_of_errors": 0.09819639278557114
+          },
+          {
+            "gold": "1",
+            "pred": "4",
+            "count": 139,
+            "share_of_errors": 0.09285237140948564
+          },
+          {
+            "gold": "4",
+            "pred": "1",
+            "count": 139,
+            "share_of_errors": 0.09285237140948564
+          },
+          {
+            "gold": "1",
+            "pred": "3",
+            "count": 138,
+            "share_of_errors": 0.09218436873747494
+          },
+          {
+            "gold": "4",
+            "pred": "3",
+            "count": 134,
+            "share_of_errors": 0.0895123580494322
+          },
+          {
+            "gold": "3",
+            "pred": "1",
+            "count": 130,
+            "share_of_errors": 0.08684034736138944
+          },
+          {
+            "gold": "3",
+            "pred": "4",
+            "count": 126,
+            "share_of_errors": 0.0841683366733467
+          },
+          {
+            "gold": "2",
+            "pred": "3",
+            "count": 116,
+            "share_of_errors": 0.07748830995323981
+          },
+          {
+            "gold": "2",
+            "pred": "4",
+            "count": 114,
+            "share_of_errors": 0.07615230460921844
+          },
+          {
+            "gold": "1",
+            "pred": "2",
+            "count": 110,
+            "share_of_errors": 0.07348029392117568
+          },
+          {
+            "gold": "3",
+            "pred": "2",
+            "count": 105,
+            "share_of_errors": 0.07014028056112225
+          },
+          {
+            "gold": "4",
+            "pred": "2",
+            "count": 99,
+            "share_of_errors": 0.06613226452905811
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.259,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.2946620962023735
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.0375665281713009
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.2946620962023735
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-1fd080d163f7d055"
+      },
+      "laya": {},
+      "d3": {
+        "lane": "d3",
+        "model": "d3-v3.1.0-nf4",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.976,
+          "macro_f1": 0.9760099244280548,
+          "ece": 0.010174236491593892,
+          "brier": 0.03770876108639085,
+          "nll": 0.0689037574878058,
+          "aurc": 0.0011246177798460765,
+          "mean_confidence": 0.9700885343466117,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.999375
+        },
+        "readout_ece": 0.03671836801328409,
+        "readout_brier": 0.022958441049963925,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 282.0,
+        "latency_p99_ms": 370.0,
+        "latency_tail_support": 21,
+        "latency_extremes": {
+          "first_ms": 347.0,
+          "max_ms": 419.0,
+          "argmax_case": 19
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 594.528573,
+        "n_cases": 2000,
+        "n_questions": 2000,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.259,
+        "jdi_skill": 0.9676113360323886
+      },
+      "slices": {
+        "n_test": 2000,
+        "n_cal": 200,
+        "n_pool": 2300,
+        "test_digest": "fnv1a64-c142aacb33fa977f",
+        "cal_digest": "fnv1a64-8536679f60f00423",
+        "pool_digest": "fnv1a64-038a5d21884a1fab",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "anli_jdi",
+      "n_cases": 3200,
+      "n_questions": 3200,
+      "cases_digest": "fnv1a64-149acab424cb5a6d",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 3200,
+          "accuracy": 0.3296875,
+          "macro_f1": 0.20020279671359723,
+          "ece": 0.0518193890526891,
+          "brier": 0.6773527146993409,
+          "nll": 1.1164466899471523,
+          "aurc": 0.6667656713198409,
+          "mean_confidence": 0.3815068890526891,
+          "acc_at_50_coverage": 0.321875,
+          "acc_at_80_coverage": 0.32109375
+        },
+        "readout_ece": 0.01444690143689513,
+        "readout_brier": 0.22106630114218503,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.49125,
+          "selective_accuracy": 0.30896805896805896,
+          "selective_n": 1628
+        },
+        "abstain_causes": {
+          "score_gate": 1215,
+          "distance_gate": 357,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.3145334099233151,
+        "readout_ece_calibrated": 0.01444690143689513,
+        "floor_ece": 0.26962842039801,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.085,
+        "latency_p99_ms": 0.172,
+        "latency_tail_support": 33,
+        "latency_extremes": {
+          "first_ms": 0.107,
+          "max_ms": 0.403,
+          "argmax_case": 1955
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.6353131,
+        "n_cases": 3200,
+        "n_questions": 3200,
+        "score_threshold": 0.33500618,
+        "distance_threshold": 0.51880133,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.33500618,
+            "status": "fitted",
+            "targetAccuracy": 0.2857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.51880133,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 998,
+            "share_of_errors": 0.46526806526806525
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 984,
+            "share_of_errors": 0.45874125874125876
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 72,
+            "share_of_errors": 0.033566433566433566
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 69,
+            "share_of_errors": 0.032167832167832165
+          },
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 11,
+            "share_of_errors": 0.005128205128205128
+          },
+          {
+            "gold": "neutral",
+            "pred": "contradiction",
+            "count": 11,
+            "share_of_errors": 0.005128205128205128
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.334375,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.31867652475833896
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.04831542298197743
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.31867652475833896
+            }
+          ]
+        },
+        "corpus_fallbacks": [
+          "contradiction"
+        ],
+        "corpus_digest": "fnv1a64-e2784ce81ae782ab"
+      },
+      "laya": {},
+      "d3": {
+        "lane": "d3",
+        "model": "d3-v3.1.0-nf4",
+        "hard": {
+          "n": 3200,
+          "accuracy": 0.7553125,
+          "macro_f1": 0.7551060981512197,
+          "ece": 0.05113855376163879,
+          "brier": 0.34190096089924454,
+          "nll": 0.5748090961848759,
+          "aurc": 0.1179871500814914,
+          "mean_confidence": 0.805275904477005,
+          "acc_at_50_coverage": 0.88875,
+          "acc_at_80_coverage": 0.810546875
+        },
+        "readout_ece": 0.18264715631815004,
+        "readout_brier": 0.20639561901478917,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 275.0,
+        "latency_p99_ms": 324.0,
+        "latency_tail_support": 33,
+        "latency_extremes": {
+          "first_ms": 257.0,
+          "max_ms": 358.0,
+          "argmax_case": 3127
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 899.1934835,
+        "n_cases": 3200,
+        "n_questions": 3200,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.334375,
+        "jdi_skill": 0.6323943661971831
+      },
+      "slices": {
+        "n_test": 3200,
+        "n_cal": 200,
+        "n_pool": 100,
+        "test_digest": "fnv1a64-490f8298c1dd980e",
+        "cal_digest": "fnv1a64-c104af35da5b1fbf",
+        "pool_digest": "fnv1a64-de78997bfd0cdf30",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [
+          "contradiction"
+        ],
+        "violations": []
+      }
+    }
+  ]
+}
