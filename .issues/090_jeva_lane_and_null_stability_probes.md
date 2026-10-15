@@ -1,6 +1,7 @@
 # Issue 090 — Jeva lane + null/K-stability probe family (from arXiv:2610.18773)
 
 **Status:** OPEN — filed 2026-10-15 from the Jeva distill (rethink-side note: `../riir-rethink/.research/007_Jeva_System_One_First_Principles_Open_Teacher.md`). Comparison-lane + harness-gate work only; serving/product decisions live rethink-side.
+**Claimed:** refine-idle-4090 (shikuwa), 2026-10-15T18:09Z, expires 2026-10-17T18:09Z — A1+A2+A3 probe family (`--null-probe`) on the modelless lane; B1 stays gated on the Jeva weights license; C2 out (do-not-wire-blind).
 
 Paper: "Jeva: System One Models from First Principles" (Li & Wang, NUS, arXiv:2610.18773) — open decision-native model (HF `LIQIIIII/Jeva-4B`, code Apache-2.0 at `LiQiiiii/Jeva`). Three structural propositions double as pin-able properties for our engine, and the model is the first same-wire (choice/noul/score) open-weights lane candidate with a published implementation.
 
