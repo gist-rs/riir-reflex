@@ -32,6 +32,8 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
+use katgpt_core::exact_sigmoid_f64;
+
 use super::distill::{read_teacher_bin, TeacherBinWriter};
 use super::{git_sha, iso8601_utc};
 use crate::harness::runner::hostname_refusing_unknown;
@@ -84,8 +86,17 @@ fn argmax_lowest_pos(q: &[f32]) -> usize {
     best
 }
 
+/// Substrate delegation (the Issue-014 engine.rs precedent, f64 twin; found
+/// by the 2026-10-15 substrate-first drift audit, katgpt-rs `bbc28a091`):
+/// the two-branch libm reference in katgpt-core replaces the local
+/// single-branch body. Bit-identical for gate args >= 0 (identical
+/// expression); bounded ULPs below (algebraically identical forms, different
+/// fp roundings — pinned by the frozen-legacy test). The routed artifact of
+/// record (bench 144) was produced with the legacy body; this is an offline
+/// instrument under the frozen-read law, so no live gate pins those bits
+/// (the det gate is same-binary by construction).
 fn sigmoid(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
+    exact_sigmoid_f64(x)
 }
 
 /// One source dir's discovered columns: `<suite>_teacher.bin` → (path, blake3).
@@ -465,5 +476,59 @@ mod tests {
         assert_eq!(argmax_lowest_pos(&[0.3, 0.5, 0.5]), 1);
         assert_eq!(argmax_lowest_pos(&[0.5, 0.5, 0.5]), 0);
         assert_eq!(argmax_lowest_pos(&[0.1, 0.2, 0.9]), 2);
+    }
+
+    #[test]
+    fn sigmoid_delegation_matches_frozen_legacy_body() {
+        // Issue-014 / katgpt-rs Issue-870 precedent: router.rs carried a local
+        // single-branch f64 sigmoid (`1.0 / (1.0 + (-x).exp())`). The
+        // delegation to `exact_sigmoid_f64` must not move gate outputs on the
+        // reachable domain — the gate arg `(acc_a - acc_b) / T` with
+        // accuracies in [0, 1] and T = 0.01 implies |x| <= 100. This sweep
+        // covers [-120, 120] (domain plus margin; all finite-exp territory
+        // for both forms in f64). The legacy body is frozen HERE so any
+        // future substrate form drift reds this pin.
+        let legacy = |x: f64| 1.0 / (1.0 + (-x).exp());
+        let mut max_ulps = 0i64;
+        let mut max_ulps_at = 0.0f64;
+        for i in 0..=24_000i32 {
+            let x = -120.0f64 + (i as f64) * 0.01;
+            let got = exact_sigmoid_f64(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
+            } else {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            }
+        }
+        // Edge anchors: the exact reachable bounds plus the documented
+        // half-gap logits from `gate_math_is_sigmoid_never_softmax`.
+        for &x in &[
+            -100.0f64,
+            -0.005 / ROUTER_TEMPERATURE,
+            0.0,
+            0.005 / ROUTER_TEMPERATURE,
+            100.0,
+        ] {
+            let got = exact_sigmoid_f64(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
+            } else {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            }
+        }
+        assert!(
+            max_ulps <= 3,
+            "delegation drifted {max_ulps} ULPs from the frozen legacy body at x={max_ulps_at}"
+        );
     }
 }
