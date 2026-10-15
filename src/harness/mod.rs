@@ -27,6 +27,12 @@ pub mod item_dump;
 // gate, and the canary. Ungated + pure; the lanes live in the runner half
 // (`runner/perm_probe.rs`) behind the `ChoiceOracle` seam.
 pub mod permutation;
+// Issue 090 A1–A3 — the decoy-augmentation / null-stability probe (pure
+// core): graded decoy pool/sampler, augmentation + paired-noul builders,
+// per-arm record math, and the A1/A2/A3 verdicts. Ungated + pure; the
+// lanes live in the runner half (`runner/null_probe.rs`) behind the
+// `NullOracle` seam.
+pub mod null_stability;
 // Issue 086 T1 — the perm-pair presentation-subspace certificate (pure
 // core): rendering, pair collection types, and the certify() call into
 // katgpt-core `basis_split`. Gated with the lane (the feature forwards

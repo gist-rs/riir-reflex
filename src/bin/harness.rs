@@ -288,6 +288,12 @@ fn harness_main() {
     let mut perm_probe = false;
     let mut perm_k = 0usize;
     let mut perm_max_cases = 0usize;
+    // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe
+    // (exclusive early-exit mode; the comparison lanes reuse
+    // --drex/--d1/--agentjev).
+    let mut null_probe = false;
+    let mut null_k: Vec<usize> = Vec::new();
+    let mut null_max_cases = 0usize;
     // Issue 086 T1 — the presentation-subspace certificate modifier.
     let mut basis_split = false;
     let mut distill = false;
@@ -457,6 +463,28 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--perm-max-cases needs a number"));
+            }
+            "--null-probe" => null_probe = true,
+            "--null-k" => {
+                i += 1;
+                let raw = args.get(i).unwrap_or_else(|| {
+                    die("--null-k needs a comma list of decoy counts, first 0 (e.g. 0,8,32,64,256)")
+                });
+                null_k = raw
+                    .split(',')
+                    .map(|s| {
+                        s.trim()
+                            .parse()
+                            .unwrap_or_else(|_| die("--null-k needs integers (e.g. 0,8,32,64,256)"))
+                    })
+                    .collect();
+            }
+            "--null-max-cases" => {
+                i += 1;
+                null_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--null-max-cases needs a number"));
             }
             // Issue 086 T1: the perm-pair presentation-subspace certificate
             // (`--perm-probe --basis-split`, report-only). Needs the
@@ -808,12 +836,88 @@ fn harness_main() {
         );
         return;
     }
+    // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe:
+    // exclusive early-exit mode. The modelless CONTROL reds the run
+    // (exit 1) on an A2 preference flip (beyond an exact reference tie),
+    // an A3 noul bit-identity break, or a Report-the-Floor fail — any of
+    // the three is an engine defect or a harness bug, never a quiet
+    // pass. A1's drift curve itself is characterized, not gated (the
+    // issue's own ⚠: max-of-K drift is the measured quantity).
+    if null_probe {
+        let nopts = runner::NullProbeOptions {
+            k_set: if null_k.is_empty() {
+                runner::DEFAULT_NULL_K.to_vec()
+            } else {
+                null_k
+            },
+            max_cases: if null_max_cases == 0 {
+                runner::DEFAULT_NULL_MAX_CASES
+            } else {
+                null_max_cases
+            },
+            drex: opts.drex,
+            d1: opts.d1,
+            agentjev: opts.agentjev,
+        };
+        println!(
+            "harness --null-probe: datasets {} · suites {:?} · ladder {:?} · \
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            nopts.k_set,
+            nopts.max_cases,
+            if nopts.drex { " +drex" } else { "" },
+            if nopts.d1 { " +d1" } else { "" },
+            if nopts.agentjev { " +agentjev" } else { "" },
+        );
+        let out = match runner::run_null_probe(&opts, &nopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("null_probe.json");
+        let md_path = out_dir.join("NULL_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("null probe serialize");
+        let md = runner::render_null_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        let control_red = out.suites.iter().any(|s| {
+            s.lanes
+                .iter()
+                .any(|l| l.control && l.verdict == runner::NullVerdict::Red)
+        });
+        if control_red {
+            die(
+                "--null-probe: the modelless CONTROL red — a preference flip \
+                 (A2), a noul bit-identity break (A3), or a Report-the-Floor \
+                 fail (A1's gate). This is a finding or a harness bug; the \
+                 record is on disk (never a quiet pass).",
+            );
+        }
+        println!(
+            "harness --null-probe: DONE — {} suite(s), {} RED lane cell(s) \
+             disclosed; wrote {} + {}",
+            out.suites.len(),
+            out.red_cells,
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 9] = [
+        let modes: [(&str, bool); 10] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
+            ("--null-probe", null_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

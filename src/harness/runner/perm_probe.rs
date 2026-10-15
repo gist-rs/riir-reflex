@@ -335,7 +335,7 @@ impl ChoiceOracle for LayaOracle {
 
 /// Deterministic stride sampling over `n_total` items: all of them when
 /// they fit, else the first of every `ceil(n/max)` stride.
-fn stride_indices(n_total: usize, max_cases: usize) -> Vec<usize> {
+pub(super) fn stride_indices(n_total: usize, max_cases: usize) -> Vec<usize> {
     if n_total == 0 {
         return Vec::new();
     }

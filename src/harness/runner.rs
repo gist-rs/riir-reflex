@@ -137,6 +137,18 @@ pub use perm_probe::{
 };
 pub use crate::harness::permutation::SpreadVerdict;
 
+// Issue 090 A1–A3 — the decoy-augmentation / null-stability probe: the
+// pure core (`harness::null_stability`) + this runner half behind the
+// `NullOracle` seam (modelless control + opt-in comparison cells).
+mod null_probe;
+pub use null_probe::{
+    render_null_probe_markdown, run_null_probe, NullLaneReport, NullProbeMeta,
+    NullProbeOptions, NullProbeOutput, NullSuiteReport,
+};
+pub use crate::harness::null_stability::{
+    NullVerdict, DEFAULT_NULL_K, DEFAULT_NULL_MAX_CASES,
+};
+
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{

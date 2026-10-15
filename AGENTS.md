@@ -157,6 +157,15 @@ cargo run --release --bin harness -- --skip-laya --head-select --nb-select --rid
 cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
 cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
 
+# Null/K-stability probe (Issue 090 A1–A3, Bench 147): decoy augmentation
+# (graded K-appended decoys, originals keep positions) through the deployed
+# decide path; A2 = within-regime preference flips (zero beyond exact ties;
+# cross-regime flips = the k ≤ N by-name route-arming law, disclosed), A3 =
+# paired-noul bit-identity + the confidence shape, A1 = the abstention drift
+# curve + the Report-the-Floor gate (deployed calibrated conf vs the
+# conformal-naive floor). Control reds refuse the run (exit 1, record on disk).
+cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe
+
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN
 # else PATH — build: (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)):
 NDB_BIN=../riir-neuron-db/target/release/ndb \
