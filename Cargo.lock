@@ -3605,6 +3605,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "riir-infer-ane"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "block2",
+ "objc2",
+ "objc2-core-ml",
+ "objc2-foundation",
+]
+
+[[package]]
 name = "riir-infer-core"
 version = "0.1.1"
 dependencies = [
@@ -3652,14 +3663,12 @@ name = "riir-infer-laya"
 version = "0.1.0"
 dependencies = [
  "blake3",
- "block2",
  "cudarc",
  "gemm",
  "libm",
  "metal",
  "objc2",
- "objc2-core-ml",
- "objc2-foundation",
+ "riir-infer-ane",
  "riir-infer-gpu",
  "serde",
  "serde_json",
