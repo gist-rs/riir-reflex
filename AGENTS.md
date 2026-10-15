@@ -166,6 +166,15 @@ cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typ
 # conformal-naive floor). Control reds refuse the run (exit 1, record on disk).
 cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe
 
+# Rubric-covariance + route-agreement probe (Issue 090 C1, Bench 149): the
+# Σq·v score-readout algebra pinned at three surfaces (engine-raw / the
+# serve edge's f64 L1 / the round6 wire rendering — each self-consistent);
+# I1 scale + I2 shift identities, I3 value-blind argmax (the round6 near-tie
+# collision class), I4 Σq residual vs the wire budget; route agreement
+# (context vs state-alone vs option semantic routes) is characterization.
+# Identity reds refuse the run (exit 1, record on disk).
+cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe
+
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN
 # else PATH — build: (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)):
 NDB_BIN=../riir-neuron-db/target/release/ndb \

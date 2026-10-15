@@ -33,6 +33,12 @@ pub mod permutation;
 // lanes live in the runner half (`runner/null_probe.rs`) behind the
 // `NullOracle` seam.
 pub mod null_stability;
+// Issue 090 C1 — the rubric-covariance + route-agreement probe (pure
+// core): the Σq·v identity math (I1 scale / I2 shift / I3 value-blind
+// argmax / I4 normalization residual) + the route-agreement record.
+// Ungated + pure; the lane lives in the runner half
+// (`runner/rubric_probe.rs`).
+pub mod rubric;
 // Issue 086 T1 — the perm-pair presentation-subspace certificate (pure
 // core): rendering, pair collection types, and the certify() call into
 // katgpt-core `basis_split`. Gated with the lane (the feature forwards

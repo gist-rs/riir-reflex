@@ -149,6 +149,16 @@ pub use crate::harness::null_stability::{
     NullVerdict, DEFAULT_NULL_K, DEFAULT_NULL_MAX_CASES,
 };
 
+// Issue 090 C1 — the rubric-covariance + route-agreement probe: the pure
+// core (`harness::rubric`) + this runner half (modelless control; the
+// wire surface renders through the serve edge's own translate → decide →
+// map_answers path).
+mod rubric_probe;
+pub use rubric_probe::{
+    render_rubric_markdown, run_rubric_probe, RubricProbeOptions, RubricProbeOutput,
+    RubricSuiteReport, RubricVerdict, DEFAULT_RUBRIC_MAX_CASES, DEFAULT_RUBRIC_SUITES,
+};
+
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{

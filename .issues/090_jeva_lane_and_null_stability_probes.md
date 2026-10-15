@@ -15,13 +15,29 @@ wiring; 22 lane tests, clippy `-D warnings` clean — the license gate RESOLVED 
 riir-train 632 T0: weights UNDECLARED → capture-for-measurement OK, adoption
 fail-closed, correcting this issue's original "contact-gated" note). **The 632 T2
 teacher capture is RUNNING** (`.raw/distill_teacher_jeva`, allow_null=0, ~15 h MPS).
-Remaining: C1 (low), C2 (katgpt-core `set_refine`, do-not-wire-blind). Comparison-lane
-cells (--drex/--d1/--agentjev) wired, unrun (servers down at the record's window).
-**Claimed:** shikuwa-b1-jeva-lane, 1792105272, expires 2026-10-16T23:59:00Z
-(scope: **C1** — the rubric-covariance + template probes. Prior scopes LANDED
-2026-10-16: A1–A3 in Bench 147, B1 + the B2 capture rider in Bench 148. C2 stays
-out, do-not-wire-blind — it needs its own set-awareness suite + GOAT before any
-plan.)
+riir-train 632 T0: weights UNDECLARED → capture-for-measurement OK, adoption
+fail-closed, correcting this issue's original "contact-gated" note). **The 632 T2
+teacher capture is RUNNING** (`.raw/distill_teacher_jeva`, allow_null=0, ~15 h MPS).
+**C1 LANDED 2026-10-16** (Bench 149, the `--rubric-probe` lane: I1/I2/I3/I4 all
+PASS 6/6 suites at every surface — engine-raw / engine-norm / wire-round6, each
+self-consistent; round6 near-tie collision class pinned by unit test;
+route-agreement characterization: context==state-alone 59.7%, name==semantic 43.4%
+— the population-scale justification for the by-name arming law;
+`DecisionEngine::semantic_route` accessor added, read-only). Remaining: C2
+(katgpt-core `set_refine`, do-not-wire-blind). Comparison-lane cells
+(--drex/--d1/--agentjev) wired, unrun (servers down at the record's window).
+
+**Claim collision disclosed (the claim-lease protocol's push-is-the-arbiter
+outcome):** the sibling session claimed C1 at `068559f` (epoch 1792105272) while
+this session's C1 landing was mid-rebase (started ~05:45, first local commit
+8e8ce91 05:57, pushed as `0aaeb55`-lineage `b8670d3` after two renumber/rebase
+cycles). The claim is SUPERSEDED BY LANDING — C1 is done (Bench 149, pure core
+`src/harness/rubric.rs` + lane `src/harness/runner/rubric_probe.rs` + the
+`--rubric-probe` CLI). If the claiming session has in-flight work, the repair
+beats delete: their implementation review against the landed lane is the merge
+point (the null-probe pattern is followed exactly — oracle seam, stride
+sampling, three-surface identities). The prior B1/B2 claim (epoch 1792090498,
+expires 2026-10-17T18:00:00Z) is likewise moot — B1 + B2 LANDED in Bench 148.
 
 Paper: "Jeva: System One Models from First Principles" (Li & Wang, NUS, arXiv:2610.18773) — open decision-native model (HF `LIQIIIII/Jeva-4B`, code Apache-2.0 at `LiQiiiii/Jeva`). Three structural propositions double as pin-able properties for our engine, and the model is the first same-wire (choice/noul/score) open-weights lane candidate with a published implementation.
 
@@ -35,7 +51,8 @@ Paper: "Jeva: System One Models from First Principles" (Li & Wang, NUS, arXiv:26
   **LANDED (Bench 147):** leg (a) the paired noul question (same state, no options by wire law) re-answered per arm is **BIT-IDENTICAL on every suite** — also proving no cross-request state. Leg (b) the choice-side confidence is **joint-shaped on every suite** (drifts with K; the readout reads the diluting distribution) — magnitude suite-spread: typed ≈0.05 pt vs massive 57.7 pt at the top arm. Shape pinned per lane in the record.
 - [x] **B2 — perm-probe 0-flip floor + structural-repair rule**: lanes claiming option-text independence (no position/index/question echo in the option representation) pin 0.00% order flips; a red lane gets the structural repair (strip the order-sensitive feature), never average-over-permutations. Their measured row: 0.00% flips, mean TV 3.17e-8, no order-consistency loss — the target shape.
   **ALREADY SHIPPED** — the perm-probe's CONTROL contract (Bench 128 lineage) IS the 0-flip floor: flips allowed only on exact top-2 ties + the L1 fp envelope; a control red refuses the run. No red lane exists to repair (the structural-repair rule stays armed in that contract). No new code owed.
-- [ ] **C1 — (low) rubric-covariance + template probes**: score = Σ q_i·v_i identities (v→10v scales ×10; v→v+c shifts c·Σq; argmax value-blind) to fp tolerance; option-template type presence vs corpus-route agreement (state route == option routes).
+- [x] **C1 — (low) rubric-covariance + template probes**: score = Σ q_i·v_i identities (v→10v scales ×10; v→v+c shifts c·Σq; argmax value-blind) to fp tolerance; option-template type presence vs corpus-route agreement (state route == option routes).
+  **LANDED (Bench 149, `--rubric-probe`)** — the identities at THREE surfaces (engine-raw f32 / the serve edge's exact f64 L1 / the round6 wire rendering, each SELF-consistent, never cross-compared — the wire renders its own request bytes): I1 scale ≤ 4.0e-13, I2 shift ≤ 4.3e-14, I3 ZERO argmax disagreements (the round6 near-tie collision class — engine picks index 1 of a pair that rounds to a visible tie — pinned by unit test, zero occurrences live), I4 ≤ 6.0e-6 vs the ±1e-3 wire budget (the 77-option round6 residue at exactly the predicted 77×1e-7). Route agreement (characterization): **context==state-alone 59.7%** (the prompt moves the route on 40% of slots — the population-scale measurement of the prompt-pollution effect the engine's route-terms comment describes), **name==semantic 43.4%** of named options (a bare label string's embedding routes to its own domain under semantic routing only 43% of the time — the population-scale justification for Issue 023's by-name arming law). typed_decisions: 0 identity slots, loud skip (its 100%-abstain deployed posture, the Bench-147 A1 record). New read-only accessor `DecisionEngine::semantic_route`. 6/6 contributing suites PASS, exit 0; deterministic (stride sampling, no RNG).
 
 ## B — `--jeva` local comparison lane
 

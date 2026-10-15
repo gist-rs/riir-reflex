@@ -243,6 +243,10 @@ fn harness_main() {
     let mut null_probe = false;
     let mut null_k: Vec<usize> = Vec::new();
     let mut null_max_cases = 0usize;
+    // Issue 090 C1 — the rubric-covariance + route-agreement probe
+    // (exclusive early-exit mode; modelless control only).
+    let mut rubric_probe = false;
+    let mut rubric_max_cases = 0usize;
     // Issue 086 T1 — the presentation-subspace certificate modifier.
     let mut basis_split = false;
     let mut distill = false;
@@ -414,6 +418,14 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--perm-max-cases needs a number"));
             }
             "--null-probe" => null_probe = true,
+            "--rubric-probe" => rubric_probe = true,
+            "--rubric-max-cases" => {
+                i += 1;
+                rubric_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--rubric-max-cases needs a number"));
+            }
             "--null-k" => {
                 i += 1;
                 let raw = args.get(i).unwrap_or_else(|| {
@@ -865,13 +877,70 @@ fn harness_main() {
         );
         return;
     }
+    // Issue 090 C1 — the rubric-covariance + route-agreement probe:
+    // exclusive early-exit mode. The modelless CONTROL reds the run
+    // (exit 1) on an I1/I2 identity residual beyond tolerance, an I3
+    // argmax disagreement (at ANY surface — a consumer recomputing the
+    // pick from the shipped probabilities must land on the shipped
+    // pick), or an I4 sum residual beyond the wire budget: any of the
+    // three is an engine or wire defect, never a quiet pass. Route
+    // agreement is characterization (no bar).
+    if rubric_probe {
+        let ropts = runner::RubricProbeOptions {
+            max_cases: if rubric_max_cases == 0 {
+                runner::DEFAULT_RUBRIC_MAX_CASES
+            } else {
+                rubric_max_cases
+            },
+        };
+        println!(
+            "harness --rubric-probe: datasets {} · suites {:?} · ≤{} case(s)/suite · \
+             lane: modelless (control)",
+            opts.datasets_dir.display(),
+            opts.suites,
+            ropts.max_cases,
+        );
+        let out = match runner::run_rubric_probe(&opts, &ropts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("rubric_probe.json");
+        let md_path = out_dir.join("RUBRIC_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("rubric probe serialize");
+        let md = runner::render_rubric_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        if out.red_suites > 0 {
+            die(
+                "--rubric-probe: the modelless CONTROL red — an identity residual \
+                 (I1/I2), an argmax disagreement (I3), or a wire-budget break (I4). \
+                 This is a finding or a harness bug; the record is on disk.",
+            );
+        }
+        println!(
+            "harness --rubric-probe: DONE — {} suite(s), 0 RED; wrote {} + {}",
+            out.suites.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 10] = [
+        let modes: [(&str, bool); 11] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--null-probe", null_probe),
+            ("--rubric-probe", rubric_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

@@ -1919,6 +1919,22 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         self.experts.iter().map(|e| e.name()).collect()
     }
 
+    /// Issue 090 C1 (route-agreement probe): the SEMANTIC route of an
+    /// arbitrary text under this engine's routing table — the same
+    /// unit-centroid argmax (`pick_domain`) the decide path uses, over
+    /// the text embedded ALONE (the apples-to-apples surface: corpus
+    /// docs are embedded alone). Read-only instrumentation: no engine
+    /// state touched, no allocation beyond the stack-local embedding.
+    pub fn semantic_route(&self, text: &str) -> usize {
+        let mut dirs = [[0.0f32; D]; N];
+        for (o, e) in dirs.iter_mut().zip(self.experts.iter()) {
+            *o = e.direction;
+        }
+        let mut q = [0.0f32; D];
+        self.embedder.embed_into(text.as_bytes(), &mut q);
+        pick_domain::<N, D>(&q, &dirs)
+    }
+
     /// Read-only gate access (harness calibration — thresholds from
     /// measured geometry, never magic numbers).
     pub fn gate(&self, domain: usize) -> &CorpusDistanceGate<D> {
