@@ -1,7 +1,12 @@
 # Issue 090 — Jeva lane + null/K-stability probe family (from arXiv:2610.18773)
 
 **Status:** OPEN — A1/A2/A3 + B2 LANDED 2026-10-16 (Bench 147, the `--null-probe` lane; the floor gate RED on 4/6 suites = a recorded finding for the readout lanes, not a probe defect). Remaining: B1 `--jeva` lane (gated on the HF weights license — contact-gated, unverified), the B2 capture-output rider (rides B1), C1 (low), C2 (katgpt-core `set_refine`, do-not-wire-blind). Comparison-lane cells (--drex/--d1/--agentjev) wired, unrun (servers down at the record's window).
-**Claimed:** refine-idle-4090 (shikuwa), 2026-10-15T18:09Z, expires 2026-10-17T18:09Z — A1+A2+A3 probe family (`--null-probe`) on the modelless lane; B1 stays gated on the Jeva weights license; C2 out (do-not-wire-blind).
+**Claimed:** shikuwa-b1-jeva-lane, 1792090498, expires 2026-10-17T18:00:00Z
+(displacing the MALFORMED A1–A3 claim line — that scope LANDED 2026-10-16 in Bench 147;
+this claim's scope: **B1** the `--jeva` comparison lane + serve script, and the **B2**
+capture rider — the `--distill-teacher jeva` seam. The B1 license gate is RESOLVED by
+riir-train 632 T0: weights license UNDECLARED → restricted posture — capture-for-
+measurement OK, adoption fail-closed. C2 stays out, do-not-wire-blind.)
 
 Paper: "Jeva: System One Models from First Principles" (Li & Wang, NUS, arXiv:2610.18773) — open decision-native model (HF `LIQIIIII/Jeva-4B`, code Apache-2.0 at `LiQiiiii/Jeva`). Three structural propositions double as pin-able properties for our engine, and the model is the first same-wire (choice/noul/score) open-weights lane candidate with a published implementation.
 
