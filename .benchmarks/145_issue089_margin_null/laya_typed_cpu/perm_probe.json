@@ -1,0 +1,2335 @@
+{
+  "meta": {
+    "date_utc": "2026-10-15T03:39:35Z",
+    "git_sha": "abd778d",
+    "host": "m3",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "k": 5,
+    "max_cases": 30,
+    "seed": 125239297,
+    "gate_rule": "per lane x suite: MEDIAN top-pick swing across orderings <= 2 pt; max + flip rate disclosed beside. The modelless control holds a stricter contract: flips allowed ONLY on an exact top-2 tie (the deterministic first-position tie-break) and median swing within the L1 normalizer's measured fp envelope (0.01 pt) — strict byte-identity stays a disclosed column (the L1 sum reorders with the presentation and moves ULPs by design). A control red refuses the run verdict.",
+    "sampling_rule": "the suite's choice-carrying cases in dataset order, first of every ceil(n/max_cases) stride (deterministic); ALL choice questions of each sampled case. The canary case rides every lane as the liveness cell (never in the suite medians).",
+    "invariance_rule": "label-space mapping: option LABELS are the invariant under permutation (indexes move); every comparison happens on labels mapped back to the original criteria order.",
+    "route_binding": "by-name + index-anchored (score, k == N, index-named domains; issue 079)",
+    "latency_note": "latency columns deliberately absent — this is a distribution-stability probe; the latency/determinism axes live in the det benches (126/127).",
+    "laya_device": "Cpu",
+    "box_start": {
+      "power": "Battery Power",
+      "power_mode": "high",
+      "load_1m": 10.49,
+      "swap_used_mb": 857.19,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "on Battery Power — Apple Silicon sheds sustained GPU clock off AC",
+        "load 10.49 > 6 — a sibling job is on the box"
+      ]
+    },
+    "box_end": {
+      "power": "Battery Power",
+      "power_mode": "high",
+      "load_1m": 14.59,
+      "swap_used_mb": 857.19,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "on Battery Power — Apple Silicon sheds sustained GPU clock off AC",
+        "load 14.59 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "red_cells": 1,
+  "suites": [
+    {
+      "suite": "typed_decisions",
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "modelless (deployed plain posture)",
+          "control": true,
+          "n_cases": 44,
+          "n_orderings": 5,
+          "median_swing_pt": 0.0,
+          "max_swing_pt": 2.9802322387695312e-6,
+          "flips": 21,
+          "flip_rate": 0.4772727272727273,
+          "control_invariant": false,
+          "verdict": "PASS",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "beta",
+            "pick_labels": [
+              "beta",
+              "beta",
+              "beta",
+              "beta",
+              "beta"
+            ],
+            "p_ref": [
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343,
+              0.20554260909557343
+            ],
+            "swing_pt": 0.0,
+            "flipped": false,
+            "tie": false,
+            "gold": "gamma",
+            "margin_top2": 0.004629462957382202
+          },
+          "cases": [
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "stop",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "failure",
+                "harmful"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "success",
+                "harmful",
+                "failure",
+                "partial"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "observe",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "failure",
+                "harmful",
+                "partial"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "harmful",
+                "success",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "failure",
+                "success",
+                "success",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "stop",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "observe",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "harmful",
+                "failure",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "success",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "stop",
+                "stop",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "continue",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "harmful",
+                "partial",
+                "failure",
+                "failure"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "partial",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "observe",
+                "observe",
+                "stop"
+              ],
+              "p_ref": [
+                0.25881829857826233,
+                0.25881829857826233,
+                0.2588183283805847,
+                0.25881829857826233,
+                0.25881829857826233
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": true,
+              "tie": true,
+              "gold": "observe",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "failure",
+              "pick_labels": [
+                "failure",
+                "partial",
+                "partial",
+                "partial",
+                "success"
+              ],
+              "p_ref": [
+                0.25,
+                0.25,
+                0.25,
+                0.25,
+                0.25
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "partial",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.005341857671737671
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "execute_refund",
+              "margin_top2": 0.005341857671737671
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344523131847382,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.005249902606010437
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732,
+                0.21387851238250732
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.005433127284049988
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637227594852448,
+                0.20637230575084686
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "account",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366292238235474
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "answer_directly",
+              "margin_top2": 0.005341857671737671
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "delivery",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21366292238235474,
+                0.21366292238235474,
+                0.21366293728351593,
+                0.21366293728351593,
+                0.21366293728351593
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.005341857671737671
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly",
+                "answer_directly"
+              ],
+              "p_ref": [
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344521641731262,
+                0.21344523131847382
+              ],
+              "swing_pt": 1.4901161193847656e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "execute_refund",
+              "margin_top2": 0.005249902606010437
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686,
+                0.20637230575084686
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "refund",
+              "margin_top2": 0.00456121563911438
+            },
+            {
+              "case_id": "invoice_processing:210",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:224",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583477497101
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:238",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:252",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "hold",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:266",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:280",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "hold",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "invoice_processing:294",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "hold",
+              "pick_labels": [
+                "hold",
+                "hold",
+                "hold",
+                "hold",
+                "hold"
+              ],
+              "p_ref": [
+                0.2717583179473877,
+                0.2717583477497101,
+                0.2717583179473877,
+                0.2717583179473877,
+                0.2717583179473877
+              ],
+              "swing_pt": 2.9802322387695312e-6,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.011767566204071045
+            },
+            {
+              "case_id": "security_incidents:308",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:322",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:336",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": false,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:350",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "monitor",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358,
+                0.2641626000404358
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:364",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "monitor",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:378",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "monitor",
+                "monitor",
+                "contain",
+                "contain"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            },
+            {
+              "case_id": "security_incidents:392",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "contain",
+              "pick_labels": [
+                "contain",
+                "contain",
+                "contain",
+                "contain",
+                "monitor"
+              ],
+              "p_ref": [
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223,
+                0.2652668058872223
+              ],
+              "swing_pt": 0.0,
+              "flipped": true,
+              "tie": true,
+              "gold": "investigate",
+              "margin_top2": 0.0
+            }
+          ]
+        },
+        {
+          "lane": "laya/typed",
+          "model": "laya/typed",
+          "control": false,
+          "n_cases": 44,
+          "n_orderings": 5,
+          "median_swing_pt": 4.779999999999996,
+          "max_swing_pt": 13.870000000000001,
+          "flips": 7,
+          "flip_rate": 0.1590909090909091,
+          "control_invariant": null,
+          "verdict": "RED",
+          "canary": {
+            "case_id": "perm_canary",
+            "qid": "canary",
+            "n_options": 5,
+            "ref_pick": "alpha",
+            "pick_labels": [
+              "alpha",
+              "alpha",
+              "alpha",
+              "alpha",
+              "alpha"
+            ],
+            "p_ref": [
+              0.3188,
+              0.3032,
+              0.3427,
+              0.3536,
+              0.3371
+            ],
+            "swing_pt": 5.04,
+            "flipped": false,
+            "tie": false,
+            "gold": "gamma",
+            "margin_top2": 0.09559999999999996
+          },
+          "cases": [
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "continue",
+                "continue",
+                "continue",
+                "continue"
+              ],
+              "p_ref": [
+                0.4322,
+                0.4205,
+                0.4395,
+                0.4258,
+                0.3822
+              ],
+              "swing_pt": 5.730000000000002,
+              "flipped": false,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.09809999999999997
+            },
+            {
+              "case_id": "agent_trace_observability:0",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "success",
+              "pick_labels": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.5501,
+                0.5089,
+                0.5233,
+                0.5501,
+                0.5177
+              ],
+              "swing_pt": 4.120000000000001,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.2639
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "observe",
+              "pick_labels": [
+                "observe",
+                "observe",
+                "human_review",
+                "observe",
+                "observe"
+              ],
+              "p_ref": [
+                0.379,
+                0.3462,
+                0.3301,
+                0.3706,
+                0.3628
+              ],
+              "swing_pt": 4.89,
+              "flipped": true,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.053700000000000025
+            },
+            {
+              "case_id": "agent_trace_observability:14",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "partial",
+              "pick_labels": [
+                "partial",
+                "partial",
+                "partial",
+                "partial",
+                "partial"
+              ],
+              "p_ref": [
+                0.416,
+                0.3879,
+                0.3913,
+                0.4073,
+                0.3682
+              ],
+              "swing_pt": 4.779999999999996,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.11299999999999999
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "continue",
+                "continue",
+                "continue",
+                "continue"
+              ],
+              "p_ref": [
+                0.4669,
+                0.489,
+                0.4837,
+                0.4837,
+                0.4669
+              ],
+              "swing_pt": 2.210000000000001,
+              "flipped": false,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.1573
+            },
+            {
+              "case_id": "agent_trace_observability:28",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "success",
+              "pick_labels": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.5324,
+                0.5309,
+                0.5324,
+                0.505,
+                0.537
+              ],
+              "swing_pt": 3.200000000000003,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.2399
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "human_review",
+              "pick_labels": [
+                "human_review",
+                "human_review",
+                "human_review",
+                "human_review",
+                "observe"
+              ],
+              "p_ref": [
+                0.3658,
+                0.3481,
+                0.3542,
+                0.3767,
+                0.3605
+              ],
+              "swing_pt": 2.859999999999996,
+              "flipped": true,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.014300000000000035
+            },
+            {
+              "case_id": "agent_trace_observability:42",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "partial",
+              "pick_labels": [
+                "partial",
+                "partial",
+                "partial",
+                "partial",
+                "partial"
+              ],
+              "p_ref": [
+                0.428,
+                0.414,
+                0.4224,
+                0.4056,
+                0.43
+              ],
+              "swing_pt": 2.4399999999999977,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.16970000000000002
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "continue",
+                "continue",
+                "continue",
+                "continue"
+              ],
+              "p_ref": [
+                0.3938,
+                0.4021,
+                0.4223,
+                0.4134,
+                0.3936
+              ],
+              "swing_pt": 2.87,
+              "flipped": false,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.04830000000000001
+            },
+            {
+              "case_id": "agent_trace_observability:56",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "success",
+              "pick_labels": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.5244,
+                0.5067,
+                0.4675,
+                0.4866,
+                0.5206
+              ],
+              "swing_pt": 5.689999999999995,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.2248
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "human_review",
+              "pick_labels": [
+                "human_review",
+                "human_review",
+                "human_review",
+                "human_review",
+                "human_review"
+              ],
+              "p_ref": [
+                0.3606,
+                0.3417,
+                0.3333,
+                0.3328,
+                0.3338
+              ],
+              "swing_pt": 2.7799999999999994,
+              "flipped": false,
+              "tie": false,
+              "gold": "observe",
+              "margin_top2": 0.02899999999999997
+            },
+            {
+              "case_id": "agent_trace_observability:70",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "success",
+              "pick_labels": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.4662,
+                0.448,
+                0.4533,
+                0.4464,
+                0.4171
+              ],
+              "swing_pt": 4.9099999999999975,
+              "flipped": false,
+              "tie": false,
+              "gold": "success",
+              "margin_top2": 0.132
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "continue",
+              "pick_labels": [
+                "continue",
+                "continue",
+                "continue",
+                "continue",
+                "continue"
+              ],
+              "p_ref": [
+                0.4502,
+                0.462,
+                0.4268,
+                0.4252,
+                0.4155
+              ],
+              "swing_pt": 4.650000000000004,
+              "flipped": false,
+              "tie": false,
+              "gold": "continue",
+              "margin_top2": 0.12719999999999998
+            },
+            {
+              "case_id": "agent_trace_observability:84",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "success",
+              "pick_labels": [
+                "success",
+                "success",
+                "success",
+                "success",
+                "success"
+              ],
+              "p_ref": [
+                0.5275,
+                0.4816,
+                0.5066,
+                0.5197,
+                0.5197
+              ],
+              "swing_pt": 4.59,
+              "flipped": false,
+              "tie": false,
+              "gold": "partial",
+              "margin_top2": 0.22719999999999996
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "action",
+              "n_options": 4,
+              "ref_pick": "human_review",
+              "pick_labels": [
+                "human_review",
+                "human_review",
+                "human_review",
+                "human_review",
+                "human_review"
+              ],
+              "p_ref": [
+                0.3743,
+                0.3716,
+                0.3956,
+                0.3872,
+                0.3675
+              ],
+              "swing_pt": 2.8100000000000014,
+              "flipped": false,
+              "tie": false,
+              "gold": "observe",
+              "margin_top2": 0.021699999999999997
+            },
+            {
+              "case_id": "agent_trace_observability:98",
+              "qid": "outcome",
+              "n_options": 4,
+              "ref_pick": "partial",
+              "pick_labels": [
+                "partial",
+                "partial",
+                "partial",
+                "partial",
+                "partial"
+              ],
+              "p_ref": [
+                0.4265,
+                0.3895,
+                0.4031,
+                0.3764,
+                0.3895
+              ],
+              "swing_pt": 5.009999999999998,
+              "flipped": false,
+              "tie": false,
+              "gold": "partial",
+              "margin_top2": 0.1669
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "request_information"
+              ],
+              "p_ref": [
+                0.3711,
+                0.3363,
+                0.3676,
+                0.3913,
+                0.3352
+              ],
+              "swing_pt": 5.6099999999999985,
+              "flipped": true,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.042300000000000004
+            },
+            {
+              "case_id": "customer_service:112",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "billing",
+              "pick_labels": [
+                "billing",
+                "billing",
+                "billing",
+                "billing",
+                "billing"
+              ],
+              "p_ref": [
+                0.7135,
+                0.7442,
+                0.7162,
+                0.7271,
+                0.7302
+              ],
+              "swing_pt": 3.069999999999995,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.6066
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.348,
+                0.346,
+                0.2893,
+                0.3324,
+                0.307
+              ],
+              "swing_pt": 5.869999999999997,
+              "flipped": false,
+              "tie": false,
+              "gold": "execute_refund",
+              "margin_top2": 0.10869999999999996
+            },
+            {
+              "case_id": "customer_service:126",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "billing",
+              "pick_labels": [
+                "billing",
+                "billing",
+                "billing",
+                "billing",
+                "billing"
+              ],
+              "p_ref": [
+                0.6491,
+                0.6415,
+                0.6258,
+                0.5494,
+                0.5913
+              ],
+              "swing_pt": 9.97,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.5262
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.4162,
+                0.4002,
+                0.4491,
+                0.4365,
+                0.4289
+              ],
+              "swing_pt": 4.89,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.14030000000000004
+            },
+            {
+              "case_id": "customer_service:140",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "billing",
+              "pick_labels": [
+                "billing",
+                "billing",
+                "billing",
+                "billing",
+                "billing"
+              ],
+              "p_ref": [
+                0.799,
+                0.7881,
+                0.7594,
+                0.7577,
+                0.7424
+              ],
+              "swing_pt": 5.660000000000009,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.7190000000000001
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.3954,
+                0.3811,
+                0.3946,
+                0.3893,
+                0.3693
+              ],
+              "swing_pt": 2.609999999999996,
+              "flipped": false,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.11819999999999997
+            },
+            {
+              "case_id": "customer_service:154",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "account",
+              "pick_labels": [
+                "account",
+                "account",
+                "technical",
+                "account",
+                "technical"
+              ],
+              "p_ref": [
+                0.3932,
+                0.44,
+                0.3662,
+                0.3977,
+                0.3472
+              ],
+              "swing_pt": 9.28,
+              "flipped": true,
+              "tie": false,
+              "gold": "account",
+              "margin_top2": 0.03420000000000001
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "request_information",
+                "request_information",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.3204,
+                0.3377,
+                0.3453,
+                0.3419,
+                0.3249
+              ],
+              "swing_pt": 2.4899999999999975,
+              "flipped": true,
+              "tie": false,
+              "gold": "answer_directly",
+              "margin_top2": 0.020699999999999996
+            },
+            {
+              "case_id": "customer_service:168",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "delivery",
+              "pick_labels": [
+                "delivery",
+                "delivery",
+                "delivery",
+                "delivery",
+                "delivery"
+              ],
+              "p_ref": [
+                0.809,
+                0.7987,
+                0.8225,
+                0.7676,
+                0.8225
+              ],
+              "swing_pt": 5.4900000000000055,
+              "flipped": false,
+              "tie": false,
+              "gold": "delivery",
+              "margin_top2": 0.7442000000000001
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "answer_directly",
+              "pick_labels": [
+                "answer_directly",
+                "answer_directly",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.3672,
+                0.3809,
+                0.3047,
+                0.2501,
+                0.2422
+              ],
+              "swing_pt": 13.870000000000001,
+              "flipped": true,
+              "tie": false,
+              "gold": "escalate_to_human",
+              "margin_top2": 0.07540000000000002
+            },
+            {
+              "case_id": "customer_service:182",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "billing",
+              "pick_labels": [
+                "billing",
+                "billing",
+                "billing",
+                "billing",
+                "billing"
+              ],
+              "p_ref": [
+                0.6791,
+                0.6219,
+                0.6711,
+                0.6704,
+                0.6436
+              ],
+              "swing_pt": 5.720000000000002,
+              "flipped": false,
+              "tie": false,
+              "gold": "billing",
+              "margin_top2": 0.5283
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "action",
+              "n_options": 5,
+              "ref_pick": "escalate_to_human",
+              "pick_labels": [
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human",
+                "escalate_to_human"
+              ],
+              "p_ref": [
+                0.3729,
+                0.3415,
+                0.4109,
+                0.4323,
+                0.4099
+              ],
+              "swing_pt": 9.079999999999998,
+              "flipped": false,
+              "tie": false,
+              "gold": "execute_refund",
+              "margin_top2": 0.08890000000000003
+            },
+            {
+              "case_id": "customer_service:196",
+              "qid": "category",
+              "n_options": 5,
+              "ref_pick": "refund",
+              "pick_labels": [
+                "refund",
+                "refund",
+                "refund",
+                "refund",
+                "refund"
+              ],
+              "p_ref": [
+                0.6928,
+                0.6646,
+                0.7303,
+                0.6948,
+                0.7568
+              ],
+              "swing_pt": 9.220000000000006,
+              "flipped": false,
+              "tie": false,
+              "gold": "refund",
+              "margin_top2": 0.5235
+            },
+            {
+              "case_id": "invoice_processing:210",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "approve",
+              "pick_labels": [
+                "approve",
+                "approve",
+                "approve",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.7235,
+                0.6895,
+                0.6785,
+                0.6994,
+                0.6566
+              ],
+              "swing_pt": 6.690000000000007,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.6199
+            },
+            {
+              "case_id": "invoice_processing:224",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "approve",
+              "pick_labels": [
+                "approve",
+                "approve",
+                "approve",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.7447,
+                0.7091,
+                0.7448,
+                0.7,
+                0.7113
+              ],
+              "swing_pt": 4.480000000000006,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.6439
+            },
+            {
+              "case_id": "invoice_processing:238",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "approve",
+              "pick_labels": [
+                "approve",
+                "approve",
+                "approve",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.4148,
+                0.4186,
+                0.4039,
+                0.3826,
+                0.4033
+              ],
+              "swing_pt": 3.600000000000003,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.1821
+            },
+            {
+              "case_id": "invoice_processing:252",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "manual_review",
+                "manual_review",
+                "manual_review",
+                "manual_review"
+              ],
+              "p_ref": [
+                0.4591,
+                0.4761,
+                0.4122,
+                0.4428,
+                0.4467
+              ],
+              "swing_pt": 6.3900000000000015,
+              "flipped": false,
+              "tie": false,
+              "gold": "hold",
+              "margin_top2": 0.1049
+            },
+            {
+              "case_id": "invoice_processing:266",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "approve",
+              "pick_labels": [
+                "approve",
+                "approve",
+                "approve",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.3252,
+                0.3285,
+                0.3109,
+                0.3181,
+                0.3096
+              ],
+              "swing_pt": 1.8900000000000028,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.02310000000000001
+            },
+            {
+              "case_id": "invoice_processing:280",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "manual_review",
+              "pick_labels": [
+                "manual_review",
+                "manual_review",
+                "manual_review",
+                "manual_review",
+                "manual_review"
+              ],
+              "p_ref": [
+                0.5381,
+                0.5296,
+                0.4865,
+                0.514,
+                0.4959
+              ],
+              "swing_pt": 5.160000000000004,
+              "flipped": false,
+              "tie": false,
+              "gold": "hold",
+              "margin_top2": 0.24320000000000003
+            },
+            {
+              "case_id": "invoice_processing:294",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "approve",
+              "pick_labels": [
+                "approve",
+                "approve",
+                "approve",
+                "approve",
+                "approve"
+              ],
+              "p_ref": [
+                0.3299,
+                0.3411,
+                0.3568,
+                0.3421,
+                0.3235
+              ],
+              "swing_pt": 3.3299999999999996,
+              "flipped": false,
+              "tie": false,
+              "gold": "approve",
+              "margin_top2": 0.0037000000000000366
+            },
+            {
+              "case_id": "security_incidents:308",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4778,
+                0.4369,
+                0.4369,
+                0.4902,
+                0.4719
+              ],
+              "swing_pt": 5.330000000000002,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.1839
+            },
+            {
+              "case_id": "security_incidents:322",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4198,
+                0.3958,
+                0.4198,
+                0.3525,
+                0.4323
+              ],
+              "swing_pt": 7.980000000000004,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.1578
+            },
+            {
+              "case_id": "security_incidents:336",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4973,
+                0.5003,
+                0.4343,
+                0.5003,
+                0.4801
+              ],
+              "swing_pt": 6.599999999999994,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.23470000000000002
+            },
+            {
+              "case_id": "security_incidents:350",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4692,
+                0.4503,
+                0.4497,
+                0.4438,
+                0.4692
+              ],
+              "swing_pt": 2.5400000000000036,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.19930000000000003
+            },
+            {
+              "case_id": "security_incidents:364",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "close_benign",
+              "pick_labels": [
+                "close_benign",
+                "monitor",
+                "monitor",
+                "monitor",
+                "monitor"
+              ],
+              "p_ref": [
+                0.3556,
+                0.3297,
+                0.3324,
+                0.3297,
+                0.3284
+              ],
+              "swing_pt": 2.72,
+              "flipped": true,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.03820000000000001
+            },
+            {
+              "case_id": "security_incidents:378",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4483,
+                0.4248,
+                0.4106,
+                0.4083,
+                0.4089
+              ],
+              "swing_pt": 3.9999999999999982,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.20209999999999997
+            },
+            {
+              "case_id": "security_incidents:392",
+              "qid": "disposition",
+              "n_options": 4,
+              "ref_pick": "investigate",
+              "pick_labels": [
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate",
+                "investigate"
+              ],
+              "p_ref": [
+                0.4479,
+                0.4639,
+                0.4395,
+                0.437,
+                0.4273
+              ],
+              "swing_pt": 3.6599999999999966,
+              "flipped": false,
+              "tie": false,
+              "gold": "investigate",
+              "margin_top2": 0.1669
+            }
+          ]
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-287d5f73a11932cd) · cal 100 (fnv1a64-0b6e8426558b0d1e) · pool 1100 (fnv1a64-a1679de56e9278b1) · OK"
+    }
+  ]
+}

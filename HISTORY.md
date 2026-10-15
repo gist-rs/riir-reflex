@@ -5,6 +5,32 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-15 — Issue 089 CLOSED: the margin-null T1 — perm-disagreement carries NO signal on the modelless lane (0/345 untied slots); the residual laya signal closes it as a comparison note
+
+**Status: Resolved (Bench 145; the issue's pre-registered scope statement
+executed as written).** T1 ran the Issue-077 perm probe extended additively
+(`CaseRow`/`CaseSpread` gained `gold`, `margin_top2`, `tie` — the one-artifact
+join) over three records on the M3 (`145_issue089_margin_null/`: modelless
+6 suites; laya/english 5 suites @ 20; laya/typed @ 30; G5 GREEN pre-run,
+2/2 checkpoints 28.1 s). Pre-registered floors judged at the pinned point
+bars: **modelless 0 untied disagreements in 345 slots** — the
+K-orderings-disagree ⇒ top-2-tied identity is now a measurement, not the
+Bench-128 control's implication; primary MISS, the deterministic-engine
+delta is gone. **laya/english ΔAUROC +0.063 (point bar ≥ 0.02 PASS; 95%
+bootstrap CI [−0.073, +0.196] disclosed straddling zero) with partial r
++0.470 against the 0.05 floor** — signal only on a trained/order-sensitive
+lane, concentrated on massive_intent_en (Δ +0.094, dis rate 0.30 — Bench
+128's own tail-fragile cell). Scope statement: closes as a comparison note
+inside the published PriDe/self-consistency class; no trained-lane serving
+issue filed (thin support, not the product lane). drex/agentjev/d1 unmeasured
+(4090-hosted servers, box unreachable 2026-10-15) — named absent postures;
+the closure class rests on the modelless null alone. Disclosures: the T1
+error convention counts abstentions as errors (rank-based reads unaffected);
+typed_decisions modelless no longer reproduces the Bench-128 k==N red
+(0.00 pt median, tie-class flips — issue 079's binding), the defect-lane
+exclusion kept regardless. Removed file: `.issues/089_perm_consistency_serving_mode.md`;
+full life via `git log --follow`.
+
 ## 2026-10-14 — Issue 088 CLOSED: the mmlupro_jdi "unreplicable sample law" was a TRANSCRIBED PRIME — the law runs as documented, under a house fold that is not fnv1a64
 
 **Status: Resolved (docs + pins; the prime itself stays, owner-gated).**

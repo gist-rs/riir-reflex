@@ -1,0 +1,32 @@
+issue089 T1 margin-null — records: 3 · K=5 · host=m3 · sha=abd778d
+  modelless × typed_decisions        n=29   err=27  dis=0   dis_rate=+0.0000 err_rate=+0.9310 AUROC(margin)=+0.6852 AUROC(dis)=+0.5000 Δ=-0.1852 partial_r=—
+  modelless × ag_news                n=40   err=25  dis=0   dis_rate=+0.0000 err_rate=+0.6250 AUROC(margin)=+0.5627 AUROC(dis)=+0.5000 Δ=-0.0627 partial_r=—
+  modelless × emotion                n=40   err=28  dis=0   dis_rate=+0.0000 err_rate=+0.7000 AUROC(margin)=+0.5417 AUROC(dis)=+0.5000 Δ=-0.0417 partial_r=—
+  modelless × xnli_en                n=38   err=23  dis=0   dis_rate=+0.0000 err_rate=+0.6053 AUROC(margin)=+0.5884 AUROC(dis)=+0.5000 Δ=-0.0884 partial_r=—
+  modelless × massive_intent_en      n=38   err=12  dis=0   dis_rate=+0.0000 err_rate=+0.3158 AUROC(margin)=+0.7756 AUROC(dis)=+0.5000 Δ=-0.2756 partial_r=—
+  modelless × banking77              n=39   err=24  dis=0   dis_rate=+0.0000 err_rate=+0.6154 AUROC(margin)=+0.6333 AUROC(dis)=+0.5000 Δ=-0.1333 partial_r=—
+  modelless × ag_news                n=20   err=13  dis=0   dis_rate=+0.0000 err_rate=+0.6500 AUROC(margin)=+0.5055 AUROC(dis)=+0.5000 Δ=-0.0055 partial_r=—
+  laya/english × ag_news             n=20   err=1   dis=0   dis_rate=+0.0000 err_rate=+0.0500 AUROC(margin)=+0.5789 AUROC(dis)=+0.5000 Δ=-0.0789 partial_r=—
+  modelless × emotion                n=20   err=14  dis=0   dis_rate=+0.0000 err_rate=+0.7000 AUROC(margin)=+0.5833 AUROC(dis)=+0.5000 Δ=-0.0833 partial_r=—
+  laya/english × emotion             n=20   err=9   dis=1   dis_rate=+0.0500 err_rate=+0.4500 AUROC(margin)=+0.8081 AUROC(dis)=+0.5556 Δ=-0.2525 partial_r=+0.0398
+  modelless × xnli_en                n=20   err=14  dis=0   dis_rate=+0.0000 err_rate=+0.7000 AUROC(margin)=+0.4048 AUROC(dis)=+0.5000 Δ=+0.0952 partial_r=—
+  laya/english × xnli_en             n=20   err=2   dis=0   dis_rate=+0.0000 err_rate=+0.1000 AUROC(margin)=+0.8611 AUROC(dis)=+0.5000 Δ=-0.3611 partial_r=—
+  modelless × massive_intent_en      n=20   err=7   dis=0   dis_rate=+0.0000 err_rate=+0.3500 AUROC(margin)=+0.8132 AUROC(dis)=+0.5000 Δ=-0.3132 partial_r=—
+  laya/english × massive_intent_en   n=20   err=4   dis=6   dis_rate=+0.3000 err_rate=+0.2000 AUROC(margin)=+0.8438 AUROC(dis)=+0.9375 Δ=+0.0938 partial_r=+0.7649
+  modelless × banking77              n=20   err=14  dis=0   dis_rate=+0.0000 err_rate=+0.7000 AUROC(margin)=+0.6190 AUROC(dis)=+0.5000 Δ=-0.1190 partial_r=—
+  laya/english × banking77           n=20   err=15  dis=14  dis_rate=+0.7000 err_rate=+0.7500 AUROC(margin)=+0.8333 AUROC(dis)=+0.7000 Δ=-0.1333 partial_r=+0.2202
+  modelless × typed_decisions        n=21   err=17  dis=0   dis_rate=+0.0000 err_rate=+0.8095 AUROC(margin)=+0.6103 AUROC(dis)=+0.5000 Δ=-0.1103 partial_r=—
+  laya/typed × typed_decisions       n=44   err=14  dis=7   dis_rate=+0.1591 err_rate=+0.3182 AUROC(margin)=+0.7738 AUROC(dis)=+0.6452 Δ=-0.1286 partial_r=+0.2614
+
+── lane-level (pooled over suites) ──
+  laya/english                       n=100  err=31  dis=21  dis_rate=+0.2100 err_rate=+0.3100 AUROC(margin)=+0.6821 AUROC(dis)=+0.7452 Δ=+0.0631 partial_r=+0.4695
+    ΔAUROC 95% bootstrap CI: [-0.0734, +0.1963]
+  laya/typed                         n=44   err=14  dis=7   dis_rate=+0.1591 err_rate=+0.3182 AUROC(margin)=+0.7738 AUROC(dis)=+0.6452 Δ=-0.1286 partial_r=+0.2614
+    ΔAUROC 95% bootstrap CI: [-0.2847, +0.0234]
+  modelless                          n=345  err=218 dis=0   dis_rate=+0.0000 err_rate=+0.6319 AUROC(margin)=+0.5124 AUROC(dis)=+0.5000 Δ=-0.0124 partial_r=—
+    ΔAUROC 95% bootstrap CI: [-0.0718, +0.0510]
+
+── verdicts (pre-registered floors: ΔAUROC ≥ 0.02 primary on ≥1 lane; partial r ≥ 0.05 secondary; Bonferroni α/2; typed defect lane excluded) ──
+  laya/english: primary PASS · secondary PASS
+  laya/typed: primary MISS [DEFECT LANE — excluded from the ≥1-lane bar] · secondary PASS
+  modelless: primary MISS

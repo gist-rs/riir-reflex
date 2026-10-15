@@ -108,6 +108,16 @@ pub struct CaseRow {
     pub p_ref: Vec<f64>,
     pub swing_pt: f64,
     pub flipped: bool,
+    /// The identity ordering's top-2 probabilities tie EXACTLY (margin
+    /// 0.0) — the control's tie-break-exempt class, and T1's untied
+    /// filter (issue 089).
+    pub tie: bool,
+    /// The gold option key (issue 089 T1 — the error-prediction join;
+    /// `None` when the slot has no gold — never over the suite paths).
+    pub gold: Option<String>,
+    /// The identity ordering's top-2 margin `p(1) − p(2)` (issue 089 T1 —
+    /// the margin-null baseline; `None` under two options).
+    pub margin_top2: Option<f64>,
 }
 
 impl CaseRow {
@@ -121,6 +131,9 @@ impl CaseRow {
             p_ref: s.p_ref.clone(),
             swing_pt: s.swing * 100.0,
             flipped: s.flipped,
+            tie: s.tie,
+            gold: s.gold.clone(),
+            margin_top2: s.margin_top2,
         }
     }
 }
@@ -2062,6 +2075,9 @@ mod tests {
                         p_ref: vec![1.0],
                         swing_pt: 0.0,
                         flipped: false,
+                        tie: false,
+                        gold: Some("gamma".to_string()),
+                        margin_top2: Some(1.0),
                     }),
                     cases: Vec::new(),
                 }],
@@ -2108,12 +2124,18 @@ mod tests {
             swing: 0.5,
             flipped: true,
             tie: false,
+            gold: Some("a".to_string()),
+            margin_top2: Some(0.5),
         };
         let r = CaseRow::of(&s);
         assert_eq!(r.swing_pt, 50.0);
         assert!(r.flipped);
+        assert!(!r.tie);
         assert_eq!(r.p_ref, vec![0.8, 0.3]);
         assert_eq!(r.ref_pick, "b");
+        // Issue 089 T1 — the join fields carry through.
+        assert_eq!(r.gold.as_deref(), Some("a"));
+        assert_eq!(r.margin_top2, Some(0.5));
     }
 
     // The JSON record must serialize — the bench pipeline reads it.

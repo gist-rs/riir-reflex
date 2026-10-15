@@ -208,6 +208,15 @@ pub struct CaseSpread {
     /// first-position tie-break, not order sensitivity — the control's
     /// flip rule exempts it.
     pub tie: bool,
+    /// The gold label for the question (`None` when the slot has no gold
+    /// — never over the suite paths). Issue 089 T1: the error-prediction
+    /// join (`ref_pick != gold`).
+    pub gold: Option<String>,
+    /// The identity ordering's top-2 margin `p(1) − p(2)` (`None` under
+    /// two options). Issue 089 T1: the margin-null baseline — the open
+    /// question is whether perm-disagreement predicts error BEYOND this
+    /// margin, so the baseline ships beside the disagreement signal.
+    pub margin_top2: Option<f64>,
 }
 
 /// Compute the spread for one slot from its per-ordering answers.
@@ -281,6 +290,8 @@ pub fn case_spread(
     let mut sorted0 = answers[0].probs.clone();
     sorted0.sort_by(|a, b| b.total_cmp(a));
     let tie = sorted0.len() >= 2 && sorted0[0] == sorted0[1];
+    // Issue 089 T1 — the margin-null baseline: top1 − top2 at identity.
+    let margin_top2 = (sorted0.len() >= 2).then(|| sorted0[0] - sorted0[1]);
     let flipped = pick_labels.iter().any(|l| *l != ref_pick);
     Ok(CaseSpread {
         case_id: case_id.to_string(),
@@ -293,6 +304,8 @@ pub fn case_spread(
         swing: swing.clamp(0.0, 1.0),
         flipped,
         tie,
+        gold: gold_label.map(str::to_string),
+        margin_top2,
     })
 }
 
@@ -503,6 +516,10 @@ mod tests {
         assert!(!s.flipped);
         assert!(s.swing < 1e-12, "content-faithful lane must not swing");
         assert_eq!(s.p_gold.as_ref().expect("gold vec")[0], 0.8);
+        // Issue 089 T1 — the join fields ride the same record.
+        assert_eq!(s.gold.as_deref(), Some("gamma"));
+        let m = s.margin_top2.expect("margin over 5 options");
+        assert!((m - 0.75).abs() < 1e-12, "top1 0.8 − top2 0.05, got {m}");
         let st = spread_stats(std::slice::from_ref(&s));
         assert_eq!(st.verdict, SpreadVerdict::Pass);
         assert_eq!(st.flips, 0);
@@ -627,6 +644,8 @@ mod tests {
             swing,
             flipped,
             tie: false,
+            gold: None,
+            margin_top2: None,
         };
         // Exactly at the gate (2 pt) = PASS; a hair above = RED.
         let at_gate = [mk(0.02, false), mk(0.01, false), mk(0.03, true)];
