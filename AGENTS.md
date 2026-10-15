@@ -289,6 +289,15 @@ D1_SERVE_URL=http://127.0.0.1:8078 \
 # --distill-teacher jeva (the B2 capture rider — RIDT carries the license note):
 JEVA_SERVE_URL=http://127.0.0.1:8095 \
   cargo run --release --bin harness -- --jeva --suites typed_decisions --skip-laya
+# MEASURED 2026-10-16 (Bench 148): the full 9-suite board + perm (0 flips / 255
+# slots) + null-probe (A2 0 flips; A1 their-gate drift +2.6..+12.5 pt) at
+# reflex a3cd05c. macOS serve (the M3 lane — the CUDA default declined):
+#   HF_HOME=$PWD/.raw/jeva-hf JEVA_DEVICE=mps JEVA_PORT=8095 \
+#     .raw/jeva-env/bin/python scripts/jeva_server.py
+# (bf16 config dtype disclosed via /health; the qwen3_5 GDN layers run
+# transformers' reference PyTorch fallback — fla/triton unavailable on macOS;
+# ~0.3–4.1 s/case warm-cache. Bare-label suites ride their SEQUENCE arm —
+# the lane's first live wire fix, Bench 148 §findings.)
 
 # Corpus-synthesis lane (riir-train plan 426 T5, `8426cef`): sealed SYNT v2
 # artifact + blake3 sidecar, openthai agreement VETO. --synth-plan is
