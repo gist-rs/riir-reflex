@@ -17,12 +17,11 @@ fail-closed, correcting this issue's original "contact-gated" note). **The 632 T
 teacher capture is RUNNING** (`.raw/distill_teacher_jeva`, allow_null=0, ~15 h MPS).
 Remaining: C1 (low), C2 (katgpt-core `set_refine`, do-not-wire-blind). Comparison-lane
 cells (--drex/--d1/--agentjev) wired, unrun (servers down at the record's window).
-**Claimed:** shikuwa-b1-jeva-lane, 1792090498, expires 2026-10-17T18:00:00Z
-(displacing the MALFORMED A1–A3 claim line — that scope LANDED 2026-10-16 in Bench 147;
-this claim's scope: **B1** the `--jeva` comparison lane + serve script, and the **B2**
-capture rider — the `--distill-teacher jeva` seam. The B1 license gate is RESOLVED by
-riir-train 632 T0: weights license UNDECLARED → restricted posture — capture-for-
-measurement OK, adoption fail-closed. C2 stays out, do-not-wire-blind.)
+**Claimed:** shikuwa-b1-jeva-lane, 1792105272, expires 2026-10-16T23:59:00Z
+(scope: **C1** — the rubric-covariance + template probes. Prior scopes LANDED
+2026-10-16: A1–A3 in Bench 147, B1 + the B2 capture rider in Bench 148. C2 stays
+out, do-not-wire-blind — it needs its own set-awareness suite + GOAT before any
+plan.)
 
 Paper: "Jeva: System One Models from First Principles" (Li & Wang, NUS, arXiv:2610.18773) — open decision-native model (HF `LIQIIIII/Jeva-4B`, code Apache-2.0 at `LiQiiiii/Jeva`). Three structural propositions double as pin-able properties for our engine, and the model is the first same-wire (choice/noul/score) open-weights lane candidate with a published implementation.
 
