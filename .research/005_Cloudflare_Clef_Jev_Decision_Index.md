@@ -4,6 +4,14 @@
 filed: `.plans/011_clef_lane_jdi_protocol.md`. The hosted-Clef serving credentials (Cloudflare
 account ID + Workers AI API token) are owner-gated; nothing in this note requires them to be true.
 
+> **Update 2026-10-15:** NEW OPEN ENTRANT — **Jeva-4B** (arXiv:2610.18773, Li & Wang, NUS; HF
+> `LIQIIIII/Jeva-4B` contact-gated, code Apache-2.0): the first decision-native System-One model
+> with a full published paper — 78.30 typed (their split/protocol, self-reported), 0.00% order
+> flips (structural), null AUROC 98.66, 69.88% @ K=2048, 27.98× cache speedup. Competitor distill
+> + recipe + track verdicts live rethink-side: `../riir-rethink/.research/007_Jeva_System_One_First_Principles_Open_Teacher.md`;
+> reflex follow-ups (a `--jeva` local lane + the null/K-stability probe family) filed as Issue 090.
+> Board posture (seated? traces?) unverified as of that date — edition law applies when read.
+
 > **Update 2026-10-09:** the board moved — a NEW EDITION, **release-v3 / "Decision Index 0.3"**
 > (`panel_id decision-index-0.3`, generated 2026-10-07T18:25:58Z, 114 entrants, hardware
 > "1 x NVIDIA RTX PRO 6000", Jev `jev-1.13.0`; fetched + parsed fresh 2026-10-09), which rebuilt
