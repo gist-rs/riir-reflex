@@ -116,6 +116,104 @@ impl KeyMap {
     }
 }
 
+/// The corpus→student label bijection — Issue 623's seam-finding root fix
+/// (2026-10-16). The two label LAWS differ per suite: reflex's corpus
+/// `train_row_label` names int-ClassLabel suites by OPTION KEY (the
+/// Issue-077 content binding) while the instinct student's `suite_row`
+/// reads the raw dataset ints; prompt_injections's corpus is int-strings
+/// while the student speaks the unified noul pair. The student's join
+/// (`train_arm_b`) asserts exact `label_universe` equality, so the first
+/// keyed-probs captures refused xnli/pi LOUD and the window's remap
+/// script (`plan623_student_universe_remap.py`) bridged offline — the
+/// repair. THIS is the law: the WRITER derives the bijection at capture
+/// time and emits the dump in the student spelling.
+#[derive(Debug, Clone, PartialEq)]
+pub(crate) enum StudentUniverse {
+    /// The two label laws agree — nothing to map (massive/banking77:
+    /// names both sides; sst5: int-strings both sides).
+    Identity,
+    /// The int-ClassLabel name-bound suites (ag_news/emotion/xnli_en):
+    /// corpus label = the option NAME; student label = the dataset INT
+    /// string. The bijection is `train_row_label`'s own law inverted —
+    /// `KEYS[int] = name`, so a name maps to its POSITION in the
+    /// presented keys (the builder's ClassLabel-order invariant; the
+    /// Name gold pin proves presentation order on every row, and the
+    /// student re-pins gold against its own rows at load).
+    PositionalInt(Vec<String>),
+    /// prompt_injections: corpus "0"/"1" vs the student's unified noul
+    /// pair "no"/"yes" (gold 1 = injection = yes).
+    NoulPair,
+}
+
+impl StudentUniverse {
+    /// Derive the bijection for a suite. `presented_keys` = case 0's
+    /// first-question criteria keys IN PRESENTATION ORDER (the
+    /// ClassLabel order); only the PositionalInt arm reads it.
+    pub(crate) fn derive(suite: &str, presented_keys: &[String]) -> Result<Self, String> {
+        match suite {
+            "ag_news" | "emotion" | "xnli_en" => {
+                if presented_keys.is_empty() || presented_keys.len() > 4096 {
+                    return Err(format!(
+                        "{suite}: implausible presented-key count {} for the positional bijection",
+                        presented_keys.len()
+                    ));
+                }
+                Ok(Self::PositionalInt(presented_keys.to_vec()))
+            }
+            "prompt_injections" => Ok(Self::NoulPair),
+            _ => Ok(Self::Identity),
+        }
+    }
+
+    /// One corpus label → its student spelling. Errors name the label —
+    /// an absent name means the presented-key order drifted from the
+    /// corpus law (the pin class), never a silent passthrough.
+    pub(crate) fn translate(&self, corpus: &str) -> Result<String, String> {
+        match self {
+            Self::Identity => Ok(corpus.to_string()),
+            Self::PositionalInt(order) => order
+                .iter()
+                .position(|k| k == corpus)
+                .map(|i| i.to_string())
+                .ok_or_else(|| {
+                    format!(
+                        "corpus label {corpus:?} absent from the presented-key order — \
+                         presentation/corpus law drift"
+                    )
+                }),
+            Self::NoulPair => match corpus {
+                "0" => Ok("no".to_string()),
+                "1" => Ok("yes".to_string()),
+                other => Err(format!(
+                    "noul-pair corpus label {other:?} is neither \"0\" nor \"1\""
+                )),
+            },
+        }
+    }
+
+    /// The full class-universe mapping: translate every corpus class,
+    /// verify INJECTIVITY (two corpus labels collapsing onto one student
+    /// label would corrupt the join silently — refuse), sort (the
+    /// student's `label_universe` law). Returns the student classes and
+    /// the corpus→student INDEX permutation for row-level remaps.
+    pub(crate) fn apply(&self, corpus_classes: &[String]) -> Result<(Vec<String>, Vec<usize>), String> {
+        let mut student: Vec<String> = Vec::with_capacity(corpus_classes.len());
+        for c in corpus_classes {
+            let t = self.translate(c)?;
+            if student.contains(&t) {
+                return Err(format!(
+                    "non-injective student mapping: {t:?} twice — refusing the universe remap"
+                ));
+            }
+            student.push(t);
+        }
+        let mut sorted = student.clone();
+        sorted.sort();
+        let perm: Vec<usize> = student.iter().map(|s| sorted.iter().position(|x| x == s).expect("sorted contains every element")).collect();
+        Ok((sorted, perm))
+    }
+}
+
 /// The selected distill teacher (Plan 426 T1's seam): everything the
 /// per-row loop needs, constructed once per run. The forward returns
 /// LABEL-KEYED probabilities — exactly what [`map_targets`] consumes —
@@ -821,7 +919,34 @@ fn distill_suite(
     let n_classes = classes.len();
 
     let keymap = KeyMap::for_suite(spec.name)
-        .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?;
+        .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?
+    ;
+    // The 623 root-cause law (see [`StudentUniverse`]): emit the dump in
+    // the STUDENT label spelling, derived at capture time. The corpus
+    // classes stay the pinning space (map_targets runs unchanged); the
+    // student classes + index permutation ride every row out.
+    let presented_keys: Vec<String> = built
+        .cases
+        .first()
+        .and_then(|c| c.questions.first())
+        .and_then(|q| q.criteria.as_object())
+        .map(|m| m.keys().cloned().collect())
+        .unwrap_or_default();
+    let student_universe = StudentUniverse::derive(spec.name, &presented_keys)?;
+    let (student_classes, student_perm) = student_universe.apply(&classes)?;
+    if student_universe == StudentUniverse::Identity {
+        eprintln!(
+            "  [distill {}] student spelling = corpus (identity map)",
+            spec.name
+        );
+    } else {
+        eprintln!(
+            "  [distill {}] student spelling remap ACTIVE: {} corpus classes → {} student classes",
+            spec.name,
+            classes.len(),
+            student_classes.len()
+        );
+    }
     let mut teacher = construct_teacher(teacher_name, spec)?;
 
     let mut header = serde_json::json!({
@@ -833,7 +958,22 @@ fn distill_suite(
         "row_rule": "student rows = reflex train_docs over the sorted train-*.json pages; \
                      case i ↔ doc i (same survivor predicate, same order); the student \
                      re-verifies per-row gold labels against its own rows",
-        "classes": classes,
+        "classes": student_classes,
+        "classes_spelling": if student_universe == StudentUniverse::Identity {
+            serde_json::json!("corpus (identity)")
+        } else {
+            let mut map = serde_json::Map::new();
+            for (i, c) in classes.iter().enumerate() {
+                map.insert(
+                    c.clone(),
+                    serde_json::Value::String(student_classes[student_perm[i]].clone()),
+                );
+            }
+            serde_json::json!({
+                "law": "student universe emitted at capture time (the 623 seam-finding fix)",
+                "map": serde_json::Value::Object(map),
+            })
+        },
         "n_rows": docs.len(),
         "limit": limit,
         "created_utc": iso8601_utc(),
@@ -868,6 +1008,8 @@ fn distill_suite(
         let t0 = std::time::Instant::now();
         let (probabilities, ms) = teacher.forward(case)?;
         durs_ms.push(if ms > 0 { ms } else { t0.elapsed().as_millis() as u64 });
+        // Pinning happens in CORPUS spelling (unchanged law); the row then
+        // rides the student permutation out (the 623 capture-time law).
         let (gold_c, pick_c, q) = map_targets(
             keymap,
             &doc.label,
@@ -876,6 +1018,14 @@ fn distill_suite(
             &classes,
         )
         .map_err(|e| format!("{}: {e}", case.id))?;
+        let gold_c = student_perm[gold_c];
+        let pick_c = student_perm[pick_c];
+        let mut q = q;
+        let mut sq = vec![0.0f32; q.len()];
+        for (ci, p) in q.iter_mut().enumerate() {
+            sq[student_perm[ci]] = *p;
+        }
+        std::mem::swap(&mut q, &mut sq);
         hits += usize::from(pick_c == gold_c);
         out_writer.push_row(gold_c as u32, pick_c as u32, &q);
         if durs_ms.len().is_multiple_of(2000) {
@@ -1033,6 +1183,112 @@ mod tests {
 
     fn probs(pairs: &[(&str, f64)]) -> Vec<(String, f64)> {
         pairs.iter().map(|(k, v)| ((*k).to_string(), *v)).collect()
+    }
+
+    // ── Issue 623's seam-finding root fix: the student-universe law ────
+
+    #[test]
+    fn student_universe_dispatches_by_suite() {
+        // The name-bound int-ClassLabel suites derive the POSITIONAL
+        // bijection from the presented keys; pi is the fixed noul pair;
+        // everything else is identity.
+        let xnli_keys = [
+            "entailment".to_string(),
+            "neutral".to_string(),
+            "contradiction".to_string(),
+        ];
+        assert_eq!(
+            StudentUniverse::derive("xnli_en", &xnli_keys).unwrap(),
+            StudentUniverse::PositionalInt(xnli_keys.to_vec())
+        );
+        assert_eq!(
+            StudentUniverse::derive("ag_news", &xnli_keys).unwrap(),
+            StudentUniverse::PositionalInt(xnli_keys.to_vec())
+        );
+        assert_eq!(
+            StudentUniverse::derive("prompt_injections", &[]).unwrap(),
+            StudentUniverse::NoulPair
+        );
+        for s in ["massive_intent_en", "banking77", "sst5"] {
+            assert_eq!(
+                StudentUniverse::derive(s, &[]).unwrap(),
+                StudentUniverse::Identity,
+                "{s}"
+            );
+        }
+        // An implausible presented-key count refuses (never a confident
+        // empty bijection).
+        assert!(StudentUniverse::derive("xnli_en", &[]).is_err());
+    }
+
+    #[test]
+    fn positional_int_translates_inverts_the_corpus_law() {
+        // train_row_label's own law: corpus name = KEYS[int]. The writer's
+        // inverse: name → its position. Round-trips on every class.
+        let keys: Vec<String> = ["world", "sports", "business", "sci_tech"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let su = StudentUniverse::derive("ag_news", &keys).unwrap();
+        for (i, k) in keys.iter().enumerate() {
+            assert_eq!(su.translate(k).unwrap(), i.to_string());
+        }
+        // A name absent from the presented order is the pin class — loud.
+        assert!(su.translate("not_a_key").is_err());
+    }
+
+    #[test]
+    fn noul_pair_maps_the_fixed_pair() {
+        let su = StudentUniverse::derive("prompt_injections", &[]).unwrap();
+        assert_eq!(su.translate("0").unwrap(), "no");
+        assert_eq!(su.translate("1").unwrap(), "yes");
+        assert!(su.translate("2").is_err());
+        assert!(su.translate("maybe").is_err());
+    }
+
+    #[test]
+    fn apply_sorts_and_permutes_the_universe() {
+        // xnli shape: corpus classes arrive SORTED by name; the student
+        // universe is the int strings, sorted lexically; the permutation
+        // carries row-level indices across.
+        let keys: Vec<String> = ["entailment", "neutral", "contradiction"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let su = StudentUniverse::derive("xnli_en", &keys).unwrap();
+        let corpus: Vec<String> = {
+            let mut c = keys.clone();
+            c.sort(); // contradiction, entailment, neutral
+            c
+        };
+        let (student, perm) = su.apply(&corpus).unwrap();
+        assert_eq!(student, vec!["0".to_string(), "1".to_string(), "2".to_string()]);
+        // corpus[0]="contradiction"→int 2→student[2]; corpus[1]="entailment"→0;
+        // corpus[2]="neutral"→1.
+        assert_eq!(perm, vec![2, 0, 1]);
+        // Identity: sorted input, identity permutation.
+        let id = StudentUniverse::Identity;
+        let (s, p) = id
+            .apply(&["b".to_string(), "a".to_string()])
+            .unwrap();
+        assert_eq!(s, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(p, vec![1, 0]);
+    }
+
+    #[test]
+    fn apply_refuses_non_injective_mappings() {
+        // Two corpus names colliding onto one student label — the silent-
+        // corruption class — refuses loud.
+        let keys: Vec<String> = ["a", "b", "a"]
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let su = StudentUniverse::PositionalInt(keys);
+        // "a" appears at positions 0 and 2 — translating TWO DIFFERENT
+        // corpus classes ("a" and "a") is degenerate input the corpus side
+        // never produces; the injectivity wall still holds:
+        let e = su.apply(&["a".to_string(), "a".to_string()]).unwrap_err();
+        assert!(e.contains("non-injective"), "{e}");
     }
 
     #[test]
