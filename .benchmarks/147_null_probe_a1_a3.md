@@ -28,3 +28,43 @@ The modelless CONTROL is the deployed posture verbatim: `fit_posture_inner` + `b
 - The exit-1 on control reds is the designed loud refusal: the record is on disk; A2-within and A3 green, the reds are the floor leg (a finding, not a crash).
 
 Refs: Issue 090 · arXiv:2610.18773 Props 1–2 · Plan 340 (the floor shape) · Bench 128 (the perm-probe lineage this lane mirrors).
+
+## Addendum — the n-firming re-read (2026-10-16, same instrument, 10× n)
+
+`--null-probe --null-max-cases 500` (stride law samples 300–600 slots/suite vs the
+first read's 38–60) — the A1-floor verdicts at full population, CPU-only, host
+shikuwa, sibling LOWO window unchanged:
+
+| suite | first read (n 38–60) | n-firmed (n 300–600) | gate AUROC vs floor | gate ECE vs floor |
+|---|---|---|---|---|
+| typed | RED | **PASS** | 0.5726 vs 0.5716 (tie) | 0.1679 vs 0.4350 (win) |
+| ag_news | RED | **RED — CONFIRMED** | 0.5588 vs 0.5846 (**−0.026**) | 0.0813 vs 0.2047 (win) |
+| emotion | RED | **RED — CONFIRMED** | 0.4745 vs 0.5208 (**−0.046**) | 0.1297 vs 0.2980 (win) |
+| xnli | PASS | **RED** (Δ 0.0024) | 0.4767 vs 0.4791 (tie-zone) | 0.0335 vs 0.3201 (win) |
+| massive | RED | **PASS** | 0.7156 vs 0.7153 (tie) | 0.0614 vs 0.1249 (win) |
+| banking77 | PASS | PASS | 0.6322 vs 0.6321 (tie) | 0.0278 vs 0.1942 (win) |
+
+The finding FIRMS, with the small-n verdicts split into signal and noise:
+
+- **The AUROC-axis weakness is REAL on ag_news (−0.026) and emotion (−0.046) at
+  10× n** — the deployed confidence readout ranks correctness worse than raw
+  max-prob on exactly these two suites. typed/massive flip to PASS (their
+  first-read REDs were n 38–60 artifacts); xnli flips RED on a Δ 0.0024 that is
+  deep inside noise — the strict lose-no-axis rule fires on a tie-zone delta
+  (disclosed as such; a noise band on the AUROC axis would be an instrument
+  refinement, not a verdict change).
+- **The ECE axis wins HUGE and consistently everywhere (0.03–0.17 vs 0.12–0.44)**
+  — the calibrator does its job; the ranking axis is the weak one.
+- Because the floor's conformal calibration is MONOTONE in the raw max-prob,
+  floor AUROC ≡ AUROC(raw max-prob): the comparison is really
+  AUROC(deployed readout) vs AUROC(raw max-prob). The deployed dispatch (the
+  Bench-817-inherited readout) is not a monotone function of max-prob — that is
+  where the ranking loss lives, and any fix is a readout-dispatch re-derivation
+  (explicitly gated on evidence exactly like this — the AGENTS "never
+  re-derived" law; this addendum is that evidence base, not the fix).
+
+A2/A3 at 10× n: zero within-regime flips everywhere (e.g. typed 0/295 untied
+slots); the cross-regime flip counts scale with n (ag 114/400, banking 130/500,
+massive 117/300 — the arming-law shape unchanged from the first read); noul
+bit-identity holds on every suite — the structural pins are n-independent, as
+expected.
