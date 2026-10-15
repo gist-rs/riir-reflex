@@ -203,7 +203,6 @@ cargo run --release --features laya-riir-metal --bin harness -- --distill \
 cargo run --release --bin harness -- --teacher-router \
   .raw/distill_teacher_d3,.raw/distill_teacher_pplx_v2,.raw/distill_teacher_clef \
   --router-out .raw/distill_router
-```
 
 # CLM comparison lane (Issue 019, opt-in `clm-lane`; prose law byte-pinned to
 # sha `cca045ff` via scripts/clm_goldens.py; Bench 059 = the T-Rex re-run):
