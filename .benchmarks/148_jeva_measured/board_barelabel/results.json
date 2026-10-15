@@ -1,0 +1,602 @@
+{
+  "meta": {
+    "date_utc": "2026-10-15T21:14:46Z",
+    "git_sha": "83031d2",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "off (pass --d3 to add the comparison lane; serve their d3_server.py on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)",
+    "jeva_lane": "on — Jeva-4B (LIQIIIII/Jeva-4B, arXiv:2610.18773; Qwen3.5-4B backbone + 13.37M decision head — the first decision-native PAPER model on our split; weights license UNDECLARED → MEASUREMENT + TEACHER-CAPTURE posture, adoption FAIL-CLOSED, riir-train 632 T0; not affiliated) served through OUR reference stdlib server scripts/jeva_server.py over their in-repo jeva.Jeva via http://127.0.0.1:8095 (LIQIIIII/Jeva-4B dtype=torch.bfloat16): same cases, our /decide contract (the wire pinned from their types.py + inference.py at the pin), gold-label scoring; liveness = GET /health, the model id read from the response's own model field (never hardcoded); the SERVED DTYPE is the RESOLVED param dtype off /health (never assumed from the config); the allow_null posture is server-side (JEVA_ALLOW_NULL, default 0 = the forced-pick comparison posture; 1 arms their coverage gate for the A1 probe); probabilities read as-is (never renormalized); noul reads their CONDITIONAL q_true (the paper's A3 readout); determinism = the observed-repeat check over the volatile-stripped body (latency_ms + usage — their input_tokens moves with the hybrid option cache, a cache-hit delta is not non-determinism); reflex Issue 090 B1 + riir-train 632 T2",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 15.84,
+        "swap_used_mb": 6063.75,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 15.84 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 9.45,
+        "swap_used_mb": 6063.75,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 9.45 > 6 — a sibling job is on the box"
+        ]
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "cases_digest": "fnv1a64-dd8ab35333abb82a",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.394,
+          "macro_f1": 0.35256293737855116,
+          "ece": 0.37796421800740065,
+          "brier": 0.9822180594530954,
+          "nll": 4.174181699600196,
+          "aurc": 0.5090083545416316,
+          "mean_confidence": 0.01603578199259937,
+          "acc_at_50_coverage": 0.484,
+          "acc_at_80_coverage": 0.4375
+        },
+        "readout_ece": 0.027789311647415153,
+        "readout_brier": 0.2289881572429523,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.526,
+          "selective_accuracy": 0.5485232067510548,
+          "selective_n": 237
+        },
+        "abstain_causes": {
+          "score_gate": 132,
+          "distance_gate": 131,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.37796421800740065,
+        "readout_ece_calibrated": 0.027789311647415153,
+        "floor_ece": 0.19416915422885572,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.424,
+        "latency_p99_ms": 0.957,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.59,
+          "max_ms": 3.563,
+          "argmax_case": 155
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.997702333,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.317653,
+        "distance_threshold": 0.55494976,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.317653,
+            "status": "fitted",
+            "targetAccuracy": 0.47857141,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.55494976,
+            "status": "fitted",
+            "targetAccuracy": 0.4857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "card payment wrong exchange rate",
+            "pred": "exchange rate",
+            "count": 5,
+            "share_of_errors": 0.0165016501650165
+          },
+          {
+            "gold": "top up by cash or cheque",
+            "pred": "top up limits",
+            "count": 5,
+            "share_of_errors": 0.0165016501650165
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card arrival",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "card payment not recognised",
+            "pred": "card linking",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "lost or stolen card",
+            "pred": "card linking",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "pending cash withdrawal",
+            "pred": "pending top up",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "reverted card payment?",
+            "pred": "declined card payment",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "why verify identity",
+            "pred": "verify my identity",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "card acceptance",
+            "pred": "card arrival",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card not working",
+            "pred": "card arrival",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card not working",
+            "pred": "card linking",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card payment fee charged",
+            "pred": "card linking",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.385395537525355,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.37906540132593364
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.37906540132593364
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.39341777086257934
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-a8ba728d1bb79dd2"
+      },
+      "laya": {},
+      "jeva": {
+        "lane": "jeva",
+        "model": "LIQIIIII/Jeva-4B",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.916,
+          "macro_f1": 0.9142416788711663,
+          "ece": 0.034689996540546456,
+          "brier": 0.139174121149662,
+          "nll": 0.3446115010580208,
+          "aurc": 0.017911163030614612,
+          "mean_confidence": 0.9164953120350837,
+          "acc_at_50_coverage": 0.988,
+          "acc_at_80_coverage": 0.97
+        },
+        "readout_ece": 0.034689996540546456,
+        "readout_brier": 0.06246157173890667,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "drex_conf_readout": {
+          "choice": {
+            "n": 500,
+            "ece": 0.034689996540546456,
+            "brier": 0.06246157173890667
+          },
+          "score": null,
+          "noul": null,
+          "floor_ece": 0.4060239043824701,
+          "floor_n_cal": 250,
+          "floor_n_test": 250,
+          "floor_posture": "split-half conformal (first half cal, second half test) — this lane has no dedicated cal slice"
+        },
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 174.0,
+        "latency_p99_ms": 335.0,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 10811.0,
+          "max_ms": 10811.0,
+          "argmax_case": 0
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 105.481113875,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.9148073022312374
+      },
+      "slices": {
+        "n_test": 500,
+        "n_cal": 200,
+        "n_pool": 9793,
+        "test_digest": "fnv1a64-cb0b5cbcb0cdfcce",
+        "cal_digest": "fnv1a64-8f14f68a2e55799f",
+        "pool_digest": "fnv1a64-14a38d138e218d1b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "semantic_defects",
+      "n_cases": 102,
+      "n_questions": 102,
+      "cases_digest": "fnv1a64-8032fe33f25653bc",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 102,
+          "accuracy": 0.18627450980392157,
+          "macro_f1": 0.17981060921698963,
+          "ece": 0.028703849835723043,
+          "brier": 0.8338161412602471,
+          "nll": 1.7937330962600424,
+          "aurc": 0.822020626645722,
+          "mean_confidence": 0.18253409088242287,
+          "acc_at_50_coverage": 0.19607843137254902,
+          "acc_at_80_coverage": 0.18518518518518517
+        },
+        "readout_ece": 0.18434360097436345,
+        "readout_brier": 0.1856302045906745,
+        "raw_abstain": {
+          "abstain_rate": 0.6078431372549019,
+          "selective_accuracy": 0.25,
+          "selective_n": 40
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.6078431372549019,
+          "selective_accuracy": 0.25,
+          "selective_n": 40
+        },
+        "abstain_causes": {
+          "score_gate": 43,
+          "distance_gate": 19,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.18434360097436345,
+        "readout_ece_calibrated": 0.18434360097436345,
+        "floor_ece": 0.36171310629514974,
+        "g1_pass": null,
+        "g1_verdict": "no_claim",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.024,
+        "latency_p99_ms": 0.027,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.025,
+          "max_ms": 0.028,
+          "argmax_case": 77
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.006312458,
+        "n_cases": 102,
+        "n_questions": 102,
+        "score_threshold": 0.0010168552,
+        "distance_threshold": 0.52091897,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0010168552,
+            "status": "fitted",
+            "targetAccuracy": 0.30769232,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          },
+          "distance": {
+            "threshold": 0.52091897,
+            "status": "fitted",
+            "targetAccuracy": 0.30769232,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 18446744073709551615,
+          "source": "registry (selection n/a: self-corpora)",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "off_by_one",
+            "pred": "swapped_lookup",
+            "count": 9,
+            "share_of_errors": 0.10843373493975904
+          },
+          {
+            "gold": "clean",
+            "pred": "inverted_condition",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "inverted_condition",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "swapped_lookup",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "swapped_lookup",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "clean",
+            "pred": "swapped_lookup",
+            "count": 5,
+            "share_of_errors": 0.060240963855421686
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "clean",
+            "count": 5,
+            "share_of_errors": 0.060240963855421686
+          },
+          {
+            "gold": "inverted_condition",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "inverted_condition",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "clean",
+            "count": 3,
+            "share_of_errors": 0.03614457831325301
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.16666666666666666,
+        "jdi_skill": 0.023529411764705896,
+        "corpus_digest": "fnv1a64-195c2ee8889fe60a"
+      },
+      "laya": {},
+      "jeva": {
+        "lane": "jeva",
+        "model": "LIQIIIII/Jeva-4B",
+        "hard": {
+          "n": 102,
+          "accuracy": 0.9117647058823529,
+          "macro_f1": 0.9062909494282043,
+          "ece": 0.10600347641636346,
+          "brier": 0.1661675175052031,
+          "nll": 0.34685779941754197,
+          "aurc": 0.017479527160934545,
+          "mean_confidence": 0.8178375611702601,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.9629629629629629
+        },
+        "readout_ece": 0.10600347641636346,
+        "readout_brier": 0.07952916254618968,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "drex_conf_readout": {
+          "choice": {
+            "n": 102,
+            "ece": 0.10600347641636346,
+            "brier": 0.07952916254618968
+          },
+          "score": null,
+          "noul": null,
+          "floor_ece": 0.08559577677224735,
+          "floor_n_cal": 51,
+          "floor_n_test": 51,
+          "floor_posture": "split-half conformal (first half cal, second half test) — this lane has no dedicated cal slice"
+        },
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 484.0,
+        "latency_p99_ms": 520.0,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 1588.0,
+          "max_ms": 1588.0,
+          "argmax_case": 0
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 61.027943875,
+        "n_cases": 102,
+        "n_questions": 102,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.16666666666666666,
+        "jdi_skill": 0.8941176470588235
+      }
+    }
+  ]
+}

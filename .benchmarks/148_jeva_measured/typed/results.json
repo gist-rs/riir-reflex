@@ -1,0 +1,425 @@
+{
+  "meta": {
+    "date_utc": "2026-10-15T20:35:14Z",
+    "git_sha": "83031d2",
+    "host": "m3",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "off (pass --d3 to add the comparison lane; serve their d3_server.py on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)",
+    "jeva_lane": "on — Jeva-4B (LIQIIIII/Jeva-4B, arXiv:2610.18773; Qwen3.5-4B backbone + 13.37M decision head — the first decision-native PAPER model on our split; weights license UNDECLARED → MEASUREMENT + TEACHER-CAPTURE posture, adoption FAIL-CLOSED, riir-train 632 T0; not affiliated) served through OUR reference stdlib server scripts/jeva_server.py over their in-repo jeva.Jeva via http://127.0.0.1:8095 (LIQIIIII/Jeva-4B dtype=torch.bfloat16): same cases, our /decide contract (the wire pinned from their types.py + inference.py at the pin), gold-label scoring; liveness = GET /health, the model id read from the response's own model field (never hardcoded); the SERVED DTYPE is the RESOLVED param dtype off /health (never assumed from the config); the allow_null posture is server-side (JEVA_ALLOW_NULL, default 0 = the forced-pick comparison posture; 1 arms their coverage gate for the A1 probe); probabilities read as-is (never renormalized); noul reads their CONDITIONAL q_true (the paper's A3 readout); determinism = the observed-repeat check over the volatile-stripped body (latency_ms + usage — their input_tokens moves with the hybrid option cache, a cache-hit delta is not non-determinism); reflex Issue 090 B1 + riir-train 632 T2",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 5.14,
+        "swap_used_mb": 5585.0,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 3.47,
+        "swap_used_mb": 5585.0,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.294,
+          "macro_f1": 0.20381346100350822,
+          "ece": 0.08597900694608687,
+          "brier": 0.6887953868147523,
+          "nll": 1.2268604786604644,
+          "aurc": 0.5613881658769828,
+          "mean_confidence": 0.345885090649128,
+          "acc_at_50_coverage": 0.467,
+          "acc_at_80_coverage": 0.350625
+        },
+        "readout_ece": 0.014013351291418119,
+        "readout_brier": 0.20782644546499313,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "abstain_causes": {
+          "score_gate": 2000,
+          "distance_gate": 0,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.28601398268342015,
+        "readout_ece_calibrated": 0.014013351291418119,
+        "floor_ece": 0.3873323353293416,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.14,
+            "macro_f1": 0.10659569157793983,
+            "ece": 0.10427482724189759,
+            "brier": 0.775437413323873,
+            "nll": 1.479820572848019,
+            "aurc": 0.8533233971432658,
+            "mean_confidence": 0.24427482724189759,
+            "acc_at_50_coverage": 0.19333333333333333,
+            "acc_at_80_coverage": 0.16041666666666668
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.565,
+            "macro_f1": 0.551791545861227,
+            "ece": 0.05682319382826484,
+            "brier": 0.49847883401813664,
+            "nll": 0.6916259033173674,
+            "aurc": 0.4859296412602207,
+            "mean_confidence": 0.5081768061717351,
+            "acc_at_50_coverage": 0.52,
+            "acc_at_80_coverage": 0.5479166666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.20625,
+            "macro_f1": 0.15616734623998546,
+            "ece": 0.09412400156259536,
+            "brier": 0.7665512815304019,
+            "nll": 1.438566339527116,
+            "aurc": 0.6977238936165817,
+            "mean_confidence": 0.30037400156259536,
+            "acc_at_50_coverage": 0.32,
+            "acc_at_80_coverage": 0.25625
+          }
+        },
+        "soft_acc": 0.31722780010521806,
+        "brier_soft": 0.24239426229596503,
+        "score_mae": 0.7147912293728421,
+        "within_1": 0.73625,
+        "latency_p50_ms": 0.751,
+        "latency_p99_ms": 1.605,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.195,
+          "max_ms": 1.666,
+          "argmax_case": 170
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.888362167,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.3102674,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.3102674,
+            "status": "fitted",
+            "targetAccuracy": 0.21917808,
+            "support": {
+              "n": 100,
+              "nPass": 73,
+              "nAbstain": 27
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.14285715,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 92,
+            "share_of_errors": 0.07993049522154648
+          },
+          {
+            "gold": "investigate",
+            "pred": "contain",
+            "count": 74,
+            "share_of_errors": 0.06429192006950478
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 58,
+            "share_of_errors": 0.05039096437880104
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 48,
+            "share_of_errors": 0.04170286707211121
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "No sign of dissatisfaction.",
+            "count": 47,
+            "share_of_errors": 0.04083405734144222
+          },
+          {
+            "gold": "approve",
+            "pred": "hold",
+            "count": 45,
+            "share_of_errors": 0.03909643788010426
+          },
+          {
+            "gold": "manual_review",
+            "pred": "hold",
+            "count": 38,
+            "share_of_errors": 0.03301476976542137
+          },
+          {
+            "gold": "High: access to production, secrets or customer data.",
+            "pred": "Negligible: no access to anything sensitive.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "No time pressure; can wait indefinitely.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "None: everything reconciles.",
+            "count": 36,
+            "share_of_errors": 0.03127715030408341
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.0021201413427561857,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.3005141208171844
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.10498618748784067
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.3005141208171844
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "jeva": {
+        "lane": "jeva",
+        "model": "LIQIIIII/Jeva-4B",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.768,
+          "macro_f1": 0.7695032333521376,
+          "ece": 0.17113222350552676,
+          "brier": 0.3724632231305552,
+          "nll": 0.6442521875001845,
+          "aurc": 0.09727387564020908,
+          "mean_confidence": 0.5968677764944732,
+          "acc_at_50_coverage": 0.907,
+          "acc_at_80_coverage": 0.826875
+        },
+        "readout_ece": 0.17113221925497055,
+        "readout_brier": 0.18400533372252037,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "drex_conf_readout": {
+          "choice": {
+            "n": 600,
+            "ece": 0.17350829695661862,
+            "brier": 0.1806122808701992
+          },
+          "score": {
+            "n": 800,
+            "ece": 0.19948351200670006,
+            "brier": 0.2007856335687005
+          },
+          "noul": null,
+          "floor_ece": 0.2081728271728273,
+          "floor_n_cal": 1000,
+          "floor_n_test": 1000,
+          "floor_posture": "split-half conformal (first half cal, second half test) — this lane has no dedicated cal slice"
+        },
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.7616666666666667,
+            "macro_f1": 0.7417297568070905,
+            "ece": 0.17350829695661862,
+            "brier": 0.3777878631849136,
+            "nll": 0.6882928508387733,
+            "aurc": 0.09642256928524301,
+            "mean_confidence": 0.5998517813781897,
+            "acc_at_50_coverage": 0.92,
+            "acc_at_80_coverage": 0.8291666666666667
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.8,
+            "macro_f1": 0.7983667708438351,
+            "ece": 0.14787071760743856,
+            "brier": 0.33004930466883253,
+            "nll": 0.49675479548792245,
+            "aurc": 0.07897939690977286,
+            "mean_confidence": 0.6521292823925614,
+            "acc_at_50_coverage": 0.92,
+            "acc_at_80_coverage": 0.8416666666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.74875,
+            "macro_f1": 0.7477112126410195,
+            "ece": 0.19948351200670006,
+            "brier": 0.4002801819360668,
+            "nll": 0.7218447340054407,
+            "aurc": 0.10833651060376803,
+            "mean_confidence": 0.5531836434081197,
+            "acc_at_50_coverage": 0.9075,
+            "acc_at_80_coverage": 0.803125
+          }
+        },
+        "soft_acc": 0.4937885686533273,
+        "brier_soft": 0.06339983426458187,
+        "score_mae": 0.22681803897045072,
+        "within_1": 0.985,
+        "latency_p50_ms": 4108.0,
+        "latency_p99_ms": 8399.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 5769.0,
+          "max_ms": 11638.0,
+          "argmax_case": 103
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 1662.307324917,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.6720848056537103
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    }
+  ]
+}

@@ -305,15 +305,41 @@ fn build_question(q: &SuiteQuestion) -> Result<Value, String> {
         QKind::Noul => {}
         // choice: the object we already carry (option key → description);
         // their option text renders "key: description" (the d1 law).
+        // Bare-label suites (emotion, banking77, semantic_defects) go as
+        // their SEQUENCE arm (array of keys; their `_criteria` sets texts
+        // = keys verbatim) — their mapping arm rejects empty descriptions
+        // with a 400. The null-probe's augmented arms on those suites
+        // arrive MIXED (bare originals + decoys whose value == their own
+        // key): the sequence arm is the faithful rendering there too —
+        // their texts = keys, so the decoy values never reach the model
+        // and the presentation stays consistent across K arms (the A2
+        // probe's comparability law). A GENUINELY mixed suite (a real
+        // nonempty description beside a real empty one) keeps the mapping
+        // arm and their loud 400 — the wire has no faithful mixed shape.
+        // Their sequence-arm labels ARE the key strings, so the response
+        // mapping is unchanged.
         QKind::Choice => {
-            let n = q.criteria.as_object().map_or(0, Map::len);
+            let obj = q.criteria.as_object();
+            let n = obj.map_or(0, Map::len);
             if n == 0 || n > MAX_OPTIONS {
                 return Err(format!(
                     "case {}: choice needs 1..{MAX_OPTIONS} options, got {n}",
                     q.qid
                 ));
             }
-            qj["criteria"] = q.criteria.clone();
+            let bare_shape = obj.is_some_and(|m| {
+                m.iter().all(|(k, v)| match v.as_str() {
+                    // null / empty / whitespace = bare label
+                    None => true,
+                    Some(s) => s.trim().is_empty() || s == k,
+                })
+            });
+            if bare_shape {
+                let keys: Vec<&String> = obj.expect("checked above").keys().collect();
+                qj["criteria"] = json!(keys);
+            } else {
+                qj["criteria"] = q.criteria.clone();
+            }
         }
         // score: the array we already carry — their `_criteria` sequence
         // arm keys the levels BY THEIR OWN STRINGS (labels == texts), and
@@ -575,6 +601,82 @@ mod tests {
     fn score_with_one_level_refuses() {
         let c = case(QKind::Score, json!(["only"]));
         assert!(build_body(&c).is_err());
+    }
+
+    #[test]
+    fn choice_body_bare_labels_go_as_their_sequence_arm() {
+        // Their `_criteria` mapping arm REJECTS empty descriptions (the
+        // measured 400 on emotion/banking77/semantic_defects); the
+        // sequence arm sets texts = keys. Null and empty-string values
+        // both read as bare labels.
+        let null_c = case(
+            QKind::Choice,
+            json!({"joy": null, "sadness": null}),
+        );
+        let body = build_body(&null_c).unwrap();
+        assert_eq!(body["questions"]["q0"]["criteria"], json!(["joy", "sadness"]));
+
+        let empty_c = case(
+            QKind::Choice,
+            json!({"joy": "", "sadness": "  "}),
+        );
+        let body = build_body(&empty_c).unwrap();
+        assert_eq!(body["questions"]["q0"]["criteria"], json!(["joy", "sadness"]));
+    }
+
+    #[test]
+    fn choice_body_augmented_bare_labels_stay_the_sequence_arm() {
+        // The null-probe's augmented arms on bare-label suites arrive
+        // MIXED: originals carry null, decoys carry value == key (the
+        // augmentation's own namespace). Their faithful rendering is the
+        // sequence arm — texts = keys, presentation consistent across K
+        // arms (the A2 probe compares across them).
+        let c = case(
+            QKind::Choice,
+            json!({"joy": null, "sadness": null, "decoy_a": "decoy_a"}),
+        );
+        let body = build_body(&c).unwrap();
+        assert_eq!(
+            body["questions"]["q0"]["criteria"],
+            json!(["joy", "sadness", "decoy_a"])
+        );
+    }
+
+    #[test]
+    fn choice_body_mixed_descriptions_stay_the_mapping_arm() {
+        // Any nonempty description keeps the mapping arm (their option
+        // text renders "key: description"); a mixed map with an empty
+        // value is a per-case loud refusal (the harness law), never a
+        // silent description drop.
+        let c = case(
+            QKind::Choice,
+            json!({"billing": "invoices", "eng": ""}),
+        );
+        let body = build_body(&c).unwrap();
+        assert_eq!(
+            body["questions"]["q0"]["criteria"],
+            json!({"billing": "invoices", "eng": ""})
+        );
+    }
+
+    #[test]
+    fn sequence_arm_answers_read_in_our_key_order() {
+        // The sequence arm's labels ARE the key strings — the response
+        // mapping (keyed_probs_by_object over OUR object keys) is
+        // unchanged by what went on the wire.
+        let c = case(QKind::Choice, json!({"joy": null, "sadness": null}));
+        let body = json!({
+            "answers": {
+                "q0": {
+                    "probabilities": {"joy": 0.3, "sadness": 0.7},
+                    "choice": "sadness",
+                    "confidence": 0.7,
+                }
+            }
+        });
+        let triples = map_answers(&c, &body).unwrap();
+        assert_eq!(triples[0].0, vec![0.3, 0.7]);
+        assert_eq!(triples[0].1, 1);
     }
 
     #[test]

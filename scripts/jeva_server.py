@@ -115,8 +115,21 @@ def build_question(qid, spec):
         return Noul(instructions=instructions)
     criteria = spec.get("criteria")
     if qtype == "choice":
-        if not isinstance(criteria, dict) or not criteria:
-            raise ValueError(f"qid {qid}: choice criteria must be a non-empty object")
+        # Their `_criteria` accepts BOTH shapes: a mapping (label ->
+        # description, all nonempty) and a sequence (bare labels; texts =
+        # the labels themselves). Mirror that law exactly — the bare-label
+        # suites (emotion/banking77/semantic_defects) ride the sequence arm.
+        is_map = isinstance(criteria, dict) and bool(criteria)
+        is_seq = (
+            isinstance(criteria, list)
+            and len(criteria) >= 1
+            and all(isinstance(k, str) and k.strip() for k in criteria)
+        )
+        if not is_map and not is_seq:
+            raise ValueError(
+                f"qid {qid}: choice criteria must be a non-empty object "
+                "or a non-empty array of nonempty string labels"
+            )
         return Choice(instructions=instructions, criteria=criteria, allow_null=ALLOW_NULL)
     if qtype == "score":
         if not isinstance(criteria, list) or len(criteria) < 2:
