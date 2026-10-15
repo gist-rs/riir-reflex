@@ -42,6 +42,7 @@
 //! engineered around.
 use std::collections::{HashMap, HashSet};
 
+use katgpt_core::exact_sigmoid_f64;
 use katgpt_core::sigmoid_calibration::CalibratedGateSet;
 use serde::Serialize;
 use serde_json::Value;
@@ -809,9 +810,17 @@ fn gate_features(c: f64, margin: f64, agree: bool) -> [f64; 4] {
     [1.0, (c / (1.0 - c)).ln(), margin, f64::from(agree)]
 }
 
+/// Substrate delegation (the 2026-10-15 router.rs twin, adf4ae0; found by
+/// the post-landing class sweep): the two-branch libm reference in
+/// katgpt-core replaces the local single-branch body. Bit-identical for
+/// args >= 0 (identical expression); bounded ULPs below (pinned by the
+/// frozen-legacy test). Inside `logistic_fit` the sigmoid feeds IRLS
+/// gradients, so low-order-bit drift can move a fitted beta — this lane's
+/// recorded read (Bench 073) was legacy-body-produced; offline instrument
+/// + frozen-read law = no live gate pins those bits.
 #[inline]
 fn sigmoid(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
+    exact_sigmoid_f64(x)
 }
 
 #[inline]
@@ -1309,5 +1318,38 @@ mod tests {
         };
         let got = nli_m1_pass(&inp).expect("no error");
         assert!(got.is_none(), "R1: a non-validation suite must loud-skip");
+    }
+
+    #[test]
+    fn sigmoid_delegation_matches_frozen_legacy_body() {
+        // The 2026-10-15 router.rs twin (adf4ae0), same issue-014 /
+        // katgpt-rs Issue-870 shape: nli_m1.rs carried a local single-branch
+        // f64 sigmoid (`1.0 / (1.0 + (-x).exp())`). The reachable domain is
+        // `dot4(beta, gate_features)` — fitted logistic scores over clamped
+        // logit features — with no tight construction bound, so sweep a
+        // generous [-200, 200] (all finite-exp territory for both forms in
+        // f64). The legacy body is frozen HERE so any future substrate form
+        // drift reds this pin.
+        let legacy = |x: f64| 1.0 / (1.0 + (-x).exp());
+        let mut max_ulps = 0i64;
+        let mut max_ulps_at = 0.0f64;
+        for i in 0..=40_000i32 {
+            let x = -200.0f64 + (i as f64) * 0.01;
+            let got = sigmoid(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
+            } else {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            }
+        }
+        assert!(
+            max_ulps <= 3,
+            "delegation drifted {max_ulps} ULPs from the frozen legacy body at x={max_ulps_at}"
+        );
     }
 }
