@@ -1357,12 +1357,16 @@ fn mmlupro_jdi_variable_options_and_skips() {
 /// universe; the 2000 eval cap is the runner's concern), mmlupro_jdi 12032
 /// (the full test split). Each suite's arm runs INDEPENDENTLY; an absent
 /// suite skips LOUD (the slice_leak pattern) and never masks the others;
-/// JDI_REQUIRE_DATA=1 fails the skip.
+/// JDI_REQUIRE_DATA=1 fails the skip. A dir that is PRESENT but SHORT (a
+/// flaked datasets-server fetch — measured 6400/8000 hellaswag_jdi on the
+/// 4090, Issue 091) skips loud the same way; a FULL envelope whose builder
+/// output still lands short stays a hard red (that direction is a builder
+/// regression, not an environment gap).
 #[test]
 fn jdi_tranche1_fetched_count_floors() {
     let require = std::env::var("JDI_REQUIRE_DATA").is_ok_and(|v| v == "1");
     let root = std::path::Path::new(".raw/datasets");
-    let envelope = |suite: &str| -> Option<serde_json::Value> {
+    let envelope = |suite: &str, pinned: usize| -> Option<serde_json::Value> {
         if !root.join(suite).exists() {
             let msg =
                 format!("jdi_tranche1_fetched_count_floors: SKIP — .raw/datasets/{suite} absent");
@@ -1372,13 +1376,29 @@ fn jdi_tranche1_fetched_count_floors() {
             println!("{msg} — that suite was NOT measured; this is NOT a pass for it");
             return None;
         }
-        Some(
-            riir_reflex::harness::runner::load_suite_envelope(root, suite)
-                .unwrap_or_else(|e| panic!("{suite}: {e}")),
-        )
+        let env = riir_reflex::harness::runner::load_suite_envelope(root, suite)
+            .unwrap_or_else(|e| panic!("{suite}: {e}"));
+        // Issue 091: only a SHORT fetch is an environment skip. The count
+        // reads the datasets-server ENVELOPE shape ({"rows": [...]}), the
+        // same source the builders iterate. A count OVER the pin falls
+        // through to the count assert below (pin drift — a re-pin decision,
+        // never a silent skip).
+        let fetched = env["test_rows"]["rows"].as_array().map_or(0, Vec::len);
+        if fetched < pinned {
+            let msg = format!(
+                "jdi_tranche1_fetched_count_floors: SKIP — {suite} present but PARTIAL: \
+                 {fetched}/{pinned} rows fetched (datasets-server short fetch)"
+            );
+            if require {
+                panic!("{msg} (JDI_REQUIRE_DATA=1)");
+            }
+            println!("{msg} — that suite was NOT measured; this is NOT a pass for it");
+            return None;
+        }
+        Some(env)
     };
 
-    if let Some(env) = envelope("winogrande_jdi") {
+    if let Some(env) = envelope("winogrande_jdi", 1267) {
         let test_rows = env["test_rows"].clone();
         let suite = build_winogrande_jdi(&test_rows, 0);
         assert_eq!(suite.cases.len(), 1267, "the full validation split is the population");
@@ -1390,7 +1410,7 @@ fn jdi_tranche1_fetched_count_floors() {
         );
     }
 
-    if let Some(env) = envelope("hellaswag_jdi") {
+    if let Some(env) = envelope("hellaswag_jdi", 8000) {
         let test_rows = env["test_rows"].clone();
         let suite = build_hellaswag_jdi(&test_rows, 0);
         assert_eq!(suite.cases.len(), 8000, "the fetched eval universe");
@@ -1403,7 +1423,7 @@ fn jdi_tranche1_fetched_count_floors() {
         );
     }
 
-    if let Some(env) = envelope("anli_jdi") {
+    if let Some(env) = envelope("anli_jdi", 3200) {
         let test_rows = env["test_rows"].clone();
         let suite = build_anli_jdi(&test_rows, 0);
         assert_eq!(suite.cases.len(), 3200, "the r1+r2+r3 union (comma-list load)");
@@ -1413,7 +1433,7 @@ fn jdi_tranche1_fetched_count_floors() {
         );
     }
 
-    if let Some(env) = envelope("mmlupro_jdi") {
+    if let Some(env) = envelope("mmlupro_jdi", 12032) {
         let test_rows = env["test_rows"].clone();
         let suite = build_mmlupro_jdi(&test_rows, 0);
         assert_eq!(suite.cases.len(), 12032, "the full test split is the population");
@@ -1438,5 +1458,7 @@ fn jdi_tranche1_fetched_count_floors() {
 
     // No summary assert: an all-absent box (fresh clone) skips loud above —
     // the seat-gates convention. JDI_REQUIRE_DATA=1 turns every skip into a
-    // failure for the dev lane.
+    // failure for the dev lane. A partial fetch skips the same way (Issue
+    // 091); the count asserts themselves stay hard — a full envelope that
+    // builds short is a builder regression this floor exists to catch.
 }
