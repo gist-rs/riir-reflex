@@ -251,6 +251,25 @@ fn main() {
         run_gates("nb_scope armed", engine, &nb_request(n_questions), n_questions);
     }
 
+    // ── Plan 627 T3 G2/G4: the same gates with `set_refine` ARMED — the
+    // per-question state refinement over the by-name-resolved option
+    // directions (the `nb_request` options ARE the domain names, so every
+    // choice question is route-active and the seam fires every solve).
+    // Same G2 (p99 ≤ 1 ms) + G4 (alloc-free post-warmup — the engine-held
+    // scratch + keys buffer are build-time allocations; the refine kernel
+    // itself never allocates with a pre-ensured scratch).
+    #[cfg(feature = "set_refine")]
+    {
+        let cfg = EngineConfig {
+            set_refine_gamma: 1.0,
+            set_refine_tau: 0.5,
+            ..EngineConfig::default()
+        };
+        let engine: DecisionEngine<2, EMBED_DIM> =
+            DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
+        run_gates("set_refine armed", engine, &nb_request(n_questions), n_questions);
+    }
+
     // ── Issue 038 T7b: the option-conditioned tables ARMED — every
     // question kind gains the (qid, option) term (the oc hot path: one FNV
     // key hash + binary search + a table score per option). Same G2 + G4
