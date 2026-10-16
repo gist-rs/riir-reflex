@@ -59,7 +59,11 @@ pub mod build_stamp;
 pub mod embed;
 
 /// Confidence readout dispatch (Plan 603 T1.7 — inherit, don't re-derive).
-#[cfg(feature = "modelless")]
+/// Pure std-only functionals + the Bench-817 dispatch policy — UNGATED
+/// (the harness side carries it: `null_stability`, the runner, and the
+/// null-probe runner all import it, and the harness is ungated by
+/// design; the birth gate here rode the engine commit and red the
+/// `--no-default-features` posture from Issue 090 on).
 pub mod readout;
 
 /// The decision engine itself.
