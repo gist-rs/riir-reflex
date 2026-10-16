@@ -152,10 +152,23 @@ cargo run --release --bin harness -- --skip-laya --head-select --nb-select --rid
 # answers each choice question under K deterministic option orderings through
 # its own decide path; gate median ≤ 2 pt; the modelless control holds
 # ties-only flips + the L1 fp envelope (a control red refuses the run).
-# Comparison lanes ride --drex / --d1 / --agentjev (servers up, loud refusals);
+# Comparison lanes ride --drex / --d1 / --agentjev / --jeva (servers up, loud
+# refusals); --clef-local rides the seated in-process ANE arm (plan 619 T3.3,
+# feature clef-ane — the HTTP arm is never wired into the probe: uncapped
+# hosted spend; bench 153: order-invariant by construction, 0.00 pt / 0 flips);
 # laya rides its feature + G5 parity FIRST (`--test laya_riir_parity`).
 cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
 cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
+
+# The clef comparison lanes (plan 011 hosted + plan 619 local): `--clef`
+# runs Cloudflare's decision model over the operator-run loopback forwarder
+# (CLEF_* env contract in src/lanes/clef.rs; spend ceiling CLEF_SMOKE_MAX_CASES);
+# `--clef-local` (feature `clef-ane`, macOS) runs clef-text-0.6b IN-PROCESS on
+# the Neural Engine through riir-infer-clef — bit-exact vs the official
+# FluidUse runtime (riir-infer T2.2), the same decide surface and warmup law.
+# Board read: reflex bench 152; perm-probe: bench 153 (order-invariant by
+# construction). The student-vs-teacher caveat stands (0.6b student of
+# clef-flash); comparison lanes never read as product rows.
 
 # Null/K-stability probe (Issue 090 A1–A3, Bench 147): decoy augmentation
 # (graded K-appended decoys, originals keep positions) through the deployed
