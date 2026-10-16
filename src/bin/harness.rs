@@ -786,7 +786,7 @@ fn harness_main() {
         };
         println!(
             "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             popts.k,
@@ -796,6 +796,7 @@ fn harness_main() {
             if popts.agentjev { " +agentjev" } else { "" },
             if popts.jeva { " +jeva" } else { "" },
             if popts.basis_split { " +basis-cert" } else { "" },
+            if opts.clef_local { " +clef-local" } else { "" },
         );
         let out = match runner::run_perm_probe(&opts, &popts) {
             Ok(r) => r,

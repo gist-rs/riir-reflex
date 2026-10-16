@@ -21,6 +21,12 @@
 //! - **`--agentjev`** — their `jev_service` (`AGENTJEV_SERVE_URL`); the
 //!   recorded wobble class (Bench 127's det re-read) — disclosed in the
 //!   record, never adjusted.
+//! - **`--clef-local`** (feature `clef-ane`, macOS; plan 619 T3.3) — the
+//!   seated in-process ANE clef-text-0.6b arm. The HTTP arm is deliberately
+//!   not wired (an uncapped probe is hosted spend); the flag without the
+//!   feature refuses loud, never a silent fallback.
+//! - **`--jeva`** — our reference jeva server (`JEVA_SERVE_URL`); their
+//!   paper's 0.00% order-flip bar is the 0-flip floor's target shape.
 //! - **laya** (feature `laya-riir`, honors `--skip-laya`) — the pooled-state
 //!   cross-marker attention path, the one learnable position-sensitivity
 //!   surface we run (the d1 research's item-4 subject). Each suite's
@@ -319,6 +325,31 @@ impl ChoiceOracle for JevaOracle {
                 pick: *pick,
             })
             .ok_or_else(|| format!("jeva ({}): no answers in response", case.id))
+    }
+}
+
+/// The clef-local oracle (plan 619 T3.3) — the seated in-process ANE arm
+/// answers the permuted single-question case through its production decide
+/// path, the same law as every comparison lane. The lane canonicalizes the
+/// option set internally (sorted-id scoring, re-indexed into presented
+/// order by the map_answers law) — whether that makes it order-invariant
+/// is exactly what the probe measures.
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+struct ClefOracle {
+    lane: crate::lanes::clef::LocalAneLane,
+}
+
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+impl ChoiceOracle for ClefOracle {
+    fn answer(&mut self, case: &SuiteCase) -> Result<OrderingAnswer, String> {
+        let (answers, _ms, _conf) = self.lane.decide(case)?;
+        answers
+            .first()
+            .map(|(probs, pick, _)| OrderingAnswer {
+                probs: probs.clone(),
+                pick: *pick,
+            })
+            .ok_or_else(|| format!("clef-local ({}): no answers in response", case.id))
     }
 }
 
@@ -1507,6 +1538,38 @@ pub fn run_perm_probe(
             model: format!("{model} ({provenance})"),
             oracle: Box::new(JevaOracle { lane }),
         });
+    }
+    // The clef-local lane (plan 619 T3.3): the seated LOCAL ANE arm only —
+    // the HTTP arm is deliberately not wired into the probe (an uncapped
+    // perm-probe is hosted spend), and the flag set without the feature
+    // refuses loud (the T3.1 law — never a silent fallback).
+    #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+    if opts.clef_local {
+        let lane = crate::lanes::clef::LocalAneLane::from_env()
+            .map_err(|e| format!("--perm-probe --clef-local: {e}"))?;
+        let (model, posture) = lane
+            .info()
+            .map_err(|e| format!("--perm-probe --clef-local: {e}"))?;
+        // The warmup law: one discarded real-shape forward — the first
+        // forward pays the ANE specialization (the canary doubles as the
+        // lane's health check, the drex warmup shape).
+        let canary = canary_case();
+        lane.decide(&canary)
+            .map_err(|e| format!("--perm-probe --clef-local warmup: {e}"))?;
+        shared.push(SharedLane {
+            name: "clef-local",
+            model: format!("{model} ({posture})"),
+            oracle: Box::new(ClefOracle { lane }),
+        });
+    }
+    #[cfg(not(all(feature = "clef-ane", target_os = "macos")))]
+    if opts.clef_local {
+        return Err(
+            "--perm-probe --clef-local needs the `clef-ane` feature (macOS) — rebuild \
+             with `--features clef-ane`; the HTTP arm is never a silent fallback and \
+             is deliberately not wired into the probe (uncapped hosted spend)"
+                .to_string(),
+        );
     }
     let laya_enabled = !opts.skip_laya;
     let laya_device: Option<String> = if cfg!(feature = "laya-riir") && laya_enabled {
