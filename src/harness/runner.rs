@@ -779,6 +779,16 @@ pub struct LaneResult {
     #[cfg(feature = "density_gate")]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub density_ab: Option<super::density_ab::DensityAbRecord>,
+    /// Plan 627 / Issue 090 C2: the `--set-refine-ab` paired A/B record —
+    /// forced-pick accuracy both arms, flip decomposition (to-correct /
+    /// to-wrong), Δ accuracy + one-sided-95% paired LCB. Report-only: the
+    /// published row stays the shipped posture's; adoption is the
+    /// plan-627 GOAT verdict, never a default change riding a measurement
+    /// pass. None = the arm did not run (flag off / feature compiled out /
+    /// the laya lanes).
+    #[cfg(feature = "set_refine")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub set_refine_ab: Option<super::set_refine_ab::SetRefineAbRecord>,
     /// Issue 024 T3: hard accuracy over the eval rows NOT leak-flagged —
     /// the same forced-row walk `hard` reads, restricted to the unflagged
     /// cases. None = feature off / suite out of scope / every row flagged
@@ -2391,6 +2401,12 @@ struct ModellessInput<'a> {
     /// gate over one frozen read).
     #[cfg_attr(not(feature = "density_gate"), allow(dead_code))]
     pub density_gate: bool,
+    /// Plan 627 / Issue 090 C2: run the `--set-refine-ab` paired A/B
+    /// (report-only; the refined engine vs the shipped posture over one
+    /// frozen read). `Some((gamma, tau))` = armed with the CLI knobs.
+    /// None = the arm is off / the feature compiled out.
+    #[cfg_attr(not(feature = "set_refine"), allow(dead_code))]
+    pub set_refine: Option<(f32, f32)>,
     /// Issue 024 T3: one leak flag per eval case (true = the case has an
     /// exact/near twin in the corpus∪cal side — drop from acc_deleaked).
     /// None = the `slice_leak` feature is off or the suite is out of scope.
@@ -3969,6 +3985,30 @@ fn run_modelless<const N: usize>(
         } else {
             None
         },
+        // Plan 627 / Issue 090 C2 (`--set-refine-ab`): the set-conditioned
+        // state refinement's paired A/B — report-only, over the SAME
+        // frozen test read the row publishes (the shipped arm IS this
+        // row's posture; the refined arm rebuilds at the same posture +
+        // the knob, calibrator re-fit on the same cal pairs).
+        #[cfg(feature = "set_refine")]
+        set_refine_ab: if let Some((gamma, tau)) = inp.set_refine {
+            let build = |rcfg: EngineConfig| build_at_posture(rcfg);
+            Some(super::set_refine_ab::set_refine_ab_pass::<N>(
+                spec.name,
+                &build,
+                &fitted_cfg_for_transductive,
+                gamma,
+                tau,
+                &cal_pairs,
+                &suite.cases,
+                state_strs,
+                &cal_eval_test.picks,
+                &cal_eval_test.abstained,
+                &cal_eval_test.confs,
+            )?)
+        } else {
+            None
+        },
     },
         modelless_questions,
     ))
@@ -4547,6 +4587,8 @@ fn assemble_laya_lane_result(
         mc_ab: None,
         #[cfg(feature = "density_gate")]
         density_ab: None, // the laya lanes run no fused gate
+        #[cfg(feature = "set_refine")]
+        set_refine_ab: None, // the laya lanes run no modelless seam
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
         corpus_digest: None, // laya reads no train rows (Issue 057)
@@ -7281,6 +7323,7 @@ pub mod seat {
             #[cfg(feature = "mc_ensemble")]
             mc_ab: None,
             density_gate: false,
+            set_refine: None,
             leak_flags: None,
         };
         let fp = super::fit_posture_inner::<N>(&inp)?;
@@ -7805,6 +7848,23 @@ pub struct RunOptions {
     /// Report-only; the V5 paired-LB95 gate law is unchanged. Default off.
     #[cfg(feature = "probe_delta_ab")]
     pub probe_delta_ab: bool,
+    /// Plan 627 / Issue 090 C2 (`--set-refine-ab`; needs the `set_refine`
+    /// feature — without it the flag refuses loud naming the rebuild):
+    /// run the set-conditioned state refinement's paired A/B on every
+    /// modelless suite — the refined engine vs the shipped posture, one
+    /// frozen read, flip decomposition + Δ accuracy with a paired LCB95.
+    /// Report-only. Default off.
+    #[cfg(feature = "set_refine")]
+    pub set_refine_ab: bool,
+    /// `--set-refine-gamma F` — pin the refinement gate scale (0/negative
+    /// → the 1.0 default; the kernel-side working envelope measured at
+    /// katgpt-rs Plan 627 T1 is γ 0.8–1.5).
+    #[cfg(feature = "set_refine")]
+    pub set_refine_gamma: f32,
+    /// `--set-refine-tau F` — pin the refinement gate temperature (0/
+    /// negative → the 0.5 default; envelope τ 0.4–0.7).
+    #[cfg(feature = "set_refine")]
+    pub set_refine_tau: f32,
     /// Fitted per-label head blend scale for the modelless lane (issue 030
     /// lever 4; `--head-scale`). 0.0 = OFF — the byte-identical pre-head
     /// posture and the published baseline. MEASUREMENT-ONLY knob: a run at
@@ -7966,6 +8026,12 @@ impl RunOptions {
             density_gate: false,
             #[cfg(feature = "probe_delta_ab")]
             probe_delta_ab: false,
+            #[cfg(feature = "set_refine")]
+            set_refine_ab: false,
+            #[cfg(feature = "set_refine")]
+            set_refine_gamma: 0.0,
+            #[cfg(feature = "set_refine")]
+            set_refine_tau: 0.0,
         }
     }
 }
@@ -8218,6 +8284,27 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 gate_fit_calibrated: opts.gate_fit_calibrated,
                 kn_route: opts.kn_route,
                 drafter_fix: opts.drafter_fix,
+                set_refine: {
+                    #[cfg(feature = "set_refine")]
+                    {
+                        opts.set_refine_ab.then_some((
+                            if opts.set_refine_gamma > 0.0 {
+                                opts.set_refine_gamma
+                            } else {
+                                1.0
+                            },
+                            if opts.set_refine_tau > 0.0 {
+                                opts.set_refine_tau
+                            } else {
+                                0.5
+                            },
+                        ))
+                    }
+                    #[cfg(not(feature = "set_refine"))]
+                    {
+                        None
+                    }
+                },
             };
             macro_rules! dispatch {
                 ($n:literal) => {

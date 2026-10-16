@@ -411,6 +411,33 @@ pub struct EngineConfig {
     /// `DEFAULT_TAU`).
     #[cfg(feature = "density_gate")]
     pub density_tau: f32,
+    /// Plan 627 / Issue 090 C2 (`set_refine` feature): set-conditioned
+    /// state refinement. When > 0, every ROUTE-ACTIVE question's state
+    /// embedding `x` (the state-alone vector that feeds the route terms —
+    /// and the head terms when fitted) is first refined against the
+    /// question's OWN option set through the katgpt-core `set_refine`
+    /// composition: `x' = x + (γ/n)·Σ wᵢ(kᵢ−x)`, `wᵢ = σ(dot(x,kᵢ)/τ)`,
+    /// where the option keys `kᵢ` are the options' resolved domain
+    /// DIRECTIONS (this engine's option model — "each label's corpus
+    /// centroid IS that option's model", the option-rank law). The route
+    /// and head terms are then recomputed from `x'` per question — the
+    /// set-dependence an independent per-option scorer structurally
+    /// lacks (Jeva Prop 1, arXiv:2610.18773; the A2 exemption is the
+    /// issue's own law — decoy-invariance is deliberately BROKEN, never
+    /// "fixed"). Scope: noul and drafter-only questions never take route
+    /// terms (issue 030 legality) and are byte-identical; the count-table
+    /// families (nb/oc/ridge) are token-keyed, not embedding-keyed, and
+    /// are structurally unaffected. 0.0 = OFF, byte-identical to the
+    /// pre-627 posture — and the default (NOT wired into any shipped
+    /// posture; the harness `--set-refine-ab` A/B arm is the only armer).
+    #[cfg(feature = "set_refine")]
+    pub set_refine_gamma: f32,
+    /// Plan 627 (`set_refine` feature): the refinement gate temperature
+    /// τ in `wᵢ = σ(dot(x,kᵢ)/τ)`. The kernel-side working envelope
+    /// measured at katgpt-rs Plan 627 T1: τ 0.4–0.7 × γ 0.8–1.5.
+    /// Default 0.5 (the S1 fixture center).
+    #[cfg(feature = "set_refine")]
+    pub set_refine_tau: f32,
 }
 
 /// The [`EngineConfig::drafter_fix`] candidates (Issue 036 T2). All are
@@ -502,6 +529,10 @@ impl Default for EngineConfig {
             density_threshold: DEFAULT_DENSITY_THRESHOLD,
             #[cfg(feature = "density_gate")]
             density_tau: 1.0,
+            #[cfg(feature = "set_refine")]
+            set_refine_gamma: 0.0,
+            #[cfg(feature = "set_refine")]
+            set_refine_tau: 0.5,
         }
     }
 }
@@ -689,6 +720,17 @@ pub enum EngineError {
     /// is a substrate contract break, never a corpus-shape issue.
     #[cfg(feature = "density_gate")]
     DensityFit,
+    /// Plan 627 / Issue 090 C2 (`set_refine` feature): `set_refine_gamma > 0`
+    /// with a non-positive `set_refine_tau` — the gate
+    /// `w_i = σ(dot(x,k_i)/τ)` is undefined at τ ≤ 0. Refusing is the
+    /// fail-closed law (never a silent NaN-producing knob).
+    #[cfg(feature = "set_refine")]
+    BadSetRefineTau,
+    /// Plan 627 (`set_refine` feature): the refinement kernel refused the
+    /// shapes — a caller-bug surface (the engine sizes its own buffers;
+    /// the kernel's own error is preserved verbatim).
+    #[cfg(feature = "set_refine")]
+    SetRefineKernel(katgpt_core::set_refine::SetRefineError),
 }
 
 impl std::fmt::Display for EngineError {
@@ -738,6 +780,16 @@ impl std::fmt::Display for EngineError {
                 f,
                 "density-half GMM fit failed (a substrate contract break — not a corpus shape)"
             ),
+            #[cfg(feature = "set_refine")]
+            Self::BadSetRefineTau => write!(
+                f,
+                "set_refine_gamma > 0 needs set_refine_tau > 0 — the σ(dot/τ) gate \
+                 is undefined otherwise"
+            ),
+            #[cfg(feature = "set_refine")]
+            Self::SetRefineKernel(e) => {
+                write!(f, "set_refine kernel rejected the shapes: {e:?}")
+            }
         }
     }
 }
@@ -954,6 +1006,23 @@ pub struct DecisionEngine<const N: usize, const D: usize> {
     /// definition, one commitment). `None` when the knob is off.
     #[cfg(feature = "density_gate")]
     density_proj: Option<JlProjector<D, DENSITY_E>>,
+    /// Plan 627 / Issue 090 C2 (`set_refine` feature): the refinement
+    /// substrate — built exactly when the knob is armed
+    /// (`set_refine_gamma > 0`) at this engine's `D`; `None` = the
+    /// byte-identical posture (no allocation, no cost, no branch taken
+    /// on the hot path beyond the `is_some` test).
+    #[cfg(feature = "set_refine")]
+    sr: Option<katgpt_core::set_refine::SetRefineScratch>,
+    /// The flat option-key buffer (k rows of D — the options' resolved
+    /// domain directions), reserved once at build for `N` options,
+    /// cleared/refilled per question (steady-state zero-alloc — the G4
+    /// law; `refine_state_into` itself never allocates with a
+    /// pre-ensured scratch).
+    #[cfg(feature = "set_refine")]
+    sr_keys: Vec<f32>,
+    /// The kernel config snapshot (d = D at build; tau/gamma from cfg).
+    #[cfg(feature = "set_refine")]
+    sr_cfg: katgpt_core::set_refine::SetRefineConfig,
 }
 
 impl<const N: usize, const D: usize> DecisionEngine<N, D> {
@@ -1000,6 +1069,24 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         let experts: [DomainExpert<D>; N] = specs
             .try_into()
             .map_err(|_| EngineError::DomainCount { have, want: N })?;
+        // Plan 627 (`set_refine` feature): fail-closed tau validation —
+        // the σ(dot/τ) gate is undefined at τ ≤ 0; an armed knob with a
+        // bad tau refuses at BUILD, never a NaN at solve time.
+        #[cfg(feature = "set_refine")]
+        if cfg.set_refine_gamma > 0.0 && cfg.set_refine_tau <= 0.0 {
+            return Err(EngineError::BadSetRefineTau);
+        }
+        // Plan 627 (`set_refine` feature): snapshot the knob into kernel
+        // config + substrate BEFORE `cfg` moves into the engine struct.
+        #[cfg(feature = "set_refine")]
+        let sr_scratch = (cfg.set_refine_gamma > 0.0)
+            .then(|| katgpt_core::set_refine::SetRefineScratch::new(D, N));
+        #[cfg(feature = "set_refine")]
+        let sr_cfg = katgpt_core::set_refine::SetRefineConfig::new(
+            cfg.set_refine_tau,
+            cfg.set_refine_gamma,
+            D,
+        );
         let calibrator = SigmoidGateCalibrator::new(cfg.cal_capacity, cfg.cal_min_obs);
         Ok(Self {
             experts,
@@ -1016,6 +1103,12 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             ridge: None,
             #[cfg(feature = "density_gate")]
             density_proj: None,
+            #[cfg(feature = "set_refine")]
+            sr: sr_scratch,
+            #[cfg(feature = "set_refine")]
+            sr_keys: Vec::with_capacity(N * D),
+            #[cfg(feature = "set_refine")]
+            sr_cfg,
         })
     }
 
@@ -1396,9 +1489,9 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             // Case-level cosine terms (the unperturbed state base —
             // derived once per case above); the MC hook re-derives per
             // question from the perturbed base when armed.
-            #[cfg(not(feature = "mc_ensemble"))]
+            #[cfg(not(any(feature = "mc_ensemble", feature = "set_refine")))]
             let route_terms = route_base;
-            #[cfg(feature = "mc_ensemble")]
+            #[cfg(any(feature = "mc_ensemble", feature = "set_refine"))]
             let mut route_terms = route_base;
             // Option → domain index. By NAME first (Issue 023): exact
             // byte-equality of the option string with a domain name, on a
@@ -1510,10 +1603,12 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 // fresh embed (bit-identical: same bytes, same pure
                 // function). The MC hook perturbs it per (sample, question)
                 // — the seed folds `qi`, unchanged — and the cosine + head
-                // families re-run on the perturbed state, exactly the
-                // pre-hoist order.
-                #[cfg(feature = "mc_ensemble")]
-                let mut perturbed_state: Option<[f32; D]> = None;
+                // families re-run on the perturbed state, exactly as the
+                // pre-hoist order. The set_refine hook composes AFTER it
+                // (refine the EFFECTIVE state — perturbed when MC is armed,
+                // the shared state otherwise).
+                #[cfg(any(feature = "mc_ensemble", feature = "set_refine"))]
+                let mut eff_state: Option<[f32; D]> = None;
                 #[cfg(feature = "mc_ensemble")]
                 if let Some((sample, p_drop, seed)) = perturb {
                     let sseed = seed
@@ -1531,12 +1626,62 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                         }
                         *rt = exact_sigmoid(dot * self.cfg.route_scale);
                     }
-                    perturbed_state = Some(q_state);
+                    eff_state = Some(q_state);
+                }
+                // Plan 627 / Issue 090 C2 (`set_refine` feature): the
+                // set-conditioned state refinement — THE option-interaction
+                // seam. The question's OWN option set (resolved to domain
+                // directions, `opt_dom`) refines the effective state before
+                // the route/head terms derive from it, making every
+                // state-geometry term set-dependent: `x' = x +
+                // (γ/n)·Σ σ(dot(x,kᵢ)/τ)·(kᵢ−x)` (sigmoid, never softmax —
+                // per-option independent gates; katgpt-core `set_refine`,
+                // the Plan-354 composition). Per-QUESTION by necessity —
+                // the option set is question state, not request state, so
+                // the hoisted `route_base` cannot serve this arm and the
+                // route terms re-derive here. Unarmed (`sr == None`: knob 0
+                // or feature off) the block is skipped and `route_base`
+                // stands — byte-identical (G3). Scope: this arm lives
+                // INSIDE `route_active`, so noul (issue 030 — `[yes, no]`
+                // is question vocabulary, never a label list) and
+                // drafter-only questions never take it, by the same
+                // legality guard as the route terms themselves.
+                #[cfg(feature = "set_refine")]
+                if let Some(sr) = self.sr.as_mut() {
+                    #[cfg(feature = "mc_ensemble")]
+                    let base: &[f32; D] = eff_state.as_ref().unwrap_or(&state_q);
+                    #[cfg(not(feature = "mc_ensemble"))]
+                    let base: &[f32; D] = &state_q;
+                    // Keys = the options' resolved directions (rows of D).
+                    // k ≤ N on every route-active shape (by-name needs a
+                    // full resolve; the index arm is k == N), and the
+                    // kernel `ensure`s its own scratch regardless.
+                    self.sr_keys.clear();
+                    for &od in opt_dom.iter().take(k) {
+                        self.sr_keys.extend_from_slice(&dirs[od]);
+                    }
+                    let mut refined = [0.0f32; D];
+                    katgpt_core::set_refine::refine_state_into(
+                        base,
+                        &self.sr_keys,
+                        &mut refined,
+                        &self.sr_cfg,
+                        sr,
+                    )
+                    .map_err(EngineError::SetRefineKernel)?;
+                    for (rt, dir) in route_terms.iter_mut().zip(dirs.iter()) {
+                        let mut dot = 0.0f32;
+                        for (qv, dv) in refined.iter().zip(dir.iter()) {
+                            dot += qv * dv;
+                        }
+                        *rt = exact_sigmoid(dot * self.cfg.route_scale);
+                    }
+                    eff_state = Some(refined);
                 }
                 if let Some(heads) = self.heads.as_ref() {
                     for (ht, &d) in head_terms.iter_mut().zip(opt_dom.iter()).take(k) {
-                        #[cfg(feature = "mc_ensemble")]
-                        if let Some(qs) = perturbed_state.as_ref() {
+                        #[cfg(any(feature = "mc_ensemble", feature = "set_refine"))]
+                        if let Some(qs) = eff_state.as_ref() {
                             *ht = heads.blend_term(d, qs, self.cfg.head_scale);
                             continue;
                         }

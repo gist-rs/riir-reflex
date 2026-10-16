@@ -143,6 +143,14 @@ probe_delta_ab = ["modelless", "katgpt-core/state_probe"]
 # Opt-in; never in default. The first wired consumer of `basis_split` —
 # the data unblocking the katgpt-rs-side promotion decision.
 basis_cert = ["katgpt-core/basis_split"]
+# Plan 627 / Issue 090 C2 — the `set_refine` engine seam: set-conditioned
+# state refinement over the routed domain directions (katgpt-core
+# `set_refine`, the Plan-354 `set_attention` composition). Opt-in; the
+# engine knob `set_refine_gamma` stays 0.0 (byte-identical posture) unless
+# a caller — or the harness's `--set-refine-ab` A/B arm — arms it. NOT
+# wired into any shipped posture (the plan's T2 law); promotion is the
+# plan-627 GOAT (T3), owner-gated.
+set_refine = ["katgpt-core/set_refine"]
 # The riir-OWNED forward — the ONE laya backend (the candle reference
 # lane was removed by `.issues/006`, owner directive 2026-09-22) — MOVED
 # substrate-side (the encoder-lane move): the model math + the whole lane
@@ -253,6 +261,13 @@ required-features = ["modelless"]
 [[test]]
 name = "engine_gates"
 required-features = ["modelless"]
+
+# Plan 627 T2 — the `set_refine` engine seam's birth-gate pair (the
+# `#![cfg(feature = "set_refine")]` whole-file gate needs its row so a
+# feature-less selection skips loudly instead of printing a green zero).
+[[test]]
+name = "set_refine_seam_gates"
+required-features = ["modelless", "set_refine"]
 
 [[test]]
 name = "game_heads_serve"

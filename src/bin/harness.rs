@@ -18,6 +18,10 @@
 //!                                      [--density-gate] (needs --features
 //!                                       density_gate; absent build → the flag
 //!                                       refuses LOUD at run start)
+//!                                      [--set-refine-ab] [--set-refine-gamma F]
+//!                                      [--set-refine-tau F] (needs --features
+//!                                       set_refine; absent build → the flag
+//!                                       refuses loud naming the rebuild)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
 //!                                      [--d1] [--pplx] [--d3] [--jeva] [--paw] [--paw-local]
@@ -341,6 +345,29 @@ fn harness_main() {
             "--probe-delta-ab" => die(
                 "--probe-delta-ab needs the probe_delta_ab feature — rebuild: \
                  cargo build --release -p riir-reflex --bin harness --features probe_delta_ab",
+            ),
+            #[cfg(feature = "set_refine")]
+            "--set-refine-ab" => opts.set_refine_ab = true,
+            #[cfg(feature = "set_refine")]
+            "--set-refine-gamma" => {
+                i += 1;
+                opts.set_refine_gamma = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--set-refine-gamma needs a number"));
+            }
+            #[cfg(feature = "set_refine")]
+            "--set-refine-tau" => {
+                i += 1;
+                opts.set_refine_tau = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--set-refine-tau needs a number"));
+            }
+            #[cfg(not(feature = "set_refine"))]
+            "--set-refine-ab" | "--set-refine-gamma" | "--set-refine-tau" => die(
+                "--set-refine-* needs the set_refine feature — rebuild: \
+                 cargo build --release -p riir-reflex --bin harness --features set_refine",
             ),
             "--nli-feature-ab" => opts.nli_feature_ab = true,
             "--nli-m1" => opts.nli_m1 = true,

@@ -630,6 +630,7 @@ fn perm_modelless<const N: usize>(
         #[cfg(feature = "mc_ensemble")]
         mc_ab: None,
         density_gate: false,
+        set_refine: None,
         leak_flags: None,
     };
     let FittedPosture {

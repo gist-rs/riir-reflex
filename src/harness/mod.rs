@@ -57,6 +57,10 @@ pub mod pair_heads;
 // (report-only; rides the engine feature).
 #[cfg(feature = "density_gate")]
 pub mod density_ab;
+// Plan 627 / Issue 090 C2 — the `--set-refine-ab` set-conditioned state
+// refinement A/B arm (report-only; rides the engine feature).
+#[cfg(feature = "set_refine")]
+pub mod set_refine_ab;
 // Plan 621 Phase 5 T5.1 — the FlyBy paired counterfactual ΔV
 // certification (the `--corpus-ab --probe-delta-ab` instrument; consumes
 // katgpt-core `state_probe`). Pure over paired outcome slices; the
