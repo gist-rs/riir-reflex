@@ -80,6 +80,13 @@
 //! cases; `CLEF_ALLOW_UNCAPPED=1` overrides) bounds undisclosed pricing.
 //! Other env: `CLEF_API_TOKEN` (bearer; the forwarder may inject),
 //! `CLEF_MODEL` (`clef` default | `clef-flash`), `CLEF_TIMEOUT_MS`.
+//! `--clef-local` runs the SAME lane's LOCAL in-process arm (plan 619
+//! T3.1) instead: clef-text-0.6b on the Apple Neural Engine through the
+//! `riir-infer-clef` substrate (feature `clef-ane`, macOS; parity
+//! bit-exact vs the official FluidUse runtime). `CLEF_LOCAL=1` selects
+//! the local arm for a `--clef` run too; the spend ceiling is an
+//! HTTP-arm law (the local arm runs on our own hardware). Compute
+//! units: `CLEF_COMPUTE_UNITS` (`ane` default | `gpu` | `cpu`).
 //! `--drex` adds the Drex DLM comparison lane (Issue 073, from
 //! `.research/008`): Nace.AI's open-weights 8B diffusion-LM decision model
 //! (`nace-ai/drex-dlm` @ `6c63df2`, Efficient-DLM-8B backbone — repo MIT,
@@ -603,6 +610,10 @@ fn harness_main() {
             "--bekko" => opts.bekko = true,
             "--agentjev" => opts.agentjev = true,
             "--clef" => opts.clef = true,
+            "--clef-local" => {
+                opts.clef_local = true;
+                opts.clef = true;
+            }
             "--openthai" => opts.openthai = true,
             "--drex" => opts.drex = true,
             "--d1" => opts.d1 = true,

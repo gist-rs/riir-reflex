@@ -3616,6 +3616,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "riir-infer-clef"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "bytemuck",
+ "half",
+ "memmap2",
+ "riir-infer-ane",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tokenizers",
+]
+
+[[package]]
 name = "riir-infer-core"
 version = "0.1.1"
 dependencies = [
@@ -3683,6 +3698,7 @@ dependencies = [
  "blake3",
  "katgpt-core",
  "reflexer-vessel",
+ "riir-infer-clef",
  "riir-infer-laya",
  "serde",
  "serde_json",

@@ -34,6 +34,12 @@ serde = { version = "1", features = ["derive"] }
 # `default-features = false` is explicit: nothing of the lane lights up
 # until the forwarding features below.
 riir-infer-laya = { path = "../riir-infer/crates/riir-infer-laya", default-features = false }
+# riir-infer-clef (optional, default-features = false): the clef-text-0.6b
+# ANE decision lane (plan 619 Phase 3 — the row-before-edge declaration is
+# reflex BOUNDARY.md). At rest (feature off) the crate compiles EMPTY (the
+# laya-riir posture); `clef-ane` below forwards the lane's own feature, so
+# the macOS CoreML machinery only ever resolves under the opt-in.
+riir-infer-clef = { path = "../riir-infer/crates/riir-infer-clef", optional = true, default-features = false }
 # reflexer-vessel (optional, default-features = false): the PUBLIC
 # decision-artifact vessel format crate (the public reflexer repo) — the
 # heads lane's signed PUBLIC-RELEASE reader + the mint path's public
@@ -178,6 +184,13 @@ laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
 # is the lane's parity authority — top-1 agreement + the near-tie band;
 # p-drift is observation, never a gate (fp16 math).
 laya-riir-ane = ["laya-riir", "riir-infer-laya/laya-riir-ane"]
+# The clef-text-0.6b ANE lane (plan 619 T3.1 — riir-infer Phase 1+2 LANDED:
+# the T2.2 frozen-capture parity gate is BIT-EXACT vs the official FluidUse
+# runtime, 544/544 logits): forwards the substrate crate's own `clef-ane`
+# feature (macOS-gated there — compiles empty everywhere else). The local
+# arm of the Clef comparison lane (`CLEF_LOCAL=1` / `--clef-local`); the
+# HTTP arm (plan 011) is untouched. Default off, never a default feature.
+clef-ane = ["dep:riir-infer-clef", "riir-infer-clef/clef-ane"]
 # The riir forward's OWN CUDA backend (.issues/002 there — the 4090 lane):
 # cudarc 0.19 + nvrtc runtime PTX compile, non-macOS TARGET-SCOPED in the
 # lane crate (inert on macOS instead of a dep-tree failure). Non-macOS

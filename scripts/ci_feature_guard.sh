@@ -32,9 +32,10 @@ cargo clippy --all-targets --no-default-features -- -D warnings
 echo "== [4/9] cargo test (default features)"
 cargo test
 
-echo "== [5/9] clippy at each lane's own feature set (laya-riir, laya-riir-metal)"
+echo "== [5/9] clippy at each lane's own feature set (laya-riir, laya-riir-metal, clef-ane)"
 cargo clippy --all-targets --features laya-riir -- -D warnings
 cargo clippy --all-targets --features laya-riir-metal -- -D warnings
+cargo clippy --all-targets --features clef-ane -- -D warnings
 
 if [ "$LAYER" = "full" ]; then
   echo "== [6/9] decision_set_goat bench (G2 latency + G4 alloc, release)"

@@ -494,6 +494,269 @@ pub fn map_answers(case: &SuiteCase, result: &Value) -> Result<Vec<AnswerTriple>
 
 // ───────────────────────────────────────────────────────────────── tests
 
+// ───────────────────────────── the LOCAL ANE arm (plan 619 T3.1) ─────────────
+
+/// The env var selecting the LOCAL in-process arm over the HTTP arm
+/// (`=1`; the HTTP lane of plan 011 stands untouched).
+pub const LOCAL_ENV: &str = "CLEF_LOCAL";
+
+/// The lane arm the runner drives: the plan-011 HTTP client, or (behind
+/// the `clef-ane` feature, macOS) the LOCAL in-process ANE runtime — the
+/// SAME decide surface, so the runner loop, the warmup law and the
+/// determinism rerun are shared verbatim.
+pub enum ClefArm {
+    Http(ClefLane),
+    #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+    LocalAne(Box<LocalAneLane>),
+}
+
+impl ClefArm {
+    /// Whether this is the LOCAL in-process arm (the spend ceiling is
+    /// an HTTP-arm law — undisclosed pricing; local pricing is our own
+    /// hardware, zero dollars).
+    pub fn is_local(&self) -> bool {
+        #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+        return matches!(self, ClefArm::LocalAne(_));
+        #[cfg(not(all(feature = "clef-ane", target_os = "macos")))]
+        return false;
+    }
+
+    /// The env selector: `CLEF_LOCAL=1` takes the local arm (refusing
+    /// loud, naming the rebuild, when the `clef-ane` feature is off —
+    /// never a silent HTTP fallback); anything else takes plan 011's
+    /// HTTP arm with its own no-creds gate.
+    pub fn from_env() -> Result<Self, String> {
+        if std::env::var(LOCAL_ENV).is_ok_and(|v| v == "1") {
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            return Ok(ClefArm::LocalAne(Box::new(LocalAneLane::from_env()?)));
+            #[cfg(not(all(feature = "clef-ane", target_os = "macos")))]
+            return Err(format!(
+                "{LOCAL_ENV}=1 needs the `clef-ane` feature (macOS) — rebuild with \
+                 `--features clef-ane`; the HTTP arm is never a silent fallback"
+            ));
+        }
+        Ok(ClefArm::Http(ClefLane::from_env()?))
+    }
+
+    pub fn info(&self) -> Result<(String, String), String> {
+        match self {
+            ClefArm::Http(lane) => lane.info(),
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            ClefArm::LocalAne(lane) => lane.info(),
+        }
+    }
+
+    pub fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<AnswerTriple>, f64, Option<f64>), String> {
+        match self {
+            ClefArm::Http(lane) => lane.decide(case),
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            ClefArm::LocalAne(lane) => lane.decide(case),
+        }
+    }
+
+    /// The raw byte-compare input for the determinism rerun (the
+    /// agentjev lane's raw-line law): the HTTP arm compares the wire
+    /// reply, the local arm a canonical rendering of the answers.
+    pub fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
+        match self {
+            ClefArm::Http(lane) => lane.decide_raw(case),
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            ClefArm::LocalAne(lane) => lane.decide_raw(case),
+        }
+    }
+}
+
+/// The clef-text-0.6b decision model answered IN-PROCESS on the Apple
+/// Neural Engine (plan 619 T3.1) through the `riir-infer-clef` lane —
+/// the crate whose T2.2 frozen-capture parity gate is BIT-EXACT vs the
+/// official FluidUse runtime. Warmup = one discarded real-shape forward
+/// (the runner's existing warmup block calls [`ClefArm::decide`]; the
+/// seam law — the first forward pays the ANE specialization).
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+pub struct LocalAneLane {
+    runtime: riir_infer_clef::lane::ClefText,
+}
+
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+impl LocalAneLane {
+    /// Load the pinned artifact tree (download-on-demand by the T1.2
+    /// law — a missing tree is a loud error naming the remedy) with ALL
+    /// four buckets, compute units from `CLEF_COMPUTE_UNITS` (the
+    /// runtime's own env contract: `ane` default | `gpu` | `cpu`).
+    pub fn from_env() -> Result<Self, String> {
+        let dir = riir_infer_clef::lane::artifacts_dir()
+            .map_err(|e| format!("clef-local: artifact dir: {e}"))?;
+        let model = riir_infer_clef::lane::ensure_and_load(&dir)
+            .map_err(|e| format!("clef-local: the artifact law (see the T1.3 install): {e}"))?;
+        let runtime = riir_infer_clef::lane::ClefText::load_from(
+            &dir,
+            model.config.clone(),
+            &model.config.buckets,
+            riir_infer_clef::lane::compute_units_from_env(),
+        )
+        .map_err(|e| format!("clef-local: load: {e}"))?;
+        Ok(Self { runtime })
+    }
+
+    /// `(model provenance, serving posture)` — the posture names the
+    /// device posture (the runtime's own `info()`), the artifact
+    /// revision, and the bit-exact parity authority.
+    pub fn info(&self) -> Result<(String, String), String> {
+        Ok((
+            "clef-text-0.6b (FluidInference student of Cloudflare clef, Apache-2.0)".into(),
+            format!(
+                "local in-process {} — parity: bit-exact vs FluidUse@0230049c (riir-infer bench 884 / plan 619 T2.2)",
+                self.runtime.info()
+            ),
+        ))
+    }
+
+    pub fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<AnswerTriple>, f64, Option<f64>), String> {
+        let t0 = Instant::now();
+        let answers = self.decide_inner(case)?;
+        let ms = t0.elapsed().as_secs_f64() * 1000.0;
+        Ok((answers, ms, None))
+    }
+
+    /// The canonical determinism input: one JSON line over the mapped
+    /// answers (bit-identical logits ⇒ byte-identical line; the T2.2
+    /// gate proved the forward bit-exact).
+    pub fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
+        let answers = self.decide_inner(case)?;
+        let rendered: Vec<serde_json::Value> = answers
+            .iter()
+            .zip(&case.questions)
+            .map(|((probs, pick, _), q)| {
+                json!({"qid": q.qid, "probs": probs, "pick": pick})
+            })
+            .collect();
+        Ok(json!({"id": case.id, "answers": rendered}).to_string())
+    }
+
+    fn decide_inner(&self, case: &SuiteCase) -> Result<Vec<AnswerTriple>, String> {
+        let questions: Vec<(String, riir_infer_clef::lane::ClefQuestion)> = case
+            .questions
+            .iter()
+            .map(|q| {
+                let question = match q.kind {
+                    QKind::Noul => riir_infer_clef::lane::ClefQuestion::Noul {
+                        instructions: Some(q.instructions.clone()),
+                        criteria: std::collections::BTreeMap::new(),
+                    },
+                    QKind::Choice => {
+                        let criteria = q
+                            .criteria
+                            .as_object()
+                            .ok_or_else(|| format!("qid {}: choice criteria must be an object", q.qid))?;
+                        let mut map = std::collections::BTreeMap::new();
+                        for (k, v) in criteria {
+                            // the build_body description law: Null or an
+                            // empty string renders the KEY as the
+                            // description; a string renders itself; any
+                            // other JSON value renders as its JSON text.
+                            let description = match v {
+                                Value::Null => k.clone(),
+                                Value::String(s) if s.is_empty() => k.clone(),
+                                Value::String(s) => s.clone(),
+                                other => other.to_string(),
+                            };
+                            map.insert(k.clone(), description);
+                        }
+                        riir_infer_clef::lane::ClefQuestion::Choice {
+                            instructions: Some(q.instructions.clone()),
+                            criteria: map,
+                        }
+                    }
+                    QKind::Score => {
+                        let levels = q
+                            .criteria
+                            .as_array()
+                            .ok_or_else(|| format!("qid {}: score criteria must be a list", q.qid))?;
+                        let mut criteria = Vec::with_capacity(levels.len());
+                        for v in levels {
+                            criteria.push(
+                                v.as_str()
+                                    .map(str::to_string)
+                                    .ok_or_else(|| format!("qid {}: score level must be a string", q.qid))?,
+                            );
+                        }
+                        riir_infer_clef::lane::ClefQuestion::Score {
+                            instructions: Some(q.instructions.clone()),
+                            criteria,
+                        }
+                    }
+                };
+                Ok((q.qid.clone(), question))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+
+        let out = self
+            .runtime
+            .answer(&case.state, &questions)
+            .map_err(|e| format!("clef-local ({}): {e}", case.id))?;
+
+        // Map back into OUR option order (the map_answers law):
+        // noul = [false, true]; choice = the HARNESS criteria-key order
+        // (clef scores in ITS sorted-id order — re-index through the
+        // returned option_ids); score = the levels order (identical).
+        let mut triples = Vec::with_capacity(out.len());
+        for (answer, q) in out.iter().zip(&case.questions) {
+            let triple = match q.kind {
+                QKind::Noul => {
+                    let p_true = *answer
+                        .probabilities
+                        .first()
+                        .ok_or("noul answer empty")? as f64;
+                    let p_false = *answer.probabilities.get(1).ok_or("noul answer short")? as f64;
+                    let pick = usize::from(p_true >= p_false);
+                    (vec![p_false, p_true], pick, p_true.max(p_false))
+                }
+                QKind::Choice => {
+                    let keys: Vec<String> = q
+                        .criteria
+                        .as_object()
+                        .map(|m| m.keys().cloned().collect())
+                        .unwrap_or_default();
+                    let mut probs = Vec::with_capacity(keys.len());
+                    for k in &keys {
+                        let i = answer
+                            .option_ids
+                            .iter()
+                            .position(|id| id == k)
+                            .ok_or_else(|| format!("qid {}: option {k} missing from the answer", q.qid))?;
+                        probs.push(answer.probabilities[i] as f64);
+                    }
+                    let pick = probs
+                        .iter()
+                        .enumerate()
+                        .max_by(|x, y| x.1.total_cmp(y.1))
+                        .map_or(0, |(i, _)| i);
+                    let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
+                    (probs, pick, conf)
+                }
+                QKind::Score => {
+                    let probs: Vec<f64> = answer.probabilities.iter().map(|p| *p as f64).collect();
+                    let pick = probs
+                        .iter()
+                        .enumerate()
+                        .max_by(|x, y| x.1.total_cmp(y.1))
+                        .map_or(0, |(i, _)| i);
+                    let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
+                    (probs, pick, conf)
+                }
+            };
+            triples.push(triple);
+        }
+        Ok(triples)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

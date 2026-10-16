@@ -5599,10 +5599,10 @@ fn run_clef_lane(
     laya_max_questions: usize,
     leak_flags: Option<&[bool]>,
 ) -> Result<LaneResult, String> {
-    use crate::lanes::clef::ClefLane;
+    use crate::lanes::clef::ClefArm;
 
     let t_start = Instant::now();
-    let lane = ClefLane::from_env()?;
+    let lane = ClefArm::from_env()?;
     let (model, posture) = lane.info()?;
     eprintln!("    [clef] service up: {model} via {posture}");
 
@@ -5646,21 +5646,26 @@ fn run_clef_lane(
 
     // The spend ceiling (plan 011 A6): pricing is undisclosed, so a run
     // above the default smoke cap REFUSES unless explicitly overridden.
-    let max_cases = std::env::var(crate::lanes::clef::MAX_CASES_ENV)
-        .ok()
-        .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(crate::lanes::clef::DEFAULT_MAX_CASES);
-    let uncapped = std::env::var(crate::lanes::clef::UNCAPPED_ENV)
-        .is_ok_and(|v| v == "1");
-    if cases.len() > max_cases && !uncapped {
-        return Err(format!(
-            "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — \
-             pricing is undisclosed; raise {CAP} or set {UNC}=1 to run uncapped",
-            cases.len(),
-            crate::lanes::clef::DEFAULT_MAX_CASES,
-            CAP = crate::lanes::clef::MAX_CASES_ENV,
-            UNC = crate::lanes::clef::UNCAPPED_ENV,
-        ));
+    // LOCAL-arm law: the ceiling is an HTTP-arm law (undisclosed HOSTED
+    // pricing) — the local arm runs on our own hardware, so it is
+    // exempt; the full-N frozen splits stay the T3.2 posture.
+    if !lane.is_local() {
+        let max_cases = std::env::var(crate::lanes::clef::MAX_CASES_ENV)
+            .ok()
+            .and_then(|v| v.parse::<usize>().ok())
+            .unwrap_or(crate::lanes::clef::DEFAULT_MAX_CASES);
+        let uncapped = std::env::var(crate::lanes::clef::UNCAPPED_ENV)
+            .is_ok_and(|v| v == "1");
+        if cases.len() > max_cases && !uncapped {
+            return Err(format!(
+                "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — \
+                 pricing is undisclosed; raise {CAP} or set {UNC}=1 to run uncapped",
+                cases.len(),
+                crate::lanes::clef::DEFAULT_MAX_CASES,
+                CAP = crate::lanes::clef::MAX_CASES_ENV,
+                UNC = crate::lanes::clef::UNCAPPED_ENV,
+            ));
+        }
     }
 
     let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
@@ -7718,6 +7723,13 @@ pub struct RunOptions {
     /// and the spend ceiling `CLEF_SMOKE_MAX_CASES` (default 50) bounds
     /// undisclosed pricing. Default off.
     pub clef: bool,
+    /// Also run the clef lane in its LOCAL in-process ANE arm (plan 619
+    /// T3.1): clef-text-0.6b on the Neural Engine through the
+    /// `riir-infer-clef` substrate (feature `clef-ane`, macOS). The
+    /// `--clef-local` flag sets this AND implies the lane runs (the arm
+    /// is selected by `CLEF_LOCAL=1` inside `ClefArm::from_env`, so the
+    /// runner loop stays shared). Default off.
+    pub clef_local: bool,
     /// Also run the OpenThai comparison lane (Plan 003 Phase 2): their
     /// `openthai_systemone` service answered over HTTP
     /// (`OPENTHAI_SERVE_URL`, default `http://127.0.0.1:8000`) — the
@@ -8003,6 +8015,7 @@ impl RunOptions {
             jeva: false,
             paw: false,
             paw_local: false,
+            clef_local: false,
             corpus_cap_override: 0,
             cal_select_caps: Vec::new(),
             pair_head_ab: false,
@@ -9118,7 +9131,19 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              jev_service on AGENTJEV_SERVE_URL — .issues/025)"
                 .to_string()
         },
-        clef_lane: if opts.clef {
+        clef_lane: if opts.clef
+            && (opts.clef_local
+                || std::env::var(crate::lanes::clef::LOCAL_ENV).is_ok_and(|v| v == "1"))
+        {
+            "on — clef-text-0.6b answered IN-PROCESS on the Apple Neural Engine \
+             (plan 619 T3.1) through the riir-infer-clef substrate (feature clef-ane): \
+             the T2.2 frozen-capture parity gate is BIT-EXACT vs the official \
+             FluidUse runtime; compute units via CLEF_COMPUTE_UNITS (ane default | \
+             gpu | cpu); the student-vs-teacher caveat stands (0.6b student of \
+             clef-flash); the HTTP arm (plan 011) is untouched; the arm is selected \
+             by --clef-local or CLEF_LOCAL=1"
+                .to_string()
+        } else if opts.clef {
             let url = std::env::var(crate::lanes::clef::SERVE_URL_ENV)
                 .unwrap_or_else(|_| crate::lanes::clef::DEFAULT_SERVE_URL.into());
             format!(
