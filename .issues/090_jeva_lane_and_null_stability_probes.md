@@ -14,21 +14,13 @@ B2 capture rider LANDED 2026-10-16** (`--jeva` comparison lane +
 wiring; 22 lane tests, clippy `-D warnings` clean — the license gate RESOLVED by
 riir-train 632 T0: weights UNDECLARED → capture-for-measurement OK, adoption
 fail-closed, correcting this issue's original "contact-gated" note). **The 632 T2
-
-
-nteacher capture COMPLETE 2026-10-16T06:18Z** (`.raw/distill_teacher_jeva/`: 7 T3
-
-nsuites — ag_news, emotion, sst5, prompt_injections, xnli_en, massive_intent_en,
-
-nbanking77 — each a blake3-tagged `*_teacher.bin` + the finished `DISTILL.md`
-
-nmanifest whose loud-absences section covers every non-T3 suite; allow_null=0 as
-
-nplanned). Remaining: riir-train 632 T2's train-side consumption of the artifact
-
-n(the frozen-read/retrain verdict — that repo's lane; the reflex-side record here
-
-nprevents a duplicate 15 h capture).
+teacher capture COMPLETE 2026-10-16T06:18Z** (`.raw/distill_teacher_jeva/`: 7 T3
+suites — ag_news, emotion, sst5, prompt_injections, xnli_en, massive_intent_en,
+banking77 — each a blake3-tagged `*_teacher.bin` + the finished `DISTILL.md`
+manifest whose loud-absences section covers every non-T3 suite; allow_null=0 as
+planned). Remaining: riir-train 632 T2's train-side consumption of the artifact
+(the frozen-read/retrain verdict — that repo's lane; the reflex-side record here
+prevents a duplicate 15 h capture).
 **C1 LANDED 2026-10-16** — TWO instruments, one landing (the claim collision's
 merge, both green): (a) Bench 149, the `--rubric-probe` lane: I1/I2/I3/I4 all
 PASS 6/6 suites at every surface — engine-raw / engine-norm / wire-round6, each
