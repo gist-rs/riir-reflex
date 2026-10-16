@@ -164,6 +164,10 @@ cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typ
 # paired-noul bit-identity + the confidence shape, A1 = the abstention drift
 # curve + the Report-the-Floor gate (deployed calibrated conf vs the
 # conformal-naive floor). Control reds refuse the run (exit 1, record on disk).
+# The Issue-092 2-feature candidate leg (σ(a·maxp + b·ent + c) vs the floor,
+# fit on the same cal slice) rides every modelless cell REPORT-ONLY — measured
+# NEGATIVE (Bench 151: 1/6, the cal slice is not a ranking-training signal); it
+# never gates the run and never arms anything.
 cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe
 
 # Rubric-covariance + route-agreement probe (Issue 090 C1, Bench 149): the

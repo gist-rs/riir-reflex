@@ -5,6 +5,38 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-16 — Issue 092 CLOSED: the 2-feature readout-gate candidate MEASURED NEGATIVE (Bench 151); the 047 acceptance stands
+
+**Status: Resolved (negative; landing `fbdbf10`, issue filed+claimed `f767c64`).**
+
+Bench 147's 10× addendum left the deployed confidence readout RED vs the
+conformal-naive floor on the AUROC axis (ag_news −0.026, emotion −0.046 — xnli's
+red is tie-zone Δ 0.0024). Issue 092 priced the one mechanism family neither
+adjudicated lane had measured: a 2-feature logistic gate
+`σ(a·maxp + b·(1−H/lnK) + c)` over the two SHIPPED readout functionals,
+fit on the same cal slice (the `label_heads` sequential-SGD law at D=2,
+harness-local, deterministic), judged by the floor's own weak-dominance rule.
+
+T1 landed as REPORT-ONLY instrumentation (`FloorObs`, `ArmReadout.inv_ent`,
+`TwoFeatureGate`, `CandidateCell`, the factored `dominates`; 5 unit tests,
+clippy `-D` clean, lib 432/0) — the floor cells reproduced the 147 addendum
+BIT-IDENTICALLY on all six suites, proving the refactor preserved the
+instrument. T2 (Bench 151, the exact 147 10× posture): **NEGATIVE — 1/6 pass
+(xnli, tie-zone noise), 1/6 within 1e-4 (ag_news 0.5845 vs 0.5846 with a huge
+ECE win), 4/6 clear fails including REGRESSIONS on all three green suites.**
+
+The mechanism is the Bench-052 lesson one level up, now measured on the FIT
+itself: the cal slice is not a ranking-training signal. typed's fit went
+NEGATIVE on maxp (−2.013 — cal says lower-maxp→more-correct) and regressed test
+AUROC to 0.4296 while buying ECE 0.0066; emotion's fit found ≈0 weights exactly
+where the ranking gap is largest; where the fit DID recover maxp's direction
+(ag_news +3.826) it only tied the floor. T3 (the engine lane) never fired —
+the 047 acceptance, the 052 demotion, and the Bench-817 dispatch law all
+STAND. The candidate leg stays in the `--null-probe` instrument (report-only);
+the record prices the binding constraint for any future re-open: a mechanism
+whose CAL-SLICE FIT TRANSFERS TO TEST RANKING — not ECE, not the functional
+family. Full table + provenance: [Bench 151](.benchmarks/151_readout_floor_candidate.md).
+
 ## 2026-10-16 — Issue 091 CLOSED: jdi_tranche1_fetched_count_floors now skips LOUD on a present-but-PARTIAL fetch
 
 **Status: Resolved (fix `c48779f`, canary-proven both arms).** The count
