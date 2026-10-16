@@ -175,6 +175,16 @@ cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_pro
 # Identity reds refuse the run (exit 1, record on disk).
 cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe
 
+# Set-refine paired A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in feature
+# `set_refine`; Bench 150): the engine seam knob `set_refine_gamma` (default
+# 0.0 = byte-identity) refines the state embedding by the option set's
+# sigmoid-gated directions before scoring. MEASURED NEGATIVE at the GOAT —
+# G1 FAIL −12.3..−14.0 pt on the wide by-name suites, monotone in γ
+# (structural: unit-centroid keys pull the state toward the corpus mean);
+# G2/G3/G4 pass; the lane stays opt-in with the record. Re-open = a different
+# key family, never a γ/τ retune.
+cargo run --release --features set_refine --bin harness -- --set-refine-ab --out .benchmarks/150_set_refine_ab_goat
+
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN
 # else PATH — build: (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)):
 NDB_BIN=../riir-neuron-db/target/release/ndb \
