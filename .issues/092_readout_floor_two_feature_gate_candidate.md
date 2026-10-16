@@ -1,8 +1,18 @@
 # Issue 092 — the 2-feature readout-gate candidate: can a (maxp, entropy) logistic gate dominate the conformal floor where the shipped posture is RED?
 
-**Status:** OPEN — filed 2026-10-16 from Bench 147 + its 10× addendum. REPORT-ONLY
-instrumentation lane (no deployed-path change, no arming); the promotion half (T3) is
-conditional on T2 dominance and rides its own GOAT + verdict.
+**Status:** CLOSED NEGATIVE 2026-10-16 (Bench 151, same window as filing): T1 LANDED
+(the report-only candidate leg + 5 unit tests; floor cells bit-identical to the 147
+10× addendum — the refactor preserved the instrument exactly), T2 MEASURED — **the
+2-feature gate does NOT dominate: 1/6 pass (xnli, tie-zone noise), 1/6 within 1e-4
+(ag_news), 4/6 clear fails including regressions on all three green suites**. The
+mechanism: the cal slice is not a ranking-training signal — typed's fit went
+NEGATIVE on maxp (−2.013) and regressed test AUROC to 0.4296; emotion's fit found ≈0
+weights where the ranking gap is largest; where the fit recovered maxp's direction
+(ag_news +3.826) it only TIED the floor (0.5845 vs 0.5846, tie-zone). The Bench-052
+lesson repeats one level up — T3 not fired, the 047 acceptance and the 052 demotion
+STAND. The candidate leg stays in the instrument (report-only); the binding
+constraint for any future re-open is priced by this record: a mechanism whose
+CAL-SLICE FIT TRANSFERS TO TEST RANKING.
 
 **Claimed:** 4090-watch session, 2026-10-16T11:5x +07, expires 2026-10-18T12:00Z
 
@@ -20,6 +30,12 @@ the conformal-naive floor and came back **RED on 4/6 suites**, n-firmed at 10× 
 - PASS: xnli (AUROC 0.6435 > 0.6261), banking77 (ECE 0.0953 ≪ 0.3054)
 
 The verdict rule is weak dominance on BOTH axes + strict on one (`floor_cell`'s `beats`).
+
+> **Correction at 10× n (the 147 addendum, reproduced bit-identically by Bench 151):
+> the first-read cells above are small-n artifacts.** The n-firmed picture: RED 3/6 —
+> ag_news −0.026, emotion −0.046 (the real ranking gaps), xnli Δ 0.0024 (tie-zone
+> noise); typed/massive flip to PASS. The Why-section numbers stay as the filing
+> record of what was known at filing.
 
 ## The adjudicated history this lane must respect
 
@@ -50,7 +66,9 @@ conclusion (the 052 lesson is precisely that cal-side wins do not transfer to te
 
 ## Tasks
 
-- [ ] **T1 — the candidate leg in the floor instrument (report-only).** In the
+- [x] **T1 — the candidate leg in the floor instrument (report-only).** LANDED
+  (`FloorObs` + `ArmReadout.inv_ent` + `TwoFeatureGate` + `CandidateCell` + the
+  factored `dominates`; 5 unit tests; clippy `-D` clean; lib 432/0). In the
   `--null-probe` modelless cell: collect `(maxp, inv_entropy, correct)` per CHOICE slot
   at BOTH existing collection sites (the cal pass at `runner/null_probe.rs` line ~519
   and the reference-arm test triples at ~622 — the probs vector is already materialized
@@ -62,18 +80,18 @@ conclusion (the 052 lesson is precisely that cal-side wins do not transfer to te
   (a=0 / b=0 sanity), the dominance verdict arithmetic, determinism (seeded order). The
   lane CHANGES NO deployed path, arms nothing, and never touches the run verdicts of the
   existing legs.
-- [ ] **T2 — the bench run (Bench 151).** The 147 posture verbatim:
+- [x] **T2 — the bench run (Bench 151).** RUN at the 147 posture; verdict NEGATIVE
+  (the table + mechanism in the record).
   `cargo run --release --bin harness -- --null-probe --null-max-cases 500 --suites
   ag_news,banking77,emotion,massive_intent_en,typed_decisions,xnli_en --out
   .benchmarks/151_readout_floor_candidate`. The honest verdict either way: dominance on
   the 4 red suites + no regression on the 2 green ones = the reopen evidence base;
   anything less = the recorded negative that keeps the adjudicated posture standing.
-- [ ] **T3 — (conditional on T2 dominance) the engine lane + GOAT + verdict ping-pong.**
-  Any deployed-path change (a 2-feature gate calibration in the engine) is its own lane:
-  G1 the full floor gate at 10× n, G3 flag-off hash-identity, G2/G4 `--release`, the
-  Bench-817 dispatch-table law untouched (the candidate layers ON the readouts, it does
-  not replace them), owner-gated promotion. If T2 does not dominate: record the negative
-  and CLOSE — the 047 acceptance stands.
+- [-] **T3 — NOT FIRED (T2 negative; the conditional never armed).** The 047 acceptance
+  stands; record [Bench 151](../.benchmarks/151_readout_floor_candidate.md) closes the
+  lane. Had T2 dominated, the engine lane would have been: G1 the full floor gate at
+  10× n, G3 flag-off hash-identity, G2/G4 `--release`, the Bench-817 dispatch-table law
+  untouched, owner-gated promotion.
 
 ## Non-goals
 

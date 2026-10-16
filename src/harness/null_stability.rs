@@ -55,6 +55,8 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
+use crate::readout::{confidence_with, ReadoutMode};
+
 use super::suites::{GoldAnswer, QKind, SuiteCase, SuiteQuestion};
 
 /// Seed constant for the probe's decoy stream (reproducibility is what
@@ -346,6 +348,13 @@ pub struct ArmReadout {
     pub decoy_won: bool,
     pub abstained: bool,
     pub confidence: f64,
+    /// The inverted normalized entropy of the arm's FULL presented
+    /// distribution — the shipped `ReadoutMode::InvEntropy` functional,
+    /// computed at record time. The Issue-092 candidate leg's second
+    /// feature (the first is `p_a`, the argmax prob, on the reference
+    /// arm); recorded per arm so the candidate never needs the raw
+    /// distributions back.
+    pub inv_ent: f64,
     /// The arm's scoring regime: "routed" / "drafter-only" (the modelless
     /// engine's k ≤ N by-name arming law) or "n/a" (comparison lanes).
     pub regime: &'static str,
@@ -451,6 +460,10 @@ pub fn null_case_record(
             decoy_won: ans.pick >= n,
             abstained: ans.abstained,
             confidence: ans.confidence,
+            inv_ent: {
+                let f32probs: Vec<f32> = ans.probs.iter().map(|&x| x as f32).collect();
+                f64::from(confidence_with(ReadoutMode::InvEntropy, &f32probs))
+            },
             regime: regime_of(ans),
         });
     }

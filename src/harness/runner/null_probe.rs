@@ -51,6 +51,7 @@ use crate::harness::null_stability::{
     DecoyPool, NoulAnswer, NullCaseRecord, NullOracle, NullVerdict, NULL_PROBE_SEED,
 };
 use crate::harness::metrics::{auroc_of, conformal_naive_floor, ece_of, CalibrationPair};
+use crate::readout::{confidence_with, ReadoutMode};
 
 /// The default suite set — the perm-probe's choice suites (diverse option
 /// counts; the pool law wants the vocabulary union).
@@ -105,6 +106,123 @@ pub struct FloorCell {
     pub verdict: NullVerdict,
 }
 
+/// Per-slot readout observation for the floor + candidate legs (Issue 092
+/// T1): the shipped gate confidence, the two SHIPPED readout functionals
+/// (`ReadoutMode::MaxProb` / `ReadoutMode::InvEntropy` — computed through
+/// `crate::readout::confidence_with`, never re-derived here), and
+/// correctness. Collected at the cal pass and the reference-arm test
+/// triples — the same slots the floor leg already reads.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct FloorObs {
+    gate: f64,
+    maxp: f64,
+    inv_ent: f64,
+    correct: bool,
+}
+
+/// The Report-the-Floor dominance rule (Plan 340 shape), factored so the
+/// shipped-gate cell and the Issue-092 candidate cell share ONE arithmetic:
+/// weakly better on both axes, strictly better on at least one.
+fn dominates(auroc_x: f64, ece_x: f64, auroc_y: f64, ece_y: f64) -> bool {
+    const EPS: f64 = 1e-12;
+    (auroc_x > auroc_y + EPS || ece_x < ece_y - EPS)
+        && auroc_x >= auroc_y - EPS
+        && ece_x <= ece_y + EPS
+}
+
+/// The 2-feature readout-gate candidate (Issue 092 T1):
+/// `conf₂ = σ(a·maxp + b·inv_ent + c)` — the logistic gate over the two
+/// SHIPPED readout functionals. Each single functional is a restriction
+/// (a = 0 or b = 0), so the family subsumes both singles; whether it
+/// DOMINATES the conformal floor where the shipped posture is RED is the
+/// measurement, never a foregone conclusion (the Bench-052 lesson).
+/// REPORT-ONLY: nothing here arms, gates, or touches a deployed path.
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct TwoFeatureGate {
+    a: f64,
+    b: f64,
+    c: f64,
+}
+
+/// Fit constants mirroring `label_heads`'s law (sequential SGD, fixed
+/// epochs, linear lr decay over the total step count, L2 decay). 12 epochs
+/// → 200 here: a 3-parameter fit converges slower per parameter than the
+/// per-doc D-dimensional pass, and the fit runs once per suite off the hot
+/// path — the LAW's shape is what is cited, not its constants.
+const GATE_EPOCHS: usize = 200;
+const GATE_LR0: f64 = 0.5;
+const GATE_L2: f64 = 1e-4;
+
+/// Numerically stable f64 logistic sigmoid (clamped like the engine's
+/// `fast_sigmoid`; the fit runs in f64 so the gradient carries no f32
+/// rounding — determinism is the sequential order, not the width).
+fn sigmoid64(z: f64) -> f64 {
+    let z = z.clamp(-40.0, 40.0);
+    if z >= 0.0 {
+        1.0 / (1.0 + (-z).exp())
+    } else {
+        let e = z.exp();
+        e / (1.0 + e)
+    }
+}
+
+impl TwoFeatureGate {
+    /// Deterministic sequential-SGD logistic fit over `(maxp, inv_ent,
+    /// correct)` cal rows in the given order — the `src/label_heads.rs`
+    /// fit law at D = 2, single head (cited, not generalized: one
+    /// instrumentation site consumes it). Bit-reproducible.
+    fn fit(cal: &[(f64, f64, bool)]) -> Self {
+        let steps = (GATE_EPOCHS * cal.len()).max(1) as f64;
+        let (mut a, mut b, mut c) = (0.0f64, 0.0f64, 0.0f64);
+        let mut t = 0.0f64;
+        for _ in 0..GATE_EPOCHS {
+            for &(x, y, ok) in cal {
+                let lr = GATE_LR0 * (1.0 - t / steps);
+                t += 1.0;
+                let z = a * x + b * y + c;
+                let g = sigmoid64(z) - f64::from(ok);
+                let step = lr * g;
+                let decay = 1.0 - lr * GATE_L2;
+                a = a * decay - step * x;
+                b = b * decay - step * y;
+                c -= step;
+            }
+        }
+        Self { a, b, c }
+    }
+
+    /// The candidate confidence at one observation.
+    fn conf(&self, maxp: f64, inv_ent: f64) -> f64 {
+        sigmoid64(self.a * maxp + self.b * inv_ent + self.c)
+    }
+}
+
+/// The Issue 092 T1 candidate cell: the 2-feature gate's reading against
+/// the SAME conformal floor the shipped gate faces (the same [`dominates`]
+/// rule) with the shipped gate's axes restated for the three-way
+/// comparison. REPORT-ONLY — never gates the run, never arms anything;
+/// the run's verdicts stay the floor leg's own.
+#[derive(Debug, Clone, Serialize)]
+pub struct CandidateCell {
+    pub n_cal: usize,
+    pub n_test: usize,
+    /// The fitted parameters (`a·maxp + b·inv_ent + c`).
+    pub a: f64,
+    pub b: f64,
+    pub c: f64,
+    pub cand_auroc: f64,
+    pub cand_ece: f64,
+    /// The floor's axes, restated (self-contained cell).
+    pub floor_auroc: f64,
+    pub floor_ece: f64,
+    /// The shipped gate's axes, restated (the three-way comparison).
+    pub gate_auroc: f64,
+    pub gate_ece: f64,
+    /// Would the candidate have PASSED the floor gate the shipped gate
+    /// faced — the reopen evidence base, never a run verdict.
+    pub verdict: NullVerdict,
+}
+
 #[derive(Debug, Clone, Serialize)]
 pub struct NullLaneReport {
     pub lane: String,
@@ -121,6 +239,9 @@ pub struct NullLaneReport {
     pub a3: crate::harness::null_stability::A3Stats,
     /// The floor leg (modelless only — comparison lanes ship no gate).
     pub floor: Option<FloorCell>,
+    /// The Issue-092 2-feature candidate leg (modelless only, REPORT-ONLY —
+    /// never a run verdict; `None` wherever `floor` is).
+    pub candidate: Option<CandidateCell>,
     pub verdict: NullVerdict,
     pub cases: Vec<NullCaseRecord>,
 }
@@ -379,35 +500,31 @@ fn answer_null_slot(
 /// slots. Gate = the shipped confidence; floor = the split-conformal
 /// calibration of the RAW max-prob (monotone in raw ⇒ equal AUROC to raw;
 /// the ECE is the floor's own calibration quality). Inputs are
-/// (gate conf, raw max-prob, correct) triples — the SAME variable must be
-/// calibrated and scored on each side.
-fn floor_cell(cal: &[(f64, f64, bool)], test: &[(f64, f64, bool)]) -> FloorCell {
+/// [`FloorObs`] — the same variable must be calibrated and scored on each
+/// side (the candidate leg reads the OTHER two fields of the same obs).
+fn floor_cell(cal: &[FloorObs], test: &[FloorObs]) -> FloorCell {
     let n_cal = cal.len();
     let n_test = test.len();
-    let gate_pairs: Vec<(f64, bool)> = test.iter().map(|(g, _, c)| (*g, *c)).collect();
+    let gate_pairs: Vec<(f64, bool)> = test.iter().map(|o| (o.gate, o.correct)).collect();
     // The floor calibrates the RAW variable (the naive forecaster).
     let raw_cal_pairs: Vec<CalibrationPair> = cal
         .iter()
-        .map(|(_, r, c)| CalibrationPair {
-            conf: *r,
-            correct: *c,
+        .map(|o| CalibrationPair {
+            conf: o.maxp,
+            correct: o.correct,
         })
         .collect();
-    let raw_test: Vec<f64> = test.iter().map(|(_, r, _)| *r).collect();
+    let raw_test: Vec<f64> = test.iter().map(|o| o.maxp).collect();
     let floor_vals = conformal_naive_floor(&raw_cal_pairs, &raw_test);
     let floor_pairs: Vec<(f64, bool)> = floor_vals
         .iter()
-        .zip(test.iter().map(|(_, _, c)| *c))
+        .zip(test.iter().map(|o| o.correct))
         .map(|(v, c)| (*v, c))
         .collect();
     let gate_auroc = auroc_of(&gate_pairs);
     let gate_ece = ece_of(&gate_pairs);
     let floor_auroc = auroc_of(&floor_pairs);
     let floor_ece = ece_of(&floor_pairs);
-    const EPS: f64 = 1e-12;
-    let beats = (gate_auroc > floor_auroc + EPS || gate_ece < floor_ece - EPS)
-        && gate_auroc >= floor_auroc - EPS
-        && gate_ece <= floor_ece + EPS;
     FloorCell {
         n_cal,
         n_test,
@@ -415,7 +532,48 @@ fn floor_cell(cal: &[(f64, f64, bool)], test: &[(f64, f64, bool)]) -> FloorCell 
         gate_ece,
         floor_auroc,
         floor_ece,
-        verdict: if beats { NullVerdict::Pass } else { NullVerdict::Red },
+        verdict: if dominates(gate_auroc, gate_ece, floor_auroc, floor_ece) {
+            NullVerdict::Pass
+        } else {
+            NullVerdict::Red
+        },
+    }
+}
+
+/// The Issue 092 T1 candidate leg: fit the 2-feature gate on the SAME cal
+/// slice the floor calibrates on, read it on the SAME test slots, and ask
+/// the floor's own [`dominates`] question. The shipped gate's axes ride
+/// in for the restated three-way comparison. REPORT-ONLY by construction.
+fn candidate_cell(
+    cal: &[FloorObs],
+    test: &[FloorObs],
+    floor: &FloorCell,
+) -> CandidateCell {
+    let rows: Vec<(f64, f64, bool)> = cal.iter().map(|o| (o.maxp, o.inv_ent, o.correct)).collect();
+    let g = TwoFeatureGate::fit(&rows);
+    let pairs: Vec<(f64, bool)> = test
+        .iter()
+        .map(|o| (g.conf(o.maxp, o.inv_ent), o.correct))
+        .collect();
+    let cand_auroc = auroc_of(&pairs);
+    let cand_ece = ece_of(&pairs);
+    CandidateCell {
+        n_cal: cal.len(),
+        n_test: test.len(),
+        a: g.a,
+        b: g.b,
+        c: g.c,
+        cand_auroc,
+        cand_ece,
+        floor_auroc: floor.floor_auroc,
+        floor_ece: floor.floor_ece,
+        gate_auroc: floor.gate_auroc,
+        gate_ece: floor.gate_ece,
+        verdict: if dominates(cand_auroc, cand_ece, floor.floor_auroc, floor.floor_ece) {
+            NullVerdict::Pass
+        } else {
+            NullVerdict::Red
+        },
     }
 }
 
@@ -516,7 +674,7 @@ fn null_modelless<const N: usize>(
     // discloses beside) — measuring a gate nothing ships. The floor's
     // calibration triples (choice-only — variable consistency for the
     // raw-max side) ride the same pass.
-    let mut cal_triples: Vec<(f64, f64, bool)> = Vec::new();
+    let mut cal_triples: Vec<FloorObs> = Vec::new();
     {
         let mut raw_scratch = Scratch::<EMBED_DIM>::new();
         raw_scratch.prepare(1);
@@ -540,8 +698,21 @@ fn null_modelless<const N: usize>(
                     .map(|g| pick == g.idx)
                     .unwrap_or(false);
                 if cc.questions[qi].kind == QKind::Choice {
-                    let raw = tmp.iter().copied().fold(f64::MIN, f64::max);
-                    cal_triples.push((f64::from(ans.confidence), raw, correct));
+                    // The two SHIPPED functionals through the shipped code —
+                    // the Issue-092 candidate's features are the readouts
+                    // themselves, never a re-derivation (`tmp` is the exact
+                    // f32 label distribution widened to f64; the narrowing
+                    // back is lossless, so `maxp` here is bit-identical to
+                    // the old `fold(f64::max)` raw).
+                    let f32probs: Vec<f32> = tmp.iter().map(|&x| x as f32).collect();
+                    let maxp = f64::from(confidence_with(ReadoutMode::MaxProb, &f32probs));
+                    let inv_ent = f64::from(confidence_with(ReadoutMode::InvEntropy, &f32probs));
+                    cal_triples.push(FloorObs {
+                        gate: f64::from(ans.confidence),
+                        maxp,
+                        inv_ent,
+                        correct,
+                    });
                 }
                 pairs.push((ans.confidence, correct));
             }
@@ -619,15 +790,35 @@ fn null_modelless<const N: usize>(
     // abstained rows keep the would-be pick (the wire's own risk-coverage
     // law: an abstained answer may still carry the distribution +
     // confidence).
-    let test: Vec<(f64, f64, bool)> = recs
+    let test: Vec<FloorObs> = recs
         .iter()
         .map(|r| {
             let arm = &r.arms[0];
             let correct = r.gold.as_deref().map(|g| g == r.a_label).unwrap_or(false);
-            (arm.confidence, arm.p_a, correct)
+            // `p_a` is the reference argmax's probability (= the MaxProb
+            // functional's value by construction); `inv_ent` is the shipped
+            // InvEntropy functional, recorded at build time. Both candidate
+            // features go through the shipped readout code — never
+            // re-derived here.
+            FloorObs {
+                gate: arm.confidence,
+                maxp: arm.p_a,
+                inv_ent: arm.inv_ent,
+                correct,
+            }
         })
         .collect();
     let floor = (cal_triples.len() >= MIN_FLOOR_CAL).then(|| floor_cell(&cal_triples, &test));
+    // Issue 092 T1 — the REPORT-ONLY candidate leg: same cal slice, same
+    // test slots, the floor's own dominance question. Never a run verdict.
+    let candidate = floor.as_ref().map(|f| candidate_cell(&cal_triples, &test, f));
+    if let Some(c) = &candidate {
+        eprintln!(
+            "    null[modelless]: candidate (REPORT-ONLY): σ({:+.3}·maxp {:+.3}·ent {:+.3}) \
+             AUROC {:.4} / ECE {:.4} vs floor {:.4}/{:.4} — {}",
+            c.a, c.b, c.c, c.cand_auroc, c.cand_ece, c.floor_auroc, c.floor_ece, c.verdict.str_of()
+        );
+    }
     if floor.is_none() {
         let n_cal = cal_triples.len();
         skips.push(format!(
@@ -677,6 +868,7 @@ fn null_modelless<const N: usize>(
         a2,
         a3,
         floor,
+        candidate,
         verdict,
         cases: recs,
     })
@@ -834,6 +1026,7 @@ fn null_suite(
                     a2,
                     a3,
                     floor: None,
+                    candidate: None,
                     verdict,
                     cases: recs,
                 });
@@ -1019,7 +1212,10 @@ pub fn run_null_probe(
                          max-prob on the cal/test split (≥1 axis better, none worse). \
                          A1's drift curve itself is CHARACTERIZED (the issue's own ⚠: \
                          max-of-K drift is the measured quantity), never gated on an \
-                         unstudied ε. Comparison-lane reds are disclosed rows."
+                         unstudied ε. The Issue-092 2-feature candidate leg \
+                         (σ(a·maxp + b·ent + c), fit on the same cal slice) is \
+                         REPORT-ONLY: it never gates the run and never arms \
+                         anything. Comparison-lane reds are disclosed rows."
                 .to_string(),
             laya_note: "laya not wired in this unit: the perm-probe seam discards the \
                         answer's confidence field and A1/A3 need it — the lane joins \
@@ -1115,6 +1311,26 @@ pub fn render_null_probe_markdown(out: &NullProbeOutput) -> String {
                     f.verdict.str_of()
                 );
             }
+            if let Some(c) = &lane.candidate {
+                let _ = writeln!(
+                    s,
+                    "- candidate (Issue 092, REPORT-ONLY): σ({:+.3}·maxp {:+.3}·ent {:+.3}) \
+                     AUROC {:.4} / ECE {:.4} vs floor {:.4}/{:.4} · shipped gate {:.4}/{:.4} \
+                     (n_cal {}, n_test {}) — **{}**",
+                    c.a,
+                    c.b,
+                    c.c,
+                    c.cand_auroc,
+                    c.cand_ece,
+                    c.floor_auroc,
+                    c.floor_ece,
+                    c.gate_auroc,
+                    c.gate_ece,
+                    c.n_cal,
+                    c.n_test,
+                    c.verdict.str_of()
+                );
+            }
         }
         if !suite.skipped.is_empty() {
             let _ = writeln!(s, "- skipped: {}", suite.skipped.join(" · "));
@@ -1130,4 +1346,115 @@ pub fn render_null_probe_markdown(out: &NullProbeOutput) -> String {
         out.red_cells
     );
     s
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn obs(gate: f64, maxp: f64, inv_ent: f64, correct: bool) -> FloorObs {
+        FloorObs {
+            gate,
+            maxp,
+            inv_ent,
+            correct,
+        }
+    }
+
+    /// The fit recovers a clean maxp-only separation: a > 0, and the
+    /// fitted confidences rank every correct row above every incorrect
+    /// one on the training rows themselves (AUROC 1 on train).
+    #[test]
+    fn two_feature_gate_recovers_maxp_separation() {
+        // Deterministic synthetic: correct rows carry high maxp, incorrect
+        // low — the pattern the emotion floor cell says the shipped readout
+        // destroys (gate AUROC 0.5253 vs raw 0.7560).
+        let mut cal = Vec::new();
+        for i in 0..60 {
+            let hi = 0.55 + 0.40 * (i as f64) / 59.0;
+            let lo = 0.05 + 0.30 * (i as f64) / 59.0;
+            cal.push((hi, 0.5, true)); // (maxp, inv_ent, correct)
+            cal.push((lo, 0.5, false));
+        }
+        let g = TwoFeatureGate::fit(&cal);
+        assert!(g.a > 0.0, "the maxp weight must be positive, got {g:?}");
+        let mut confs: Vec<(f64, bool)> = cal
+            .iter()
+            .map(|&(x, y, ok)| (g.conf(x, y), ok))
+            .collect();
+        confs.sort_by(|p, q| p.0.total_cmp(&q.0));
+        // Every incorrect row ranks below every correct row on train.
+        let max_incorrect = confs.iter().find(|(_, ok)| !ok).map(|(c, _)| *c).unwrap();
+        let min_correct = confs.iter().rev().find(|(_, ok)| *ok).map(|(c, _)| *c).unwrap();
+        assert!(max_incorrect < min_correct, "train separation must be clean");
+        assert_eq!(crate::harness::metrics::auroc_of(&confs), 1.0);
+    }
+
+    /// The fit is deterministic: same rows, same order → bit-identical
+    /// parameters (the sequential-SGD law's contract).
+    #[test]
+    fn two_feature_gate_fit_is_deterministic() {
+        let cal: Vec<(f64, f64, bool)> = (0..40)
+            .map(|i| {
+                let x = (i as f64) / 39.0;
+                (x, 1.0 - x, i % 3 == 0)
+            })
+            .collect();
+        assert_eq!(TwoFeatureGate::fit(&cal), TwoFeatureGate::fit(&cal));
+    }
+
+    /// A degenerate cal slice (all one class, all-identical features) must
+    /// fit finite parameters, never NaN — the fit runs on whatever the cal
+    /// slice holds.
+    #[test]
+    fn two_feature_gate_degenerate_cal_is_finite() {
+        let cal = vec![(0.5f64, 0.5f64, true); 32];
+        let g = TwoFeatureGate::fit(&cal);
+        assert!(g.a.is_finite() && g.b.is_finite() && g.c.is_finite());
+        assert!(g.conf(0.5, 0.5).is_finite());
+    }
+
+    /// The factored dominance rule: weak on both + strict on one — the
+    /// exact arithmetic the floor cell shipped with (now shared with the
+    /// candidate cell).
+    #[test]
+    fn dominates_rule_arithmetic() {
+        // Equal on both axes → NOT a pass (needs a strict win).
+        assert!(!dominates(0.60, 0.10, 0.60, 0.10));
+        // Strict AUROC win, ECE equal → pass.
+        assert!(dominates(0.61, 0.10, 0.60, 0.10));
+        // Strict ECE win, AUROC equal → pass.
+        assert!(dominates(0.60, 0.09, 0.60, 0.10));
+        // AUROC win but ECE loss → fail (the Bench-147 shape).
+        assert!(!dominates(0.61, 0.11, 0.60, 0.10));
+        // ECE win but AUROC loss → fail (the shipped gate's red shape).
+        assert!(!dominates(0.59, 0.09, 0.60, 0.10));
+    }
+
+    /// The candidate cell end-to-end on a synthetic where the 2-feature
+    /// gate dominates a floor built from a weaker single variable: the
+    /// cell's verdict reads PASS and the axes are carried through.
+    #[test]
+    fn candidate_cell_dominates_on_synthetic() {
+        // Floor variable (maxp) is noisy; the second feature separates.
+        let mut cal = Vec::new();
+        let mut test = Vec::new();
+        for i in 0..80 {
+            let sep = (i as f64) / 79.0; // the informative feature
+            let noise = if i % 2 == 0 { 0.0 } else { 1.0 }; // maxp is noise
+            cal.push(obs(0.5, 0.3 + 0.4 * noise, sep, sep > 0.5));
+        }
+        for i in 0..40 {
+            let sep = (i as f64) / 39.0;
+            let noise = if i % 2 == 0 { 0.0 } else { 1.0 };
+            test.push(obs(0.5, 0.3 + 0.4 * noise, sep, sep > 0.5));
+        }
+        let f = floor_cell(&cal, &test);
+        let c = candidate_cell(&cal, &test, &f);
+        assert_eq!(c.n_cal, 80);
+        assert_eq!(c.n_test, 40);
+        // The candidate must read the separating feature (|b| material).
+        assert!(c.b.abs() > 0.5, "the entropy weight must carry the signal: {c:?}");
+        assert_eq!(c.verdict, NullVerdict::Pass);
+    }
 }
