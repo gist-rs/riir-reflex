@@ -5,6 +5,32 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-18 — Issue 090 CLOSED: the jeva lane + the null/K-stability probe family — all legs landed and measured
+
+**Status: Resolved (lane landed + board measured; C2 closed NEGATIVE). Landings:
+B1+B2 `83031d2`, Bench-148 cells `a3cd05c`, C1 probes `a829918`+`85d0232`, C2
+posture `63ccf78`+`8546a68`+`9494d83`; the A1–A3/B2/C1 probe families ride
+`--null-probe`/`--perm-probe`/`--rubric-probe` (Benches 147/148/149/153).**
+
+The first decision-native PAPER model lane (Jeva-4B, arXiv:2610.18773) on our
+split — full 9-suite board (typed 0.7680, massive 0.9200, banking77 0.9160,
+xnli 0.8800; emotion 0.5225 the show-loss vs our A0), perm-probe 0 flips /
+255 slots, null-probe A2 0 flips + A3 bit-identical noul + A1 their-gate drift
++2.6..+12.5 pt at the `JEVA_ALLOW_NULL=1` posture [Bench
+148](.benchmarks/148_jeva_measured_cells.md). License law: weights UNDECLARED
+→ measurement + teacher-capture posture, adoption fail-closed (riir-train 632
+T0). The `--distill-teacher jeva` capture seam rides the same server (B2
+rider). The downstream RunOptions break class got its structural repair:
+`RunOptions::lanes_off(dir, suites)` (`a7ba797`) — a field add now reds THIS
+repo's build inside the adding commit, never a downstream consumer's
+(instinct 023 closed on it). C2 (the modelless `set_refine` operator,
+katgpt-rs Plan 627 substrate composition) measured NEGATIVE at the GOAT — G1
+FAIL −12.3..−14.0 pt, monotone in γ (unit-centroid keys regress the state
+toward the corpus mean); lane stays opt-in with the record; re-open = a
+different KEY family, never a γ/τ retune [Bench 150](.benchmarks/150_set_refine_ab_goat).
+Board read + posture disclosure: reflex AGENTS.md §Build Commands (`--jeva`,
+`--null-probe`, `--set-refine-ab`) — the serve side documents the same lanes.
+
 ## 2026-10-16 — Issue 092 CLOSED: the 2-feature readout-gate candidate MEASURED NEGATIVE (Bench 151); the 047 acceptance stands
 
 **Status: Resolved (negative; landing `fbdbf10`, issue filed+claimed `f767c64`).**
