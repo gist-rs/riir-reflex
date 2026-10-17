@@ -1,6 +1,7 @@
 # Issue 093: CorpusDistanceGate abstention drift vs corpus growth (capacity-law diagnostic)
 
 **Status:** Open — diagnostic-first; no lever lands without a measured curve
+**Claimed:** teacher-queue-watcher session (M3 idle lane), 2026-10-17T21:45+07, expires 2026-10-19T21:45+07 — T1/T1a/T2/T5 diagnostic arm; T3/T4 only if T1 shows off-corpus drift
 
 **Source:** [katgpt-rs/.research/624_Associative_Memory_Capacity_Laws.md](../katgpt-rs/.research/624_Associative_Memory_Capacity_Laws.md) (blog: alexwang.ai "You could have invented transformers from memory", 2026-10-15; theory: Zhong et al. arXiv:2505.19488 interference-to-signal)
 **Related:** Issue 013 (corpus-cap levers: ag_news 64 / banking77 40, chosen empirically) · Issue 066 (`density_gate`) · katgpt-core `ssmax.rs` + Plan 411 (the log-N law, attention-side) · harness G1–G5 gates · Issue 021 box-state provenance
