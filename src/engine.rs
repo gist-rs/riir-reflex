@@ -91,12 +91,26 @@ pub const DEFAULT_DISTANCE_THRESHOLD: f32 = 0.5;
 /// Corpus-distance gate sigmoid midpoint (max-cosine axis). Birth
 /// measurement: in-corpus max-cos ≈ 0.68–0.70, off-corpus ≈ 0.00–0.02 —
 /// the midpoint sits in the desert between the two populations.
-const GATE_MID: f32 = 0.35;
+/// `pub` for the diagnostics that measure drift AGAINST the birth
+/// boundary (Issue 093) — the constant itself is load-bearing and never
+/// edited by a measurement (any compensation ships behind a lever).
+pub const GATE_MID: f32 = 0.35;
 /// Corpus-distance gate sigmoid SLOPE (the substrate semantic is
 /// `sigmoid(scale · (max_sim − mid))` — scale multiplies the cosine
 /// distance from the midpoint). At slope 8 the two measured populations
 /// (in-corpus cos ≈ 0.68–0.70, off-corpus cos ≈ 0.00–0.02) pin to ≈0.94 / ≈0.06.
-const GATE_SCALE: f32 = 8.0;
+pub const GATE_SCALE: f32 = 8.0;
+
+/// The gate's confidence formula for a raw max-cosine reading — ONE home
+/// for the birth shape (`sigmoid(GATE_SCALE · (x − GATE_MID))`), shared by
+/// the diagnostics that must recompute a boundary from a max-similarity
+/// distribution (Issue 093) instead of re-deriving the constants.
+/// Bit-identical to [`katgpt_core::distance_abstain::CorpusDistanceGate::abstain_confidence`]
+/// by construction (the same two constants, the same delegated sigmoid).
+#[must_use]
+pub fn gate_confidence(max_sim: f32) -> f32 {
+    katgpt_core::exact_sigmoid(GATE_SCALE * (max_sim - GATE_MID))
+}
 /// Issue 066: JL output dim for the density half — the fit-space law
 /// (raw hashed-bag space REJECTS Gaussianity universally, 0/154
 /// per-label pools; JL k=64 accepted on 253/254, k-stable across

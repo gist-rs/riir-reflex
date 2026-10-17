@@ -258,6 +258,12 @@ fn harness_main() {
     // (exclusive early-exit mode; modelless control only).
     let mut rubric_probe = false;
     let mut rubric_max_cases = 0usize;
+    // Issue 093 — the CorpusDistanceGate drift diagnostic (exclusive
+    // early-exit mode; REPORT-ONLY — the issue's own no-lever-without-a-
+    // measured-curve law).
+    let mut gate_drift_probe = false;
+    let mut gate_drift_off = 0usize;
+    let mut gate_drift_in = 0usize;
     // Issue 086 T1 — the presentation-subspace certificate modifier.
     let mut basis_split = false;
     let mut distill = false;
@@ -459,6 +465,23 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--rubric-max-cases needs a number"));
+            }
+            // Issue 093 — the gate-drift diagnostic (exclusive early-exit
+            // mode; report-only: no control reds, no exit-code coupling).
+            "--gate-drift-probe" => gate_drift_probe = true,
+            "--gate-drift-off" => {
+                i += 1;
+                gate_drift_off = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--gate-drift-off needs a number"));
+            }
+            "--gate-drift-in" => {
+                i += 1;
+                gate_drift_in = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--gate-drift-in needs a number"));
             }
             "--null-k" => {
                 i += 1;
@@ -972,14 +995,74 @@ fn harness_main() {
         );
         return;
     }
+    // Issue 093 — the CorpusDistanceGate drift diagnostic: exclusive
+    // early-exit mode. REPORT-ONLY by the issue's own law: the verdict
+    // inputs print for the bench record to cite; nothing here gates and
+    // nothing here lands a lever (T3/T4 are the conditional follow-ups).
+    if gate_drift_probe {
+        let gopts = runner::GateDriftOptions {
+            max_off_per_source: if gate_drift_off == 0 {
+                runner::DEFAULT_MAX_OFF_PER_SOURCE
+            } else {
+                gate_drift_off
+            },
+            max_in_per_suite: if gate_drift_in == 0 {
+                runner::DEFAULT_MAX_IN_PER_SUITE
+            } else {
+                gate_drift_in
+            },
+        };
+        println!(
+            "harness --gate-drift-probe: datasets {} · family {:?} · off sources {:?} · \
+             budgets off {}/source · in {}/suite · lane: modelless (report-only)",
+            opts.datasets_dir.display(),
+            runner::GATE_DRIFT_FAMILY,
+            runner::GATE_DRIFT_OFF_SOURCES,
+            gopts.max_off_per_source,
+            gopts.max_in_per_suite,
+        );
+        let out = match runner::run_gate_drift(&opts, gopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("gate_drift.json");
+        let md_path = out_dir.join("GATE_DRIFT.md");
+        let json = serde_json::to_string_pretty(&out).expect("gate drift serialize");
+        let md = runner::render_gate_drift_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        if let Some(last) = out.cells.last() {
+            println!(
+                "harness --gate-drift-probe: DONE — {} size cell(s); T2 inputs at {}: \
+                 off p99 clear (fixed) {} · refit off-corpus false-accept {} — \
+                 wrote {} + {}",
+                out.cells.len(),
+                last.size_label,
+                last.off_p99_clear_fixed,
+                last.refit_off_false_accept_rate,
+                json_path.display(),
+                md_path.display()
+            );
+        }
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 11] = [
+        let modes: [(&str, bool); 12] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--null-probe", null_probe),
             ("--rubric-probe", rubric_probe),
+            ("--gate-drift-probe", gate_drift_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

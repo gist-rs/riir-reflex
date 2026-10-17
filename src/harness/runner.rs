@@ -165,6 +165,12 @@ pub use density_pilot::{
     render_density_pilot_markdown, run_density_pilot, DensityPilotMeta, DensityPilotOutput,
     DensityPilotSuite, DensityRung,
 };
+mod gate_drift;
+pub use gate_drift::{
+    render_gate_drift_markdown, run_gate_drift, GateDriftMeta, GateDriftOptions,
+    GateDriftOutput, GateDriftSizeCell, DEFAULT_MAX_IN_PER_SUITE, DEFAULT_MAX_OFF_PER_SOURCE,
+    GATE_DRIFT_FAMILY, GATE_DRIFT_OFF_SOURCES,
+};
 
 /// Where the fetch layer leaves the row files.
 pub const DEFAULT_DATASETS_DIR: &str = ".raw/datasets";

@@ -1,0 +1,939 @@
+{
+  "meta": {
+    "date_utc": "2026-10-17T14:58:20Z",
+    "git_sha": "86aa735",
+    "host": "m3",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "family": [
+      "ag_news",
+      "emotion",
+      "sst5",
+      "xnli_en"
+    ],
+    "off_sources": [
+      "banking77",
+      "massive_intent_en"
+    ],
+    "cap_per_label": 64,
+    "gate_mid": 0.35,
+    "gate_scale": 8.0,
+    "max_off_per_source": 200,
+    "max_in_per_suite": 100,
+    "off_probe_construction": "test rows of banking77 + massive_intent_en (stride-sampled, text-field rule per suite) — sources held out from EVERY family suite at EVERY size, so the off-corpus and in-corpus populations never mix (issue T1a-i). Empty/whitespace texts dropped and counted, never measured.",
+    "posture_note": "fixed = the birth boundary (max_sim < GATE_MID, exactly gate_conf < 0.5); refit = the rho=30 percentile distance threshold re-fitted on THIS size's pooled cal slice (absorbs drift by construction — never pooled with fixed); held1x = the 1x fitted threshold applied unchanged at later sizes (the aging-deployment posture, a disclosed addition).",
+    "box_start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 28.96,
+      "swap_used_mb": 7486.62,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 28.96 > 6 — a sibling job is on the box"
+      ]
+    },
+    "box_end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 28.96,
+      "swap_used_mb": 7486.62,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 28.96 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "cells": [
+    {
+      "size_label": "1x_ag_news",
+      "suites": [
+        "ag_news"
+      ],
+      "n_domains": 4,
+      "corpus_rows": 256,
+      "cap_per_label": 64,
+      "per_domain_rows": [
+        64,
+        64,
+        64,
+        64
+      ],
+      "null_reference": 0.20813865278942442,
+      "off_corpus": {
+        "whole": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.10814765,
+          "max": 0.48133004,
+          "p05": {
+            "label": "p05",
+            "value": 0.17503503,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.26730877,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.36337617,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.44901323,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "routed": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.08278331,
+          "max": 0.48133004,
+          "p05": {
+            "label": "p05",
+            "value": 0.15279499,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.2451648,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.34637153,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.42474467,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "abstain_fixed": {
+          "n": 392,
+          "abstains": 356,
+          "rate": 0.9081632653061225,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 392,
+          "abstains": 201,
+          "rate": 0.5127551020408163,
+          "threshold": 0.41053298
+        },
+        "abstain_held1x": {
+          "n": 392,
+          "abstains": 201,
+          "rate": 0.5127551020408163,
+          "threshold": 0.41053298
+        }
+      },
+      "off_per_source": [
+        [
+          "banking77",
+          193
+        ],
+        [
+          "massive_intent_en",
+          199
+        ]
+      ],
+      "in_corpus": {
+        "whole": {
+          "n": 100,
+          "dropped_empty": 0,
+          "min": 0.152174,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.20656532,
+            "rank": 5,
+            "support": 95
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.32754248,
+            "rank": 50,
+            "support": 50
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.44718656,
+            "rank": 90,
+            "support": 10
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.8688057,
+            "rank": 99,
+            "support": 1
+          }
+        },
+        "routed": {
+          "n": 100,
+          "dropped_empty": 0,
+          "min": 0.1261987,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.19133103,
+            "rank": 5,
+            "support": 95
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.3032219,
+            "rank": 50,
+            "support": 50
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.4102764,
+            "rank": 90,
+            "support": 10
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.8688057,
+            "rank": 99,
+            "support": 1
+          }
+        },
+        "abstain_fixed": {
+          "n": 100,
+          "abstains": 68,
+          "rate": 0.68,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 100,
+          "abstains": 19,
+          "rate": 0.19,
+          "threshold": 0.41053298
+        },
+        "abstain_held1x": {
+          "n": 100,
+          "abstains": 19,
+          "rate": 0.19,
+          "threshold": 0.41053298
+        }
+      },
+      "in_per_suite": [
+        [
+          "ag_news",
+          100
+        ]
+      ],
+      "in_engine_shaped": {
+        "n": 100,
+        "max_sim": {
+          "n": 100,
+          "dropped_empty": 0,
+          "min": 0.16586825,
+          "max": 0.5084713,
+          "p05": {
+            "label": "p05",
+            "value": 0.23324542,
+            "rank": 5,
+            "support": 95
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.31974298,
+            "rank": 50,
+            "support": 50
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.4273766,
+            "rank": 90,
+            "support": 10
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.5084713,
+            "rank": 99,
+            "support": 1
+          }
+        },
+        "conf": {
+          "n": 100,
+          "dropped_empty": 0,
+          "min": 0.18647887,
+          "max": 0.7803609,
+          "p05": {
+            "label": "p05",
+            "value": 0.28210652,
+            "rank": 5,
+            "support": 95
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.43977973,
+            "rank": 50,
+            "support": 50
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.649994,
+            "rank": 90,
+            "support": 10
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.7803609,
+            "rank": 99,
+            "support": 1
+          }
+        },
+        "abstain_fixed": {
+          "n": 100,
+          "abstains": 66,
+          "rate": 0.66,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 100,
+          "abstains": 9,
+          "rate": 0.09,
+          "threshold": 0.41053298
+        },
+        "abstain_held1x": {
+          "n": 100,
+          "abstains": 9,
+          "rate": 0.09,
+          "threshold": 0.41053298
+        }
+      },
+      "refit_threshold": 0.41053298,
+      "refit_cal_observations": 200,
+      "clearance_off": -0.07474467158317566,
+      "in_floor_above_mid": -0.15866896510124207,
+      "off_p99_clear_fixed": false,
+      "off_max_clear_fixed": false,
+      "off_p99_clear_routed": false,
+      "refit_off_false_accept_rate": 0.4872448979591837,
+      "fixed_in_false_abstain_rate": 0.68
+    },
+    {
+      "size_label": "2x_+emotion",
+      "suites": [
+        "ag_news",
+        "emotion"
+      ],
+      "n_domains": 10,
+      "corpus_rows": 640,
+      "cap_per_label": 64,
+      "per_domain_rows": [
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64
+      ],
+      "null_reference": 0.22467803659406368,
+      "off_corpus": {
+        "whole": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.1605145,
+          "max": 0.6672967,
+          "p05": {
+            "label": "p05",
+            "value": 0.22853044,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.34889886,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.4560479,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.55655843,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "routed": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.08278331,
+          "max": 0.6672967,
+          "p05": {
+            "label": "p05",
+            "value": 0.17407769,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.2994796,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.4062057,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.48611483,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "abstain_fixed": {
+          "n": 392,
+          "abstains": 289,
+          "rate": 0.7372448979591837,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 392,
+          "abstains": 94,
+          "rate": 0.23979591836734693,
+          "threshold": 0.41602245
+        },
+        "abstain_held1x": {
+          "n": 392,
+          "abstains": 92,
+          "rate": 0.23469387755102042,
+          "threshold": 0.41053298
+        }
+      },
+      "off_per_source": [
+        [
+          "banking77",
+          193
+        ],
+        [
+          "massive_intent_en",
+          199
+        ]
+      ],
+      "in_corpus": {
+        "whole": {
+          "n": 200,
+          "dropped_empty": 0,
+          "min": 0.19082601,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.26042545,
+            "rank": 10,
+            "support": 190
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.4102764,
+            "rank": 100,
+            "support": 100
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.527246,
+            "rank": 180,
+            "support": 20
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.7368423,
+            "rank": 198,
+            "support": 2
+          }
+        },
+        "routed": {
+          "n": 200,
+          "dropped_empty": 0,
+          "min": 0.1760973,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.22214358,
+            "rank": 10,
+            "support": 190
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.3655386,
+            "rank": 100,
+            "support": 100
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.49305838,
+            "rank": 180,
+            "support": 20
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.5657037,
+            "rank": 198,
+            "support": 2
+          }
+        },
+        "abstain_fixed": {
+          "n": 200,
+          "abstains": 87,
+          "rate": 0.435,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 200,
+          "abstains": 21,
+          "rate": 0.105,
+          "threshold": 0.41602245
+        },
+        "abstain_held1x": {
+          "n": 200,
+          "abstains": 20,
+          "rate": 0.1,
+          "threshold": 0.41053298
+        }
+      },
+      "in_per_suite": [
+        [
+          "ag_news",
+          100
+        ],
+        [
+          "emotion",
+          100
+        ]
+      ],
+      "in_engine_shaped": {
+        "n": 200,
+        "max_sim": {
+          "n": 200,
+          "dropped_empty": 0,
+          "min": 0.20026454,
+          "max": 0.51369584,
+          "p05": {
+            "label": "p05",
+            "value": 0.2444686,
+            "rank": 10,
+            "support": 190
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.32638812,
+            "rank": 100,
+            "support": 100
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.41582158,
+            "rank": 180,
+            "support": 20
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.5084713,
+            "rank": 198,
+            "support": 2
+          }
+        },
+        "conf": {
+          "n": 200,
+          "dropped_empty": 0,
+          "min": 0.23185192,
+          "max": 0.7874406,
+          "p05": {
+            "label": "p05",
+            "value": 0.3006402,
+            "rank": 10,
+            "support": 190
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.45291618,
+            "rank": 100,
+            "support": 100
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.6286834,
+            "rank": 180,
+            "support": 20
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.7803609,
+            "rank": 198,
+            "support": 2
+          }
+        },
+        "abstain_fixed": {
+          "n": 200,
+          "abstains": 129,
+          "rate": 0.645,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 200,
+          "abstains": 12,
+          "rate": 0.06,
+          "threshold": 0.41602245
+        },
+        "abstain_held1x": {
+          "n": 200,
+          "abstains": 12,
+          "rate": 0.06,
+          "threshold": 0.41053298
+        }
+      },
+      "refit_threshold": 0.41602245,
+      "refit_cal_observations": 400,
+      "clearance_off": -0.13611483573913574,
+      "in_floor_above_mid": -0.12785641849040985,
+      "off_p99_clear_fixed": false,
+      "off_max_clear_fixed": false,
+      "off_p99_clear_routed": false,
+      "refit_off_false_accept_rate": 0.7602040816326531,
+      "fixed_in_false_abstain_rate": 0.435
+    },
+    {
+      "size_label": "4x_+sst5+xnli",
+      "suites": [
+        "ag_news",
+        "emotion",
+        "sst5",
+        "xnli_en"
+      ],
+      "n_domains": 18,
+      "corpus_rows": 1152,
+      "cap_per_label": 64,
+      "per_domain_rows": [
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64,
+        64
+      ],
+      "null_reference": 0.23467488882986867,
+      "off_corpus": {
+        "whole": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.174815,
+          "max": 0.6672967,
+          "p05": {
+            "label": "p05",
+            "value": 0.2594373,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.3692745,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.46704134,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.56870484,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "routed": {
+          "n": 392,
+          "dropped_empty": 0,
+          "min": 0.105962604,
+          "max": 0.6672967,
+          "p05": {
+            "label": "p05",
+            "value": 0.18712029,
+            "rank": 19,
+            "support": 373
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.30401677,
+            "rank": 196,
+            "support": 196
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.40824828,
+            "rank": 352,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.49363968,
+            "rank": 388,
+            "support": 4
+          }
+        },
+        "abstain_fixed": {
+          "n": 392,
+          "abstains": 282,
+          "rate": 0.7193877551020408,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 392,
+          "abstains": 90,
+          "rate": 0.22959183673469388,
+          "threshold": 0.4256682
+        },
+        "abstain_held1x": {
+          "n": 392,
+          "abstains": 84,
+          "rate": 0.21428571428571427,
+          "threshold": 0.41053298
+        }
+      },
+      "off_per_source": [
+        [
+          "banking77",
+          193
+        ],
+        [
+          "massive_intent_en",
+          199
+        ]
+      ],
+      "in_corpus": {
+        "whole": {
+          "n": 400,
+          "dropped_empty": 0,
+          "min": 0.20944606,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.27296922,
+            "rank": 20,
+            "support": 380
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.4003247,
+            "rank": 200,
+            "support": 200
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.527246,
+            "rank": 360,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.6237007,
+            "rank": 396,
+            "support": 4
+          }
+        },
+        "routed": {
+          "n": 400,
+          "dropped_empty": 0,
+          "min": 0.15033069,
+          "max": 0.8688057,
+          "p05": {
+            "label": "p05",
+            "value": 0.2134376,
+            "rank": 20,
+            "support": 380
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.34435928,
+            "rank": 200,
+            "support": 200
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.47157297,
+            "rank": 360,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.55495054,
+            "rank": 396,
+            "support": 4
+          }
+        },
+        "abstain_fixed": {
+          "n": 400,
+          "abstains": 206,
+          "rate": 0.515,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 400,
+          "abstains": 61,
+          "rate": 0.1525,
+          "threshold": 0.4256682
+        },
+        "abstain_held1x": {
+          "n": 400,
+          "abstains": 56,
+          "rate": 0.14,
+          "threshold": 0.41053298
+        }
+      },
+      "in_per_suite": [
+        [
+          "ag_news",
+          100
+        ],
+        [
+          "emotion",
+          100
+        ],
+        [
+          "sst5",
+          100
+        ],
+        [
+          "xnli_en",
+          100
+        ]
+      ],
+      "in_engine_shaped": {
+        "n": 400,
+        "max_sim": {
+          "n": 400,
+          "dropped_empty": 0,
+          "min": 0.19136699,
+          "max": 0.5501215,
+          "p05": {
+            "label": "p05",
+            "value": 0.2409054,
+            "rank": 20,
+            "support": 380
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.34246123,
+            "rank": 200,
+            "support": 200
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.45731682,
+            "rank": 360,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.5242643,
+            "rank": 396,
+            "support": 4
+          }
+        },
+        "conf": {
+          "n": 400,
+          "dropped_empty": 0,
+          "min": 0.21941751,
+          "max": 0.83215415,
+          "p05": {
+            "label": "p05",
+            "value": 0.294681,
+            "rank": 20,
+            "support": 380
+          },
+          "p50": {
+            "label": "p50",
+            "value": 0.48492703,
+            "rank": 200,
+            "support": 200
+          },
+          "p90": {
+            "label": "p90",
+            "value": 0.70235443,
+            "rank": 360,
+            "support": 40
+          },
+          "p99": {
+            "label": "p99",
+            "value": 0.8012483,
+            "rank": 396,
+            "support": 4
+          }
+        },
+        "abstain_fixed": {
+          "n": 400,
+          "abstains": 219,
+          "rate": 0.5475,
+          "threshold": 0.35
+        },
+        "abstain_refit": {
+          "n": 400,
+          "abstains": 33,
+          "rate": 0.0825,
+          "threshold": 0.4256682
+        },
+        "abstain_held1x": {
+          "n": 400,
+          "abstains": 28,
+          "rate": 0.07,
+          "threshold": 0.41053298
+        }
+      },
+      "refit_threshold": 0.4256682,
+      "refit_cal_observations": 800,
+      "clearance_off": -0.1436396837234497,
+      "in_floor_above_mid": -0.13656239211559296,
+      "off_p99_clear_fixed": false,
+      "off_max_clear_fixed": false,
+      "off_p99_clear_routed": false,
+      "refit_off_false_accept_rate": 0.7704081632653061,
+      "fixed_in_false_abstain_rate": 0.515
+    }
+  ]
+}

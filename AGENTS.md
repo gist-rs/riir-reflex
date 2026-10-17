@@ -192,6 +192,16 @@ cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_pro
 # Identity reds refuse the run (exit 1, record on disk).
 cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe
 
+# Gate-drift capacity diagnostic (Issue 093, Bench 154): CorpusDistanceGate
+# abstention populations vs corpus growth (suite concatenation 1x/2x/4x over
+# ag_news+emotion+sst5+xnli_en; off-corpus probes from banking77+massive,
+# held out from every family suite at every size). REPORT-ONLY — the T2
+# close condition FAILED (drift confirmed, refit off-corpus false-accept
+# 48.7→77.0% at 1x/2x/4x); the issue stays open carrying the record.
+# --gate-drift-off <n> / --gate-drift-in <n> size the probe budgets
+# (defaults 200/source, 100/suite). No gate, no exit-code coupling.
+cargo run --release --bin harness -- --gate-drift-probe --out .benchmarks/<N>_gate_drift
+
 # Set-refine paired A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in feature
 # `set_refine`; Bench 150): the engine seam knob `set_refine_gamma` (default
 # 0.0 = byte-identity) refines the state embedding by the option set's
