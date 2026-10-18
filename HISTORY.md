@@ -5,6 +5,32 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-18 — Issue 093 CLOSED: CorpusDistanceGate capacity-law drift MEASURED (Bench 154) — drift confirmed, no desert, response owner-gated
+
+**Status: Resolved (recorded negative — T2's negative-close condition FAILED
+by its own law, so the record carries instead of a close; file closed at
+owner direction). Landing: Bench 154 `6a9376e` (`--gate-drift-probe`,
+report-only lane;
+[.benchmarks/154_gate_drift_capacity.md](.benchmarks/154_gate_drift_capacity.md)).**
+
+The one clean capacity-law consumer, measured both populations vs corpus
+growth (1×/2×/4× suite concatenation; probes = banking77+massive test rows,
+held out from EVERY concatenated suite; every quantile row carries rank +
+support): off-corpus whole-corpus p50 0.2673 → 0.3489 → 0.3693 across the
+fixed mid 0.35 — drift ~6–10× the isotropic null, which is RULED OUT as the
+level's explanation (as pre-registered); in-corpus routed p05
+0.1913/0.2221/0.2134 sits BELOW mid at EVERY size — the birth-frame desert
+never existed on real-text corpora. The deployed ρ=30 refit holds in-corpus
+calibration while its off-corpus FALSE-ACCEPT roughly doubles across the
+growth (48.7% → 76.0% → 77.0%) — the standing open design question. T3's
+`mid(M)` lever premise FAILS (the boundary sits inside BOTH populations at
+every size — no midpoint schedule restores a separation the fixed frame
+never had; no lever built); T4 n/a; T5: the Issue-013 corpus caps are
+accuracy/latency knobs and were never holding a gate desert open. Any
+RESPONSE (a gate redesign) is an OWNER-GATED design act: file a NEW issue;
+until then the gate constants stay load-bearing (shift the threshold behind
+a default-OFF lever, never edit the default; sigmoid, never softmax).
+
 ## 2026-10-18 — Issue 085 CLOSED: the Drex v1.5 revisit — T0 resolved + T1 published; T2/T3 owner-gated (re-open = explicit written permission only)
 
 **Status: Resolved (agent-executable work done; remainder owner-gated). Landings:

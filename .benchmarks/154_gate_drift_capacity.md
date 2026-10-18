@@ -1,6 +1,6 @@
 # Bench 154 — CorpusDistanceGate drift vs corpus growth (Issue 093 T1/T1a/T2/T5)
 
-**Status:** MEASURED 2026-10-17 — drift CONFIRMED; T2 close condition FAILS (the issue does not close negative); refit false-accept decay 48.7% → 77.0% is the headline finding; lever arm (T3) premise-fail, no lever. Probe: `--gate-drift-probe` (report-only, landed this bench). Record: `.benchmarks/154_gate_drift/` (json + md) · Issue: `riir-reflex/.issues/093_abstention_gate_corpus_drift.md`.
+**Status:** MEASURED 2026-10-17 — drift CONFIRMED; T2 close condition FAILS (the issue does not close negative); refit false-accept decay 48.7% → 77.0% is the headline finding; lever arm (T3) premise-fail, no lever. Probe: `--gate-drift-probe` (report-only, landed this bench). Record: `.benchmarks/154_gate_drift/` (json + md) · Issue: `riir-reflex/.issues/093_abstention_gate_corpus_drift.md` (removed 2026-10-18 — record moved to `HISTORY.md` §Issue 093).
 
 ## Question
 
@@ -72,4 +72,4 @@ The deployed ρ=30 refit is calibrated to in-corpus abstention, and that contrac
 
 - Probe: `src/harness/runner/gate_drift.rs` (+ `--gate-drift-probe`/`--gate-drift-off`/`--gate-drift-in` in `src/bin/harness.rs`; `GATE_MID`/`GATE_SCALE`/`gate_confidence` made pub in `src/engine.rs` — the one-home confidence formula the probe reads).
 - Record: `.benchmarks/154_gate_drift/{gate_drift.json,GATE_DRIFT.md}`.
-- Issue: `.issues/093_abstention_gate_corpus_drift.md` (T1/T1a/T2/T3/T5 marked with this bench; status updated; stays OPEN carrying the record).
+- Issue: `.issues/093_abstention_gate_corpus_drift.md` (T1/T1a/T2/T3/T5 marked with this bench; status updated; stays OPEN carrying the record) — REMOVED 2026-10-18, closed at owner direction; the record carries HERE and in `HISTORY.md` §Issue 093.
