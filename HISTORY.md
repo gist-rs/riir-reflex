@@ -5,6 +5,33 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-18 — Issue 085 CLOSED: the Drex v1.5 revisit — T0 resolved + T1 published; T2/T3 owner-gated (re-open = explicit written permission only)
+
+**Status: Resolved (agent-executable work done; remainder owner-gated). Landings:
+T1 reflex-site `5fc1649` (full-surface drex lane registration + the DLM cells
+live: 4090 BF16/CUDA bench-126 timing-quotable 106/167 ms det ✓ 10/10; M3
+Q8_0/Metal bench-125 acc-only — typed 0.5855 / ag_news 0.895, preflight
+REFUSED so ms never quoted); T0 owner-delegated verdict 2026-10-11 —
+permission-first, GGUF deleted (sha256 `7ff32856…4ed5` recorded before
+deletion, byte-verifiable re-download).**
+
+`nace-ai/drex-v1.5` (9B `qwen35`+pointer, RAIL-M modified v1.0) is a NEW lane
+row per the scope law — never a continuation of the CC BY-NC Drex-DLM rows
+(bench 073 typed 0.5865 / sst5 0.5900; bench 125 the independent M3 repro;
+bench 126 the det-✓ re-read). RAIL-M §2(c) (competition clause; §6 Use
+includes "running … evaluating" and "distilling"; NO personal/research
+exception) reaches a decision-model serving business → measurement AND
+publication are unlicensed until Nace grants in writing. T2/T3 (the 4090
+Q8_0 measurement + the v1.5 site row) stay blocked on the OWNER's permission
+email to nischay@nace.ai — 14 days' silence or a denial = option (c)
+skip-per-license, NO re-download; persistence after a NO goes to a lawyer's
+§2(c) opinion first. RE-OPEN CONDITION: an explicit written grant (asked
+separately for run+evaluate AND public publication) → file a NEW issue,
+re-download `nace-ai/drex-v1.5-Q8_0` + re-verify the recorded sha256, then
+the staged posture from the removed file (fork @ `e8f79610…` llama-server,
+the `-b/-ub` flags load-bearing per bench 125). The published CC BY-NC DLM
+row (T1) is unchanged by the ruling.
+
 ## 2026-10-18 — Issue 090 CLOSED: the jeva lane + the null/K-stability probe family — all legs landed and measured
 
 **Status: Resolved (lane landed + board measured; C2 closed NEGATIVE). Landings:
