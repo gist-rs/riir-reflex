@@ -22,6 +22,7 @@ pub const EMBED_DIM: usize = 256;
 const WORD_SALT: u64 = 0x3456_7890_1234_5678;
 /// Bigram-hash salt.
 const BIGRAM_SALT: u64 = 0x0f1e_2d3c_4b5a_6978;
+const TRIGRAM_SALT: u64 = 0x7a3c_51e9_0d24_86bf;
 /// Bigram weight (the pair feature is evidence, not identity).
 const BIGRAM_WEIGHT: f32 = 0.5;
 
@@ -42,7 +43,9 @@ pub(crate) fn fnv1a_word(bytes: &[u8], salt: u64) -> u64 {
 /// that are pure punctuation.
 #[inline]
 pub(crate) fn token(raw: &[u8]) -> &[u8] {
-    let is_sep = |b: u8| !(b.is_ascii_alphanumeric());
+    // Treat non-ASCII bytes as part of the word, otherwise a Thai (or any
+    // non-Latin) token trims to nothing and only its digits are kept.
+    let is_sep = |b: u8| !(b.is_ascii_alphanumeric() || b >= 0x80);
     let mut a = 0usize;
     let mut b = raw.len();
     while a < b && is_sep(raw[a]) {
@@ -125,12 +128,67 @@ pub fn hashed_tokens_into(text: &[u8], vocab: usize, out: &mut Vec<u32>) {
             out.push((fnv1a_word(&pair, BIGRAM_SALT) % vocab as u64) as u32);
         }
         prev = Some(h);
+        if t.iter().any(|&b| b >= 0x80) {
+            push_char_trigrams(t, vocab, out);
+        }
+    }
+}
+
+/// Character trigrams of a non-ASCII token.
+/// Thai writes no spaces between words, so a whitespace token is a whole
+/// phrase that never recurs; its trigrams do. ASCII-only tokens never get
+/// here, so English features are unchanged.
+fn push_char_trigrams(t: &[u8], vocab: usize, out: &mut Vec<u32>) {
+    let Ok(s) = std::str::from_utf8(t) else {
+        return;
+    };
+    let mut starts = [0usize; 3];
+    for (n, (i, _)) in s.char_indices().enumerate() {
+        if n >= 3 {
+            let g = &t[starts[n % 3]..i];
+            out.push((fnv1a_word(g, TRIGRAM_SALT) % vocab as u64) as u32);
+        }
+        starts[n % 3] = i;
+    }
+    if s.chars().count() >= 3 {
+        let g = &t[starts[s.chars().count() % 3]..];
+        out.push((fnv1a_word(g, TRIGRAM_SALT) % vocab as u64) as u32);
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn thai_tokens_share_char_trigrams_and_ascii_is_unchanged() {
+        let ids = |s: &str| {
+            let mut v = Vec::new();
+            hashed_tokens_into(s.as_bytes(), 1 << 20, &mut v);
+            v
+        };
+        let tri = |s: &str| (fnv1a_word(s.as_bytes(), TRIGRAM_SALT) % (1 << 20)) as u32;
+        let a = ids("ผ้าอนามัยแบบเย็น");
+        let b = ids("ซื้อผ้าอนามัย");
+        assert!(a.contains(&tri("อนา")) && b.contains(&tri("อนา")));
+        assert!(a.contains(&tri("ย็น")), "last trigram emitted");
+        assert_eq!(
+            ids("hello world").len(),
+            3,
+            "ascii: 2 words + 1 bigram, no trigrams"
+        );
+    }
+
+    #[test]
+    fn thai_words_survive_tokenizing() {
+        assert_eq!(token("ลด".as_bytes()), "ลด".as_bytes());
+        assert_eq!(token("(ราคาสมาชิก)".as_bytes()), "ราคาสมาชิก".as_bytes());
+        assert_eq!(token(b"\"hello,"), b"hello");
+        let (mut a, mut b) = (Vec::new(), Vec::new());
+        hashed_tokens_into("ลด 40%".as_bytes(), 1 << 20, &mut a);
+        hashed_tokens_into("ราคาสมาชิก 40".as_bytes(), 1 << 20, &mut b);
+        assert_ne!(a, b);
+    }
 
     fn embed(s: &str) -> [f32; EMBED_DIM] {
         let mut v = [0.0f32; EMBED_DIM];
