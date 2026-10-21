@@ -260,7 +260,7 @@ def box_state() -> dict:
     l1, l5, l15 = os.getloadavg()
     power = "unknown"
     try:
-        out = subprocess.run(["pmset", "-g", "ps"], capture_output=True, text=True).stdout
+        out = subprocess.run(["pmset", "-g", "ps"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
         first = out.splitlines()
         if first:
             power = first[0].strip()
@@ -268,7 +268,7 @@ def box_state() -> dict:
         pass
     free_gb = None
     try:
-        vm = subprocess.run(["vm_stat"], capture_output=True, text=True).stdout
+        vm = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace").stdout
         m = re.search(r"page size of (\d+) bytes", vm)
 
         def pages(label):
