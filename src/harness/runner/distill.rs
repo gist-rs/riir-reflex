@@ -290,6 +290,17 @@ pub(crate) enum TeacherForward {
         lane: crate::lanes::jeva::JevaLane,
         provenance: String,
     },
+    /// The StartLux-Decision loopback service (reflex Issue 095's capture
+    /// rider, feeding riir-train 635 T3/T4): THEIR Apache-2.0 engine
+    /// `startlux-decide` over llama.cpp on the pplx/d3 SystemOne wire.
+    /// Weights CC BY-NC 4.0 — DECLARED-NC RESTRICTED (635 T0):
+    /// capture-for-MEASUREMENT allowed, adoption fail-closed — the RIDT
+    /// header carries the NC-lineage license token (the attribution law).
+    /// Same keyed-probs tail as clef/pplx/d3/jeva.
+    Startlux {
+        lane: crate::lanes::startlux::StartluxLane,
+        provenance: String,
+    },
 }
 
 impl TeacherForward {
@@ -304,6 +315,7 @@ impl TeacherForward {
             Self::Pplx { .. } => "pplx",
             Self::D3 { .. } => "d3",
             Self::Jeva { .. } => "jeva",
+            Self::Startlux { .. } => "startlux",
         }
     }
 
@@ -317,6 +329,7 @@ impl TeacherForward {
             Self::Bekko { oracle } => &oracle.model,
             Self::Clef { provenance, .. } | Self::Pplx { provenance, .. } => provenance,
             Self::D3 { provenance, .. } | Self::Jeva { provenance, .. } => provenance,
+            Self::Startlux { provenance, .. } => provenance,
         }
     }
 
@@ -335,6 +348,7 @@ impl TeacherForward {
                       LiQiiiii/Jeva) — capture-for-measurement posture per \
                       riir-train 632 T0; adoption fail-closed",
             ),
+            Self::Startlux { .. } => Some(crate::lanes::startlux::LICENSE_LINE),
             _ => None,
         }
     }
@@ -401,6 +415,14 @@ impl TeacherForward {
                 .decide(case)
                 .map(|_| ())
                 .map_err(|e| format!("jeva warmup: {e}")),
+            // The startlux law: health + the bidirectional posture gate
+            // ran at construct (it fills the provenance); warmup is the
+            // loud proof + the cold-path absorb (llama-server's first
+            // non-causal eval / page-in).
+            Self::Startlux { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("startlux warmup: {e}")),
         }
     }
 
@@ -498,6 +520,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("jeva forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &outcome.answers, "jeva")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Startlux { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("startlux forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "startlux")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -664,6 +694,18 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::Jeva { lane, provenance })
         }
+        "startlux" => {
+            // The pplx law verbatim, plus the lane's POSTURE gate: health
+            // at construct (kind instant + prompt_attention bidirectional
+            // + engine.bidir_mode server — a causal/off serve misreads the
+            // Instant checkpoint), provenance off /health (their --name,
+            // the folder name by default). The quant posture is the
+            // STARTLUX_DEVICE stamp — the lossy-surface law (our 635-T2
+            // arm: Q4_K_M, -ngl 99).
+            let lane = crate::lanes::startlux::StartluxLane::default();
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Startlux { lane, provenance })
+        }
         "laya" => {
             #[cfg(feature = "laya-riir")]
             {
@@ -696,7 +738,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
         }
         other => Err(format!(
             "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
-             'bekko', 'clef', 'pplx', 'd3' and 'jeva')"
+             'bekko', 'clef', 'pplx', 'd3', 'jeva' and 'startlux')"
         )),
     }
 }

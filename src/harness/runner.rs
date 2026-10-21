@@ -1451,6 +1451,16 @@ pub struct SuiteResult {
     /// fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub jeva: Option<LaneResult>,
+    /// reflex Issue 095 (feeding riir-train 635 T3): the StartLux-Decision
+    /// v1.1 comparison lane's row — board #1 (public_skill 72.88 on the
+    /// pinned snapshot; Qwen3.8-27B backbone; weights CC BY-NC 4.0 →
+    /// DECLARED-NC RESTRICTED posture, capture-for-measurement +
+    /// teacher-capture, adoption fail-closed — 635 T0) served by THEIR
+    /// Apache-2.0 engine `startlux-decide` over llama.cpp on the SAME
+    /// `/v1/systemone` wire the pplx/d3 lanes speak, measured over HTTP.
+    /// Absent (never a fabricated row) when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub startlux: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1582,6 +1592,13 @@ pub struct RunMeta {
     /// the model id + RESOLVED dtype + allow_null posture from /health;
     /// weights license UNDECLARED, the 632-T0 restricted posture).
     pub jeva_lane: String,
+    /// Whether the StartLux comparison lane ran (reflex Issue 095, feeding
+    /// riir-train 635 T3), and its serving posture when it did (their
+    /// `startlux-decide` engine over llama.cpp — the bidirectional Instant
+    /// posture gate at health; the quant stamp via STARTLUX_DEVICE is the
+    /// lossy-surface disclosure; weights CC BY-NC 4.0, the 635-T0
+    /// DECLARED-NC RESTRICTED posture).
+    pub startlux_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6367,6 +6384,142 @@ fn run_jeva_lane(
     Ok(result)
 }
 
+/// The StartLux-Decision v1.1 comparison lane (reflex Issue 095, feeding
+/// riir-train 635 T3): board #1 (`startlux-models/StartLux-Decision-v1.1-
+/// 27B-Instant`; Qwen3.8-27B backbone, weights CC BY-NC 4.0 → DECLARED-NC
+/// RESTRICTED — capture-for-measurement + teacher-capture, adoption
+/// fail-closed per 635 T0), served through THEIR Apache-2.0 engine
+/// `startlux-decide` over llama.cpp on the SAME TypeSafe `/v1/systemone`
+/// wire as pplx/d3 (the wire functions are REUSED from the pplx lane —
+/// one wire, many oracles), measured over HTTP — the pplx lane's shape
+/// verbatim (same cases, the same metrics tail through
+/// [`assemble_laya_lane_result`]).
+///
+/// Env: `STARTLUX_SERVE_URL` (default `http://127.0.0.1:8090`),
+/// `STARTLUX_TIMEOUT_MS` (default 300000 — knockout multi-pass rows are
+/// slow), `STARTLUX_DEVICE` (the quant-posture disclosure stamp — the
+/// lossy-surface law: which quant produced the scores is PINNED and
+/// quoted; our 635-T2 posture is Q4_K_M `-ngl 99`), `STARTLUX_API_KEY`
+/// (optional bearer). The `/health` handshake GATES the posture: kind
+/// "instant" + prompt_attention "bidirectional" + engine.bidir_mode
+/// "server" — a causal/off serve misreads the Instant checkpoint (the
+/// −26 pt class), and a keys-configured server omits the posture fields
+/// (public shape) — both refuse loud naming the boot line. The no-clock
+/// law: their body carries `timing_ms` only with `return_details`, which
+/// this lane never sets, so the determinism compare is verbatim.
+fn run_startlux_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::startlux::StartluxLane;
+
+    let t_start = Instant::now();
+    let lane = StartluxLane::default();
+    let (model, device) = lane.info()?;
+    eprintln!("    [startlux] service up: {model} on {device}");
+
+    // WARMUP (the clm lane's cold-start law, the pplx lane's shape): one
+    // FIXED throwaway request (never a case's — no cache pollution of
+    // measured latencies) absorbs the first-forward path (page-in,
+    // llama-server's first non-causal eval).
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("startlux warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N startlux row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    // The repeat COUNT (the verdict's support).
+    let mut determinism_n: usize = 0;
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, tokens) = lane
+            .decide(case)
+            .map_err(|e| format!("startlux lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        input_tokens += tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the laya
+        // lanes' law) — VERBATIM compare on this wire (the no-clock law).
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("startlux determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("startlux determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!("    [startlux] input tokens summed: {input_tokens}");
+
+    Ok(assemble_laya_lane_result(
+        "startlux",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
+
 /// The pplx-decider comparison lane (Issue 082): Perplexity's
 /// `pplx-decider-v1.1-27b` (the JDI 2026-10-07 #1; Apache-2.0, UNGATED —
 /// teacher-eligible, the read decides riir-train 623's pick) served
@@ -7771,6 +7924,18 @@ pub struct RunOptions {
     /// `http://127.0.0.1:8095`). An unreachable server is a LOUD error,
     /// never a silent skip. Default off.
     pub jeva: bool,
+    /// Also run the StartLux-Decision comparison lane (Issue 095, feeding
+    /// riir-train 635 T3): board #1 (`startlux-models/StartLux-Decision-
+    /// v1.1-27B-Instant`; weights CC BY-NC 4.0 → DECLARED-NC RESTRICTED —
+    /// capture-for-measurement + teacher-capture, adoption fail-closed per
+    /// 635 T0) served by THEIR Apache-2.0 engine `startlux-decide` over
+    /// llama.cpp on the same `/v1/systemone` wire as pplx/d3 at
+    /// `STARTLUX_SERVE_URL` (default `http://127.0.0.1:8090`). The health
+    /// handshake GATES the bidirectional Instant posture (a causal/off
+    /// serve misreads the checkpoint — refusal names the boot line). An
+    /// unreachable server is a LOUD error, never a silent skip. Default
+    /// off.
+    pub startlux: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -8003,6 +8168,7 @@ impl RunOptions {
             pplx: false,
             d3: false,
             jeva: false,
+            startlux: false,
             paw: false,
             paw_local: false,
             clef_local: false,
@@ -8725,6 +8891,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // StartLux comparison lane (Issue 095, feeding riir-train 635 T3):
+        // board #1 through THEIR startlux-decide engine (weights CC BY-NC
+        // 4.0 — DECLARED-NC RESTRICTED posture, adoption fail-closed),
+        // measured over HTTP — same cases, the same metrics tail.
+        let startlux_result = if opts.startlux {
+            eprintln!("    startlux: running…");
+            match run_startlux_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    startlux: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (startlux): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -8890,6 +9082,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             pplx: pplx_result,
             d3: d3_result,
             jeva: jeva_result,
+            startlux: startlux_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -9329,6 +9522,39 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              installed — reflex Issue 090 B1)"
                 .to_string()
         },
+        startlux_lane: if opts.startlux {
+            let url = std::env::var(crate::lanes::startlux::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::startlux::DEFAULT_SERVE_URL.into());
+            let posture = crate::lanes::startlux::StartluxLane::default()
+                .info()
+                .map_or_else(|e| format!("(health unreadable: {e})"), |(p, _)| p);
+            format!(
+                "on — StartLux-Decision v1.1 27B Instant (startlux-models; board #1 \
+                 on the pinned snapshot; Qwen3.8-27B backbone — the pplx/d3 base \
+                 family; weights CC BY-NC 4.0 → DECLARED-NC RESTRICTED: \
+                 capture-for-MEASUREMENT + teacher-CAPTURE allowed, any ADOPTION \
+                 FAIL-CLOSED, riir-train 635 T0; NC-lineage rides every artifact; \
+                 not affiliated) served through THEIR Apache-2.0 engine \
+                 startlux-decide v1.1.0 over llama.cpp via {url} ({posture}): \
+                 same cases, the pplx/d3 /v1/systemone wire (the wire functions \
+                 REUSED from the pplx lane), gold-label scoring; the health \
+                 handshake GATES the bidirectional Instant posture (kind instant \
+                 + prompt_attention bidirectional + engine.bidir_mode server — a \
+                 causal/off serve is a different model than the one trained, the \
+                 −26 pt class); the quant posture is the STARTLUX_DEVICE stamp \
+                 (our 635-T2 arm: Q4_K_M, -ngl 99 — the lossy-surface law); \
+                 determinism = verbatim observed-repeat (their timing_ms rides \
+                 only with return_details, never set here); answers' \
+                 none_probability is read by the parser as unknown-and-ignored \
+                 (the RIDT capture carries the license token); reflex Issue 095 \
+                 + riir-train 635 T3"
+            )
+        } else {
+            "off (pass --startlux to add the comparison lane; serve their \
+             startlux-decide engine on STARTLUX_SERVE_URL, default \
+             http://127.0.0.1:8090 — reflex Issue 095, riir-train 635 T3)"
+                .to_string()
+        },
         paw_lane: if opts.paw {
             format!(
                 "on — ProgramAsWeights (MIT SDK, not affiliated) over their hosted \
@@ -9479,6 +9705,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- d1 lane: {}\n", out.meta.d1_lane));
     s.push_str(&format!("- pplx lane: {}\n", out.meta.pplx_lane));
     s.push_str(&format!("- d3 lane: {}\n", out.meta.d3_lane));
+    s.push_str(&format!("- startlux lane: {}\n", out.meta.startlux_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(

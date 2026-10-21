@@ -24,7 +24,7 @@
 //!                                       refuses loud naming the rebuild)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--d3] [--jeva] [--paw] [--paw-local]
+//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--paw] [--paw-local]
 //!                                      [--cascade] [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -124,6 +124,20 @@
 //! `--null-probe` accept the lane (their 0.00% order-flip bar is the
 //! B2 0-flip floor's target; their max-based coverage gate ρ is the A1
 //! probe's subject — arm it server-side with JEVA_ALLOW_NULL=1). An
+//! unreachable server is a loud absence, never a silent skip.
+//! `--startlux` adds the StartLux comparison lane (Issue 095, feeding
+//! riir-train 635 T3): `startlux-models/StartLux-Decision-v1.1-27B-Instant`
+//! — board #1 on the pinned snapshot (Qwen3.8-27B backbone, the pplx/d3
+//! base family; weights **CC BY-NC 4.0 → DECLARED-NC RESTRICTED**:
+//! capture-for-MEASUREMENT + teacher-CAPTURE allowed, any ADOPTION
+//! FAIL-CLOSED per riir-train 635 T0; NC-lineage rides every artifact)
+//! answered over the SAME pplx/d3 `/v1/systemone` wire at
+//! `STARTLUX_SERVE_URL` (default `http://127.0.0.1:8090` — THEIR
+//! Apache-2.0 engine `startlux-decide` over llama.cpp; the health
+//! handshake gates the bidirectional Instant posture — a causal/off serve
+//! is a different model than the one trained). The quant posture rides
+//! `STARTLUX_DEVICE` (the lossy-surface disclosure); `--distill-teacher
+//! startlux` captures RIDT with the license token in the header. An
 //! unreachable server is a loud absence, never a silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
@@ -523,7 +537,7 @@ fn harness_main() {
                 distill_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx | d3)"));
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx | d3 | jeva | startlux)"));
             }
             "--distill-out" => {
                 i += 1;
@@ -645,6 +659,7 @@ fn harness_main() {
             "--pplx" => opts.pplx = true,
             "--d3" => opts.d3 = true,
             "--jeva" => opts.jeva = true,
+            "--startlux" => opts.startlux = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -1497,6 +1512,8 @@ fn harness_main() {
                 &suite.d1,
                 &suite.pplx,
                 &suite.d3,
+                &suite.jeva,
+                &suite.startlux,
             ]
             .into_iter()
             .flatten()

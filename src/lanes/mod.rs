@@ -66,3 +66,12 @@ pub mod d3;
 // (`crate::harness::suites` + the std-only `crate::lanes::http_mini` +
 // std + serde_json).
 pub mod jeva;
+// reflex Issue 095 (feeding riir-train 635 T3): the StartLux-Decision
+// v1.1 comparison lane — board #1 (weights CC BY-NC 4.0: DECLARED-NC →
+// RESTRICTED, capture-for-measurement + teacher-capture posture, adoption
+// fail-closed — 635 T0) served by THEIR Apache-2.0 engine
+// `startlux-decide` over llama.cpp on the SAME `/v1/systemone` wire as
+// pplx/d3 (the wire functions are REUSED from the pplx lane; this module
+// owns the endpoint + the bidirectional-posture health gate). Ungated:
+// the same import law.
+pub mod startlux;
