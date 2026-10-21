@@ -1,6 +1,7 @@
 # Issue 094: Proprioception-derived confidence probes + input-keyed modal-baseline floor
 
 **Status:** OPEN — from `.research/011` (arXiv:2610.17495 distill, 2026-10-21); modelless track, report-only probes, no serving-path change.
+**Claimed:** 4090-modal-floor, 1792613492, expires 2026-10-23T20:11:33Z
 
 ## Motivation
 
