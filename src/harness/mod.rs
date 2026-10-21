@@ -45,6 +45,11 @@ pub mod rubric;
 // katgpt-core/basis_split); the runner half is `runner/basis_cert.rs`.
 #[cfg(feature = "basis_cert")]
 pub mod basis_cert;
+// Issue 094 T1 — the input-keyed modal-answer floor (pure core): the
+// leave-one-out anti-mimicry census the harness tables quote every lane
+// row against. Ungated + pure (no engine dep); the render half lives in
+// `runner.rs::render_markdown`.
+pub mod modal_floor;
 // Per-lane latency extremes: first / max / argmax case (Issue 020 T8).
 pub mod latency;
 // Issue 055 / Plan 008 T5 — the `--mc-ab` distributional-layer A/B arm

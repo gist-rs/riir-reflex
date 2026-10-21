@@ -1485,6 +1485,13 @@ pub struct SuiteResult {
     /// Absent on the synthetic/code paths (authored slices, not composed).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub slices: Option<super::slice_guard::SliceFacts>,
+    /// Issue 094 T1 — the input-keyed modal-answer floor over this suite's
+    /// question population (the leave-one-out anti-mimicry census; the
+    /// `render_markdown` block quotes every lane row against it). `None`
+    /// only when a suite carries no questions (never observed on a real
+    /// suite — an honest absence, never a fabricated row).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub modal_floor: Option<super::modal_floor::ModalFloorRow>,
 }
 
 /// Issue 024 T3 — the per-suite leak block (results.json, additive).
@@ -1528,6 +1535,9 @@ pub struct RunMeta {
     /// or cal-side selection armed per suite past the margin).
     pub readout_posture: String,
     pub floor_definition: String,
+    /// Issue 094 T1: the input-keyed modal-answer floor's construction
+    /// (the anti-mimicry axis beside the conformal floor above).
+    pub modal_floor_definition: String,
     pub determinism_scoping: String,
     /// The riir lane's device posture for this run (honest latency reading:
     /// the same build answers differently on cpu vs metal).
@@ -9068,6 +9078,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             n_cases: prepared.suite.cases.len(),
             n_questions,
             cases_digest: cases_digest(spec.name, &prepared.suite.cases),
+            modal_floor: super::modal_floor::census(&prepared.suite.cases),
             modelless,
             laya: laya_results,
             cascade,
@@ -9169,6 +9180,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                            the exchangeability-valid baseline (G1 fails unless the \
                            calibrated ECE beats it)"
             .to_string(),
+        modal_floor_definition: super::modal_floor::MODAL_FLOOR_DEFINITION.to_string(),
         determinism_scoping: "the bit-identity claim is the MODELLESS lane's (plan caveat 3); \
                               the laya lane gets the same observed repeat check and it is \
                               reported, not claimed"
@@ -9728,12 +9740,13 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.ridge_posture
     ));
     s.push_str(&format!(
-        "- corpus: {} \n- calibration: {}\n- sampling: {}\n- readout: {}\n- floor: {}\n- determinism: {}\n",
+        "- corpus: {} \n- calibration: {}\n- sampling: {}\n- readout: {}\n- floor: {}\n- modal floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
         out.meta.calibration_protocol,
         out.meta.sampling_protocol,
         out.meta.readout_posture,
         out.meta.floor_definition,
+        out.meta.modal_floor_definition,
         out.meta.determinism_scoping
     ));
     for d in &out.meta.divergences {
@@ -9939,6 +9952,26 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 m.corpus_fallbacks.len(),
                 m.corpus_fallbacks.join(", ")
             ));
+        }
+        // Issue 094 T1 — the input-keyed modal-answer floor: the
+        // anti-mimicry census every lane row below is quoted against
+        // (report-only; a lane at/below the floor carries no
+        // input-independent signal and the block names it).
+        if let Some(f) = &suite.modal_floor {
+            let mut entries: Vec<(&str, &str, f64)> = Vec::new();
+            if let Some(m) = &suite.modelless {
+                entries.push((m.lane, &m.model, m.hard.accuracy));
+            }
+            for r in suite
+                .laya
+                .values()
+                .chain(suite.clm.iter())
+                .chain(suite.gliner.iter())
+                .chain(suite.bekko.iter())
+            {
+                entries.push((r.lane, &r.model, r.hard.accuracy));
+            }
+            s.push_str(&super::modal_floor::render_block(&entries, f));
         }
         let Some(m) = &suite.modelless else {
             if suite.laya.is_empty() {
