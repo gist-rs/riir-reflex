@@ -38,8 +38,8 @@
 
 use std::collections::BTreeMap;
 
-use katgpt_core::data_probe::gaussianity::{sketched_gaussianity, GaussianityScratch};
-use riir_reflex::embed::{Embedder, EMBED_DIM};
+use katgpt_core::data_probe::gaussianity::{GaussianityScratch, sketched_gaussianity};
+use riir_reflex::embed::{EMBED_DIM, Embedder};
 use riir_reflex::harness::runner::load_suite_envelope;
 use riir_reflex::harness::suites::train_docs;
 
@@ -69,7 +69,11 @@ fn jl_project(rows: &[[f32; EMBED_DIM]], k: usize, seed: u64) -> Vec<Vec<f32>> {
                     let mut acc = 0.0f32;
                     let base = j * EMBED_DIM;
                     for (i, v) in row.iter().enumerate() {
-                        let s = if signs[base + i] == 1 { 1.0f32 } else { -1.0f32 };
+                        let s = if signs[base + i] == 1 {
+                            1.0f32
+                        } else {
+                            -1.0f32
+                        };
                         acc += v * s;
                     }
                     acc * scale
@@ -139,7 +143,10 @@ fn main() {
                 continue;
             }
         };
-        let train = env.get("train_rows").cloned().unwrap_or(serde_json::Value::Null);
+        let train = env
+            .get("train_rows")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         let docs = train_docs(&train, suite);
         if docs.is_empty() {
             eprintln!("REFUSE — suite {suite}: zero train docs");
@@ -167,14 +174,20 @@ fn main() {
         let all: Vec<[f32; EMBED_DIM]> = by_label.values().flatten().copied().collect();
         let labels = by_label.len();
 
-        println!("\n## {suite}: {n} docs · {labels} labels · {zero_vecs} zero-vec embeddings (disclosed)", n = docs.len());
+        println!(
+            "\n## {suite}: {n} docs · {labels} labels · {zero_vecs} zero-vec embeddings (disclosed)",
+            n = docs.len()
+        );
 
         // Whole-corpus raw.
         let whole: Vec<Vec<f32>> = all.iter().map(|r| r.to_vec()).collect();
         match probe(&whole) {
             Some((score, p)) => {
                 let verdict = if score > 0.5 { "ACCEPT" } else { "REJECT" };
-                println!("  whole-corpus  raw-d{d:<4} score={score:.4} p_min={p:.2e}  {verdict}", d = EMBED_DIM)
+                println!(
+                    "  whole-corpus  raw-d{d:<4} score={score:.4} p_min={p:.2e}  {verdict}",
+                    d = EMBED_DIM
+                )
             }
             None => println!("  whole-corpus  raw-d{d:<4} n/a (n < 8)", d = EMBED_DIM),
         }
@@ -204,7 +217,10 @@ fn main() {
                 }
             }
             if scores.is_empty() {
-                println!("  per-label     {pl:<8} n/a (no pool >= 8)", pl = posture_label(posture));
+                println!(
+                    "  per-label     {pl:<8} n/a (no pool >= 8)",
+                    pl = posture_label(posture)
+                );
                 continue;
             }
             scores.sort_by(|a, b| a.total_cmp(b));

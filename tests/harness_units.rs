@@ -1078,10 +1078,7 @@ fn abstain_cause_and_abstained_flag_agree_by_construction() {
 #[test]
 fn chance_majority_known_answer() {
     use riir_reflex::harness::metrics::chance_majority;
-    approx(
-        chance_majority(&[0, 0, 0, 1, 2, 2]),
-        0.5,
-    );
+    approx(chance_majority(&[0, 0, 0, 1, 2, 2]), 0.5);
     // Uniform two-class slice: the coin-flip floor.
     approx(chance_majority(&[1, 0, 1, 0]), 0.5);
     // Single class: chance 1 — the no-information ceiling (skill's guard).
@@ -1153,7 +1150,11 @@ fn winogrande_jdi_gold_and_options() {
     let suite = build_winogrande_jdi(&file, 0);
     assert_eq!(suite.name, "winogrande_jdi");
     assert!(!suite.option_counts_note.is_empty());
-    assert_eq!(suite.cases.len(), 2, "missing-field and out-of-range rows skip");
+    assert_eq!(
+        suite.cases.len(),
+        2,
+        "missing-field and out-of-range rows skip"
+    );
 
     let case = &suite.cases[0];
     assert_eq!(case.id, "winogrande_jdi:0");
@@ -1167,9 +1168,17 @@ fn winogrande_jdi_gold_and_options() {
     );
     let crit = q.criteria.as_object().unwrap();
     let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
-    assert_eq!(keys, vec!["option1", "option2"], "keys are the column names");
+    assert_eq!(
+        keys,
+        vec!["option1", "option2"],
+        "keys are the column names"
+    );
     assert_eq!(crit["option1"], json!("his"));
-    assert_eq!(crit["option2"], json!("her"), "the option TEXTS are the descs");
+    assert_eq!(
+        crit["option2"],
+        json!("her"),
+        "the option TEXTS are the descs"
+    );
     assert_eq!(case.gold[0].idx, 1, "answer \"2\" → idx 1");
     assert_eq!(case.gold[0].soft, vec![0.0; 2]);
     assert_eq!(case.gold[0].gold_score, None);
@@ -1227,14 +1236,24 @@ fn hellaswag_jdi_gold_and_options() {
     );
     let q = &case.questions[0];
     assert_eq!(q.qid, "ending");
-    assert_eq!(q.instructions, "Which ending most plausibly continues `ctx`?");
+    assert_eq!(
+        q.instructions,
+        "Which ending most plausibly continues `ctx`?"
+    );
     let crit = q.criteria.as_object().unwrap();
     let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
     assert_eq!(keys, vec!["1", "2", "3", "4"], "positional keys in order");
-    assert_eq!(crit["4"], json!("starts rapping."), "the ending TEXTS are the descs");
+    assert_eq!(
+        crit["4"],
+        json!("starts rapping."),
+        "the ending TEXTS are the descs"
+    );
     assert_eq!(case.gold[0].idx, 3, "label \"3\" → idx 3");
     assert_eq!(case.gold[0].soft, vec![0.0; 4]);
-    assert_eq!(suite.cases[1].gold[0].idx, 0, "a JSON-number label reads the same");
+    assert_eq!(
+        suite.cases[1].gold[0].idx, 0,
+        "a JSON-number label reads the same"
+    );
 
     // max_rows = FIRST-N
     let suite = build_hellaswag_jdi(&file, 1);
@@ -1262,7 +1281,11 @@ fn anli_jdi_matches_xnli_shape() {
     assert_eq!(case.id, "anli_jdi:0");
     let state = case.state.as_object().unwrap();
     let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
-    assert_eq!(state_keys, vec!["premise", "hypothesis"], "xnli state shape verbatim");
+    assert_eq!(
+        state_keys,
+        vec!["premise", "hypothesis"],
+        "xnli state shape verbatim"
+    );
     let q = &case.questions[0];
     assert_eq!(q.qid, "relation");
     assert_eq!(
@@ -1321,13 +1344,21 @@ fn mmlupro_jdi_variable_options_and_skips() {
     assert_eq!(case.id, "mmlupro_jdi:0");
     let state = case.state.as_object().unwrap();
     let state_keys: Vec<&str> = state.keys().map(String::as_str).collect();
-    assert_eq!(state_keys, vec!["question", "category"], "state key order is normative");
+    assert_eq!(
+        state_keys,
+        vec!["question", "category"],
+        "state key order is normative"
+    );
     let q = &case.questions[0];
     assert_eq!(q.qid, "answer");
     assert_eq!(q.instructions, "Which option answers `question`?");
     let crit = q.criteria.as_object().unwrap();
     let keys: Vec<&str> = crit.keys().map(String::as_str).collect();
-    assert_eq!(keys, vec!["A", "B", "C", "D"], "four options → keys A..D in order");
+    assert_eq!(
+        keys,
+        vec!["A", "B", "C", "D"],
+        "four options → keys A..D in order"
+    );
     assert_eq!(crit["D"], json!("6"), "the option TEXTS are the descs");
     assert_eq!(case.gold[0].idx, 3, "answer_index 3 → idx 3");
     assert_eq!(case.gold[0].soft, vec![0.0; 4]);
@@ -1401,11 +1432,16 @@ fn jdi_tranche1_fetched_count_floors() {
     if let Some(env) = envelope("winogrande_jdi", 1267) {
         let test_rows = env["test_rows"].clone();
         let suite = build_winogrande_jdi(&test_rows, 0);
-        assert_eq!(suite.cases.len(), 1267, "the full validation split is the population");
+        assert_eq!(
+            suite.cases.len(),
+            1267,
+            "the full validation split is the population"
+        );
         let docs = train_docs(&env["train_rows"].clone(), "winogrande_jdi");
         assert!(!docs.is_empty(), "the train pool yields corpus docs");
         assert!(
-            docs.iter().all(|d| d.label == "option1" || d.label == "option2"),
+            docs.iter()
+                .all(|d| d.label == "option1" || d.label == "option2"),
             "corpus labels bind to the option-key spelling"
         );
     }
@@ -1426,7 +1462,11 @@ fn jdi_tranche1_fetched_count_floors() {
     if let Some(env) = envelope("anli_jdi", 3200) {
         let test_rows = env["test_rows"].clone();
         let suite = build_anli_jdi(&test_rows, 0);
-        assert_eq!(suite.cases.len(), 3200, "the r1+r2+r3 union (comma-list load)");
+        assert_eq!(
+            suite.cases.len(),
+            3200,
+            "the r1+r2+r3 union (comma-list load)"
+        );
         assert!(
             suite.cases.iter().all(|c| c.gold[0].idx < 3),
             "every gold is one of the three class labels"
@@ -1436,7 +1476,11 @@ fn jdi_tranche1_fetched_count_floors() {
     if let Some(env) = envelope("mmlupro_jdi", 12032) {
         let test_rows = env["test_rows"].clone();
         let suite = build_mmlupro_jdi(&test_rows, 0);
-        assert_eq!(suite.cases.len(), 12032, "the full test split is the population");
+        assert_eq!(
+            suite.cases.len(),
+            12032,
+            "the full test split is the population"
+        );
         // The option-key union over the FULL test split spans all ten
         // letters — the runner's 10-domain dispatch posture (any 2000-cap
         // stratified front spans every bucket by construction, so the union

@@ -31,9 +31,7 @@
 //! posture: we never generate).
 
 use crate::engine::DecisionEngine;
-use katgpt_core::decision_wire::{
-    DecisionRequest, DecisionResponse, Question, QuestionKind,
-};
+use katgpt_core::decision_wire::{DecisionRequest, DecisionResponse, Question, QuestionKind};
 use serde_json::{Map, Value};
 
 /// What the response's `model` field names: what WE are, never an echo of
@@ -139,8 +137,7 @@ pub(crate) fn translate(
     questions: &Map<String, Value>,
 ) -> Result<SystemOneBuilt, String> {
     if questions.is_empty() {
-        return Err("questions must be a nonempty object keyed by question id"
-            .into());
+        return Err("questions must be a nonempty object keyed by question id".into());
     }
     let mut built = Vec::with_capacity(questions.len());
     let mut wire_noul = Vec::with_capacity(questions.len());
@@ -223,8 +220,7 @@ pub(crate) fn translate(
                 };
                 // Insertion order is preserved (serde_json preserve_order) —
                 // the wire's option order is the answer's option order.
-                let options: Vec<String> =
-                    criteria.keys().cloned().collect();
+                let options: Vec<String> = criteria.keys().cloned().collect();
                 Question {
                     id: qid.clone(),
                     kind: QuestionKind::Choice,
@@ -234,16 +230,16 @@ pub(crate) fn translate(
                 }
             }
             "score" => {
-                let Some(rubric) = criteria_val.and_then(Value::as_array).filter(
-                    |a| !a.is_empty(),
-                ) else {
+                let Some(rubric) = criteria_val
+                    .and_then(Value::as_array)
+                    .filter(|a| !a.is_empty())
+                else {
                     return Err(format!(
                         "score question {qid:?} requires nonempty criteria \
                          [level descriptions, lowest first]"
                     ));
                 };
-                let options: Vec<String> =
-                    rubric.iter().map(render_json_content).collect();
+                let options: Vec<String> = rubric.iter().map(render_json_content).collect();
                 Question {
                     id: qid.clone(),
                     kind: QuestionKind::Score,
@@ -256,7 +252,7 @@ pub(crate) fn translate(
                 return Err(format!(
                     "question {qid:?} carries unknown type {other:?} \
                      (supported: noul, choice, score)"
-                ))
+                ));
             }
         };
         wire_noul.push(is_wire_noul);
@@ -324,13 +320,15 @@ fn round6(v: f64) -> f64 {
 
 /// Map the engine's answers back to TypeSafe answer objects, one per
 /// question id (their `answers` is keyed, order irrelevant).
-pub(crate) fn map_answers(
-    built: &SystemOneBuilt,
-    resp: &DecisionResponse,
-) -> Map<String, Value> {
+pub(crate) fn map_answers(built: &SystemOneBuilt, resp: &DecisionResponse) -> Map<String, Value> {
     use katgpt_core::decision_wire::Outcome;
     let mut out = Map::new();
-    for ((q, a), &wire_noul) in built.questions.iter().zip(resp.answers.iter()).zip(built.wire_noul.iter()) {
+    for ((q, a), &wire_noul) in built
+        .questions
+        .iter()
+        .zip(resp.answers.iter())
+        .zip(built.wire_noul.iter())
+    {
         let probs = &a.probabilities;
         let mut answer = Map::new();
         // A wire-noul question answers `{type: noul, noul: p}` whatever the
@@ -399,14 +397,10 @@ pub(crate) fn map_answers(
                 };
                 let mut legend = Map::new();
                 let mut probabilities = Map::new();
-                for (i, (desc, p)) in
-                    q.options.iter().zip(dist.iter()).enumerate()
-                {
+                for (i, (desc, p)) in q.options.iter().zip(dist.iter()).enumerate() {
                     legend.insert(i.to_string(), Value::String(desc.clone()));
-                    probabilities.insert(
-                        i.to_string(),
-                        Value::from((p.max(0.0) * 1e6).round() / 1e6),
-                    );
+                    probabilities
+                        .insert(i.to_string(), Value::from((p.max(0.0) * 1e6).round() / 1e6));
                 }
                 answer.insert("type".into(), "score".into());
                 answer.insert("score".into(), Value::from(level as u64));
@@ -415,10 +409,7 @@ pub(crate) fn map_answers(
                     Value::from(round6(a.confidence as f64)),
                 );
                 answer.insert("legend".into(), Value::Object(legend));
-                answer.insert(
-                    "probabilities".into(),
-                    Value::Object(probabilities),
-                );
+                answer.insert("probabilities".into(), Value::Object(probabilities));
             }
         }
         out.insert(q.id.clone(), Value::Object(answer));
@@ -447,8 +438,8 @@ pub(crate) fn respond<const N: usize, const D: usize>(
     engine: &mut DecisionEngine<N, D>,
     body: &[u8],
 ) -> Result<String, String> {
-    let parsed: Value = serde_json::from_slice(body)
-        .map_err(|e| format!("request body is not JSON: {e}"))?;
+    let parsed: Value =
+        serde_json::from_slice(body).map_err(|e| format!("request body is not JSON: {e}"))?;
     let Some(state) = parsed.get("state") else {
         return Err("request carries no \"state\"".into());
     };
@@ -477,10 +468,11 @@ mod tests {
     use serde_json::json;
 
     fn built_from(questions: &Value) -> SystemOneBuilt {
-        translate(&json!({"observation": "Alice prefers concise answers."}), questions
-            .as_object()
-            .unwrap())
-            .expect("translate")
+        translate(
+            &json!({"observation": "Alice prefers concise answers."}),
+            questions.as_object().unwrap(),
+        )
+        .expect("translate")
     }
 
     #[test]
@@ -595,8 +587,7 @@ mod tests {
         )
         .unwrap_err();
         assert!(e1.contains("unknown type"), "{e1}");
-        let e2 =
-            translate(&json!("s"), json!({}).as_object().unwrap()).unwrap_err();
+        let e2 = translate(&json!("s"), json!({}).as_object().unwrap()).unwrap_err();
         assert!(e2.contains("nonempty"), "{e2}");
     }
 
@@ -661,12 +652,7 @@ mod tests {
         assert_eq!(built.questions[0].kind, QuestionKind::Choice);
         let a = answer_for(
             &built,
-            katgpt_core::decision_wire::Answer::choice(
-                "q",
-                0,
-                vec![0.72, 0.28],
-                0.6,
-            ),
+            katgpt_core::decision_wire::Answer::choice("q", 0, vec![0.72, 0.28], 0.6),
         );
         assert_eq!(a["type"], "noul");
         assert_eq!(a["noul"], json!(0.72));
@@ -693,12 +679,7 @@ mod tests {
         }));
         let a = answer_for(
             &built,
-            katgpt_core::decision_wire::Answer::choice(
-                "rep",
-                2,
-                vec![0.1, 0.2, 0.55, 0.15],
-                0.7,
-            ),
+            katgpt_core::decision_wire::Answer::choice("rep", 2, vec![0.1, 0.2, 0.55, 0.15], 0.7),
         );
         assert_eq!(a["type"], "choice");
         assert_eq!(a["choice"], "promote");
@@ -751,12 +732,7 @@ mod tests {
         }));
         let a = answer_for(
             &built,
-            katgpt_core::decision_wire::Answer::score(
-                "urgency",
-                2,
-                vec![0.1, 0.3, 0.6],
-                0.5,
-            ),
+            katgpt_core::decision_wire::Answer::score("urgency", 2, vec![0.1, 0.3, 0.6], 0.5),
         );
         assert_eq!(a["type"], "score");
         assert_eq!(a["score"], json!(2));
@@ -845,17 +821,12 @@ mod tests {
         // The token stream: the digit is its own token (trimmed `0`), not
         // glued into the first chunk.
         let mut toks = Vec::new();
-        crate::embed::hashed_tokens_into(
-            spaced.as_bytes(),
-            crate::nb_scope::NB_VOCAB,
-            &mut toks,
-        );
+        crate::embed::hashed_tokens_into(spaced.as_bytes(), crate::nb_scope::NB_VOCAB, &mut toks);
         let mut probe = Vec::new();
-        crate::embed::hashed_tokens_into(
-            b"0",
-            crate::nb_scope::NB_VOCAB,
-            &mut probe,
+        crate::embed::hashed_tokens_into(b"0", crate::nb_scope::NB_VOCAB, &mut probe);
+        assert!(
+            toks.contains(&probe[0]),
+            "the depth digit must be a standalone token"
         );
-        assert!(toks.contains(&probe[0]), "the depth digit must be a standalone token");
     }
 }

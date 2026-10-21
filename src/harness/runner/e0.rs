@@ -474,9 +474,15 @@ mod tests {
             histogram: Vec::new(),
         };
         assert!(armed_pending(&[mk(0.49)]));
-        assert!(armed_pending(&[mk(0.9), mk(0.3)]), "one admissible view rescues");
+        assert!(
+            armed_pending(&[mk(0.9), mk(0.3)]),
+            "one admissible view rescues"
+        );
         assert!(!armed_pending(&[mk(0.51)]));
-        assert!(!armed_pending(&[mk(0.9), mk(0.50001)]), "both over ⇒ NOT ARMED");
+        assert!(
+            !armed_pending(&[mk(0.9), mk(0.50001)]),
+            "both over ⇒ NOT ARMED"
+        );
     }
 
     #[test]

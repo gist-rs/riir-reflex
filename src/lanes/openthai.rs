@@ -34,7 +34,7 @@
 
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply};
@@ -94,8 +94,9 @@ impl OpenThaiLane {
     /// deliberately no `/api/info` handshake; the model id is read from
     /// the decide response (see [`Self::model_of`]).
     pub fn health(&self) -> Result<(), String> {
-        let (status, _headers, body) =
-            self.get("/healthz").map_err(|e| format!("openthai healthz: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/healthz")
+            .map_err(|e| format!("openthai healthz: {e}"))?;
         if status != 200 {
             return Err(format!(
                 "GET /healthz -> HTTP {status}: {} — is their openthai service \
@@ -223,10 +224,7 @@ fn build_question(q: &SuiteQuestion) -> Result<Value, String> {
         // match — no desc/key rewrite law needed here, unlike agentjev).
         QKind::Choice => {
             if q.criteria.as_object().is_none() {
-                return Err(format!(
-                    "case {}: choice criteria must be an object",
-                    q.qid
-                ));
+                return Err(format!("case {}: choice criteria must be an object", q.qid));
             }
             qj["criteria"] = q.criteria.clone();
         }
@@ -235,10 +233,7 @@ fn build_question(q: &SuiteQuestion) -> Result<Value, String> {
         QKind::Score => {
             let n = q.criteria.as_array().map_or(0, Vec::len);
             if !(2..=10).contains(&n) {
-                return Err(format!(
-                    "case {}: score needs 2..10 levels, got {n}",
-                    q.qid
-                ));
+                return Err(format!("case {}: score needs 2..10 levels, got {n}", q.qid));
             }
             qj["criteria"] = q.criteria.clone();
         }
@@ -282,9 +277,7 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
         let a = answers
             .get(&q.qid)
             .ok_or_else(|| format!("qid {}: no answer in response", q.qid))?;
-        let conf = a
-            .get("confidence")
-            .and_then(Value::as_f64);
+        let conf = a.get("confidence").and_then(Value::as_f64);
         let triple = match q.kind {
             QKind::Noul => {
                 // Primary: the measured `noul` field (types.py
@@ -319,11 +312,11 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
             QKind::Choice => {
                 // Their ChoiceAnswer carries the probabilities dict +
                 // confidence (types.py @ 5d04bcca).
-                let probs_v = a.get("probabilities").ok_or_else(|| {
-                    format!("qid {}: choice answer has no probabilities", q.qid)
-                })?;
-                let conf = conf
-                    .ok_or_else(|| format!("qid {}: choice answer has no confidence", q.qid))?;
+                let probs_v = a
+                    .get("probabilities")
+                    .ok_or_else(|| format!("qid {}: choice answer has no probabilities", q.qid))?;
+                let conf =
+                    conf.ok_or_else(|| format!("qid {}: choice answer has no confidence", q.qid))?;
                 let dist = probs_v.as_object().ok_or_else(|| {
                     format!("qid {}: choice probabilities must be an object", q.qid)
                 })?;
@@ -353,20 +346,23 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 (probs, pick, conf)
             }
             QKind::Score => {
-                let probs_v = a.get("probabilities").ok_or_else(|| {
-                    format!("qid {}: score answer has no probabilities", q.qid)
-                })?;
-                let conf = conf
-                    .ok_or_else(|| format!("qid {}: score answer has no confidence", q.qid))?;
+                let probs_v = a
+                    .get("probabilities")
+                    .ok_or_else(|| format!("qid {}: score answer has no probabilities", q.qid))?;
+                let conf =
+                    conf.ok_or_else(|| format!("qid {}: score answer has no confidence", q.qid))?;
                 let dist = probs_v.as_object().ok_or_else(|| {
                     format!("qid {}: score probabilities must be an object", q.qid)
                 })?;
                 let n = q.criteria.as_array().map_or(0, Vec::len);
                 let mut probs = Vec::with_capacity(n);
                 for i in 0..n {
-                    let p = dist.get(&i.to_string()).and_then(Value::as_f64).ok_or_else(|| {
-                        format!("qid {}: score probabilities missing level {i}", q.qid)
-                    })?;
+                    let p = dist
+                        .get(&i.to_string())
+                        .and_then(Value::as_f64)
+                        .ok_or_else(|| {
+                            format!("qid {}: score probabilities missing level {i}", q.qid)
+                        })?;
                     probs.push(p);
                 }
                 // Their `score` is E[level] — a float; the pick is the
@@ -453,7 +449,12 @@ mod tests {
         let c = case(
             json!("s"),
             vec![
-                ("q1", QKind::Choice, "pick", json!({"a": "desc a", "b": null})),
+                (
+                    "q1",
+                    QKind::Choice,
+                    "pick",
+                    json!({"a": "desc a", "b": null}),
+                ),
                 ("q2", QKind::Score, "rate", json!(["lo", "mid", "hi"])),
             ],
         );
@@ -464,7 +465,10 @@ mod tests {
             json!({"a": "desc a", "b": null})
         );
         assert_eq!(body["questions"]["q2"]["type"], "score");
-        assert_eq!(body["questions"]["q2"]["criteria"], json!(["lo", "mid", "hi"]));
+        assert_eq!(
+            body["questions"]["q2"]["criteria"],
+            json!(["lo", "mid", "hi"])
+        );
     }
 
     #[test]
@@ -547,9 +551,10 @@ mod tests {
 
     #[test]
     fn abstain_flags_count_without_mutating_probabilities() {
-        let c = case(json!("s"), vec![
-            ("q0", QKind::Choice, "pick", json!({"a": null, "b": null})),
-        ]);
+        let c = case(
+            json!("s"),
+            vec![("q0", QKind::Choice, "pick", json!({"a": null, "b": null}))],
+        );
         let resp = json!({
             "answers": {
                 "q0": {"probabilities": {"a": 0.55, "b": 0.45},
@@ -583,7 +588,10 @@ mod tests {
         assert!((out[0].0[1] - 0.8).abs() < 1e-12);
         // A dict probabilities with NO noul field stays a loud error.
         let bad = json!({"answers": {"q0": {"probabilities": {"yes": 0.8}, "confidence": 0.8}}});
-        assert!(map_answers(&c, &bad).is_err(), "a dict is not p(yes) — loud error");
+        assert!(
+            map_answers(&c, &bad).is_err(),
+            "a dict is not p(yes) — loud error"
+        );
     }
 
     #[test]

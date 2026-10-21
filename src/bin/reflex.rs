@@ -80,7 +80,9 @@ fn mint_heads(args: &[String]) {
         return;
     }
     let Some(out) = flag("--out") else {
-        eprintln!("reflex mint-heads: --out <dir> is required (the heads dir RIIR_REFLEX_HEADS_DIR will point at)");
+        eprintln!(
+            "reflex mint-heads: --out <dir> is required (the heads dir RIIR_REFLEX_HEADS_DIR will point at)"
+        );
         std::process::exit(2);
     };
     let fixtures = flag("--fixtures").unwrap_or_else(|| "assets/game_heads".to_string());
@@ -90,7 +92,9 @@ fn mint_heads(args: &[String]) {
             std::process::exit(2);
         }),
         None => {
-            eprintln!("reflex mint-heads: --key-id <u32> is required (the PinTable identity of the minting key)");
+            eprintln!(
+                "reflex mint-heads: --key-id <u32> is required (the PinTable identity of the minting key)"
+            );
             std::process::exit(2);
         }
     };

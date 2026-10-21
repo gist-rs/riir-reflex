@@ -47,12 +47,14 @@ use katgpt_core::sigmoid_calibration::CalibratedGateSet;
 use serde::Serialize;
 use serde_json::Value;
 
-use super::nli_lane::{blend_pick_conf, pair_features, pair_state, well_shaped, NliLda, OracleRow, FEAT_DIM};
+use super::nli_lane::{
+    FEAT_DIM, NliLda, OracleRow, blend_pick_conf, pair_features, pair_state, well_shaped,
+};
 use super::{Eval, Suite, SuiteCase};
 use crate::harness::metrics::{
-    auroc_of, brier_resolution_of, conformal_naive_floor, CalibrationPair, ece_of, nll_of,
+    CalibrationPair, auroc_of, brier_resolution_of, conformal_naive_floor, ece_of, nll_of,
 };
-use crate::harness::suites::{build_xnli_en, train_row_label, SplitMix64};
+use crate::harness::suites::{SplitMix64, build_xnli_en, train_row_label};
 
 /// The only suite this lane reads (R1: the confirmation surface is the
 /// validation split; the suite's registry entry wires `eval_split`).
@@ -306,7 +308,11 @@ pub fn build_pool_cases(
     }
     let rest_suite = build_xnli_en(&serde_json::json!({ "rows": arr }), 0);
 
-    let mut cases: Vec<SuiteCase> = cal_cases.iter().filter(|c| !case_shared(c)).cloned().collect();
+    let mut cases: Vec<SuiteCase> = cal_cases
+        .iter()
+        .filter(|c| !case_shared(c))
+        .cloned()
+        .collect();
     cases.extend(rest_suite.cases);
     Ok((cases, n_premise_excluded))
 }
@@ -478,8 +484,7 @@ pub fn nli_m1_pass(inp: &M1Inputs) -> Result<Option<M1Result>, String> {
         pair_y.push(pick == pool_y[i]);
     }
     let n_oof_pairs = pair_x.len();
-    let oof_base_rate = pair_y.iter().filter(|y| **y).count() as f64
-        / n_oof_pairs.max(1) as f64;
+    let oof_base_rate = pair_y.iter().filter(|y| **y).count() as f64 / n_oof_pairs.max(1) as f64;
     let oof_base_rate_nll = binary_nll_at_rate(oof_base_rate);
     let Some(beta) = logistic_fit(&pair_x, &pair_y) else {
         return Err(
@@ -618,19 +623,26 @@ pub fn nli_m1_pass(inp: &M1Inputs) -> Result<Option<M1Result>, String> {
             auroc: auroc_of(pairs),
         }
     };
-    let blend_pairs: Vec<(f64, bool)> =
-        items.iter().map(|it| (it.blend_conf_raw, it.blend_ok)).collect();
+    let blend_pairs: Vec<(f64, bool)> = items
+        .iter()
+        .map(|it| (it.blend_conf_raw, it.blend_ok))
+        .collect();
     let m1_pairs: Vec<(f64, bool)> = items.iter().map(|it| (it.m1_conf, it.blend_ok)).collect();
-    let platt2_pairs: Vec<(f64, bool)> =
-        items.iter().map(|it| (it.platt2_conf, it.blend_ok)).collect();
-    let engine_pairs: Vec<(f64, bool)> =
-        items.iter().map(|it| (it.eng_conf_cal, it.eng_ok)).collect();
+    let platt2_pairs: Vec<(f64, bool)> = items
+        .iter()
+        .map(|it| (it.platt2_conf, it.blend_ok))
+        .collect();
+    let engine_pairs: Vec<(f64, bool)> = items
+        .iter()
+        .map(|it| (it.eng_conf_cal, it.eng_ok))
+        .collect();
 
     // Floors: the binding engine-derived one (the runner's own bytes) +
     // the blend-surface-derived one (pool OOF blend pairs → validation).
     let floor_oof_pairs: Vec<CalibrationPair> = (0..n_pool)
         .map(|i| {
-            let (_, conf) = blend_pick_conf(&inp.pool_raw.probs[i][0], &oof_posterior[i], lambda_star);
+            let (_, conf) =
+                blend_pick_conf(&inp.pool_raw.probs[i][0], &oof_posterior[i], lambda_star);
             CalibrationPair {
                 conf,
                 correct: blend_oof_by_lambda[li_star][i] == pool_y[i],
@@ -881,7 +893,13 @@ fn solve4(a: &[[f64; 4]; 4], b: &[f64; 4]) -> Option<[f64; 4]> {
     let mut m = *a;
     let mut rhs = *b;
     for col in 0..4 {
-        let pivot = (col..4).fold(col, |best, r| if m[r][col].abs() > m[best][col].abs() { r } else { best });
+        let pivot = (col..4).fold(col, |best, r| {
+            if m[r][col].abs() > m[best][col].abs() {
+                r
+            } else {
+                best
+            }
+        });
         if m[pivot][col].abs() < 1e-14 {
             return None;
         }
@@ -927,7 +945,10 @@ fn fold_assign(labels: &[usize], k: usize) -> Vec<usize> {
     loop {
         let mut advanced = false;
         for &l in &label_order {
-            if let Some(i) = queues.get_mut(&l).and_then(std::collections::VecDeque::pop_front) {
+            if let Some(i) = queues
+                .get_mut(&l)
+                .and_then(std::collections::VecDeque::pop_front)
+            {
                 folds[i] = pick % k;
                 pick += 1;
                 advanced = true;
@@ -946,13 +967,21 @@ fn fold_assign(labels: &[usize], k: usize) -> Vec<usize> {
 fn ci_of(stats: &[f64]) -> BootstrapCi {
     let n = stats.len();
     if n == 0 {
-        return BootstrapCi { mean: f64::NAN, lo95: f64::NAN, hi95: f64::NAN };
+        return BootstrapCi {
+            mean: f64::NAN,
+            lo95: f64::NAN,
+            hi95: f64::NAN,
+        };
     }
     let mut sorted = stats.to_vec();
     sorted.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
     let lo = sorted[((n as f64 * 0.025) as usize).min(n - 1)];
     let hi = sorted[((n as f64 * 0.975) as usize).min(n - 1)];
-    BootstrapCi { mean: stats.iter().sum::<f64>() / n as f64, lo95: lo, hi95: hi }
+    BootstrapCi {
+        mean: stats.iter().sum::<f64>() / n as f64,
+        lo95: lo,
+        hi95: hi,
+    }
 }
 
 /// McNemar's exact two-sided binomial p on discordant counts `(b, c)`:
@@ -980,7 +1009,7 @@ fn mcnemar_exact(b: usize, c: usize) -> f64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::harness::suites::{GoldAnswer, SuiteQuestion, QKind};
+    use crate::harness::suites::{GoldAnswer, QKind, SuiteQuestion};
 
     fn nli_case(id: &str, premise: &str, hypothesis: &str, gold: usize) -> SuiteCase {
         SuiteCase {
@@ -993,7 +1022,11 @@ mod tests {
                 criteria: serde_json::json!
                     ({"entailment": "e", "neutral": "n", "contradiction": "c"}),
             }],
-            gold: vec![GoldAnswer { idx: gold, soft: vec![0.0; 3], gold_score: None }],
+            gold: vec![GoldAnswer {
+                idx: gold,
+                soft: vec![0.0; 3],
+                gold_score: None,
+            }],
         }
     }
 
@@ -1044,7 +1077,10 @@ mod tests {
                 0.4 + 0.1 * rng.below(100) as f64 / 100.0
             });
         }
-        EngineDraw { raw: eval_from(probs, raw_confs), fitted_confs }
+        EngineDraw {
+            raw: eval_from(probs, raw_confs),
+            fitted_confs,
+        }
     }
 
     fn synthetic_suite(name: &'static str, n: usize) -> Suite {
@@ -1128,8 +1164,9 @@ mod tests {
     #[test]
     fn bootstrap_ci_separates_a_real_gap_from_a_tie_and_is_deterministic() {
         // A replicate statistic with a real positive gap → CI above 0.
-        let stats: Vec<f64> =
-            (0..2000).map(|i| 0.02 + 0.01 * ((i % 7) as f64 / 7.0)).collect();
+        let stats: Vec<f64> = (0..2000)
+            .map(|i| 0.02 + 0.01 * ((i % 7) as f64 / 7.0))
+            .collect();
         let ci = ci_of(&stats);
         assert!(ci.lo95 > 0.0);
         assert!(ci.hi95 > ci.lo95);
@@ -1164,9 +1201,7 @@ mod tests {
         // corpus doc; a row sharing that premise is excluded; a distinct
         // row is kept. The cal-front case with a corpus-shared premise is
         // dropped too.
-        let row = |p: &str, h: &str, label: usize| {
-            serde_json::json!({ "row": {"premise": p, "hypothesis": h, "label": label} })
-        };
+        let row = |p: &str, h: &str, label: usize| serde_json::json!({ "row": {"premise": p, "hypothesis": h, "label": label} });
         let pool = serde_json::json!({ "rows": [
             row("PA", "h1", 0), // corpus doc (label 0)
             row("PA", "h2", 0), // premise-shared → excluded
@@ -1209,7 +1244,12 @@ mod tests {
         let cal_cases: Vec<SuiteCase> = (0..60)
             .map(|i| {
                 let w = ["alpha", "beta", "gamma"][i % 3];
-                nli_case("c", &format!("{w} common premise {i}"), &format!("{w} hyp {i}"), i % 3)
+                nli_case(
+                    "c",
+                    &format!("{w} common premise {i}"),
+                    &format!("{w} hyp {i}"),
+                    i % 3,
+                )
             })
             .collect();
         let mut rng = SplitMix64::new(seed);
@@ -1264,7 +1304,11 @@ mod tests {
         assert_eq!(r1.n_items, 200);
         assert_eq!(r1.items.len(), 200);
         assert!(LAMBDAS.contains(&r1.lambda_star));
-        assert!(!r1.pool.void, "expected green sanity gates: {:?}", r1.pool.void_reason);
+        assert!(
+            !r1.pool.void,
+            "expected green sanity gates: {:?}",
+            r1.pool.void_reason
+        );
         assert_eq!(r1.pool.oof_pairs, 1200);
         // The informative confidence makes the gate learn (S2's premise).
         assert!(r1.pool.oof_gate_nll < r1.pool.oof_base_rate_nll - 0.02);
@@ -1275,12 +1319,23 @@ mod tests {
         assert!(!r1.legs.acc_leg);
         assert!(!r1.promotable_candidate);
         // The per-item log is complete and self-consistent.
-        let b = r1.items.iter().filter(|it| it.eng_ok && !it.blend_ok).count();
-        let c = r1.items.iter().filter(|it| !it.eng_ok && it.blend_ok).count();
+        let b = r1
+            .items
+            .iter()
+            .filter(|it| it.eng_ok && !it.blend_ok)
+            .count();
+        let c = r1
+            .items
+            .iter()
+            .filter(|it| !it.eng_ok && it.blend_ok)
+            .count();
         assert_eq!((r1.mcnemar.b, r1.mcnemar.c), (b, c));
         // Determinism: the same seed re-runs byte-identically.
         let r2 = run_synthetic(1200, 200, 0.6, 7);
-        let (s1, s2) = (serde_json::to_string(&r1).unwrap(), serde_json::to_string(&r2).unwrap());
+        let (s1, s2) = (
+            serde_json::to_string(&r1).unwrap(),
+            serde_json::to_string(&r2).unwrap(),
+        );
         assert_eq!(s1, s2);
     }
 
@@ -1289,7 +1344,10 @@ mod tests {
         // 40 pool items → < 1000 OOF pairs → S1 fails → VOID, loudly.
         let r = run_synthetic(40, 50, 0.6, 11);
         assert!(r.pool.void);
-        assert_eq!(r.pool.void_reason, Some("S1: the logistic never moved or too few OOF pairs"));
+        assert_eq!(
+            r.pool.void_reason,
+            Some("S1: the logistic never moved or too few OOF pairs")
+        );
         assert!(!r.promotable_candidate);
     }
 

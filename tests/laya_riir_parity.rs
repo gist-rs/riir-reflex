@@ -117,7 +117,11 @@ fn g5_parity_per_checkpoint_riir() -> Result<()> {
 #[test]
 fn g5_parity_cubecl_posture() -> Result<()> {
     g5_run(&|root, ckpt| {
-        RiirAgent::load_with_device(root, ckpt, riir_reflex::laya::riir::agent::DeviceKind::Cubecl)
+        RiirAgent::load_with_device(
+            root,
+            ckpt,
+            riir_reflex::laya::riir::agent::DeviceKind::Cubecl,
+        )
     })
 }
 

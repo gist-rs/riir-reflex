@@ -19,8 +19,8 @@
 
 use std::path::Path;
 
-use super::distill::{construct_teacher, TeacherForward};
-use super::{git_sha, iso8601_utc, RunOptions, SuiteSpec, SUITES};
+use super::distill::{TeacherForward, construct_teacher};
+use super::{RunOptions, SUITES, SuiteSpec, git_sha, iso8601_utc};
 
 /// The suites the gate serves. V3's target is massive (the surpass
 /// board); more can join by outgrowing this list's reason.
@@ -79,9 +79,7 @@ pub struct EnsembleGateSuite {
 /// The presented keys of one question, in presentation order — the same
 /// extraction the openthai keying helper reads (choice: the criteria
 /// object's keys; score: the level indices; noul: the pair).
-fn presented_keys_of(
-    q: &crate::harness::suites::SuiteQuestion,
-) -> Result<Vec<String>, String> {
+fn presented_keys_of(q: &crate::harness::suites::SuiteQuestion) -> Result<Vec<String>, String> {
     use crate::harness::suites::QKind;
     Ok(match q.kind {
         QKind::Noul => (0..2).map(|i| i.to_string()).collect(),
@@ -100,10 +98,7 @@ fn presented_keys_of(
 /// Align one teacher's keyed probabilities onto the presented key list
 /// (sorted-key alignment: both teachers answer the same case, so the key
 /// sets must match — a mismatch is wire drift, a loud per-row skip).
-fn aligned(
-    keys: &[String],
-    keyed: &[(String, f64)],
-) -> Result<Vec<f64>, String> {
+fn aligned(keys: &[String], keyed: &[(String, f64)]) -> Result<Vec<f64>, String> {
     let mut by_key: std::collections::HashMap<&str, f64> =
         keyed.iter().map(|(k, v)| (k.as_str(), *v)).collect();
     if by_key.len() != keyed.len() {
@@ -120,11 +115,7 @@ fn aligned(
 
 /// The pinned primary fusion: per-class LOGIT-MEAN of the members'
 /// probabilities (ε-floored), argmax. Returns the argmax KEY.
-fn fuse_logit_mean(
-    keys: &[String],
-    a: &[f64],
-    b: &[f64],
-) -> usize {
+fn fuse_logit_mean(keys: &[String], a: &[f64], b: &[f64]) -> usize {
     let mut best = 0usize;
     let mut best_v = f64::NEG_INFINITY;
     for i in 0..keys.len() {
@@ -140,11 +131,7 @@ fn fuse_logit_mean(
 /// The recorded alternate: per-teacher RANK (best = 0), fused by the
 /// MEAN rank, argmin. Ties break to the lower index (the engine argmax
 /// law applied to the fused score's first best).
-fn fuse_rank(
-    keys: &[String],
-    a: &[f64],
-    b: &[f64],
-) -> usize {
+fn fuse_rank(keys: &[String], a: &[f64], b: &[f64]) -> usize {
     let ranks = |v: &[f64]| -> Vec<f64> {
         let mut idx: Vec<usize> = (0..v.len()).collect();
         idx.sort_by(|&i, &j| v[j].total_cmp(&v[i]).then(i.cmp(&j)));
@@ -252,11 +239,7 @@ fn ensemble_suite(
     let eval_rows = super::load_rows(&suite_dir, spec.eval_split)?;
     // The frozen slice: the SAME stratified construction the eval lane
     // uses (the test_cap law), so the gate's rows are the board's rows.
-    let eval_split = crate::harness::suites::stratified_split(
-        &eval_rows,
-        spec.name,
-        spec.test_cap,
-    );
+    let eval_split = crate::harness::suites::stratified_split(&eval_rows, spec.name, spec.test_cap);
     let suite = (spec.build)(&eval_split.front, 0);
     if suite.cases.is_empty() {
         return Err("empty test slice".into());
@@ -290,11 +273,11 @@ fn ensemble_suite(
     let mut classes_touched = std::collections::BTreeSet::new();
 
     for case in &suite.cases {
-        let q = case.questions.first().ok_or_else(|| {
-            format!("{}: no questions for its single gold", case.id)
-        })?;
-        let keys = presented_keys_of(q)
-            .map_err(|e| format!("{}: {e}", case.id))?;
+        let q = case
+            .questions
+            .first()
+            .ok_or_else(|| format!("{}: no questions for its single gold", case.id))?;
+        let keys = presented_keys_of(q).map_err(|e| format!("{}: {e}", case.id))?;
         let gold_key = keys
             .get(case.gold[0].idx)
             .ok_or_else(|| format!("{}: gold idx out of the presented keys", case.id))?;
@@ -368,14 +351,7 @@ fn ensemble_suite(
     };
     eprintln!(
         "  [ensemble {}] acc {}={:.4} · {}={:.4} · logit-mean={:.4} · rank={:.4} · {}",
-        spec.name,
-        teacher_a_name,
-        acc_a,
-        teacher_b_name,
-        acc_b,
-        acc_logit,
-        acc_rank,
-        v3_note
+        spec.name, teacher_a_name, acc_a, teacher_b_name, acc_b, acc_logit, acc_rank, v3_note
     );
     Ok(EnsembleGateSuite {
         name: spec.name.to_string(),
@@ -459,10 +435,20 @@ mod tests {
         let keyed = vec![("a".to_string(), 0.7), ("b".to_string(), 0.3)];
         let v = aligned(&keys, &keyed).expect("aligned");
         assert_eq!(v, vec![0.3, 0.7], "presented-order alignment by key");
-        assert!(aligned(&keys, &[("a".to_string(), 1.0)]).is_err(), "a missing key refuses");
         assert!(
-            aligned(&keys, &[("a".to_string(), 1.0), ("a".to_string(), 0.0), ("b".to_string(), 0.0)])
-                .is_err(),
+            aligned(&keys, &[("a".to_string(), 1.0)]).is_err(),
+            "a missing key refuses"
+        );
+        assert!(
+            aligned(
+                &keys,
+                &[
+                    ("a".to_string(), 1.0),
+                    ("a".to_string(), 0.0),
+                    ("b".to_string(), 0.0)
+                ]
+            )
+            .is_err(),
             "duplicate keys refuse"
         );
     }

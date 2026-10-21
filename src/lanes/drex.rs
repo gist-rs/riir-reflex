@@ -50,7 +50,7 @@
 use std::time::{Duration, Instant};
 
 use serde::Serialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply};
@@ -165,8 +165,9 @@ impl DrexLane {
     /// [`Self::model_of`]); `/health`'s own `model` field is the warmup
     /// cross-check.
     pub fn health(&self) -> Result<(), String> {
-        let (status, _headers, body) =
-            self.get("/health").map_err(|e| format!("drex health: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/health")
+            .map_err(|e| format!("drex health: {e}"))?;
         if status != 200 {
             return Err(format!(
                 "GET /health -> HTTP {status}: {} — is their drex service serving \
@@ -463,17 +464,14 @@ pub fn map_confidences(case: &SuiteCase, body: &Value) -> Result<Vec<Option<f64>
         match q.kind {
             QKind::Noul => out.push(None),
             QKind::Choice | QKind::Score => {
-                let conf = a
-                    .get("confidence")
-                    .and_then(Value::as_f64)
-                    .ok_or_else(|| {
-                        format!(
-                            "qid {}: {} answer carries no `confidence` number (their \
+                let conf = a.get("confidence").and_then(Value::as_f64).ok_or_else(|| {
+                    format!(
+                        "qid {}: {} answer carries no `confidence` number (their \
                              api.py always emits it — the wire drifted)",
-                            q.qid,
-                            q.kind.as_str()
-                        )
-                    })?;
+                        q.qid,
+                        q.kind.as_str()
+                    )
+                })?;
                 out.push(Some(conf));
             }
         }
@@ -526,7 +524,12 @@ mod tests {
         let c = case(
             json!("s"),
             vec![
-                ("q1", QKind::Choice, "pick", json!({"a": "desc a", "b": null})),
+                (
+                    "q1",
+                    QKind::Choice,
+                    "pick",
+                    json!({"a": "desc a", "b": null}),
+                ),
                 ("q2", QKind::Score, "rate", json!(["lo", "mid", "hi"])),
             ],
         );
@@ -537,7 +540,10 @@ mod tests {
             json!({"a": "desc a", "b": null})
         );
         assert_eq!(body["questions"]["q2"]["type"], "score");
-        assert_eq!(body["questions"]["q2"]["criteria"], json!(["lo", "mid", "hi"]));
+        assert_eq!(
+            body["questions"]["q2"]["criteria"],
+            json!(["lo", "mid", "hi"])
+        );
         // THEIR bound (1..=255): one level is legal on the wire (api.py
         // Score min_length=1) — unlike the harness suites' own 2..=10,
         // which is checked upstream, not here.
@@ -663,7 +669,10 @@ mod tests {
             }
         });
         let err = map_confidences(&c, &resp).unwrap_err();
-        assert!(err.contains("confidence"), "loud error names the axis: {err}");
+        assert!(
+            err.contains("confidence"),
+            "loud error names the axis: {err}"
+        );
     }
 
     #[test]
@@ -679,7 +688,10 @@ mod tests {
 
     #[test]
     fn choice_pick_falls_back_to_argmax_without_their_choice_key() {
-        let c = case(json!("s"), vec![("q1", QKind::Choice, "pick", json!({"a": null, "b": null}))]);
+        let c = case(
+            json!("s"),
+            vec![("q1", QKind::Choice, "pick", json!({"a": null, "b": null}))],
+        );
         let resp = json!({"answers": {"q1": {"probabilities": {"a": 0.3, "b": 0.7}}}});
         let out = map_answers(&c, &resp).unwrap();
         assert_eq!(out[0].1, 1, "argmax fallback when `choice` is absent");
@@ -814,50 +826,52 @@ mod tests {
             let canned = body.to_string();
             let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
             let addr = listener.local_addr().expect("addr");
-            let server = std::thread::spawn(move || loop {
-                let (stream, _) = listener.accept().expect("accept");
-                let mut writer = match stream.try_clone() {
-                    Ok(w) => w,
-                    Err(_) => continue,
-                };
-                let mut reader = BufReader::new(stream);
-                let mut request_line = String::new();
-                if reader.read_line(&mut request_line).is_err() {
-                    continue;
-                }
-                // Read the headers AND THE BODY (the macOS ECONNRESET
-                // flake the openthai stub documents).
-                let mut content_length = 0usize;
-                let mut line = String::new();
+            let server = std::thread::spawn(move || {
                 loop {
-                    line.clear();
-                    match reader.read_line(&mut line) {
-                        Ok(0) | Err(_) => break,
-                        Ok(_) => {
-                            let trimmed = line.trim_end();
-                            if trimmed.is_empty() {
-                                break;
-                            }
-                            if let Some((k, v)) = trimmed.split_once(':')
-                                && k.eq_ignore_ascii_case("content-length")
-                            {
-                                content_length = v.trim().parse().unwrap_or(0);
+                    let (stream, _) = listener.accept().expect("accept");
+                    let mut writer = match stream.try_clone() {
+                        Ok(w) => w,
+                        Err(_) => continue,
+                    };
+                    let mut reader = BufReader::new(stream);
+                    let mut request_line = String::new();
+                    if reader.read_line(&mut request_line).is_err() {
+                        continue;
+                    }
+                    // Read the headers AND THE BODY (the macOS ECONNRESET
+                    // flake the openthai stub documents).
+                    let mut content_length = 0usize;
+                    let mut line = String::new();
+                    loop {
+                        line.clear();
+                        match reader.read_line(&mut line) {
+                            Ok(0) | Err(_) => break,
+                            Ok(_) => {
+                                let trimmed = line.trim_end();
+                                if trimmed.is_empty() {
+                                    break;
+                                }
+                                if let Some((k, v)) = trimmed.split_once(':')
+                                    && k.eq_ignore_ascii_case("content-length")
+                                {
+                                    content_length = v.trim().parse().unwrap_or(0);
+                                }
                             }
                         }
                     }
+                    let mut req_body = vec![0u8; content_length];
+                    if reader.read_exact(&mut req_body).is_err() {
+                        continue;
+                    }
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        canned.len(),
+                        canned
+                    );
+                    let _ = writer.write_all(resp.as_bytes());
+                    let _ = writer.flush();
+                    return;
                 }
-                let mut req_body = vec![0u8; content_length];
-                if reader.read_exact(&mut req_body).is_err() {
-                    continue;
-                }
-                let resp = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    canned.len(),
-                    canned
-                );
-                let _ = writer.write_all(resp.as_bytes());
-                let _ = writer.flush();
-                return;
             });
             let raw = DrexLane::from_url(&format!("http://{addr}"))
                 .decide_raw(&c)

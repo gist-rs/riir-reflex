@@ -170,7 +170,9 @@ mod tests {
     #[test]
     fn modes_are_dispatch_complements_on_the_arms() {
         // Narrow shape: Dispatch == InvEntropy != MaxProb.
-        let narrow = vec![0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.0078125];
+        let narrow = vec![
+            0.5, 0.25, 0.125, 0.0625, 0.03125, 0.015625, 0.0078125, 0.0078125,
+        ];
         assert!(near(
             confidence_with(ReadoutMode::Dispatch, &narrow),
             confidence_with(ReadoutMode::InvEntropy, &narrow)

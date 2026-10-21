@@ -21,7 +21,7 @@ use std::net::TcpStream;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
 
-use riir_reflex::lanes::clm::{build_body, SERVE_URL_ENV};
+use riir_reflex::lanes::clm::{SERVE_URL_ENV, build_body};
 
 /// The fixed request: one case-shaped state + one question of every kind,
 /// the same shapes the harness serves (their rendering law applies inside
@@ -86,7 +86,9 @@ fn raw_post(url: &str, body: &str) -> Result<Vec<u8>, String> {
         .and_then(|_| stream.flush())
         .map_err(|e| format!("write: {e}"))?;
     let mut raw = Vec::new();
-    stream.read_to_end(&mut raw).map_err(|e| format!("read: {e}"))?;
+    stream
+        .read_to_end(&mut raw)
+        .map_err(|e| format!("read: {e}"))?;
     let text = String::from_utf8_lossy(&raw);
     let (headers, body) = text
         .split_once("\r\n\r\n")

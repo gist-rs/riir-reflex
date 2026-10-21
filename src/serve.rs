@@ -168,8 +168,8 @@ fn ane_lane_requested() -> bool {
 #[cfg(all(target_os = "macos", feature = "laya-riir", feature = "laya-riir-ane"))]
 fn ane_setup() -> (Option<crate::laya::riir::RiirAgent>, Option<String>) {
     use crate::laya::config::Checkpoint;
-    use crate::laya::riir::ane::ensure_artifacts;
     use crate::laya::riir::RiirAgent;
+    use crate::laya::riir::ane::ensure_artifacts;
     use crate::laya::weights::weights_root;
     if !ane_lane_requested() {
         return (None, None);
@@ -210,10 +210,10 @@ fn ane_setup() -> (Option<crate::laya::riir::RiirAgent>, Option<String>) {
 
 /// The no-ANE build's posture: the env is honored with a LOUD demotion
 /// note (recorded on every auto-route response) — the lane still serves.
-#[cfg(all(feature = "laya-riir", not(all(
-    target_os = "macos",
-    feature = "laya-riir-ane"
-))))]
+#[cfg(all(
+    feature = "laya-riir",
+    not(all(target_os = "macos", feature = "laya-riir-ane"))
+))]
 fn ane_setup() -> (Option<crate::laya::riir::RiirAgent>, Option<String>) {
     if !ane_lane_requested() {
         return (None, None);
@@ -270,8 +270,9 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
                     resp_tx: rtx,
                 })
                 .map_err(|_| LayaServeError::Other("laya lane worker stopped".into()))?;
-                rrx.recv()
-                    .map_err(|_| LayaServeError::Other("laya lane worker dropped the reply".into()))?
+                rrx.recv().map_err(|_| {
+                    LayaServeError::Other("laya lane worker dropped the reply".into())
+                })?
             });
             *laya.lock().unwrap() = LayaLane::Ready(f);
             match (&ane, ane_note.as_deref()) {
@@ -318,9 +319,9 @@ fn spawn_laya_loader_if_requested(laya: &Arc<Mutex<LayaLane>>) {
 #[cfg(feature = "laya-riir")]
 pub mod laya_serve {
     use super::{LayaRoute, LayaServeError};
+    use crate::laya::LayaError;
     use crate::laya::riir::RiirAgent;
     use crate::laya::types::Answer as LayaAnswer;
-    use crate::laya::LayaError;
     use katgpt_core::decision_wire::{
         Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Question, QuestionKind,
         Routing,
@@ -333,8 +334,7 @@ pub mod laya_serve {
     pub struct LayaJob {
         pub req: DecisionRequest,
         pub route: LayaRoute,
-        pub resp_tx:
-            std::sync::mpsc::SyncSender<Result<DecisionResponse, LayaServeError>>,
+        pub resp_tx: std::sync::mpsc::SyncSender<Result<DecisionResponse, LayaServeError>>,
     }
 
     /// wire → laya qdef `criteria`: an explicit wire `criteria` JSON string
@@ -439,10 +439,7 @@ pub mod laya_serve {
     /// TYPED ([`LayaError`]) so the coverage-limit variant survives to the
     /// router — a stringified Bucket could not be told apart from a real
     /// failure, and the two demand opposite handling.
-    pub fn decide(
-        agent: &RiirAgent,
-        req: &DecisionRequest,
-    ) -> Result<DecisionResponse, LayaError> {
+    pub fn decide(agent: &RiirAgent, req: &DecisionRequest) -> Result<DecisionResponse, LayaError> {
         req.validate()
             .map_err(|e| LayaError::Question(format!("invalid request: {e}")))?;
         let state = Value::String(req.state.clone());
@@ -493,12 +490,10 @@ pub mod laya_serve {
         match route {
             LayaRoute::AneExplicit => {
                 let Some(ane) = ane else {
-                    return Err(LayaServeError::Unavailable(
-                        ane_note.map_or_else(
-                            || "the ANE device is not loaded in this lane".to_string(),
-                            str::to_string,
-                        ),
-                    ));
+                    return Err(LayaServeError::Unavailable(ane_note.map_or_else(
+                        || "the ANE device is not loaded in this lane".to_string(),
+                        str::to_string,
+                    )));
                 };
                 decide(ane, &req)
                     .map(|mut resp| {
@@ -657,7 +652,9 @@ pub fn run() -> std::io::Result<()> {
         crate::VERSION
     );
     eprintln!("[riir-reflex] POST /decide  — DecisionRequest JSON → DecisionResponse JSON");
-    eprintln!("[riir-reflex] POST /v1/systemone — the TypeSafe dialect (typesafe_sdk clients; Jev-Mem: TYPESAFE_BASE_URL + a dummy TYPESAFE_API_KEY)");
+    eprintln!(
+        "[riir-reflex] POST /v1/systemone — the TypeSafe dialect (typesafe_sdk clients; Jev-Mem: TYPESAFE_BASE_URL + a dummy TYPESAFE_API_KEY)"
+    );
     eprintln!("[riir-reflex] POST /feedback — {{p, outcome}} → calibrator observe/refit");
     eprintln!("[riir-reflex] GET  /healthz — liveness");
     if corpus.info == CorpusInfo::Demo {
@@ -848,7 +845,11 @@ fn serve_boot(
             );
             std::process::exit(2);
         }
-        let _ = (nb_scale_val.is_some(), ridge_scale_val.is_some(), nb_pair_val.is_some());
+        let _ = (
+            nb_scale_val.is_some(),
+            ridge_scale_val.is_some(),
+            nb_pair_val.is_some(),
+        );
         cfg
     };
     macro_rules! boot {
@@ -904,11 +905,14 @@ fn serve_boot(
 /// WHOLE — nothing is re-fitted.
 #[cfg(feature = "vessel_public_read")]
 fn resolve_serve_heads() -> crate::game_heads::GameHeads {
-    use crate::game_heads::{absent_heads_message, GameHeads, HEAD_VESSEL_FILES};
+    use crate::game_heads::{GameHeads, HEAD_VESSEL_FILES, absent_heads_message};
     let dir = match std::env::var("RIIR_REFLEX_HEADS_DIR") {
         Ok(d) if !d.trim().is_empty() => std::path::PathBuf::from(d),
         _ => {
-            eprintln!("[riir-reflex] {}", absent_heads_message("RIIR_REFLEX_HEADS_DIR"));
+            eprintln!(
+                "[riir-reflex] {}",
+                absent_heads_message("RIIR_REFLEX_HEADS_DIR")
+            );
             return GameHeads::absent();
         }
     };
@@ -924,8 +928,8 @@ fn resolve_serve_heads() -> crate::game_heads::GameHeads {
             eprintln!("[riir-reflex] RIIR_REFLEX_HEADS_PUBKEY: {e}");
             std::process::exit(2);
         });
-        let vk = reflexer_vessel::ed25519_dalek::VerifyingKey::from_bytes(&bytes)
-            .unwrap_or_else(|e| {
+        let vk =
+            reflexer_vessel::ed25519_dalek::VerifyingKey::from_bytes(&bytes).unwrap_or_else(|e| {
                 eprintln!("[riir-reflex] RIIR_REFLEX_HEADS_PUBKEY: bad verifying key: {e}");
                 std::process::exit(2);
             });
@@ -954,7 +958,10 @@ fn resolve_serve_heads() -> crate::game_heads::GameHeads {
             heads
         }
         Err(e) => {
-            eprintln!("[riir-reflex] game heads refused from {}: {e}", dir.display());
+            eprintln!(
+                "[riir-reflex] game heads refused from {}: {e}",
+                dir.display()
+            );
             std::process::exit(1);
         }
     }
@@ -979,7 +986,10 @@ fn resolve_serve_heads() -> crate::game_heads::GameHeads {
 #[cfg(feature = "vessel_public_read")]
 fn hex_decode32(s: &str) -> Result<[u8; 32], String> {
     if s.len() != 64 || !s.bytes().all(|b| b.is_ascii_hexdigit()) {
-        return Err(format!("expected 64 hex chars (32 bytes), got {} chars", s.len()));
+        return Err(format!(
+            "expected 64 hex chars (32 bytes), got {} chars",
+            s.len()
+        ));
     }
     let mut out = [0u8; 32];
     for (i, chunk) in s.as_bytes().chunks(2).enumerate() {
@@ -1259,9 +1269,7 @@ fn handle_conn<const N: usize, const D: usize>(
                 json_error(
                     &mut writer,
                     "400 Bad Request",
-                    &format!(
-                        "unknown lane {other:?} (supported: modelless, raw, laya, laya-ane)"
-                    ),
+                    &format!("unknown lane {other:?} (supported: modelless, raw, laya, laya-ane)"),
                     cors.as_deref(),
                 );
                 return Ok(());
@@ -1449,8 +1457,7 @@ fn laya_edge(
                 "503 Service Unavailable",
                 &format!(
                     "{{\"error\":{}}}",
-                    serde_json::to_string(&format!("laya ane: {e}"))
-                        .unwrap_or_default()
+                    serde_json::to_string(&format!("laya ane: {e}")).unwrap_or_default()
                 ),
                 cors,
             ),

@@ -42,7 +42,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply};
@@ -94,8 +94,9 @@ impl AgentJevLane {
     /// checkpoint sha they report, as provenance), stamped into the lane's
     /// row (never a hardcoded model id — the gliner lane's law).
     pub fn info(&self) -> Result<(String, String), String> {
-        let (status, _headers, body) =
-            self.get("/api/info").map_err(|e| format!("agentjev info: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/api/info")
+            .map_err(|e| format!("agentjev info: {e}"))?;
         if status != 200 {
             return Err(format!(
                 "GET /api/info -> HTTP {status}: {} — is their jev_service serving at {SERVE_URL_ENV} (default {DEFAULT_SERVE_URL})?",
@@ -117,8 +118,7 @@ impl AgentJevLane {
             .get("checkpoint_sha256")
             .and_then(Value::as_str)
             .unwrap_or("");
-        let device = std::env::var("AGENTJEV_DEVICE")
-            .unwrap_or_else(|_| "cuda:0".to_string());
+        let device = std::env::var("AGENTJEV_DEVICE").unwrap_or_else(|_| "cuda:0".to_string());
         let provenance = if sha.len() >= 8 {
             format!("{model}@{}", &sha[..8])
         } else {
@@ -151,9 +151,7 @@ impl AgentJevLane {
         }
         let parsed: Value = serde_json::from_slice(&raw)
             .map_err(|e| format!("agentjev response ({}): {e}", case.id))?;
-        let wall_ms = parsed
-            .pointer("/usage/wall_ms")
-            .and_then(Value::as_f64);
+        let wall_ms = parsed.pointer("/usage/wall_ms").and_then(Value::as_f64);
         let answers = map_answers(case, &parsed)?;
         Ok((answers, client_ms, wall_ms))
     }
@@ -236,9 +234,10 @@ fn build_question(q: &SuiteQuestion) -> Result<Value, String> {
         // per-side criteria prose — the documented adapter divergence).
         QKind::Noul => Ok(base("boolean")),
         QKind::Choice => {
-            let obj = q.criteria.as_object().ok_or_else(|| {
-                format!("case {}: choice criteria must be an object", q.qid)
-            })?;
+            let obj = q
+                .criteria
+                .as_object()
+                .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
             let mut options = Map::new();
             for (k, v) in obj {
                 // The description when one is given, else the key (their
@@ -303,11 +302,7 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
         .ok_or_else(|| "response has no results[0].answers array".to_string())?;
     let by_id: HashMap<&str, &Value> = answers
         .iter()
-        .filter_map(|a| {
-            a.get("id")
-                .and_then(Value::as_str)
-                .map(|id| (id, a))
-        })
+        .filter_map(|a| a.get("id").and_then(Value::as_str).map(|id| (id, a)))
         .collect();
     let mut out = Vec::with_capacity(case.questions.len());
     for q in &case.questions {
@@ -358,18 +353,19 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 let conf = a
                     .get("top_probability")
                     .and_then(Value::as_f64)
-                    .unwrap_or_else(|| {
-                        probs.iter().cloned().fold(0.0, f64::max)
-                    });
+                    .unwrap_or_else(|| probs.iter().cloned().fold(0.0, f64::max));
                 (probs, pick, conf)
             }
             QKind::Score => {
                 let n = q.criteria.as_array().map_or(0, Vec::len);
                 let mut probs = Vec::with_capacity(n);
                 for i in 0..n {
-                    let p = dist.get(&i.to_string()).and_then(Value::as_f64).ok_or_else(|| {
-                        format!("qid {}: score distribution missing level {i}", q.qid)
-                    })?;
+                    let p = dist
+                        .get(&i.to_string())
+                        .and_then(Value::as_f64)
+                        .ok_or_else(|| {
+                            format!("qid {}: score distribution missing level {i}", q.qid)
+                        })?;
                     probs.push(p);
                 }
                 let pick = a
@@ -400,12 +396,14 @@ mod tests {
             state,
             questions: questions
                 .into_iter()
-                .map(|(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
-                    qid: qid.into(),
-                    kind,
-                    instructions: instructions.into(),
-                    criteria,
-                })
+                .map(
+                    |(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
+                        qid: qid.into(),
+                        kind,
+                        instructions: instructions.into(),
+                        criteria,
+                    },
+                )
                 .collect(),
             gold: vec![],
         }
@@ -440,31 +438,29 @@ mod tests {
         );
         let body = build_body(&c).unwrap();
         assert_eq!(body["questions"][0]["type"], "choice");
-        assert_eq!(body["questions"][0]["options"], json!({"a": "desc a", "b": "b", "c": "c"}));
+        assert_eq!(
+            body["questions"][0]["options"],
+            json!({"a": "desc a", "b": "b", "c": "c"})
+        );
     }
 
     #[test]
     fn body_score_levels_pass_through() {
         let c = case(
             json!("s"),
-            vec![(
-                "q2",
-                QKind::Score,
-                "how bad",
-                json!(["low", "mid", "high"]),
-            )],
+            vec![("q2", QKind::Score, "how bad", json!(["low", "mid", "high"]))],
         );
         let body = build_body(&c).unwrap();
         assert_eq!(body["questions"][0]["type"], "score");
-        assert_eq!(body["questions"][0]["levels"], json!(["low", "mid", "high"]));
+        assert_eq!(
+            body["questions"][0]["levels"],
+            json!(["low", "mid", "high"])
+        );
     }
 
     #[test]
     fn score_needs_two_to_ten_levels() {
-        let c = case(
-            json!("s"),
-            vec![("q3", QKind::Score, "r", json!(["only"]))],
-        );
+        let c = case(json!("s"), vec![("q3", QKind::Score, "r", json!(["only"]))]);
         assert!(build_body(&c).is_err());
     }
 
@@ -474,12 +470,7 @@ mod tests {
             json!("s"),
             vec![
                 ("q0", QKind::Noul, "done?", Value::Null),
-                (
-                    "q1",
-                    QKind::Choice,
-                    "pick",
-                    json!({"a": null, "b": null}),
-                ),
+                ("q1", QKind::Choice, "pick", json!({"a": null, "b": null})),
                 ("q2", QKind::Score, "r", json!(["lo", "hi"])),
             ],
         );
@@ -517,10 +508,7 @@ mod tests {
 
     #[test]
     fn answers_missing_qid_is_an_error() {
-        let c = case(
-            json!("s"),
-            vec![("q0", QKind::Noul, "d?", Value::Null)],
-        );
+        let c = case(json!("s"), vec![("q0", QKind::Noul, "d?", Value::Null)]);
         let resp = json!({"results": [{"answers": []}]});
         assert!(map_answers(&c, &resp).is_err());
     }
@@ -549,50 +537,52 @@ mod tests {
             let canned = body.to_string();
             let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
             let addr = listener.local_addr().expect("addr");
-            let server = std::thread::spawn(move || loop {
-                let (stream, _) = listener.accept().expect("accept");
-                let mut writer = match stream.try_clone() {
-                    Ok(w) => w,
-                    Err(_) => continue,
-                };
-                let mut reader = BufReader::new(stream);
-                let mut request_line = String::new();
-                if reader.read_line(&mut request_line).is_err() {
-                    continue;
-                }
-                // Read the headers AND THE BODY (the macOS ECONNRESET
-                // flake the openthai stub documents).
-                let mut content_length = 0usize;
-                let mut line = String::new();
+            let server = std::thread::spawn(move || {
                 loop {
-                    line.clear();
-                    match reader.read_line(&mut line) {
-                        Ok(0) | Err(_) => break,
-                        Ok(_) => {
-                            let trimmed = line.trim_end();
-                            if trimmed.is_empty() {
-                                break;
-                            }
-                            if let Some((k, v)) = trimmed.split_once(':')
-                                && k.eq_ignore_ascii_case("content-length")
-                            {
-                                content_length = v.trim().parse().unwrap_or(0);
+                    let (stream, _) = listener.accept().expect("accept");
+                    let mut writer = match stream.try_clone() {
+                        Ok(w) => w,
+                        Err(_) => continue,
+                    };
+                    let mut reader = BufReader::new(stream);
+                    let mut request_line = String::new();
+                    if reader.read_line(&mut request_line).is_err() {
+                        continue;
+                    }
+                    // Read the headers AND THE BODY (the macOS ECONNRESET
+                    // flake the openthai stub documents).
+                    let mut content_length = 0usize;
+                    let mut line = String::new();
+                    loop {
+                        line.clear();
+                        match reader.read_line(&mut line) {
+                            Ok(0) | Err(_) => break,
+                            Ok(_) => {
+                                let trimmed = line.trim_end();
+                                if trimmed.is_empty() {
+                                    break;
+                                }
+                                if let Some((k, v)) = trimmed.split_once(':')
+                                    && k.eq_ignore_ascii_case("content-length")
+                                {
+                                    content_length = v.trim().parse().unwrap_or(0);
+                                }
                             }
                         }
                     }
+                    let mut req_body = vec![0u8; content_length];
+                    if reader.read_exact(&mut req_body).is_err() {
+                        continue;
+                    }
+                    let resp = format!(
+                        "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                        canned.len(),
+                        canned
+                    );
+                    let _ = writer.write_all(resp.as_bytes());
+                    let _ = writer.flush();
+                    return;
                 }
-                let mut req_body = vec![0u8; content_length];
-                if reader.read_exact(&mut req_body).is_err() {
-                    continue;
-                }
-                let resp = format!(
-                    "HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                    canned.len(),
-                    canned
-                );
-                let _ = writer.write_all(resp.as_bytes());
-                let _ = writer.flush();
-                return;
             });
             let raw = AgentJevLane::from_url(&format!("http://{addr}"))
                 .decide_raw(&c)

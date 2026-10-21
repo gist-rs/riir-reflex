@@ -21,9 +21,9 @@
 
 use katgpt_core::decision_wire::{DecisionRequest, Question, QuestionKind};
 use katgpt_core::exact_sigmoid;
-use katgpt_core::set_refine::{refine_state_into, SetRefineConfig, SetRefineScratch};
+use katgpt_core::set_refine::{SetRefineConfig, SetRefineScratch, refine_state_into};
 use katgpt_core::variable_rank_domain_expert::pick_domain;
-use riir_reflex::embed::{Embedder, EMBED_DIM};
+use riir_reflex::embed::{EMBED_DIM, Embedder};
 use riir_reflex::engine::{DecisionEngine, DomainExpert, EngineConfig};
 
 /// Two-option by-name fixture: the option strings ARE the domain names,

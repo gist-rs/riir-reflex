@@ -22,7 +22,7 @@ use serde_json::Value;
 
 use riir_reflex::laya::config::Checkpoint;
 use riir_reflex::laya::riir::RiirAgent;
-use riir_reflex::laya::{Result, LayaError};
+use riir_reflex::laya::{LayaError, Result};
 
 fn manifest_dir() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -54,7 +54,9 @@ fn load_expected() -> (BTreeMap<(String, String), Value>, (f64, f64)) {
     };
     let meta = &raw["_meta"];
     assert_eq!(
-        meta["fixture_corpus_blake3"].as_str().expect("blake3 recorded"),
+        meta["fixture_corpus_blake3"]
+            .as_str()
+            .expect("blake3 recorded"),
         digest,
         "fixture corpus does not match the digest the expected file was captured against"
     );
@@ -72,8 +74,12 @@ fn load_expected() -> (BTreeMap<(String, String), Value>, (f64, f64)) {
             })
             .collect(),
         (
-            gates["top1_agreement_min"].as_f64().expect("gate top1 recorded"),
-            gates["prob_drift_max"].as_f64().expect("gate drift recorded"),
+            gates["top1_agreement_min"]
+                .as_f64()
+                .expect("gate top1 recorded"),
+            gates["prob_drift_max"]
+                .as_f64()
+                .expect("gate drift recorded"),
         ),
     )
 }
@@ -154,9 +160,7 @@ fn batched_system_one_matches_the_reference_capture() -> Result<()> {
                 let key = format!("{row_id}#q{qi}");
                 let exp = expected
                     .get(&(name.to_string(), key.clone()))
-                    .unwrap_or_else(|| {
-                        panic!("expected capture missing {name}/{key}")
-                    });
+                    .unwrap_or_else(|| panic!("expected capture missing {name}/{key}"));
                 let exp_probs: Vec<f64> = exp["probs"]
                     .as_array()
                     .expect("probs")

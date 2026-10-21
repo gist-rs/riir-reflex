@@ -136,7 +136,9 @@ impl PawLocalSession {
     pub fn infer(&mut self, program_id: &str, input: &str) -> Result<String, String> {
         let line = json!({"program_id": program_id, "input": input}).to_string();
         writeln!(self.stdin, "{line}").map_err(|e| format!("paw-local stdin: {e}"))?;
-        self.stdin.flush().map_err(|e| format!("paw-local stdin flush: {e}"))?;
+        self.stdin
+            .flush()
+            .map_err(|e| format!("paw-local stdin flush: {e}"))?;
         let mut resp = String::new();
         self.read_line(&mut resp)?;
         parse_response(resp.trim())
@@ -172,9 +174,14 @@ fn parse_handshake(line: &str) -> Result<(String, String), String> {
     let v: serde_json::Value = serde_json::from_str(line.trim())
         .map_err(|e| format!("paw-local handshake: {e} (got: {line})"))?;
     if v.get("ready").and_then(serde_json::Value::as_bool) != Some(true) {
-        return Err(format!("paw-local handshake: expected {{\"ready\":true}}, got {line}"));
+        return Err(format!(
+            "paw-local handshake: expected {{\"ready\":true}}, got {line}"
+        ));
     }
-    let lane = v.get("lane").and_then(serde_json::Value::as_str).unwrap_or("");
+    let lane = v
+        .get("lane")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("");
     if lane != "paw-local" {
         return Err(format!(
             "paw-local handshake: lane {lane:?} is not \"paw-local\" — \
@@ -274,7 +281,10 @@ pub fn run_suite(
             "    [paw-local] program {} (shape {label}; {}; hosted compile {:.1}s) — same \
              artifact the hosted posture measured{}",
             program.program_id,
-            program.compiler_snapshot.as_deref().unwrap_or("server-default"),
+            program
+                .compiler_snapshot
+                .as_deref()
+                .unwrap_or("server-default"),
             program.compile_wall_s,
             if cfg.compiler.is_none() {
                 " [PAW_COMPILER unset — the shape's only cached program]"
@@ -293,7 +303,10 @@ pub fn run_suite(
     // and this warmup absorbs whatever is left, outside the measured loop.
     for program in &programs {
         session
-            .infer(&program.program_id, "warmup: discarded, not a measured case")
+            .infer(
+                &program.program_id,
+                "warmup: discarded, not a measured case",
+            )
             .map_err(|e| format!("paw-local warmup: {e}"))?;
     }
 
@@ -367,9 +380,17 @@ pub fn run_suite(
         n_answered: t.answered,
         refusals: t.refusals,
         quote_stripped: t.quote_stripped,
-        accuracy: if t.n == 0 { 0.0 } else { t.correct as f64 / t.n as f64 },
+        accuracy: if t.n == 0 {
+            0.0
+        } else {
+            t.correct as f64 / t.n as f64
+        },
         answered_accuracy: (t.answered > 0).then(|| t.correct as f64 / t.answered as f64),
-        refusal_rate: if t.n == 0 { 0.0 } else { t.refusals as f64 / t.n as f64 },
+        refusal_rate: if t.n == 0 {
+            0.0
+        } else {
+            t.refusals as f64 / t.n as f64
+        },
         score_mae_answered: t.score_mae,
         within_1_answered: t.within_1,
         refusal_samples: t.refusal_samples,
@@ -499,7 +520,11 @@ mod tests {
     fn session_with(script: &[String]) -> (PawLocalSession, Arc<Mutex<Vec<String>>>) {
         let requests = Arc::new(Mutex::new(Vec::new()));
         let buffer = Arc::new(Mutex::new(
-            script.iter().map(|l| format!("{l}\n")).collect::<String>().into_bytes(),
+            script
+                .iter()
+                .map(|l| format!("{l}\n"))
+                .collect::<String>()
+                .into_bytes(),
         ));
         let session = PawLocalSession::from_channels(
             Box::new(ChanReader { buffer }),
@@ -543,14 +568,21 @@ mod tests {
 
     #[test]
     fn response_parses_output_and_error_channel() {
-        assert_eq!(parse_response(r#"{"output": "\"neutral\""}"#).unwrap(), "\"neutral\"");
+        assert_eq!(
+            parse_response(r#"{"output": "\"neutral\""}"#).unwrap(),
+            "\"neutral\""
+        );
         assert_eq!(parse_response(r#"{"output": "world"}"#).unwrap(), "world");
         assert!(
             parse_response(r#"{"error": "llama broke"}"#)
                 .unwrap_err()
                 .contains("llama broke")
         );
-        assert!(parse_response(r#"{"nope": 1}"#).unwrap_err().contains("no output"));
+        assert!(
+            parse_response(r#"{"nope": 1}"#)
+                .unwrap_err()
+                .contains("no output")
+        );
         assert!(parse_response("garbage").is_err());
     }
 
@@ -582,7 +614,9 @@ mod tests {
             compile_wall_s: 11.5,
             posture: "hosted-anonymous".to_string(),
         };
-        let mut cache = ProgramCache { entries: BTreeMap::new() };
+        let mut cache = ProgramCache {
+            entries: BTreeMap::new(),
+        };
         cache
             .entries
             .insert(ProgramCache::key(s.name, None, &spec), program);
@@ -636,7 +670,9 @@ mod tests {
         let s = build_sst5(&envelope(&[("a", 0)]), 0);
         let cfg = test_cfg(scratch_dir().join("programs_ambiguous.json"));
         let (_, spec) = paw::load_spec(&cfg.specs_dir, s.name).unwrap().unwrap();
-        let mut cache = ProgramCache { entries: BTreeMap::new() };
+        let mut cache = ProgramCache {
+            entries: BTreeMap::new(),
+        };
         for compiler in ["tier-a", "tier-b"] {
             cache.entries.insert(
                 ProgramCache::key(s.name, Some(compiler), &spec),
@@ -664,7 +700,9 @@ mod tests {
             ..PawConfig::from_env()
         };
         let (_, spec) = paw::load_spec(&cfg.specs_dir, s.name).unwrap().unwrap();
-        let mut cache = ProgramCache { entries: BTreeMap::new() };
+        let mut cache = ProgramCache {
+            entries: BTreeMap::new(),
+        };
         for compiler in ["tier-a", "tier-b"] {
             cache.entries.insert(
                 ProgramCache::key(s.name, Some(compiler), &spec),
@@ -740,8 +778,16 @@ mod tests {
                     },
                 ],
                 gold: vec![
-                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
-                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 0,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 1,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
                 ],
             }],
             option_counts_note: "",
@@ -758,7 +804,9 @@ mod tests {
             compile_wall_s: wall,
             posture: "hosted-anonymous".to_string(),
         };
-        let mut cache = ProgramCache { entries: BTreeMap::new() };
+        let mut cache = ProgramCache {
+            entries: BTreeMap::new(),
+        };
         cache.entries.insert(
             ProgramCache::key_for_qid(suite.name, "module", Some("tier-a"), module_spec),
             program("pid-module", 10.0),
@@ -781,7 +829,9 @@ mod tests {
         script.push(json!({ "output": "I think so" }).to_string()); // rerun
         let (mut session, requests) = session_with(&script);
 
-        let r = run_suite(&mut session, &cfg, &suite, 0).unwrap().expect("row");
+        let r = run_suite(&mut session, &cfg, &suite, 0)
+            .unwrap()
+            .expect("row");
         assert_eq!(r.program_id, "pid-module,pid-is_pub");
         assert_eq!(r.model, "tier-a");
         assert_eq!(
@@ -852,8 +902,16 @@ mod tests {
                     },
                 ],
                 gold: vec![
-                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
-                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 0,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 1,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
                 ],
             }],
             option_counts_note: "",

@@ -36,7 +36,7 @@
 
 use crate::embed::EMBED_DIM;
 use crate::engine::{DecisionEngine, EngineConfig};
-use crate::harness::metrics::{ece_of, CalibrationPair};
+use crate::harness::metrics::{CalibrationPair, ece_of};
 use crate::harness::runner::eval_engine;
 use crate::harness::suites::SuiteCase;
 use serde::Serialize;

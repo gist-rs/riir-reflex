@@ -28,15 +28,15 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
+use super::echo_gates::{self, AbstentionGateBlock, OodBlock, OodRungRow};
+use super::synth::load_synth_corpus;
 use super::{
-    ensemble::paired_lb95, eval_engine, git_sha, iso8601_utc, percentile_us, prepare, seat,
-    RunOptions, SuiteSpec, SUITES,
+    RunOptions, SUITES, SuiteSpec, ensemble::paired_lb95, eval_engine, git_sha, iso8601_utc,
+    percentile_us, prepare, seat,
 };
 use crate::embed::EMBED_DIM;
 use crate::engine::{DecisionEngine, ExpertSpec};
 use crate::harness::suites::{QKind, SuiteCase, TrainDoc};
-use super::echo_gates::{self, AbstentionGateBlock, OodBlock, OodRungRow};
-use super::synth::load_synth_corpus;
 
 /// The published massive modelless row (Bench 052 / the arena re-baseline
 /// — the A/B's arm-A reproduction anchor; massive-only).
@@ -192,7 +192,15 @@ pub fn run_corpus_ab(
 
     macro_rules! dispatch {
         ($n:literal) => {
-            corpus_ab_suite::<$n>(spec, &prepared, &in_scope, docs.len(), synth_path, extra_cap, opts)
+            corpus_ab_suite::<$n>(
+                spec,
+                &prepared,
+                &in_scope,
+                docs.len(),
+                synth_path,
+                extra_cap,
+                opts,
+            )
         };
     }
     let suite_row = match n_labels {
@@ -307,8 +315,8 @@ fn corpus_ab_suite<const N: usize>(
     // uncapped pool; arm B's read that pool plus the synth docs — the
     // corpus extension is the only difference between the arms).
     #[cfg(feature = "nb_scope")]
-    let nb_sets_b = (cfg.nb_scale > 0.0)
-        .then(|| super::nb_doc_sets(&prepared.train, labels, synth_docs));
+    let nb_sets_b =
+        (cfg.nb_scale > 0.0).then(|| super::nb_doc_sets(&prepared.train, labels, synth_docs));
     #[cfg(not(feature = "nb_scope"))]
     let nb_sets_b: Option<Vec<Vec<String>>> = None;
     let (specs_b, fb_b, extra_used) = arm_specs(
@@ -329,10 +337,18 @@ fn corpus_ab_suite<const N: usize>(
         );
     }
 
-    let (eval_a, lat_a) =
-        eval_engine(&mut eng_a, &prepared.suite.cases, &prepared.state_strs, true)?;
-    let (eval_b, lat_b) =
-        eval_engine(&mut eng_b, &prepared.suite.cases, &prepared.state_strs, true)?;
+    let (eval_a, lat_a) = eval_engine(
+        &mut eng_a,
+        &prepared.suite.cases,
+        &prepared.state_strs,
+        true,
+    )?;
+    let (eval_b, lat_b) = eval_engine(
+        &mut eng_b,
+        &prepared.suite.cases,
+        &prepared.state_strs,
+        true,
+    )?;
 
     // Per-case forced-pick correctness (single-question suites only — the
     // synth lane's own scope law).
@@ -450,7 +466,11 @@ fn corpus_ab_suite<const N: usize>(
     let (p50b, p99b, _) = percentile_us(&lat_b.durs_us);
     let mut flips: Vec<CorpusAbFlip> = per_label
         .into_iter()
-        .map(|(label, f)| CorpusAbFlip { label, gained: f.gained, lost: f.lost })
+        .map(|(label, f)| CorpusAbFlip {
+            label,
+            gained: f.gained,
+            lost: f.lost,
+        })
         .collect();
     flips.sort_by(|a, b| {
         let na = a.gained as i64 - a.lost as i64;
@@ -588,10 +608,7 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
         }
         s.push_str(&format!(
             "- corpus: gold {} doc(s) → synth {} doc(s) ({} in scope of {} artifact rows)\n",
-            v.gold_corpus_docs,
-            v.synth_corpus_docs,
-            v.synth_rows_in_scope,
-            v.synth_rows_total
+            v.gold_corpus_docs, v.synth_corpus_docs, v.synth_rows_in_scope, v.synth_rows_total
         ));
         s.push_str(&format!(
             "- latency: gold p50 {} µs / p99 {} µs · synth p50 {} µs / p99 {} µs (V6: the \
@@ -623,7 +640,11 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
             s.push_str(&format!(
                 "| {:.2}{} | {:.4} | {:.4} | {:+.4} | {:+.4} |\n",
                 r.dropout_p,
-                if (r.dropout_p - v.ood.gate_rung_p).abs() < 1e-9 { " (gate)" } else { "" },
+                if (r.dropout_p - v.ood.gate_rung_p).abs() < 1e-9 {
+                    " (gate)"
+                } else {
+                    ""
+                },
                 r.acc_gold,
                 r.acc_synth,
                 r.delta,
@@ -632,7 +653,10 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
         }
         s.push_str(&format!(
             "\n- retention @ gate {:.2} · rule: {}\n- {}\n- {}\n\n",
-            v.ood.retention_at_gate.map(|r| r.to_string()).unwrap_or_else(|| "n/a".into()),
+            v.ood
+                .retention_at_gate
+                .map(|r| r.to_string())
+                .unwrap_or_else(|| "n/a".into()),
             v.ood.rule,
             v.abstention.rule,
             if v.ood.echo_verdict == "echo-suspect" {
@@ -656,10 +680,16 @@ pub fn render_corpus_ab_markdown(out: &CorpusAbOutput) -> String {
             s.push('\n');
         }
         if !v.b_only_cases.is_empty() {
-            s.push_str(&format!("synth-only wins: {}\n\n", v.b_only_cases.join(", ")));
+            s.push_str(&format!(
+                "synth-only wins: {}\n\n",
+                v.b_only_cases.join(", ")
+            ));
         }
         if !v.a_only_cases.is_empty() {
-            s.push_str(&format!("gold-only wins: {}\n\n", v.a_only_cases.join(", ")));
+            s.push_str(&format!(
+                "gold-only wins: {}\n\n",
+                v.a_only_cases.join(", ")
+            ));
         }
     }
     s
@@ -670,7 +700,10 @@ mod tests {
     use super::*;
 
     fn td(label: &str, text: &str) -> TrainDoc {
-        TrainDoc { label: label.to_string(), text: text.to_string() }
+        TrainDoc {
+            label: label.to_string(),
+            text: text.to_string(),
+        }
     }
 
     #[test]
@@ -690,7 +723,10 @@ mod tests {
         let labels = vec!["L1".to_string(), "L2".to_string()];
         let (specs, fb, used) = arm_specs(&train, &extra, &labels, 2, 2, None);
         assert_eq!(specs.len(), 2);
-        assert_eq!(used, 2, "L1 takes 2 of its 3 extras (extra cap); L2/L9 take none");
+        assert_eq!(
+            used, 2,
+            "L1 takes 2 of its 3 extras (extra cap); L2/L9 take none"
+        );
         // Inspect the built specs through the public name field.
         let names: Vec<&str> = specs.iter().map(|s| s.name.as_str()).collect();
         assert_eq!(names, vec!["L1", "L2"]);

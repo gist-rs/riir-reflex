@@ -203,10 +203,8 @@ impl KeyHeaderFile {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .map_or(0, |d| d.as_nanos());
-        let path = std::env::temp_dir().join(format!(
-            "reflex_paw_key_{}_{nanos}.hdr",
-            std::process::id()
-        ));
+        let path =
+            std::env::temp_dir().join(format!("reflex_paw_key_{}_{nanos}.hdr", std::process::id()));
         let mut opts = std::fs::OpenOptions::new();
         opts.write(true).create_new(true);
         #[cfg(unix)]
@@ -468,7 +466,12 @@ impl PawClient {
             "temperature": 0.0,
             "max_tokens": MAX_TOKENS,
         });
-        let reply = self.request("POST", "/api/v1/infer", Some(&body), Duration::from_secs(120))?;
+        let reply = self.request(
+            "POST",
+            "/api/v1/infer",
+            Some(&body),
+            Duration::from_secs(120),
+        )?;
         let v = Self::json_ok(&reply, "POST /api/v1/infer")?;
         let out = v
             .get("output")
@@ -603,14 +606,24 @@ pub fn option_set(q: &SuiteQuestion) -> Vec<(String, Option<String>)> {
                 .collect(),
             Value::Array(a) => a
                 .iter()
-                .map(|v| (v.as_str().map_or_else(|| v.to_string(), str::to_string), None))
+                .map(|v| {
+                    (
+                        v.as_str().map_or_else(|| v.to_string(), str::to_string),
+                        None,
+                    )
+                })
                 .collect(),
             _ => Vec::new(),
         },
         QKind::Score => match &q.criteria {
             Value::Array(a) => a
                 .iter()
-                .map(|v| (v.as_str().map_or_else(|| v.to_string(), str::to_string), None))
+                .map(|v| {
+                    (
+                        v.as_str().map_or_else(|| v.to_string(), str::to_string),
+                        None,
+                    )
+                })
                 .collect(),
             _ => Vec::new(),
         },
@@ -646,7 +659,10 @@ pub fn check_spec_names_options(spec: &str, q: &SuiteQuestion) -> Result<(), Str
 pub enum Parsed {
     /// Option index in OUR order; `quoted` = one surrounding quote pair was
     /// stripped to get there.
-    Pick { idx: usize, quoted: bool },
+    Pick {
+        idx: usize,
+        quoted: bool,
+    },
     Refusal,
 }
 
@@ -905,7 +921,11 @@ pub(crate) fn resolve_shapes(
                             path.clone(),
                             spec,
                             per_q,
-                            if per_q { q.qid.clone() } else { "suite-wide".to_string() },
+                            if per_q {
+                                q.qid.clone()
+                            } else {
+                                "suite-wide".to_string()
+                            },
                         ));
                         specs.len() - 1
                     });
@@ -990,9 +1010,16 @@ pub fn run_suite(
         eprintln!(
             "    [paw] program {} (shape {label}; {}; compile {:.1}s{})",
             program.program_id,
-            program.compiler_snapshot.as_deref().unwrap_or("server-default"),
+            program
+                .compiler_snapshot
+                .as_deref()
+                .unwrap_or("server-default"),
             program.compile_wall_s,
-            if hit { ", CACHED — not recompiled" } else { "" }
+            if hit {
+                ", CACHED — not recompiled"
+            } else {
+                ""
+            }
         );
         programs.push((program, hit));
     }
@@ -1002,7 +1029,10 @@ pub fn run_suite(
     // first call).
     for (program, _) in &programs {
         client
-            .infer(&program.program_id, "warmup: discarded, not a measured case")
+            .infer(
+                &program.program_id,
+                "warmup: discarded, not a measured case",
+            )
             .map_err(|e| format!("paw warmup: {e}"))?;
     }
 
@@ -1078,9 +1108,17 @@ pub fn run_suite(
         n_answered: t.answered,
         refusals: t.refusals,
         quote_stripped: t.quote_stripped,
-        accuracy: if t.n == 0 { 0.0 } else { t.correct as f64 / t.n as f64 },
+        accuracy: if t.n == 0 {
+            0.0
+        } else {
+            t.correct as f64 / t.n as f64
+        },
         answered_accuracy: (t.answered > 0).then(|| t.correct as f64 / t.answered as f64),
-        refusal_rate: if t.n == 0 { 0.0 } else { t.refusals as f64 / t.n as f64 },
+        refusal_rate: if t.n == 0 {
+            0.0
+        } else {
+            t.refusals as f64 / t.n as f64
+        },
         score_mae_answered: t.score_mae,
         within_1_answered: t.within_1,
         refusal_samples: t.refusal_samples,
@@ -1115,22 +1153,59 @@ mod tests {
             ("sports".into(), Some("sports".into())),
             ("sci_tech".into(), Some("science and technology".into())),
         ];
-        assert_eq!(parse_answer("sports", &opts), Parsed::Pick { idx: 1, quoted: false });
-        assert_eq!(parse_answer("  sci_tech\n", &opts), Parsed::Pick { idx: 2, quoted: false });
-        assert_eq!(parse_answer("\"world\"", &opts), Parsed::Pick { idx: 0, quoted: true });
-        assert_eq!(parse_answer("'world'", &opts), Parsed::Pick { idx: 0, quoted: true });
+        assert_eq!(
+            parse_answer("sports", &opts),
+            Parsed::Pick {
+                idx: 1,
+                quoted: false
+            }
+        );
+        assert_eq!(
+            parse_answer("  sci_tech\n", &opts),
+            Parsed::Pick {
+                idx: 2,
+                quoted: false
+            }
+        );
+        assert_eq!(
+            parse_answer("\"world\"", &opts),
+            Parsed::Pick {
+                idx: 0,
+                quoted: true
+            }
+        );
+        assert_eq!(
+            parse_answer("'world'", &opts),
+            Parsed::Pick {
+                idx: 0,
+                quoted: true
+            }
+        );
         // description match (unique), key wins where both coincide
         assert_eq!(
             parse_answer("science and technology", &opts),
-            Parsed::Pick { idx: 2, quoted: false }
+            Parsed::Pick {
+                idx: 2,
+                quoted: false
+            }
         );
         // never guessed: case, punctuation, prose, two labels, nested quotes
-        for bad in ["World", "world.", "It is world", "world, sports", "\"\"world\"\"", "", "\""] {
+        for bad in [
+            "World",
+            "world.",
+            "It is world",
+            "world, sports",
+            "\"\"world\"\"",
+            "",
+            "\"",
+        ] {
             assert_eq!(parse_answer(bad, &opts), Parsed::Refusal, "{bad:?}");
         }
         // an ambiguous description is a refusal, never a pick
-        let dup: Vec<(String, Option<String>)> =
-            vec![("a".into(), Some("x".into())), ("b".into(), Some("x".into()))];
+        let dup: Vec<(String, Option<String>)> = vec![
+            ("a".into(), Some("x".into())),
+            ("b".into(), Some("x".into())),
+        ];
         assert_eq!(parse_answer("x", &dup), Parsed::Refusal);
     }
 
@@ -1142,12 +1217,24 @@ mod tests {
             instructions: String::new(),
             criteria: Value::Null,
         };
-        assert_eq!(parse_answer("true", &option_set(&noul)), Parsed::Pick { idx: 1, quoted: false });
+        assert_eq!(
+            parse_answer("true", &option_set(&noul)),
+            Parsed::Pick {
+                idx: 1,
+                quoted: false
+            }
+        );
         assert_eq!(parse_answer("yes", &option_set(&noul)), Parsed::Refusal);
         let sst5 = build_sst5(&envelope(&[("fine", 2)]), 0);
         let opts = option_set(&sst5.cases[0].questions[0]);
         assert_eq!(opts.len(), 5);
-        assert_eq!(parse_answer("\"very positive\"", &opts), Parsed::Pick { idx: 4, quoted: true });
+        assert_eq!(
+            parse_answer("\"very positive\"", &opts),
+            Parsed::Pick {
+                idx: 4,
+                quoted: true
+            }
+        );
     }
 
     #[test]
@@ -1159,7 +1246,10 @@ mod tests {
             vec!["I think neutral".to_string()],
         ];
         let t = tally(&s.cases, &outs);
-        assert_eq!((t.n, t.answered, t.correct, t.refusals, t.quote_stripped), (3, 2, 1, 1, 1));
+        assert_eq!(
+            (t.n, t.answered, t.correct, t.refusals, t.quote_stripped),
+            (3, 2, 1, 1, 1)
+        );
         assert_eq!(t.score_mae, Some(0.5));
         assert_eq!(t.within_1, Some(1.0));
         assert_eq!(t.refusal_samples, vec!["I think neutral".to_string()]);
@@ -1180,7 +1270,9 @@ mod tests {
         }
         // banking77's key set derives from the data (77 sorted label_text,
         // underscores → spaces): the spec carries exactly 77 label lines.
-        let (_, spec) = load_spec(&dir, "banking77").unwrap().expect("spec committed");
+        let (_, spec) = load_spec(&dir, "banking77")
+            .unwrap()
+            .expect("spec committed");
         let labels: Vec<&str> = spec
             .split("Labels:\n")
             .nth(1)
@@ -1213,7 +1305,10 @@ mod tests {
         // prompt_injections: the one noul shape.
         let pi = read("prompt_injections.injection");
         for w in ["false", "true"] {
-            assert!(lines(&pi).contains(&w), "prompt_injections spec missing {w}");
+            assert!(
+                lines(&pi).contains(&w),
+                "prompt_injections spec missing {w}"
+            );
         }
         // xnli_en: the one choice shape, three ClassLabel keys.
         let xnli = read("xnli_en.relation");
@@ -1227,7 +1322,12 @@ mod tests {
             .lines()
             .position(|l| l.contains("copied exactly, and nothing else:"))
             .expect("massive spec instruction line");
-        let massive_opts: Vec<&str> = massive.lines().skip(opts_start + 1).map(str::trim).filter(|l| !l.is_empty()).collect();
+        let massive_opts: Vec<&str> = massive
+            .lines()
+            .skip(opts_start + 1)
+            .map(str::trim)
+            .filter(|l| !l.is_empty())
+            .collect();
         assert_eq!(massive_opts.len(), 59, "massive intent token count");
         for w in ["alarm_query", "qa_factoid", "weather_query"] {
             assert!(massive_opts.contains(&w), "massive spec missing {w}");
@@ -1237,17 +1337,32 @@ mod tests {
         // carry the exact level lines (these are the option_set keys the
         // parser matches verbatim).
         for qid in [
-            "action", "category", "churn_risk", "credential_compromise",
-            "discrepancy_severity", "disposition", "duplicate", "matches_order",
-            "needs_human", "needs_review", "outcome", "risk", "severity",
-            "true_positive", "urgency",
+            "action",
+            "category",
+            "churn_risk",
+            "credential_compromise",
+            "discrepancy_severity",
+            "disposition",
+            "duplicate",
+            "matches_order",
+            "needs_human",
+            "needs_review",
+            "outcome",
+            "risk",
+            "severity",
+            "true_positive",
+            "urgency",
         ] {
             let s = read(&format!("typed_decisions.{qid}"));
             assert!(!s.trim().is_empty(), "typed spec {qid} empty");
         }
         for qid in [
-            "credential_compromise", "duplicate", "matches_order",
-            "needs_human", "needs_review", "true_positive",
+            "credential_compromise",
+            "duplicate",
+            "matches_order",
+            "needs_human",
+            "needs_review",
+            "true_positive",
         ] {
             let s = read(&format!("typed_decisions.{qid}"));
             for w in ["false", "true"] {
@@ -1255,9 +1370,37 @@ mod tests {
             }
         }
         let choice_unions: &[(&str, &[&str])] = &[
-            ("action", &["continue", "human_review", "observe", "stop", "answer_directly", "escalate_to_human", "request_information", "execute_refund", "close_no_action"]),
-            ("category", &["account", "billing", "delivery", "refund", "technical"]),
-            ("disposition", &["approve", "close_benign", "contain", "hold", "investigate", "manual_review", "monitor", "reject"]),
+            (
+                "action",
+                &[
+                    "continue",
+                    "human_review",
+                    "observe",
+                    "stop",
+                    "answer_directly",
+                    "escalate_to_human",
+                    "request_information",
+                    "execute_refund",
+                    "close_no_action",
+                ],
+            ),
+            (
+                "category",
+                &["account", "billing", "delivery", "refund", "technical"],
+            ),
+            (
+                "disposition",
+                &[
+                    "approve",
+                    "close_benign",
+                    "contain",
+                    "hold",
+                    "investigate",
+                    "manual_review",
+                    "monitor",
+                    "reject",
+                ],
+            ),
             ("outcome", &["failure", "harmful", "partial", "success"]),
         ];
         for (qid, toks) in choice_unions {
@@ -1267,16 +1410,60 @@ mod tests {
             }
         }
         let score_levels: &[(&str, &[&str])] = &[
-            ("churn_risk", &["No sign of dissatisfaction.", "Mild frustration, but the relationship is intact.", "Clearly unhappy; repeat problems or explicit complaints.", "Imminent: threatening to cancel, dispute or leave."]),
-            ("discrepancy_severity", &["None: everything reconciles.", "Trivial: rounding or a cosmetic difference.", "Moderate: a real difference worth confirming.", "Material: a large or unexplained difference."]),
-            ("risk", &["Benign: read-only or clearly safe actions.", "Low: routine writes within scope.", "Moderate: irreversible or out-of-scope actions.", "High: destructive, security-relevant, or policy-violating actions."]),
-            ("severity", &["Negligible: no access to anything sensitive.", "Low: limited access, easily reversed.", "Moderate: access to internal systems or non-public data.", "High: access to production, secrets or customer data.", "Critical: active compromise of crown-jewel systems."]),
-            ("urgency", &["No time pressure; can wait indefinitely.", "Routine; handle within the normal queue.", "Elevated; should be handled within the same week.", "Critical; requires action within the same day."]),
+            (
+                "churn_risk",
+                &[
+                    "No sign of dissatisfaction.",
+                    "Mild frustration, but the relationship is intact.",
+                    "Clearly unhappy; repeat problems or explicit complaints.",
+                    "Imminent: threatening to cancel, dispute or leave.",
+                ],
+            ),
+            (
+                "discrepancy_severity",
+                &[
+                    "None: everything reconciles.",
+                    "Trivial: rounding or a cosmetic difference.",
+                    "Moderate: a real difference worth confirming.",
+                    "Material: a large or unexplained difference.",
+                ],
+            ),
+            (
+                "risk",
+                &[
+                    "Benign: read-only or clearly safe actions.",
+                    "Low: routine writes within scope.",
+                    "Moderate: irreversible or out-of-scope actions.",
+                    "High: destructive, security-relevant, or policy-violating actions.",
+                ],
+            ),
+            (
+                "severity",
+                &[
+                    "Negligible: no access to anything sensitive.",
+                    "Low: limited access, easily reversed.",
+                    "Moderate: access to internal systems or non-public data.",
+                    "High: access to production, secrets or customer data.",
+                    "Critical: active compromise of crown-jewel systems.",
+                ],
+            ),
+            (
+                "urgency",
+                &[
+                    "No time pressure; can wait indefinitely.",
+                    "Routine; handle within the normal queue.",
+                    "Elevated; should be handled within the same week.",
+                    "Critical; requires action within the same day.",
+                ],
+            ),
         ];
         for (qid, levels) in score_levels {
             let s = read(&format!("typed_decisions.{qid}"));
             for w in *levels {
-                assert!(lines(&s).contains(w), "typed {qid} spec missing level {w:?}");
+                assert!(
+                    lines(&s).contains(w),
+                    "typed {qid} spec missing level {w:?}"
+                );
             }
         }
     }
@@ -1285,7 +1472,10 @@ mod tests {
     fn input_rendering_and_trim_law() {
         assert_eq!(render_input(&json!({"text": "hi"})), "hi");
         assert_eq!(render_input(&json!("raw")), "raw");
-        assert_eq!(render_input(&json!({"a": "1", "b": "2"})), r#"{"a":"1","b":"2"}"#);
+        assert_eq!(
+            render_input(&json!({"a": "1", "b": "2"})),
+            r#"{"a":"1","b":"2"}"#
+        );
         let s = build_ag_news(&envelope(&[("a", 0), ("b", 1), ("c", 2)]), 0);
         assert_eq!(trimmed(&s.cases, 0).len(), 3);
         assert_eq!(trimmed(&s.cases, 2).len(), 2);
@@ -1309,7 +1499,12 @@ mod tests {
         let bad = dir.join("bad.json");
         std::fs::write(&bad, "{not json").unwrap();
         assert!(ProgramCache::load(&bad).unwrap_err().contains("malformed"));
-        assert!(ProgramCache::load(&dir.join("absent.json")).unwrap().entries.is_empty());
+        assert!(
+            ProgramCache::load(&dir.join("absent.json"))
+                .unwrap()
+                .entries
+                .is_empty()
+        );
         // the key is (suite, compiler, BLAKE3(spec)) — any axis moves it
         let k = ProgramCache::key("sst5", None, "spec");
         assert_ne!(k, ProgramCache::key("sst5", Some("paw-ft-bs48"), "spec"));
@@ -1354,7 +1549,10 @@ mod tests {
                         headers.insert(k.trim().to_ascii_lowercase(), v.trim().to_string());
                     }
                 }
-                let len: usize = headers.get("content-length").and_then(|v| v.parse().ok()).unwrap_or(0);
+                let len: usize = headers
+                    .get("content-length")
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(0);
                 let mut body = vec![0u8; len];
                 reader.read_exact(&mut body).expect("body");
                 let body: Value = serde_json::from_slice(&body).unwrap_or(Value::Null);
@@ -1367,12 +1565,19 @@ mod tests {
                     )
                 } else if line.starts_with("POST /api/v1/infer ") {
                     let input = body["input"].as_str().unwrap_or("");
-                    let out = outputs.get(input).cloned().unwrap_or_else(|| "world".into());
+                    let out = outputs
+                        .get(input)
+                        .cloned()
+                        .unwrap_or_else(|| "world".into());
                     (200, json!({"output": out, "latency_ms": 12.5}))
                 } else {
                     (404, json!({"detail": "not found"}))
                 };
-                log.lock().unwrap().push(Seen { line: line.trim_end().to_string(), headers, body });
+                log.lock().unwrap().push(Seen {
+                    line: line.trim_end().to_string(),
+                    headers,
+                    body,
+                });
                 let resp = resp.to_string();
                 let mut stream = stream;
                 let _ = stream.write_all(
@@ -1389,7 +1594,10 @@ mod tests {
     }
 
     fn curl_available() -> bool {
-        Command::new("curl").arg("--version").output().is_ok_and(|o| o.status.success())
+        Command::new("curl")
+            .arg("--version")
+            .output()
+            .is_ok_and(|o| o.status.success())
     }
 
     fn test_cfg(port: u16, tag: &str, key: Option<&str>) -> PawConfig {
@@ -1427,17 +1635,25 @@ mod tests {
         .map(|(a, b)| (a.to_string(), b.to_string()))
         .collect();
         let (port, seen) = stub_server(outputs);
-        let suite = build_ag_news(&envelope(&[("rates fall", 2), ("cup final", 1), ("new chip", 3)]), 0);
+        let suite = build_ag_news(
+            &envelope(&[("rates fall", 2), ("cup final", 1), ("new chip", 3)]),
+            0,
+        );
         let cfg = test_cfg(port, "anon", None);
         let client = PawClient::new(cfg.clone()).unwrap();
         assert_eq!(cfg.posture(), "hosted-anonymous");
 
-        let r = run_suite(&client, &suite, 0).unwrap().expect("specced suite runs");
+        let r = run_suite(&client, &suite, 0)
+            .unwrap()
+            .expect("specced suite runs");
         assert_eq!(r.program_id, "abcdef0123456789abcd");
         assert_eq!(r.model, "paw-4b-qwen3-0.6b-20260407");
         assert_eq!(r.posture, "hosted-anonymous");
         assert!(!r.compile_cache_hit);
-        assert_eq!((r.n_questions, r.n_answered, r.refusals, r.quote_stripped), (3, 2, 1, 1));
+        assert_eq!(
+            (r.n_questions, r.n_answered, r.refusals, r.quote_stripped),
+            (3, 2, 1, 1)
+        );
         assert!((r.accuracy - 2.0 / 3.0).abs() < 1e-12);
         assert_eq!(r.answered_accuracy, Some(1.0));
         assert_eq!(r.refusal_samples, vec!["Science!".to_string()]);
@@ -1445,14 +1661,24 @@ mod tests {
         assert_eq!(r.server_latency_p50_ms, Some(12.5));
 
         let log = seen.lock().unwrap().clone();
-        let compiles: Vec<&Seen> = log.iter().filter(|s| s.line.starts_with("POST /api/v1/compile ")).collect();
+        let compiles: Vec<&Seen> = log
+            .iter()
+            .filter(|s| s.line.starts_with("POST /api/v1/compile "))
+            .collect();
         assert_eq!(compiles.len(), 1);
         let spec = std::fs::read_to_string(cfg.specs_dir.join("ag_news.txt")).unwrap();
         assert_eq!(compiles[0].body["spec"], json!(spec));
-        assert_eq!(compiles[0].body["public"], json!(true), "anonymous programs are public");
+        assert_eq!(
+            compiles[0].body["public"],
+            json!(true),
+            "anonymous programs are public"
+        );
         assert!(compiles[0].body.get("compiler").is_none());
         assert!(log.iter().all(|s| !s.headers.contains_key("x-api-key")));
-        let infers: Vec<&Seen> = log.iter().filter(|s| s.line.starts_with("POST /api/v1/infer ")).collect();
+        let infers: Vec<&Seen> = log
+            .iter()
+            .filter(|s| s.line.starts_with("POST /api/v1/infer "))
+            .collect();
         // warmup + 3 measured + 3 determinism re-asks
         assert_eq!(infers.len(), 7);
         assert_eq!(infers[1].body["program_id"], "abcdef0123456789abcd");
@@ -1465,7 +1691,11 @@ mod tests {
         let r2 = run_suite(&client, &suite, 0).unwrap().unwrap();
         assert!(r2.compile_cache_hit);
         let after = seen.lock().unwrap().clone();
-        assert!(after[before..].iter().all(|s| !s.line.starts_with("POST /api/v1/compile")));
+        assert!(
+            after[before..]
+                .iter()
+                .all(|s| !s.line.starts_with("POST /api/v1/compile"))
+        );
 
         // A suite without a spec is an absence, never a request.
         let mut nospec = suite.clone();
@@ -1495,8 +1725,14 @@ mod tests {
         assert_eq!((r.n_questions, r.refusals), (1, 1));
         let log = seen.lock().unwrap().clone();
         assert!(!log.is_empty());
-        assert!(log.iter().all(|s| s.headers.get("x-api-key").map(String::as_str) == Some("paw_sk_test")));
-        let compile = log.iter().find(|s| s.line.starts_with("POST /api/v1/compile ")).unwrap();
+        assert!(
+            log.iter()
+                .all(|s| s.headers.get("x-api-key").map(String::as_str) == Some("paw_sk_test"))
+        );
+        let compile = log
+            .iter()
+            .find(|s| s.line.starts_with("POST /api/v1/compile "))
+            .unwrap();
         assert_eq!(compile.body["public"], json!(false));
         drop(client);
         assert!(!key_path.exists(), "the key header file is removed on drop");
@@ -1541,8 +1777,16 @@ mod tests {
                     },
                 ],
                 gold: vec![
-                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
-                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 0,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 1,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
                 ],
             }],
             option_counts_note: "",
@@ -1580,7 +1824,9 @@ mod tests {
         assert!(bodies.contains(&is_pub_spec.to_string()));
         // 2 warmups + 2 measured + 2 determinism re-asks
         assert_eq!(
-            log.iter().filter(|s| s.line.starts_with("POST /api/v1/infer ")).count(),
+            log.iter()
+                .filter(|s| s.line.starts_with("POST /api/v1/infer "))
+                .count(),
             6
         );
 
@@ -1589,7 +1835,11 @@ mod tests {
         let r2 = run_suite(&client, &suite, 0).unwrap().unwrap();
         assert!(r2.compile_cache_hit);
         let after = seen.lock().unwrap().clone();
-        assert!(!after[before..].iter().any(|s| s.line.starts_with("POST /api/v1/compile")));
+        assert!(
+            !after[before..]
+                .iter()
+                .any(|s| s.line.starts_with("POST /api/v1/compile"))
+        );
 
         drop(client);
         let _ = std::fs::remove_dir_all(&specs);
@@ -1607,7 +1857,11 @@ mod tests {
         let pid = std::process::id();
         let specs = std::env::temp_dir().join(format!("reflex_paw_specs3_{pid}"));
         std::fs::create_dir_all(&specs).unwrap();
-        std::fs::write(specs.join("two_shape2.txt"), "Pick one:\nalpha\nbeta\nfalse\ntrue\n").unwrap();
+        std::fs::write(
+            specs.join("two_shape2.txt"),
+            "Pick one:\nalpha\nbeta\nfalse\ntrue\n",
+        )
+        .unwrap();
 
         let (port, seen) = stub_server(BTreeMap::new());
         let suite = Suite {
@@ -1630,8 +1884,16 @@ mod tests {
                     },
                 ],
                 gold: vec![
-                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
-                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 0,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 1,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
                 ],
             }],
             option_counts_note: "",
@@ -1643,14 +1905,28 @@ mod tests {
         let r = run_suite(&client, &suite, 0).unwrap().unwrap();
         // ONE program, single-valued row fields (no comma-join).
         assert_eq!(r.program_id, "abcdef0123456789abcd");
-        assert_eq!(r.spec_file, specs.join("two_shape2.txt").display().to_string());
+        assert_eq!(
+            r.spec_file,
+            specs.join("two_shape2.txt").display().to_string()
+        );
         let log = seen.lock().unwrap().clone();
         assert_eq!(
-            log.iter().filter(|s| s.line.starts_with("POST /api/v1/compile ")).count(),
+            log.iter()
+                .filter(|s| s.line.starts_with("POST /api/v1/compile "))
+                .count(),
             1
         );
         // the historical suite-level cache key (no qid component)
-        assert!(ProgramCache::load(&cfg.cache_file).unwrap().entries.contains_key(&ProgramCache::key("two_shape2", None, "Pick one:\nalpha\nbeta\nfalse\ntrue\n")));
+        assert!(
+            ProgramCache::load(&cfg.cache_file)
+                .unwrap()
+                .entries
+                .contains_key(&ProgramCache::key(
+                    "two_shape2",
+                    None,
+                    "Pick one:\nalpha\nbeta\nfalse\ntrue\n"
+                ))
+        );
 
         drop(client);
         let _ = std::fs::remove_dir_all(&specs);
@@ -1692,8 +1968,16 @@ mod tests {
                     },
                 ],
                 gold: vec![
-                    crate::harness::suites::GoldAnswer { idx: 0, soft: vec![0.0; 2], gold_score: None },
-                    crate::harness::suites::GoldAnswer { idx: 1, soft: vec![0.0; 2], gold_score: None },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 0,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
+                    crate::harness::suites::GoldAnswer {
+                        idx: 1,
+                        soft: vec![0.0; 2],
+                        gold_score: None,
+                    },
                 ],
             }],
             option_counts_note: "",
@@ -1704,11 +1988,18 @@ mod tests {
 
         let err = run_suite(&client, &mk_suite("two_shape3"), 0).unwrap_err();
         assert!(err.contains("is_pub"), "names the missing shape: {err}");
-        assert!(err.contains("two_shape3.is_pub.txt"), "names the file looked for: {err}");
+        assert!(
+            err.contains("two_shape3.is_pub.txt"),
+            "names the file looked for: {err}"
+        );
 
         // Fully unspecced: the honest absence, zero requests.
         let n = seen.lock().unwrap().len();
-        assert!(run_suite(&client, &mk_suite("no_such_suite"), 0).unwrap().is_none());
+        assert!(
+            run_suite(&client, &mk_suite("no_such_suite"), 0)
+                .unwrap()
+                .is_none()
+        );
         assert_eq!(seen.lock().unwrap().len(), n);
 
         drop(client);

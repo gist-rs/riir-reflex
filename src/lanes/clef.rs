@@ -58,7 +58,7 @@
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply, LaneHttpError};
@@ -151,9 +151,9 @@ impl ClefLane {
     /// Parse an `http://host[:port]` base URL (the forwarder binds
     /// loopback; the port rides the URL, default 8791).
     fn parse_url(url: &str) -> Result<(String, u16), String> {
-        let rest = url
-            .strip_prefix("http://")
-            .ok_or_else(|| format!("{SERVE_URL_ENV} must be an http:// loopback URL, got {url:?}"))?;
+        let rest = url.strip_prefix("http://").ok_or_else(|| {
+            format!("{SERVE_URL_ENV} must be an http:// loopback URL, got {url:?}")
+        })?;
         match rest.rsplit_once(':') {
             Some((h, p)) => Ok((
                 h.to_string(),
@@ -203,7 +203,10 @@ impl ClefLane {
     /// is the cross-lane measure; Workers AI exposes no per-case server
     /// wall we can read without the unverified shape, so the third slot
     /// stays `None` (never a fabricated server-side figure).
-    pub fn decide(&self, case: &SuiteCase) -> Result<(Vec<AnswerTriple>, f64, Option<f64>), String> {
+    pub fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<AnswerTriple>, f64, Option<f64>), String> {
         let t0 = Instant::now();
         let raw = self.decide_raw(case)?;
         let client_ms = t0.elapsed().as_secs_f64() * 1000.0;
@@ -415,15 +418,18 @@ pub fn map_answers(case: &SuiteCase, result: &Value) -> Result<Vec<AnswerTriple>
         let a = *by_id
             .get(q.qid.as_str())
             .ok_or_else(|| format!("qid {}: no answer in response", q.qid))?;
-        let dist = a.get("distribution").and_then(Value::as_object).ok_or_else(|| {
-            format!(
-                "qid {}: answer has no per-option distribution — the accuracy-only \
+        let dist = a
+            .get("distribution")
+            .and_then(Value::as_object)
+            .ok_or_else(|| {
+                format!(
+                    "qid {}: answer has no per-option distribution — the accuracy-only \
                  fallback is deliberately unimplemented against an unverified shape \
                  (plan 011 A4; capture the A2.5 fixture first): {}",
-                q.qid,
-                truncate_for_error(a)
-            )
-        })?;
+                    q.qid,
+                    truncate_for_error(a)
+                )
+            })?;
         let triple = match q.kind {
             QKind::Noul => {
                 // The reply carries the boolean pair keyed `true`/`false`;
@@ -473,9 +479,12 @@ pub fn map_answers(case: &SuiteCase, result: &Value) -> Result<Vec<AnswerTriple>
                 let n = q.criteria.as_array().map_or(0, Vec::len);
                 let mut probs = Vec::with_capacity(n);
                 for i in 0..n {
-                    let p = dist.get(&i.to_string()).and_then(Value::as_f64).ok_or_else(
-                        || format!("qid {}: score distribution missing level {i}", q.qid),
-                    )?;
+                    let p = dist
+                        .get(&i.to_string())
+                        .and_then(Value::as_f64)
+                        .ok_or_else(|| {
+                            format!("qid {}: score distribution missing level {i}", q.qid)
+                        })?;
                     probs.push(p);
                 }
                 let pick = a
@@ -632,9 +641,7 @@ impl LocalAneLane {
         let rendered: Vec<serde_json::Value> = answers
             .iter()
             .zip(&case.questions)
-            .map(|((probs, pick, _), q)| {
-                json!({"qid": q.qid, "probs": probs, "pick": pick})
-            })
+            .map(|((probs, pick, _), q)| json!({"qid": q.qid, "probs": probs, "pick": pick}))
             .collect();
         Ok(json!({"id": case.id, "answers": rendered}).to_string())
     }
@@ -650,10 +657,9 @@ impl LocalAneLane {
                         criteria: std::collections::BTreeMap::new(),
                     },
                     QKind::Choice => {
-                        let criteria = q
-                            .criteria
-                            .as_object()
-                            .ok_or_else(|| format!("qid {}: choice criteria must be an object", q.qid))?;
+                        let criteria = q.criteria.as_object().ok_or_else(|| {
+                            format!("qid {}: choice criteria must be an object", q.qid)
+                        })?;
                         let mut map = std::collections::BTreeMap::new();
                         for (k, v) in criteria {
                             // the build_body description law: Null or an
@@ -674,17 +680,14 @@ impl LocalAneLane {
                         }
                     }
                     QKind::Score => {
-                        let levels = q
-                            .criteria
-                            .as_array()
-                            .ok_or_else(|| format!("qid {}: score criteria must be a list", q.qid))?;
+                        let levels = q.criteria.as_array().ok_or_else(|| {
+                            format!("qid {}: score criteria must be a list", q.qid)
+                        })?;
                         let mut criteria = Vec::with_capacity(levels.len());
                         for v in levels {
-                            criteria.push(
-                                v.as_str()
-                                    .map(str::to_string)
-                                    .ok_or_else(|| format!("qid {}: score level must be a string", q.qid))?,
-                            );
+                            criteria.push(v.as_str().map(str::to_string).ok_or_else(|| {
+                                format!("qid {}: score level must be a string", q.qid)
+                            })?);
                         }
                         riir_infer_clef::lane::ClefQuestion::Score {
                             instructions: Some(q.instructions.clone()),
@@ -707,50 +710,49 @@ impl LocalAneLane {
         // returned option_ids); score = the levels order (identical).
         let mut triples = Vec::with_capacity(out.len());
         for (answer, q) in out.iter().zip(&case.questions) {
-            let triple = match q.kind {
-                QKind::Noul => {
-                    let p_true = *answer
-                        .probabilities
-                        .first()
-                        .ok_or("noul answer empty")? as f64;
-                    let p_false = *answer.probabilities.get(1).ok_or("noul answer short")? as f64;
-                    let pick = usize::from(p_true >= p_false);
-                    (vec![p_false, p_true], pick, p_true.max(p_false))
-                }
-                QKind::Choice => {
-                    let keys: Vec<String> = q
-                        .criteria
-                        .as_object()
-                        .map(|m| m.keys().cloned().collect())
-                        .unwrap_or_default();
-                    let mut probs = Vec::with_capacity(keys.len());
-                    for k in &keys {
-                        let i = answer
-                            .option_ids
-                            .iter()
-                            .position(|id| id == k)
-                            .ok_or_else(|| format!("qid {}: option {k} missing from the answer", q.qid))?;
-                        probs.push(answer.probabilities[i] as f64);
+            let triple =
+                match q.kind {
+                    QKind::Noul => {
+                        let p_true =
+                            *answer.probabilities.first().ok_or("noul answer empty")? as f64;
+                        let p_false =
+                            *answer.probabilities.get(1).ok_or("noul answer short")? as f64;
+                        let pick = usize::from(p_true >= p_false);
+                        (vec![p_false, p_true], pick, p_true.max(p_false))
                     }
-                    let pick = probs
-                        .iter()
-                        .enumerate()
-                        .max_by(|x, y| x.1.total_cmp(y.1))
-                        .map_or(0, |(i, _)| i);
-                    let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
-                    (probs, pick, conf)
-                }
-                QKind::Score => {
-                    let probs: Vec<f64> = answer.probabilities.iter().map(|p| *p as f64).collect();
-                    let pick = probs
-                        .iter()
-                        .enumerate()
-                        .max_by(|x, y| x.1.total_cmp(y.1))
-                        .map_or(0, |(i, _)| i);
-                    let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
-                    (probs, pick, conf)
-                }
-            };
+                    QKind::Choice => {
+                        let keys: Vec<String> = q
+                            .criteria
+                            .as_object()
+                            .map(|m| m.keys().cloned().collect())
+                            .unwrap_or_default();
+                        let mut probs = Vec::with_capacity(keys.len());
+                        for k in &keys {
+                            let i = answer.option_ids.iter().position(|id| id == k).ok_or_else(
+                                || format!("qid {}: option {k} missing from the answer", q.qid),
+                            )?;
+                            probs.push(answer.probabilities[i] as f64);
+                        }
+                        let pick = probs
+                            .iter()
+                            .enumerate()
+                            .max_by(|x, y| x.1.total_cmp(y.1))
+                            .map_or(0, |(i, _)| i);
+                        let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
+                        (probs, pick, conf)
+                    }
+                    QKind::Score => {
+                        let probs: Vec<f64> =
+                            answer.probabilities.iter().map(|p| *p as f64).collect();
+                        let pick = probs
+                            .iter()
+                            .enumerate()
+                            .max_by(|x, y| x.1.total_cmp(y.1))
+                            .map_or(0, |(i, _)| i);
+                        let conf = probs.iter().cloned().fold(0.0_f64, f64::max);
+                        (probs, pick, conf)
+                    }
+                };
             triples.push(triple);
         }
         Ok(triples)
@@ -819,12 +821,7 @@ mod tests {
     fn body_score_renders_the_levels_list() {
         let c = case(
             json!("s"),
-            vec![(
-                "q2",
-                QKind::Score,
-                "how bad",
-                json!(["low", "mid", "high"]),
-            )],
+            vec![("q2", QKind::Score, "how bad", json!(["low", "mid", "high"]))],
         );
         let body = build_body(&c).unwrap();
         assert_eq!(body["questions"][0]["type"], "score");

@@ -72,10 +72,10 @@ pub mod probe_delta;
 // slice-identity digests the board publish path compares. Ungated + pure.
 pub mod slice_guard;
 // Near-duplicate leak report (Issue 024): opt-in, zero-dep, native-only.
-#[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
-pub mod slice_leak;
 #[cfg(feature = "modelless")]
 pub mod runner;
+#[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
+pub mod slice_leak;
 pub mod suites;
 // Warm-tier persistence via the released `ndb` binary (Issue 007 P1):
 // subprocess-only, zero storage-leaf cargo deps; NATIVE-ONLY by

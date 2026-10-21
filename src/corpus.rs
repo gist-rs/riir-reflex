@@ -64,8 +64,7 @@ pub fn load_dir(dir: &Path) -> Result<CorpusSpecs, String> {
             continue;
         }
         if path.is_dir() {
-            let inner =
-                std::fs::read_dir(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let inner = std::fs::read_dir(&path).map_err(|e| format!("{}: {e}", path.display()))?;
             let mut inner_paths: Vec<std::path::PathBuf> = Vec::new();
             for e in inner {
                 inner_paths.push(e.map_err(|er| format!("{}: {er}", path.display()))?.path());
@@ -74,8 +73,8 @@ pub fn load_dir(dir: &Path) -> Result<CorpusSpecs, String> {
             let mut docs = Vec::new();
             for p in inner_paths {
                 if p.extension().and_then(|e| e.to_str()) == Some("md") {
-                    let text = std::fs::read_to_string(&p)
-                        .map_err(|e| format!("{}: {e}", p.display()))?;
+                    let text =
+                        std::fs::read_to_string(&p).map_err(|e| format!("{}: {e}", p.display()))?;
                     docs.push((p.display().to_string(), text));
                 }
             }
@@ -159,8 +158,14 @@ mod tests {
         let dir = temp_dir("ok");
         let _ = std::fs::remove_dir_all(&dir);
         write(&dir.join("billing.md"), "refund the duplicate charge.\n");
-        write(&dir.join("deploy/rollback.md"), "rollback is one command.\n");
-        write(&dir.join("deploy/staging.md"), "verify the staging rollout.\n");
+        write(
+            &dir.join("deploy/rollback.md"),
+            "rollback is one command.\n",
+        );
+        write(
+            &dir.join("deploy/staging.md"),
+            "verify the staging rollout.\n",
+        );
         // A non-.md note is ignored, not corpus.
         write(&dir.join("deploy/README.txt"), "notes only");
         let loaded = load_dir(&dir).expect("loads");
@@ -172,19 +177,36 @@ mod tests {
     }
 
     #[test]
-    #[cfg_attr(windows, ignore = "Win32 strips trailing dots from the last path component at dir creation - the trailing-dot fixture is unrepresentable on NTFS; the byte-intact property stays guarded by the interior-dot companion below on Windows and by this test on the macOS/Linux deployment platforms (issue 084)")]
+    #[cfg_attr(
+        windows,
+        ignore = "Win32 strips trailing dots from the last path component at dir creation - the trailing-dot fixture is unrepresentable on NTFS; the byte-intact property stays guarded by the interior-dot companion below on Windows and by this test on the macOS/Linux deployment platforms (issue 084)"
+    )]
     fn directory_names_load_verbatim_including_dots() {
         // Issue 081 T2c: a domain named after a wire option string (prose
         // that ends in `.`) must load byte-intact — by-name option routing
         // compares the option string to the domain name with `==`.
         let dir = temp_dir("verbatim");
         let _ = std::fs::remove_dir_all(&dir);
-        write(&dir.join("No further round helps./d0.md"), "state depth 0 doc\n");
-        write(&dir.join("Another round would help./d1.md"), "state depth 1 doc\n");
+        write(
+            &dir.join("No further round helps./d0.md"),
+            "state depth 0 doc\n",
+        );
+        write(
+            &dir.join("Another round would help./d1.md"),
+            "state depth 1 doc\n",
+        );
         write(&dir.join("plain/plain.md"), "plain domain keeps working\n");
         let loaded = load_dir(&dir).expect("loads");
-        assert!(loaded.domains.contains(&"No further round helps.".to_string()));
-        assert!(loaded.domains.contains(&"Another round would help.".to_string()));
+        assert!(
+            loaded
+                .domains
+                .contains(&"No further round helps.".to_string())
+        );
+        assert!(
+            loaded
+                .domains
+                .contains(&"Another round would help.".to_string())
+        );
         assert!(loaded.domains.contains(&"plain".to_string()));
         let _ = std::fs::remove_dir_all(&dir);
     }

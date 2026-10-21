@@ -44,14 +44,14 @@
 //! deployed lane builds it (`fit_posture_inner` + `build_engine_with`,
 //! every selection lever pinned off) — the perm-probe's posture, verbatim.
 
-use super::*;
 use super::perm_probe::stride_indices;
+use super::*;
+use crate::harness::metrics::{CalibrationPair, auroc_of, conformal_naive_floor, ece_of};
 use crate::harness::null_stability::{
-    a1_stats, a2_stats, a3_stats, augmented_case, noul_case, null_case_record, AugAnswer,
-    DecoyPool, NoulAnswer, NullCaseRecord, NullOracle, NullVerdict, NULL_PROBE_SEED,
+    AugAnswer, DecoyPool, NULL_PROBE_SEED, NoulAnswer, NullCaseRecord, NullOracle, NullVerdict,
+    a1_stats, a2_stats, a3_stats, augmented_case, noul_case, null_case_record,
 };
-use crate::harness::metrics::{auroc_of, conformal_naive_floor, ece_of, CalibrationPair};
-use crate::readout::{confidence_with, ReadoutMode};
+use crate::readout::{ReadoutMode, confidence_with};
 
 /// The default suite set — the perm-probe's choice suites (diverse option
 /// counts; the pool law wants the vocabulary union).
@@ -544,11 +544,7 @@ fn floor_cell(cal: &[FloorObs], test: &[FloorObs]) -> FloorCell {
 /// slice the floor calibrates on, read it on the SAME test slots, and ask
 /// the floor's own [`dominates`] question. The shipped gate's axes ride
 /// in for the restated three-way comparison. REPORT-ONLY by construction.
-fn candidate_cell(
-    cal: &[FloorObs],
-    test: &[FloorObs],
-    floor: &FloorCell,
-) -> CandidateCell {
+fn candidate_cell(cal: &[FloorObs], test: &[FloorObs], floor: &FloorCell) -> CandidateCell {
     let rows: Vec<(f64, f64, bool)> = cal.iter().map(|o| (o.maxp, o.inv_ent, o.correct)).collect();
     let g = TwoFeatureGate::fit(&rows);
     let pairs: Vec<(f64, bool)> = test
@@ -650,8 +646,14 @@ fn null_modelless<const N: usize>(
         distance_threshold,
         ..default_cfg
     };
-    let (mut engine, fallbacks) =
-        build_engine_with::<N>(spec.name, &prepared.train, &prepared.labels, effective_cap, cfg, &[])?;
+    let (mut engine, fallbacks) = build_engine_with::<N>(
+        spec.name,
+        &prepared.train,
+        &prepared.labels,
+        effective_cap,
+        cfg,
+        &[],
+    )?;
     if !fallbacks.is_empty() {
         eprintln!(
             "  [issue-039 corpus guard] {}: {} option label(s) with NO train docs \
@@ -692,11 +694,7 @@ fn null_modelless<const N: usize>(
             for (qi, ans) in resp.answers.iter().enumerate() {
                 let mut tmp: Vec<f64> = Vec::with_capacity(ans.probabilities.len());
                 let pick = answer_probs_pick(cc.questions[qi].kind, ans, &mut tmp);
-                let correct = cc
-                    .gold
-                    .get(qi)
-                    .map(|g| pick == g.idx)
-                    .unwrap_or(false);
+                let correct = cc.gold.get(qi).map(|g| pick == g.idx).unwrap_or(false);
                 if cc.questions[qi].kind == QKind::Choice {
                     // The two SHIPPED functionals through the shipped code —
                     // the Issue-092 candidate's features are the readouts
@@ -811,12 +809,21 @@ fn null_modelless<const N: usize>(
     let floor = (cal_triples.len() >= MIN_FLOOR_CAL).then(|| floor_cell(&cal_triples, &test));
     // Issue 092 T1 — the REPORT-ONLY candidate leg: same cal slice, same
     // test slots, the floor's own dominance question. Never a run verdict.
-    let candidate = floor.as_ref().map(|f| candidate_cell(&cal_triples, &test, f));
+    let candidate = floor
+        .as_ref()
+        .map(|f| candidate_cell(&cal_triples, &test, f));
     if let Some(c) = &candidate {
         eprintln!(
             "    null[modelless]: candidate (REPORT-ONLY): σ({:+.3}·maxp {:+.3}·ent {:+.3}) \
              AUROC {:.4} / ECE {:.4} vs floor {:.4}/{:.4} — {}",
-            c.a, c.b, c.c, c.cand_auroc, c.cand_ece, c.floor_auroc, c.floor_ece, c.verdict.str_of()
+            c.a,
+            c.b,
+            c.c,
+            c.cand_auroc,
+            c.cand_ece,
+            c.floor_auroc,
+            c.floor_ece,
+            c.verdict.str_of()
         );
     }
     if floor.is_none() {
@@ -853,10 +860,7 @@ fn null_modelless<const N: usize>(
             None => "n/a",
         },
         a3.conf_shape.split(' ').next().unwrap_or("?"),
-        floor
-            .as_ref()
-            .map(|f| f.verdict.str_of())
-            .unwrap_or("n/a"),
+        floor.as_ref().map(|f| f.verdict.str_of()).unwrap_or("n/a"),
     );
     Ok(NullLaneReport {
         lane: "modelless".to_string(),
@@ -969,7 +973,15 @@ fn null_suite(
                 .get(qi)
                 .and_then(|g| labels.get(g.idx))
                 .map(String::as_str);
-            match answer_null_slot(sl.oracle.as_mut(), case, qi, &labels, &nopts.k_set, pool, gold_label) {
+            match answer_null_slot(
+                sl.oracle.as_mut(),
+                case,
+                qi,
+                &labels,
+                &nopts.k_set,
+                pool,
+                gold_label,
+            ) {
                 Ok(rec) => recs.push(rec),
                 Err(e) => {
                     failed = Some(e);
@@ -1168,7 +1180,14 @@ pub fn run_null_probe(
     // Pass 2: probe each suite.
     let mut suites = Vec::new();
     for (spec, prepared) in &prepared_list {
-        suites.push(null_suite(spec, prepared, &pool, nopts, &mut shared, opts.kn_route));
+        suites.push(null_suite(
+            spec,
+            prepared,
+            &pool,
+            nopts,
+            &mut shared,
+            opts.kn_route,
+        ));
     }
     for (name, why) in prep_skipped {
         suites.push(NullSuiteReport {
@@ -1181,7 +1200,12 @@ pub fn run_null_probe(
     }
     let red_cells: usize = suites
         .iter()
-        .map(|s| s.lanes.iter().filter(|l| l.verdict == NullVerdict::Red).count())
+        .map(|s| {
+            s.lanes
+                .iter()
+                .filter(|l| l.verdict == NullVerdict::Red)
+                .count()
+        })
         .sum();
     Ok(NullProbeOutput {
         meta: NullProbeMeta {
@@ -1236,11 +1260,7 @@ pub fn render_null_probe_markdown(out: &NullProbeOutput) -> String {
     let _ = writeln!(
         s,
         "# Null/K-stability probe — {} (host {}, datasets {}) — ladder {:?}, ≤{} slot(s)/suite",
-        out.meta.date_utc,
-        out.meta.host,
-        out.meta.datasets_dir,
-        out.meta.k_set,
-        out.meta.max_cases
+        out.meta.date_utc, out.meta.host, out.meta.datasets_dir, out.meta.k_set, out.meta.max_cases
     );
     let _ = writeln!(s);
     let _ = writeln!(s, "- decoys: {}", out.meta.decoy_rule);
@@ -1261,7 +1281,11 @@ pub fn render_null_probe_markdown(out: &NullProbeOutput) -> String {
                 "### {} — {} slot(s) · {} · {}",
                 lane.lane,
                 lane.n_cases,
-                if lane.control { "CONTROL" } else { "comparison" },
+                if lane.control {
+                    "CONTROL"
+                } else {
+                    "comparison"
+                },
                 lane.verdict.str_of()
             );
             let _ = writeln!(
@@ -1378,15 +1402,21 @@ mod tests {
         }
         let g = TwoFeatureGate::fit(&cal);
         assert!(g.a > 0.0, "the maxp weight must be positive, got {g:?}");
-        let mut confs: Vec<(f64, bool)> = cal
-            .iter()
-            .map(|&(x, y, ok)| (g.conf(x, y), ok))
-            .collect();
+        let mut confs: Vec<(f64, bool)> =
+            cal.iter().map(|&(x, y, ok)| (g.conf(x, y), ok)).collect();
         confs.sort_by(|p, q| p.0.total_cmp(&q.0));
         // Every incorrect row ranks below every correct row on train.
         let max_incorrect = confs.iter().find(|(_, ok)| !ok).map(|(c, _)| *c).unwrap();
-        let min_correct = confs.iter().rev().find(|(_, ok)| *ok).map(|(c, _)| *c).unwrap();
-        assert!(max_incorrect < min_correct, "train separation must be clean");
+        let min_correct = confs
+            .iter()
+            .rev()
+            .find(|(_, ok)| *ok)
+            .map(|(c, _)| *c)
+            .unwrap();
+        assert!(
+            max_incorrect < min_correct,
+            "train separation must be clean"
+        );
         assert_eq!(crate::harness::metrics::auroc_of(&confs), 1.0);
     }
 
@@ -1454,7 +1484,10 @@ mod tests {
         assert_eq!(c.n_cal, 80);
         assert_eq!(c.n_test, 40);
         // The candidate must read the separating feature (|b| material).
-        assert!(c.b.abs() > 0.5, "the entropy weight must carry the signal: {c:?}");
+        assert!(
+            c.b.abs() > 0.5,
+            "the entropy weight must carry the signal: {c:?}"
+        );
         assert_eq!(c.verdict, NullVerdict::Pass);
     }
 }

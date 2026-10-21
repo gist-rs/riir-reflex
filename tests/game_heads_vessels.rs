@@ -23,9 +23,7 @@
 //!    all-false.
 #![cfg(all(feature = "modelless", feature = "vessel_public_read"))]
 
-use riir_reflex::game_heads::{
-    absent_heads_message, head_vessels, GameHeads, HEAD_VESSEL_FILES,
-};
+use riir_reflex::game_heads::{GameHeads, HEAD_VESSEL_FILES, absent_heads_message, head_vessels};
 use riir_reflex::serve::{LayaLane, demo_engine, serve_listener_heads};
 
 use reflexer_vessel as vessel;
@@ -46,8 +44,7 @@ use std::sync::{Arc, Mutex};
 const TETRIS_V3_FIT_DIGEST: &str =
     "8a1d76a05527468c5a9068b4b919685ea06a5020d3e7ca81a52d5477eb8d6032";
 const LANES_HEAD_PREFIX: &str = "7d3f1d8e";
-const FLAPPY_HEAD_FULL: &str =
-    "c93d36dc79c0490334c20353ce5d6479eaee3448b686ac057f8a4ad4b98ae3c5";
+const FLAPPY_HEAD_FULL: &str = "c93d36dc79c0490334c20353ce5d6479eaee3448b686ac057f8a4ad4b98ae3c5";
 
 const TETRIS_FIXTURE: &str = include_str!("../assets/game_heads/tetris_oracle_laya_en_v3.jsonl");
 const LANES_FIXTURE: &str = include_str!("../assets/game_heads/lanes_oracle_laya_en_v1.jsonl");
@@ -162,8 +159,15 @@ fn the_mint_refuses_drifted_fixtures_before_fitting() {
     let bad = std::env::temp_dir().join(format!("wave3_bad_fixtures_{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&bad);
     std::fs::create_dir_all(&bad).unwrap();
-    std::fs::write(bad.join("tetris_oracle_laya_en_v3.jsonl"), "{\"drifted\": true}\n").unwrap();
-    for f in ["lanes_oracle_laya_en_v1.jsonl", "flappy_oracle_laya_en_v3.jsonl"] {
+    std::fs::write(
+        bad.join("tetris_oracle_laya_en_v3.jsonl"),
+        "{\"drifted\": true}\n",
+    )
+    .unwrap();
+    for f in [
+        "lanes_oracle_laya_en_v1.jsonl",
+        "flappy_oracle_laya_en_v3.jsonl",
+    ] {
         std::fs::copy(fixtures.join(f), bad.join(f)).unwrap();
     }
     let out = std::env::temp_dir().join(format!("wave3_bad_out_{}", std::process::id()));
@@ -181,11 +185,17 @@ fn the_mint_refuses_drifted_fixtures_before_fitting() {
 fn the_mint_is_deterministic_and_the_pins_hold() {
     let (dir, report) = mint_into("det_a");
     let (dir2, report2) = mint_into("det_b");
-    assert_eq!(report, report2, "same fixtures + key + version → same report");
+    assert_eq!(
+        report, report2,
+        "same fixtures + key + version → same report"
+    );
     for file in HEAD_VESSEL_FILES {
         let a = std::fs::read(dir.join(file)).unwrap();
         let b = std::fs::read(dir2.join(file)).unwrap();
-        assert_eq!(a, b, "{file}: minting is deterministic (byte-identical vessels)");
+        assert_eq!(
+            a, b,
+            "{file}: minting is deterministic (byte-identical vessels)"
+        );
     }
     // Every report row carries BOTH pins: the head digest (weights) and
     // the vessel commitment (signed region).
@@ -358,7 +368,10 @@ fn a_missing_lane_is_absent_others_still_serve() {
     let fitted = GameHeads::build(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE);
     let reqs = gate_requests(&fitted);
     assert!(heads.respond(&reqs[0]).is_some(), "tetris still serves");
-    assert!(heads.respond(&reqs[1]).is_none(), "the absent lanes fall through");
+    assert!(
+        heads.respond(&reqs[1]).is_none(),
+        "the absent lanes fall through"
+    );
     assert!(heads.respond(&reqs[2]).is_some(), "flappy still serves");
     let _ = std::fs::remove_dir_all(&dir);
 }
@@ -369,7 +382,10 @@ fn the_absent_posture_answers_none_and_the_loud_line_names_the_mint() {
     assert!(!heads.has_tetris() && !heads.has_lanes() && !heads.has_flappy());
     let fitted = GameHeads::build(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE);
     for req in gate_requests(&fitted) {
-        assert!(heads.respond(&req).is_none(), "an absent lane never answers");
+        assert!(
+            heads.respond(&req).is_none(),
+            "an absent lane never answers"
+        );
     }
     let msg = absent_heads_message("RIIR_REFLEX_HEADS_DIR");
     assert!(msg.contains("RIIR_REFLEX_HEADS_DIR"), "{msg}");

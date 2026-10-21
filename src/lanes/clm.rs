@@ -38,10 +38,10 @@
 use std::time::{Duration, Instant};
 
 use katgpt_core::decision_wire::{
-    Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Outcome, Question,
-    QuestionKind, Routing,
+    Answer, Calibration, DecisionRequest, DecisionResponse, Lane, Outcome, Question, QuestionKind,
+    Routing,
 };
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::lanes::http_mini::{self, HttpReply, LaneHttpError};
 
@@ -82,7 +82,11 @@ fn to_text_indent(x: &Value, indent: usize) -> String {
                 })
                 .collect();
             // Top-level fields blank-line separated; nested ones single-newline.
-            if indent == 0 { parts.join("\n\n") } else { parts.join("\n") }
+            if indent == 0 {
+                parts.join("\n\n")
+            } else {
+                parts.join("\n")
+            }
         }
         Value::Array(items) => {
             let pad = " ".repeat(indent);
@@ -383,7 +387,10 @@ pub fn map_response(req: &DecisionRequest, body: &Value) -> Result<DecisionRespo
                     .ok_or_else(|| ClmError(format!("noul answer {} missing `noul`", q.id)))?;
                 let p = p as f32;
                 if !(0.0..=1.0).contains(&p) {
-                    return err(format!("noul answer {} probability {p} outside [0, 1]", q.id));
+                    return err(format!(
+                        "noul answer {} probability {p} outside [0, 1]",
+                        q.id
+                    ));
                 }
                 Answer {
                     question_id: q.id.clone(),
@@ -454,7 +461,9 @@ pub fn map_response(req: &DecisionRequest, body: &Value) -> Result<DecisionRespo
         answers: out,
         routing: Routing {
             lane: Lane::Clm,
-            reason: Some(format!("external comparison lane ({DEFAULT_MODEL} over /v1/systemone)")),
+            reason: Some(format!(
+                "external comparison lane ({DEFAULT_MODEL} over /v1/systemone)"
+            )),
         },
         calibration: Calibration::none(),
     };
@@ -514,7 +523,11 @@ impl ClmLane {
         Self {
             host,
             port,
-            path: if path == "/" { "/v1/systemone".into() } else { path },
+            path: if path == "/" {
+                "/v1/systemone".into()
+            } else {
+                path
+            },
             timeout: Duration::from_secs(120),
         }
     }
@@ -603,7 +616,11 @@ mod tests {
             ("bool_false", Value::Bool(false), "false"),
             ("int", json!(42), "42"),
             ("int_neg", json!(-7), "-7"),
-            ("float", serde_json::from_str::<Value>("3.14").unwrap(), "3.14"),
+            (
+                "float",
+                serde_json::from_str::<Value>("3.14").unwrap(),
+                "3.14",
+            ),
             ("float_integral", json!(1.0), "1.0"),
             ("float_zero", json!(0.0), "0.0"),
             ("float_neg_zero", json!(-0.0), "-0.0"),
@@ -616,11 +633,18 @@ mod tests {
             ("float_pi_long", json!(0.1 + 0.2), "0.30000000000000004"),
             ("empty_dict", json!({}), ""),
             ("empty_list", json!([]), ""),
-            ("flat_obj", obj(&[("a", json!(1)), ("b", s("x"))]), "a: 1\n\nb: x"),
+            (
+                "flat_obj",
+                obj(&[("a", json!(1)), ("b", s("x"))]),
+                "a: 1\n\nb: x",
+            ),
             (
                 "nested_obj",
                 obj(&[
-                    ("user", obj(&[("name", s("Bo")), ("tags", json!(["a", "b"]))])),
+                    (
+                        "user",
+                        obj(&[("name", s("Bo")), ("tags", json!(["a", "b"]))]),
+                    ),
                     ("n", json!(3)),
                 ]),
                 "user:\n  name: Bo\n  tags:\n    - a\n    - b\n\nn: 3",
@@ -630,7 +654,11 @@ mod tests {
                 json!([{"k": 1}, {"k": 2}]),
                 "-\n  k: 1\n-\n  k: 2",
             ),
-            ("empty_containers", obj(&[("e", json!({})), ("f", json!([]))]), "e: \n\nf: "),
+            (
+                "empty_containers",
+                obj(&[("e", json!({})), ("f", json!([]))]),
+                "e: \n\nf: ",
+            ),
             (
                 "unicode",
                 obj(&[("name", s("café")), ("city", s("กรุงเทพ"))]),
@@ -659,17 +687,40 @@ mod tests {
         ];
         for (name, input, want) in cases {
             let got = to_text(&input);
-            assert_eq!(got, want, "to_text golden `{name}` drifted from the reference");
+            assert_eq!(
+                got, want,
+                "to_text golden `{name}` drifted from the reference"
+            );
         }
     }
 
     #[test]
     fn state_text_matches_the_reference_goldens() {
         let cases: Vec<(&str, Value, Value, &str)> = vec![
-            ("both", obj(&[("t", s("ctx"))]), s("Is it fine?"), "t: ctx\n\nIs it fine?"),
-            ("str_both", s("plain context"), s("Is it fine?"), "plain context\n\nIs it fine?"),
-            ("empty_state", Value::Null, s("Only the question"), "Only the question"),
-            ("empty_ins", s("Only the context"), s(""), "Only the context"),
+            (
+                "both",
+                obj(&[("t", s("ctx"))]),
+                s("Is it fine?"),
+                "t: ctx\n\nIs it fine?",
+            ),
+            (
+                "str_both",
+                s("plain context"),
+                s("Is it fine?"),
+                "plain context\n\nIs it fine?",
+            ),
+            (
+                "empty_state",
+                Value::Null,
+                s("Only the question"),
+                "Only the question",
+            ),
+            (
+                "empty_ins",
+                s("Only the context"),
+                s(""),
+                "Only the context",
+            ),
             ("both_empty", s(""), s(""), ""),
             (
                 "ws_strip",
@@ -680,7 +731,10 @@ mod tests {
         ];
         for (name, st, ins, want) in cases {
             let got = state_text(&st, &ins);
-            assert_eq!(got, want, "state_text golden `{name}` drifted from the reference");
+            assert_eq!(
+                got, want,
+                "state_text golden `{name}` drifted from the reference"
+            );
         }
     }
 
@@ -698,7 +752,11 @@ mod tests {
     }
 
     fn score(id: &str, levels: &[&str]) -> Question {
-        Question::score(id, "rate", levels.iter().map(|o| (*o).to_string()).collect())
+        Question::score(
+            id,
+            "rate",
+            levels.iter().map(|o| (*o).to_string()).collect(),
+        )
     }
 
     #[test]
@@ -851,7 +909,10 @@ mod tests {
         assert!(map_response(&req, &body).is_err(), "p > 1 must fail");
         let mut body = golden_response_body();
         body["answers"].as_object_mut().unwrap().remove("s1");
-        assert!(map_response(&req, &body).is_err(), "missing answer must fail");
+        assert!(
+            map_response(&req, &body).is_err(),
+            "missing answer must fail"
+        );
     }
 
     #[test]
@@ -1004,7 +1065,9 @@ mod tests {
                 .expect("respond");
         });
         let lane = ClmLane::from_url(&format!("http://127.0.0.1:{port}"));
-        let err = lane.decide(&golden_request()).expect_err("422 must be loud");
+        let err = lane
+            .decide(&golden_request())
+            .expect_err("422 must be loud");
         assert!(err.0.contains("422"), "unexpected error: {err}");
     }
 }

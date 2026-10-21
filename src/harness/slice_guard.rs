@@ -669,7 +669,9 @@ mod tests {
                 .collect::<Vec<_>>(),
         );
         let one_label = vec!["a".to_string()];
-        let f2 = audit_envelopes("sst5", &one_label, &test, &cal, &big_pool, 2, &label_of, true);
+        let f2 = audit_envelopes(
+            "sst5", &one_label, &test, &cal, &big_pool, 2, &label_of, true,
+        );
         assert!(!f2.violations.iter().any(|v| v.contains("floor")));
     }
 
@@ -696,10 +698,18 @@ mod tests {
             assert!(p.test_digest.starts_with("fnv1a64-"));
             assert!(p.cal_digest.starts_with("fnv1a64-"));
             assert!(p.pool_digest.starts_with("fnv1a64-"));
-            assert!(p.reason.contains("removal") || p.reason.contains("re-baseline") || p.reason.contains("owner"),
-                "pin for {} must state its removal condition", p.suite);
+            assert!(
+                p.reason.contains("removal")
+                    || p.reason.contains("re-baseline")
+                    || p.reason.contains("owner"),
+                "pin for {} must state its removal condition",
+                p.suite
+            );
             // Pins are unique per suite (one accepted dirty state each).
-            let dups = SliceFacts::KNOWN_DIRTY.iter().filter(|q| q.suite == p.suite).count();
+            let dups = SliceFacts::KNOWN_DIRTY
+                .iter()
+                .filter(|q| q.suite == p.suite)
+                .count();
             assert_eq!(dups, 1, "duplicate pins for suite {}", p.suite);
         }
     }

@@ -116,7 +116,9 @@ impl NbRidge {
     /// Debug dump: class `d`'s ratio column over the selected features.
     #[must_use]
     pub fn ratios_dbg(&self, d: usize) -> Vec<f32> {
-        (0..self.feats.len()).map(|i| self.ratios[i * self.n_dom + d]).collect()
+        (0..self.feats.len())
+            .map(|i| self.ratios[i * self.n_dom + d])
+            .collect()
     }
 
     /// Debug dump: class `d`'s weight row (features + bias).
@@ -243,8 +245,12 @@ pub fn fit(domains: &[&[String]], lambda: f32) -> NbRidge {
         doc_count,
         n_dom
     );
-    let fpos: std::collections::HashMap<u32, usize> =
-        order.iter().copied().enumerate().map(|(i, w)| (w, i)).collect();
+    let fpos: std::collections::HashMap<u32, usize> = order
+        .iter()
+        .copied()
+        .enumerate()
+        .map(|(i, w)| (w, i))
+        .collect();
 
     // Per-class ratios over the selected features (flat k × N) — the
     // probe's R formula: token counts in, α·V out-of-vocabulary mass,
@@ -264,8 +270,7 @@ pub fn fit(domains: &[&[String]], lambda: f32) -> NbRidge {
         let nout = doc_count as f32 + av;
         for (i, &w) in order.iter().enumerate() {
             let cin = tok_cnt[j][w as usize] as f32 + alpha;
-            let cout = (glob_cnt[w as usize] as u64 - tok_cnt[j][w as usize] as u64) as f32
-                + alpha;
+            let cout = (glob_cnt[w as usize] as u64 - tok_cnt[j][w as usize] as u64) as f32 + alpha;
             let r = (cin / nin).ln() - (cout / nout).ln();
             assert!(
                 r.is_finite(),
@@ -370,11 +375,14 @@ pub fn fit(domains: &[&[String]], lambda: f32) -> NbRidge {
             temp: 1.0,
         };
         for row in all_rows.into_iter().step_by(step) {
-        for (d, slot) in scratch_scores.iter_mut().enumerate() {
-            *slot = probe.in_score(d, row);
-        }
+            for (d, slot) in scratch_scores.iter_mut().enumerate() {
+                *slot = probe.in_score(d, row);
+            }
             let lo = scratch_scores.iter().cloned().fold(f32::INFINITY, f32::min);
-            let hi = scratch_scores.iter().cloned().fold(f32::NEG_INFINITY, f32::max);
+            let hi = scratch_scores
+                .iter()
+                .cloned()
+                .fold(f32::NEG_INFINITY, f32::max);
             temp_acc += (hi - lo) as f64;
             temp_n += 1;
         }
@@ -418,7 +426,11 @@ mod tests {
         let r = fit(&refs, 1.0);
         assert_eq!(r.len(), 2);
         let mut tok = Vec::new();
-        hashed_tokens_into(b"arrived broken terrible quality", crate::nb_scope::NB_VOCAB, &mut tok);
+        hashed_tokens_into(
+            b"arrived broken terrible quality",
+            crate::nb_scope::NB_VOCAB,
+            &mut tok,
+        );
         let s_good = r.in_score(0, &tok);
         let s_bad = r.in_score(1, &tok);
         assert!(

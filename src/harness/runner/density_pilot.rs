@@ -47,11 +47,10 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
-    git_sha, hostname_refusing_unknown, iso8601_utc, prepare,
-    synth::{plan_suite, synth_suites, SynthOptions},
-    RunOptions,
+    RunOptions, git_sha, hostname_refusing_unknown, iso8601_utc, prepare,
+    synth::{SynthOptions, plan_suite, synth_suites},
 };
-use crate::embed::{Embedder, EMBED_DIM};
+use crate::embed::{EMBED_DIM, Embedder};
 
 // ── the pure scoring core (fixture-testable, no I/O) ─────────────────────
 
@@ -82,7 +81,12 @@ impl LabelKernel {
     /// per-candidate allocation: the pilot scores ~10⁵ candidates).
     /// Parallel arrays (`embs` + `srcs`) — the pilot's chunk buffer owns
     /// its embeddings, no cross-borrows.
-    fn cand_delta(&self, pool: &[[f32; EMBED_DIM]], embs: &[[f32; EMBED_DIM]], srcs: &[usize]) -> Vec<f64> {
+    fn cand_delta(
+        &self,
+        pool: &[[f32; EMBED_DIM]],
+        embs: &[[f32; EMBED_DIM]],
+        srcs: &[usize],
+    ) -> Vec<f64> {
         debug_assert_eq!(embs.len(), srcs.len());
         let n = pool.len();
         let ln_n = (n as f64).ln();
@@ -530,9 +534,8 @@ fn pilot_one(
             quantile_sorted(&mut ctrl_q, 0.90),
         );
         let n_cand = cand_delta.len();
-        let accept_at = |eps: f64| -> usize {
-            cand_delta.iter().filter(|&&d| d.abs() <= eps).count()
-        };
+        let accept_at =
+            |eps: f64| -> usize { cand_delta.iter().filter(|&&d| d.abs() <= eps).count() };
         let (a50, a75, a90) = (accept_at(e50), accept_at(e75), accept_at(e90));
         let ascent = cand_delta.iter().filter(|&&d| d > 0.0).count();
         let mut delta_q = cand_delta.clone();
@@ -547,7 +550,11 @@ fn pilot_one(
         pooled_accept[2] += a90;
         pooled_total += n_cand;
         pooled_ascent += ascent;
-        let dev = if e50 > 0.0 { dmed.abs() / e50 } else { f64::INFINITY };
+        let dev = if e50 > 0.0 {
+            dmed.abs() / e50
+        } else {
+            f64::INFINITY
+        };
         dev_ratio_wsum += dev * n_cand as f64;
 
         per_label.push(DensityPilotLabel {
@@ -755,8 +762,14 @@ mod tests {
         let near_emb = near(pool[0], pool[1]);
         let foreign = unit(50); // orthogonal to the base AND every perturbation
         let cands: Vec<PilotCand<'_>> = vec![
-            PilotCand { emb: &near_emb, src_local: 0 },
-            PilotCand { emb: &foreign, src_local: 0 },
+            PilotCand {
+                emb: &near_emb,
+                src_local: 0,
+            },
+            PilotCand {
+                emb: &foreign,
+                src_local: 0,
+            },
         ];
         let s = score_label(&pool, &cands);
         let d_near = s.cand_delta[0].abs();
@@ -782,8 +795,14 @@ mod tests {
         let a = unit(2);
         let b = near(unit(1), unit(2));
         let cands: Vec<PilotCand<'_>> = vec![
-            PilotCand { emb: &a, src_local: 0 },
-            PilotCand { emb: &b, src_local: 1 },
+            PilotCand {
+                emb: &a,
+                src_local: 0,
+            },
+            PilotCand {
+                emb: &b,
+                src_local: 1,
+            },
         ];
         let s1 = score_label(&pool, &cands);
         let s2 = score_label(&pool, &cands);

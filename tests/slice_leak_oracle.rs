@@ -23,7 +23,7 @@ use riir_reflex::harness::slice_leak::{
     LeakClass, LeakCounts, LeakParams, QueryScratch, ShingleIndex, eval_case_text, leak_counts,
     scan_eval,
 };
-use riir_reflex::harness::suites as suites;
+use riir_reflex::harness::suites;
 use riir_reflex::harness::suites::train_docs;
 use serde_json::Value;
 
@@ -443,10 +443,7 @@ fn t3_runner_wiring_reproduces_the_probe_over_built_cases() {
         // registry posture) is the bound arm below.
         let cases = build_suite(suite, &test_rows, 0)
             .unwrap_or_else(|| panic!("{suite}: no builder — the wiring cannot scan it"));
-        let texts: Option<Vec<String>> = cases
-            .iter()
-            .map(|c| eval_case_text(suite, c))
-            .collect();
+        let texts: Option<Vec<String>> = cases.iter().map(|c| eval_case_text(suite, c)).collect();
         let texts = texts
             .unwrap_or_else(|| panic!("{suite}: an eval case's dataset text was not recoverable"));
         assert_eq!(
@@ -475,7 +472,11 @@ fn t3_runner_wiring_reproduces_the_probe_over_built_cases() {
             scan.near, want.near,
             "{suite}: the wiring's NEAR count disagrees with the probe"
         );
-        assert_eq!(scan.flags.len(), cases.len(), "{suite}: flag/case mis-align");
+        assert_eq!(
+            scan.flags.len(),
+            cases.len(),
+            "{suite}: flag/case mis-align"
+        );
         #[cfg(not(debug_assertions))]
         assert!(
             dt.as_secs_f64() <= 1.0,
@@ -516,8 +517,8 @@ fn t3_registry_cap_keeps_the_report_at_or_below_the_probe_bound() {
         .collect();
     let train_docs_v = train_docs(&train_rows, "ag_news");
     let refs: Vec<&str> = train_docs_v.iter().map(|d| d.text.as_str()).collect();
-    let scan = scan_eval(&refs, &texts, LeakParams::default())
-        .expect("ag_news scan sides are non-empty");
+    let scan =
+        scan_eval(&refs, &texts, LeakParams::default()).expect("ag_news scan sides are non-empty");
     assert!(
         scan.exact <= want.exact,
         "runner exact {} > probe bound {}",

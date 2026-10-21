@@ -51,9 +51,9 @@
 
 use super::*;
 use crate::harness::permutation::{
+    CaseSpread, ChoiceOracle, GATE_MEDIAN_SWING_PT, OrderingAnswer, PROBE_SEED, SpreadVerdict,
     canary_case, case_spread, label_space_probs, perm_orderings, permuted_case, slot_seed,
-    spread_stats, CaseSpread, ChoiceOracle, OrderingAnswer, PROBE_SEED, SpreadVerdict,
-    GATE_MEDIAN_SWING_PT,
+    spread_stats,
 };
 
 /// Orderings per slot, INCLUDING the identity (default 5 = identity + 4
@@ -248,9 +248,10 @@ impl<const N: usize> ChoiceOracle for ModellessOracle<'_, N> {
             .engine
             .decide_with(&req, &mut self.sc)
             .map_err(|e| format!("engine decide ({}): {e}", case.id))?;
-        let ans = resp.answers.first().ok_or_else(|| {
-            format!("engine decide ({}): no answers in response", case.id)
-        })?;
+        let ans = resp
+            .answers
+            .first()
+            .ok_or_else(|| format!("engine decide ({}): no answers in response", case.id))?;
         let mut probs = Vec::with_capacity(ans.probabilities.len());
         let pick = answer_probs_pick(QKind::Choice, ans, &mut probs);
         Ok(OrderingAnswer { probs, pick })
@@ -365,9 +366,9 @@ impl ChoiceOracle for LayaOracle {
     fn answer(&mut self, case: &SuiteCase) -> Result<OrderingAnswer, String> {
         match self.agent.system_one(&case.state, &case_questions(case)) {
             Ok(answers) => {
-                let ans = answers.first().ok_or_else(|| {
-                    format!("laya ({}): no answers in response", case.id)
-                })?;
+                let ans = answers
+                    .first()
+                    .ok_or_else(|| format!("laya ({}): no answers in response", case.id))?;
                 // laya_prob_pick reads the option keys from the PERMUTED
                 // question — the answer maps into presented order exactly
                 // like every other lane (the ONE rendering law).
@@ -376,9 +377,9 @@ impl ChoiceOracle for LayaOracle {
             }
             // Bucket limits are STATE-side (ordering-independent): the
             // caller skips the whole slot named.
-            Err(crate::laya::LayaError::Bucket { seq, max, .. }) => Err(format!(
-                "bucket: laya seq {seq} > max bucket {max}"
-            )),
+            Err(crate::laya::LayaError::Bucket { seq, max, .. }) => {
+                Err(format!("bucket: laya seq {seq} > max bucket {max}"))
+            }
             Err(e) => Err(format!("laya: {e}")),
         }
     }
@@ -493,8 +494,12 @@ fn probe_lane(
     let (canary_spread, canary_invariant) =
         match answer_slot(oracle, canary, 0, k, run.control, skips)? {
             Some(pair) => pair,
-            None => return Err("canary: bucket-limited (unexpected — the canary's ".to_string()
-                + "state is under every backend's limits)"),
+            None => {
+                return Err(
+                    "canary: bucket-limited (unexpected — the canary's ".to_string()
+                        + "state is under every backend's limits)",
+                );
+            }
         };
     let mut invariant = canary_invariant;
     let mut spreads: Vec<CaseSpread> = Vec::with_capacity(slots.len());
@@ -697,8 +702,14 @@ fn perm_modelless<const N: usize>(
         distance_threshold,
         ..default_cfg
     };
-    let (mut engine, fallbacks) =
-        build_engine_with::<N>(spec.name, &prepared.train, &prepared.labels, effective_cap, cfg, &[])?;
+    let (mut engine, fallbacks) = build_engine_with::<N>(
+        spec.name,
+        &prepared.train,
+        &prepared.labels,
+        effective_cap,
+        cfg,
+        &[],
+    )?;
     if !fallbacks.is_empty() {
         eprintln!(
             "  [issue-039 corpus guard] {}: {} option label(s) with NO train docs \
@@ -832,8 +843,8 @@ fn basis_cert_suite(
     skips: &mut Vec<String>,
 ) -> Option<BasisCertLane> {
     use crate::harness::basis_cert::{
-        certify_with_directions, render_presentation, CertPair, PairFamily, PresentationQuestion,
-        CERT_DIM, WHITEN_POP_CAP,
+        CERT_DIM, CertPair, PairFamily, PresentationQuestion, WHITEN_POP_CAP,
+        certify_with_directions, render_presentation,
     };
     // The certificate's own choice-slot sample (all choice questions of
     // each sampled case, the probe's slot shape).
@@ -861,30 +872,29 @@ fn basis_cert_suite(
         })
         .collect();
     let embed = crate::embed::Embedder;
-    let embed_of = |q: &crate::harness::suites::SuiteQuestion,
-                        state: &str|
-     -> Option<[f32; CERT_DIM]> {
-        let obj = q.criteria.as_object()?;
-        let labels: Vec<String> = obj.keys().cloned().collect();
-        let descs: Vec<String> = labels
-            .iter()
-            .map(|l| {
-                obj.get(l)
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string()
-            })
-            .collect();
-        let text = render_presentation(&PresentationQuestion {
-            state,
-            instructions: q.instructions.as_str(),
-            labels: &labels,
-            descs: &descs,
-        });
-        let mut v = [0.0f32; CERT_DIM];
-        embed.embed_into(text.as_bytes(), &mut v);
-        Some(v)
-    };
+    let embed_of =
+        |q: &crate::harness::suites::SuiteQuestion, state: &str| -> Option<[f32; CERT_DIM]> {
+            let obj = q.criteria.as_object()?;
+            let labels: Vec<String> = obj.keys().cloned().collect();
+            let descs: Vec<String> = labels
+                .iter()
+                .map(|l| {
+                    obj.get(l)
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string()
+                })
+                .collect();
+            let text = render_presentation(&PresentationQuestion {
+                state,
+                instructions: q.instructions.as_str(),
+                labels: &labels,
+                descs: &descs,
+            });
+            let mut v = [0.0f32; CERT_DIM];
+            embed.embed_into(text.as_bytes(), &mut v);
+            Some(v)
+        };
 
     // Per-slot: identity embed + K−1 ordering Δs. Even slot → fit half,
     // odd → holdout; the cross-family pairs (casing + rename) from the
@@ -946,7 +956,9 @@ fn basis_cert_suite(
         // DIFFERENT presentation change; low residual = the families are
         // distinct).
         if slot_i % 2 == 1 {
-            let Some(obj) = q.criteria.as_object() else { continue };
+            let Some(obj) = q.criteria.as_object() else {
+                continue;
+            };
             let labels: Vec<String> = obj.keys().cloned().collect();
             let descs: Vec<String> = labels
                 .iter()
@@ -1013,9 +1025,7 @@ fn basis_cert_suite(
         .map(|p| p.delta.iter().map(|v| v * v).sum::<f64>().sqrt())
         .collect();
     norms.sort_by(|a, b| a.total_cmp(b));
-    let median_delta_norm = (!norms.is_empty()).then(|| {
-        norms[norms.len() / 2]
-    });
+    let median_delta_norm = (!norms.is_empty()).then(|| norms[norms.len() / 2]);
     let (mut rep, directions) = certify_with_directions(&fit, &hold, &cross, &ident_pop);
     rep.lane = "hashed-feature embed (presentation rendering)".to_string();
     eprintln!(
@@ -1150,11 +1160,7 @@ fn basis_perturb_suite<const N: usize>(
     // delta rungs are fractions of the median raw fit-pair delta norm
     // (the amplitude a REAL ordering flip moves the embedding by).
     let mut rung_defs: Vec<(String, f64)> = Vec::with_capacity(7);
-    for (label, c) in [
-        ("fp_1x", 1.0f64),
-        ("fp_16x", 16.0),
-        ("fp_256x", 256.0),
-    ] {
+    for (label, c) in [("fp_1x", 1.0f64), ("fp_16x", 16.0), ("fp_256x", 256.0)] {
         rung_defs.push((label.to_string(), c * f64::from(f32::EPSILON)));
     }
     for (label, f) in [
@@ -1178,7 +1184,11 @@ fn basis_perturb_suite<const N: usize>(
         .collect();
     let mut sc = Scratch::<EMBED_DIM>::new();
     let mut n_route_active = 0usize;
-    let domain_names: Vec<String> = engine.domain_names().iter().map(|s| s.to_string()).collect();
+    let domain_names: Vec<String> = engine
+        .domain_names()
+        .iter()
+        .map(|s| s.to_string())
+        .collect();
     for &si in sampled.iter() {
         let ci = choice_cases[si];
         let case = &prepared.suite.cases[ci];
@@ -1316,10 +1326,7 @@ fn perm_suite(
             };
         }
     };
-    let slice_summary = prepared
-        .slices
-        .as_ref()
-        .map(|s| s.summary_line());
+    let slice_summary = prepared.slices.as_ref().map(|s| s.summary_line());
     // Choice slots: the sampled case indices × their choice questions.
     let choice_cases: Vec<usize> = prepared
         .suite
@@ -1615,7 +1622,12 @@ pub fn run_perm_probe(
     }
     let red_cells: usize = suites
         .iter()
-        .map(|s| s.lanes.iter().filter(|l| l.verdict == SpreadVerdict::Red).count())
+        .map(|s| {
+            s.lanes
+                .iter()
+                .filter(|l| l.verdict == SpreadVerdict::Red)
+                .count()
+        })
         .sum();
     Ok(PermProbeOutput {
         meta: PermProbeMeta {
@@ -1706,7 +1718,9 @@ pub fn render_perm_probe_markdown(out: &PermProbeOutput) -> String {
     ] {
         s.push_str(&format!("- {name}: {rule}\n"));
     }
-    s.push_str("\n| suite | lane | model | n | median pt | max pt | flips | rate | control | verdict |\n");
+    s.push_str(
+        "\n| suite | lane | model | n | median pt | max pt | flips | rate | control | verdict |\n",
+    );
     s.push_str("|---|---|---|---|---|---|---|---|---|---|\n");
     for suite in &out.suites {
         if suite.lanes.is_empty() {
@@ -1974,16 +1988,9 @@ mod tests {
         assert!(skips.is_empty());
 
         let mut skips2 = Vec::new();
-        let (spread2, inv2) = answer_slot(
-            &mut PositionOracle,
-            &canary,
-            0,
-            5,
-            true,
-            &mut skips2,
-        )
-        .expect("position oracle answers")
-        .expect("no bucket skip for the canary");
+        let (spread2, inv2) = answer_slot(&mut PositionOracle, &canary, 0, 5, true, &mut skips2)
+            .expect("position oracle answers")
+            .expect("no bucket skip for the canary");
         assert!(!inv2, "a position reader must FAIL the control's assert");
         assert!(spread2.flipped);
     }

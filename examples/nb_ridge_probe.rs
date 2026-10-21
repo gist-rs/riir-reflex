@@ -26,14 +26,22 @@ fn main() {
     let refs: Vec<&[String]> = sets.iter().map(|s| s.as_slice()).collect();
     let t0 = std::time::Instant::now();
     let ridge = fit(&refs, 10.0);
-    println!("fit: {:.1}s, k={}, temp={:.4}", t0.elapsed().as_secs_f32(), ridge.feats_len(), ridge.temp());
+    println!(
+        "fit: {:.1}s, k={}, temp={:.4}",
+        t0.elapsed().as_secs_f32(),
+        ridge.feats_len(),
+        ridge.temp()
+    );
     if std::env::var_os("RIDGE_DUMP").is_some() {
         // Same quantities the numpy replica prints, for a direct diff.
         let mut tok = Vec::new();
         hashed_tokens_into(seat.train[0].text.as_bytes(), NB_VOCAB, &mut tok);
         tok.sort_unstable();
         tok.dedup();
-        let hits: Vec<usize> = tok.iter().filter_map(|w| ridge.feats_binary_search(*w)).collect();
+        let hits: Vec<usize> = tok
+            .iter()
+            .filter_map(|w| ridge.feats_binary_search(*w))
+            .collect();
         println!(
             "dump: doc0 bytes={} tok={} hits={} feats[0..5]={:?} ratios_c0[0..5]={:?} w_c0[0..5]={:?} w_c0_bias={}",
             seat.train[0].text.len(),
@@ -62,7 +70,9 @@ fn main() {
             };
             // Option → domain: by name first, else the k == N index rule.
             let doms: Vec<Option<usize>> = if keys.iter().all(|k| seat.labels.contains(k)) {
-                keys.iter().map(|k| seat.labels.iter().position(|l| l == k)).collect()
+                keys.iter()
+                    .map(|k| seat.labels.iter().position(|l| l == k))
+                    .collect()
             } else if keys.len() == seat.labels.len() {
                 (0..keys.len()).map(Some).collect()
             } else {
@@ -86,13 +96,16 @@ fn main() {
             }
         }
     }
-    println!("pure-ridge argmax acc: {correct}/{n} = {:.4}", correct as f64 / n.max(1) as f64);
+    println!(
+        "pure-ridge argmax acc: {correct}/{n} = {:.4}",
+        correct as f64 / n.max(1) as f64
+    );
     let _ = HashSet::<u32>::new();
 }
 
-fn seat_question_index(
-    case: &riir_reflex::harness::suites::SuiteCase,
-    qid: &str,
-) -> usize {
-    case.questions.iter().position(|q| q.qid == qid).unwrap_or(0)
+fn seat_question_index(case: &riir_reflex::harness::suites::SuiteCase, qid: &str) -> usize {
+    case.questions
+        .iter()
+        .position(|q| q.qid == qid)
+        .unwrap_or(0)
 }

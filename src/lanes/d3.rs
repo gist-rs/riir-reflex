@@ -91,7 +91,7 @@ use serde_json::Value;
 
 use crate::harness::suites::SuiteCase;
 use crate::lanes::http_mini;
-use crate::lanes::pplx::{build_body, input_tokens_of, map_answers, AnswerTriple};
+use crate::lanes::pplx::{AnswerTriple, build_body, input_tokens_of, map_answers};
 
 /// The env var naming the serve base URL.
 pub const SERVE_URL_ENV: &str = "D3_SERVE_URL";
@@ -175,8 +175,7 @@ impl D3Lane {
                 String::from_utf8_lossy(&body)
             ));
         }
-        let parsed: Value =
-            serde_json::from_slice(&body).map_err(|e| format!("d3 health: {e}"))?;
+        let parsed: Value = serde_json::from_slice(&body).map_err(|e| format!("d3 health: {e}"))?;
         let state = parsed.get("status").and_then(Value::as_str).unwrap_or("");
         if state != "ready" {
             return Err(format!(
@@ -212,8 +211,8 @@ impl D3Lane {
                 String::from_utf8_lossy(&raw)
             ));
         }
-        let parsed: Value = serde_json::from_slice(&raw)
-            .map_err(|e| format!("d3 response ({}): {e}", case.id))?;
+        let parsed: Value =
+            serde_json::from_slice(&raw).map_err(|e| format!("d3 response ({}): {e}", case.id))?;
         let answers = map_answers(case, &parsed)?;
         let input_tokens = input_tokens_of(&parsed).unwrap_or(0);
         Ok((answers, client_ms, input_tokens))
@@ -283,12 +282,14 @@ mod tests {
             state,
             questions: questions
                 .into_iter()
-                .map(|(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
-                    qid: qid.into(),
-                    kind,
-                    instructions: instructions.into(),
-                    criteria,
-                })
+                .map(
+                    |(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
+                        qid: qid.into(),
+                        kind,
+                        instructions: instructions.into(),
+                        criteria,
+                    },
+                )
                 .collect(),
             gold: vec![],
         }
@@ -299,55 +300,62 @@ mod tests {
     /// before replying (the macOS ECONNRESET flake the openthai stub
     /// documents), and capturing each `(request line, request body)` on a
     /// channel (the pplx stub, verbatim — one wire, many oracles).
-    fn serve(canned: String) -> (std::net::SocketAddr, std::sync::mpsc::Receiver<(String, Vec<u8>)>) {
+    fn serve(
+        canned: String,
+    ) -> (
+        std::net::SocketAddr,
+        std::sync::mpsc::Receiver<(String, Vec<u8>)>,
+    ) {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
         let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || loop {
-            let (stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let mut writer = match stream.try_clone() {
-                Ok(w) => w,
-                Err(_) => continue,
-            };
-            let mut reader = BufReader::new(stream);
-            let mut request_line = String::new();
-            if reader.read_line(&mut request_line).is_err() {
-                continue;
-            }
-            let mut content_length = 0usize;
-            let mut line = String::new();
+        std::thread::spawn(move || {
             loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim_end();
-                        if trimmed.is_empty() {
-                            break;
-                        }
-                        if let Some((k, v)) = trimmed.split_once(':')
-                            && k.eq_ignore_ascii_case("content-length")
-                        {
-                            content_length = v.trim().parse().unwrap_or(0);
+                let (stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
                         }
                     }
                 }
+                let mut body = vec![0u8; content_length];
+                if reader.read_exact(&mut body).is_err() {
+                    continue;
+                }
+                let _ = tx.send((request_line.clone(), body));
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
             }
-            let mut body = vec![0u8; content_length];
-            if reader.read_exact(&mut body).is_err() {
-                continue;
-            }
-            let _ = tx.send((request_line.clone(), body));
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                canned.len(),
-                canned
-            );
-            let _ = writer.write_all(resp.as_bytes());
-            let _ = writer.flush();
         });
         (addr, rx)
     }
@@ -421,7 +429,10 @@ mod tests {
         assert_eq!(*pick, 1);
 
         let (request_line, body) = rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
-        assert!(request_line.starts_with("POST /v1/systemone"), "{request_line}");
+        assert!(
+            request_line.starts_with("POST /v1/systemone"),
+            "{request_line}"
+        );
         let sent: Value = serde_json::from_slice(&body).unwrap();
         assert_eq!(sent.as_object().map(|o| o.len()), Some(3));
         assert_eq!(sent["questions"]["q0"]["type"], "noul");

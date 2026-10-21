@@ -59,9 +59,7 @@ pub const Z95: f64 = 1.959963984540054;
 
 /// Prefix sizes for the adaptive walk (the kernel's n_min-doubling law,
 /// 8 → 8192; the full population always rides as the last rung).
-const PREFIX_RUNGS: [u32; 11] = [
-    8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192,
-];
+const PREFIX_RUNGS: [u32; 11] = [8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192];
 
 /// The reflex-side verdict vocabulary (the wire shape for the kernel's
 /// `ProbeClass` — a Copy POD substrate type carries no serde; the mapping
@@ -236,7 +234,14 @@ pub fn certify(arm_a: &[bool], arm_b: &[bool]) -> ProbeDeltaCert {
         }
     }
     if settled_at_n.is_none() && idx < arm_a.len() {
-        feed_rung(&mut walker, arm_a, arm_b, arm_a.len() as u32, &mut idx, &mut cum);
+        feed_rung(
+            &mut walker,
+            arm_a,
+            arm_b,
+            arm_a.len() as u32,
+            &mut idx,
+            &mut cum,
+        );
     }
 
     let flips: Vec<ProbeDeltaFlip> = walker
@@ -378,9 +383,14 @@ mod tests {
         assert_eq!(f.at_n, 16);
         assert_eq!(f.from, ProbeDeltaVerdict::Undetermined);
         assert_eq!(f.to, ProbeDeltaVerdict::MovesValue);
-        assert!(f.interval_width > 0.0, "the flip carries the deciding width");
-        assert!((f.interval_width - (c.wilson_hi - c.wilson_lo)).abs() < 1e-9,
-            "the final flip's width is the full read's interval width (same counts)");
+        assert!(
+            f.interval_width > 0.0,
+            "the flip carries the deciding width"
+        );
+        assert!(
+            (f.interval_width - (c.wilson_hi - c.wilson_lo)).abs() < 1e-9,
+            "the final flip's width is the full read's interval width (same counts)"
+        );
     }
 
     #[test]
@@ -388,7 +398,10 @@ mod tests {
         let a = vec![false; 4];
         let b = vec![false; 5];
         let r = std::panic::catch_unwind(|| certify(&a, &b));
-        assert!(r.is_err(), "a length disagreement is a caller bug, never a record");
+        assert!(
+            r.is_err(),
+            "a length disagreement is a caller bug, never a record"
+        );
     }
 
     #[test]

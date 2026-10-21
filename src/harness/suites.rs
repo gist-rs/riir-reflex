@@ -256,20 +256,8 @@ pub fn build_banking77_mteb(rows_file: &Value, max_rows: usize) -> Suite {
 /// order (the Bench-128 finding). Canonical-order outputs are
 /// byte-identical (union[i] ≡ old domain i by the parity assert the
 /// prepare path kept since the fetch law).
-pub(crate) const AG_NEWS_KEYS: [&str; 4] = [
-    "world",
-    "sports",
-    "business",
-    "sci_tech",
-];
-pub(crate) const EMOTION_KEYS: [&str; 6] = [
-    "sadness",
-    "joy",
-    "love",
-    "anger",
-    "fear",
-    "surprise",
-];
+pub(crate) const AG_NEWS_KEYS: [&str; 4] = ["world", "sports", "business", "sci_tech"];
+pub(crate) const EMOTION_KEYS: [&str; 6] = ["sadness", "joy", "love", "anger", "fear", "surprise"];
 pub(crate) const XNLI_KEYS: [&str; 3] = ["entailment", "neutral", "contradiction"];
 pub(crate) const WISESIGHT_KEYS: [&str; 4] = ["pos", "neu", "neg", "q"];
 
@@ -762,9 +750,8 @@ pub fn build_wanli_en(rows_file: &Value, max_rows: usize) -> Suite {
 /// order is the same three names — verified at the port).
 pub(crate) const WINOGRANDE_JDI_KEYS: [&str; 2] = ["option1", "option2"];
 pub(crate) const HELLASWAG_JDI_KEYS: [&str; 4] = ["1", "2", "3", "4"];
-pub(crate) const MMLUPRO_JDI_LETTERS: [&str; 10] = [
-    "A", "B", "C", "D", "E", "F", "G", "H", "I", "J",
-];
+pub(crate) const MMLUPRO_JDI_LETTERS: [&str; 10] =
+    ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 
 /// Plan 012 A1 — `winogrande_jdi` (allenai/winogrande, config
 /// `winogrande_debiased`, split `validation` — 1267 rows, the labeled eval
@@ -776,7 +763,10 @@ pub(crate) const MMLUPRO_JDI_LETTERS: [&str; 10] = [
 /// (the missing-field law).
 #[must_use]
 pub fn build_winogrande_jdi(rows_file: &Value, max_rows: usize) -> Suite {
-    let keys: Vec<String> = WINOGRANDE_JDI_KEYS.iter().map(|k| (*k).to_string()).collect();
+    let keys: Vec<String> = WINOGRANDE_JDI_KEYS
+        .iter()
+        .map(|k| (*k).to_string())
+        .collect();
     let all = rows_of(rows_file);
     let mut cases = Vec::new();
     for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
@@ -829,7 +819,10 @@ pub fn build_winogrande_jdi(rows_file: &Value, max_rows: usize) -> Suite {
 /// ending, or an out-of-range label are skipped (the missing-field law).
 #[must_use]
 pub fn build_hellaswag_jdi(rows_file: &Value, max_rows: usize) -> Suite {
-    let keys: Vec<String> = HELLASWAG_JDI_KEYS.iter().map(|k| (*k).to_string()).collect();
+    let keys: Vec<String> = HELLASWAG_JDI_KEYS
+        .iter()
+        .map(|k| (*k).to_string())
+        .collect();
     let all = rows_of(rows_file);
     let mut cases = Vec::new();
     for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
@@ -850,8 +843,10 @@ pub fn build_hellaswag_jdi(rows_file: &Value, max_rows: usize) -> Suite {
         if idx >= keys.len() {
             continue;
         }
-        let descs: Vec<Option<String>> =
-            endings.iter().map(|e| e.as_str().map(str::to_string)).collect();
+        let descs: Vec<Option<String>> = endings
+            .iter()
+            .map(|e| e.as_str().map(str::to_string))
+            .collect();
         if descs.iter().any(Option::is_none) {
             continue;
         }
@@ -989,8 +984,10 @@ pub fn build_mmlupro_jdi(rows_file: &Value, max_rows: usize) -> Suite {
         let keys: Vec<String> = (0..options.len())
             .map(|i| MMLUPRO_JDI_LETTERS[i].to_string())
             .collect();
-        let descs: Vec<Option<String>> =
-            options.iter().map(|o| o.as_str().map(str::to_string)).collect();
+        let descs: Vec<Option<String>> = options
+            .iter()
+            .map(|o| o.as_str().map(str::to_string))
+            .collect();
         if descs.iter().any(Option::is_none) {
             continue;
         }
@@ -1049,10 +1046,7 @@ pub fn build_thai_wisesight(rows_file: &Value, max_rows: usize) -> Suite {
         "wisesight key consts must stay in sync"
     );
     let keys: Vec<String> = CRIT.iter().map(|(k, _)| (*k).to_string()).collect();
-    let descs: Vec<Option<String>> = CRIT
-        .iter()
-        .map(|(_, d)| Some((*d).to_string()))
-        .collect();
+    let descs: Vec<Option<String>> = CRIT.iter().map(|(_, d)| Some((*d).to_string())).collect();
     let all = rows_of(rows_file);
     let mut cases = Vec::new();
     for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
@@ -1108,9 +1102,10 @@ pub fn build_thai_sib200(rows_file: &Value, max_rows: usize) -> Suite {
         let (Some(text), Some(category)) = (row_str(row, "text"), row_str(row, "category")) else {
             continue;
         };
-        let idx = labels.iter().position(|l| l == category).unwrap_or_else(|| {
-            panic!("thai_sib200: row category {category:?} not in key set")
-        });
+        let idx = labels
+            .iter()
+            .position(|l| l == category)
+            .unwrap_or_else(|| panic!("thai_sib200: row category {category:?} not in key set"));
         cases.push(SuiteCase {
             id: format!("thai_sib200:{pos}"),
             state: json!({ "text": text }),
@@ -1340,14 +1335,7 @@ pub fn typed_gold_events(rows_file: &Value) -> Vec<(String, String, String)> {
                 continue;
             };
             let option = match kind {
-                QKind::Noul => {
-                    if answer.idx == 1 {
-                        "yes"
-                    } else {
-                        "no"
-                    }
-                    .to_string()
-                }
+                QKind::Noul => if answer.idx == 1 { "yes" } else { "no" }.to_string(),
                 QKind::Choice => {
                     let Some(crit) = qdef.get("criteria") else {
                         continue;
@@ -1409,8 +1397,12 @@ pub fn train_row_label(suite: &str, row: &Value) -> Option<String> {
         // option-key union (choice/score) and the noul-exempt branch read.
         "s1mb_choice" | "s1mb_noul" | "s1mb_score" => {
             let (Some(keys), Some(gold_idx)) = (
-                row.get("question").and_then(|q| q.get("keys")).and_then(Value::as_array),
-                row.get("question").and_then(|q| q.get("gold_idx")).and_then(Value::as_u64),
+                row.get("question")
+                    .and_then(|q| q.get("keys"))
+                    .and_then(Value::as_array),
+                row.get("question")
+                    .and_then(|q| q.get("gold_idx"))
+                    .and_then(Value::as_u64),
             ) else {
                 return None;
             };
@@ -1867,16 +1859,27 @@ pub fn train_docs(train_rows_file: &Value, suite: &str) -> Vec<TrainDoc> {
 /// converter (criteria order and target-ids order are independent in S1MB);
 /// the builder trusts the row's gold_idx — the converter's zero-skip run is
 /// the contract (26,269/26,269 mapped).
-fn build_s1mb_kind(rows_file: &Value, max_rows: usize, name: &'static str, kind_want: &str) -> Suite {
+fn build_s1mb_kind(
+    rows_file: &Value,
+    max_rows: usize,
+    name: &'static str,
+    kind_want: &str,
+) -> Suite {
     let all = rows_of(rows_file);
     let mut cases = Vec::new();
     for (pos, row) in sampled(&all, max_rows).iter().enumerate() {
         let Some(state) = row.get("state").and_then(Value::as_str) else {
             continue;
         };
-        let Some(q) = row.get("question") else { continue };
-        let Some(qid) = q.get("qid").and_then(Value::as_str) else { continue };
-        let Some(kind) = q.get("kind").and_then(Value::as_str) else { continue };
+        let Some(q) = row.get("question") else {
+            continue;
+        };
+        let Some(qid) = q.get("qid").and_then(Value::as_str) else {
+            continue;
+        };
+        let Some(kind) = q.get("kind").and_then(Value::as_str) else {
+            continue;
+        };
         if kind != kind_want {
             eprintln!("  [{name}] row {pos}: kind {kind:?} != {kind_want:?} — skipped");
             continue;
@@ -1884,8 +1887,12 @@ fn build_s1mb_kind(rows_file: &Value, max_rows: usize, name: &'static str, kind_
         let Some(instructions) = q.get("instructions").and_then(Value::as_str) else {
             continue;
         };
-        let Some(gold_idx) = q.get("gold_idx").and_then(Value::as_u64) else { continue };
-        let Some(case_id) = row.get("case_id").and_then(Value::as_str) else { continue };
+        let Some(gold_idx) = q.get("gold_idx").and_then(Value::as_u64) else {
+            continue;
+        };
+        let Some(case_id) = row.get("case_id").and_then(Value::as_str) else {
+            continue;
+        };
         let kind = match kind {
             "choice" => QKind::Choice,
             "score" => QKind::Score,
@@ -2070,7 +2077,10 @@ mod stratified_split_tests {
     /// `labels` labels, label blocks in first-appearance order.
     fn grouped_rows(labels: usize, per: usize) -> Vec<serde_json::Value> {
         (0..labels)
-            .flat_map(|l| (0..per).map(move |i| serde_json::json!({ "label": l, "text": format!("t{l}_{i}") })))
+            .flat_map(|l| {
+                (0..per)
+                    .map(move |i| serde_json::json!({ "label": l, "text": format!("t{l}_{i}") }))
+            })
             .collect()
     }
 
@@ -2081,7 +2091,15 @@ mod stratified_split_tests {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| r.get("row").unwrap().get("text").unwrap().as_str().unwrap().to_string())
+            .map(|r| {
+                r.get("row")
+                    .unwrap()
+                    .get("text")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
             .collect()
     }
 
@@ -2092,7 +2110,15 @@ mod stratified_split_tests {
             .as_array()
             .unwrap()
             .iter()
-            .map(|r| r.get("row").unwrap().get("text").unwrap().as_str().unwrap().to_string())
+            .map(|r| {
+                r.get("row")
+                    .unwrap()
+                    .get("text")
+                    .unwrap()
+                    .as_str()
+                    .unwrap()
+                    .to_string()
+            })
             .collect()
     }
 
@@ -2101,7 +2127,10 @@ mod stratified_split_tests {
         // 3 label blocks × 4 rows, budget 6 → 2 rows per label, cyclic.
         let s = stratified_split(&envelope(grouped_rows(3, 4)), "ag_news", 6);
         assert_eq!(s.n_picks, 6);
-        assert_eq!(front_texts(&s), ["t0_0", "t1_0", "t2_0", "t0_1", "t1_1", "t2_1"]);
+        assert_eq!(
+            front_texts(&s),
+            ["t0_0", "t1_0", "t2_0", "t0_1", "t1_1", "t2_1"]
+        );
     }
 
     #[test]
@@ -2117,7 +2146,10 @@ mod stratified_split_tests {
         want.sort();
         assert_eq!(all, want);
         // rest preserves original (label-grouped) order.
-        assert_eq!(rest_texts(&s), ["t0_2", "t0_3", "t1_2", "t1_3", "t2_2", "t2_3"]);
+        assert_eq!(
+            rest_texts(&s),
+            ["t0_2", "t0_3", "t1_2", "t1_3", "t2_2", "t2_3"]
+        );
     }
 
     #[test]
@@ -2207,7 +2239,10 @@ mod stratified_split_tests {
         // And it is definitively not the first-N prefix (t0..t4) unless the
         // hash order says so — assert against the trivial law explicitly.
         let first_n: Vec<String> = (0..5).map(|i| format!("t{i}")).collect();
-        assert_ne!(picked, first_n, "hash order must not coincide with file order here");
+        assert_ne!(
+            picked, first_n,
+            "hash order must not coincide with file order here"
+        );
     }
 
     /// Issue 088 adjudication (2026-10-14): the house fold's multiplier is

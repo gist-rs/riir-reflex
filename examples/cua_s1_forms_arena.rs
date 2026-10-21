@@ -162,7 +162,10 @@ fn load_rows(path: &Path, pin: &str) -> Result<Vec<Row>, String> {
             .as_u64()
             .ok_or_else(|| format!("line {i}: label"))? as usize;
         if label >= options.len() {
-            return Err(format!("line {i}: label {label} ≥ {} options", options.len()));
+            return Err(format!(
+                "line {i}: label {label} ≥ {} options",
+                options.len()
+            ));
         }
         rows.push(Row {
             context: v["context"].as_str().ok_or("context")?.to_string(),
@@ -298,9 +301,12 @@ fn run_coreml(dir: &Path, test: &[Row], idx: &[usize]) -> Result<LaneRun, String
             python.display()
         ));
     }
-    let script = std::env::var("CUA_S1_LANE_SCRIPT").unwrap_or_else(|_| "scripts/cua_s1_lane.py".into());
+    let script =
+        std::env::var("CUA_S1_LANE_SCRIPT").unwrap_or_else(|_| "scripts/cua_s1_lane.py".into());
     if !Path::new(&script).is_file() {
-        return Err(format!("lane script absent at {script} — run from the repo root"));
+        return Err(format!(
+            "lane script absent at {script} — run from the repo root"
+        ));
     }
     let mut child = Command::new(&python)
         .arg(&script)
@@ -314,9 +320,13 @@ fn run_coreml(dir: &Path, test: &[Row], idx: &[usize]) -> Result<LaneRun, String
     let mut line = String::new();
     let read = |reader: &mut BufReader<_>, line: &mut String| -> Result<Value, String> {
         line.clear();
-        let n = reader.read_line(line).map_err(|e| format!("oracle stdout: {e}"))?;
+        let n = reader
+            .read_line(line)
+            .map_err(|e| format!("oracle stdout: {e}"))?;
         if n == 0 {
-            return Err("oracle stream ended — the subprocess died; its stderr names the cause".into());
+            return Err(
+                "oracle stream ended — the subprocess died; its stderr names the cause".into(),
+            );
         }
         serde_json::from_str(line.trim()).map_err(|e| format!("oracle json: {e} ({})", line.trim()))
     };
@@ -356,14 +366,20 @@ fn run_coreml(dir: &Path, test: &[Row], idx: &[usize]) -> Result<LaneRun, String
         if k < warm.len() {
             continue;
         }
-        let pick = resp["pick"].as_u64().ok_or_else(|| format!("row {i}: no pick"))? as usize;
+        let pick = resp["pick"]
+            .as_u64()
+            .ok_or_else(|| format!("row {i}: no pick"))? as usize;
         let p_len = resp["p"].as_array().map_or(0, Vec::len);
         if p_len != r.options.len() || pick >= r.options.len() {
-            return Err(format!("row {i}: response shape {p_len}/{pick} vs {} options", r.options.len()));
+            return Err(format!(
+                "row {i}: response shape {p_len}/{pick} vs {} options",
+                r.options.len()
+            ));
         }
         run.picks.push(pick);
         run.lat_us.push(rt);
-        run.lat2_us.push(resp["predict_us"].as_f64().unwrap_or(f64::NAN));
+        run.lat2_us
+            .push(resp["predict_us"].as_f64().unwrap_or(f64::NAN));
     }
     drop(stdin);
     let _ = child.wait();
@@ -437,7 +453,10 @@ fn run_laya(test: &[Row], idx: &[usize], ckpt: &str) -> Result<LaneRun, String> 
 
 #[cfg(not(feature = "laya-riir"))]
 fn run_laya(_test: &[Row], _idx: &[usize], _ckpt: &str) -> Result<LaneRun, String> {
-    Err("this build has no laya lane — rebuild with --features laya-riir (or laya-riir-metal)".into())
+    Err(
+        "this build has no laya lane — rebuild with --features laya-riir (or laya-riir-metal)"
+            .into(),
+    )
 }
 
 // ── reporting ───────────────────────────────────────────────────────────
@@ -492,7 +511,11 @@ fn pick_hist(run: &LaneRun, test: &[Row]) -> String {
 
 fn floors(test: &[Row], idx: &[usize]) -> (f64, f64) {
     let n = idx.len().max(1) as f64;
-    let chance = idx.iter().map(|&i| 1.0 / test[i].options.len() as f64).sum::<f64>() / n;
+    let chance = idx
+        .iter()
+        .map(|&i| 1.0 / test[i].options.len() as f64)
+        .sum::<f64>()
+        / n;
     let skip = idx
         .iter()
         .filter(|&&i| test[i].options[test[i].label] == "skip")
@@ -508,7 +531,12 @@ fn lat_cells(v: &[f64]) -> (String, Value) {
     let (p50, _) = pct(&s, 0.50);
     let (p95, t95) = pct(&s, 0.95);
     let (p99, t99) = pct(&s, 0.99);
-    let cell = format!("{:.3} / {:.3} / {:.3} ms (tail {t95}/{t99})", p50 / 1e3, p95 / 1e3, p99 / 1e3);
+    let cell = format!(
+        "{:.3} / {:.3} / {:.3} ms (tail {t95}/{t99})",
+        p50 / 1e3,
+        p95 / 1e3,
+        p99 / 1e3
+    );
     let j = json!({"p50_ms": p50 / 1e3, "p95_ms": p95 / 1e3, "p99_ms": p99 / 1e3,
                    "tail_support_p95": t95, "tail_support_p99": t99, "n": s.len()});
     (cell, j)
@@ -522,7 +550,9 @@ fn main() {
             .and_then(|i| args.get(i + 1).cloned())
     };
     let num = |name: &str, default: usize| {
-        flag(name).map_or(default, |v| v.parse().unwrap_or_else(|_| fail(&format!("{name}: {v}"))))
+        flag(name).map_or(default, |v| {
+            v.parse().unwrap_or_else(|_| fail(&format!("{name}: {v}")))
+        })
     };
     let lanes = flag("--lanes").unwrap_or_else(|| "coreml,modelless".into());
     let cap = num("--cap", DEFAULT_CAP);
@@ -540,9 +570,13 @@ fn main() {
         )),
     };
     let fix = flag("--drafter-fix").unwrap_or_else(|| "off".into());
-    let fix = DrafterFix::from_spelling(&fix)
-        .unwrap_or_else(|| fail(&format!("unknown --drafter-fix {fix} (off | per_byte | ncd | shared_prefix | key_only)")));
-    let dir = std::env::var("CUA_S1_DIR").map_or_else(|_| PathBuf::from(".raw/cua-s1-forms"), PathBuf::from);
+    let fix = DrafterFix::from_spelling(&fix).unwrap_or_else(|| {
+        fail(&format!(
+            "unknown --drafter-fix {fix} (off | per_byte | ncd | shared_prefix | key_only)"
+        ))
+    });
+    let dir = std::env::var("CUA_S1_DIR")
+        .map_or_else(|_| PathBuf::from(".raw/cua-s1-forms"), PathBuf::from);
 
     let eval_path = dir.join(format!("dataset/{eval_name}.jsonl"));
     if !eval_path.is_file() {
@@ -553,7 +587,10 @@ fn main() {
     }
     let test = load_rows(&eval_path, eval_blake3).unwrap_or_else(|e| fail(&e));
     if test.len() != eval_rows {
-        fail(&format!("{eval_name}.jsonl has {} rows, pinned {eval_rows}", test.len()));
+        fail(&format!(
+            "{eval_name}.jsonl has {} rows, pinned {eval_rows}",
+            test.len()
+        ));
     }
     let span_start = box_state::capture();
 
@@ -565,7 +602,13 @@ fn main() {
             "modelless" => {
                 let train_path = dir.join("dataset/train.jsonl");
                 load_rows(&train_path, TRAIN_BLAKE3).and_then(|train| {
-                    run_modelless(&train, &test, &stride(eval_rows, num("--n-modelless", 0)), cap, fix)
+                    run_modelless(
+                        &train,
+                        &test,
+                        &stride(eval_rows, num("--n-modelless", 0)),
+                        cap,
+                        fix,
+                    )
                 })
             }
             "coreml" => run_coreml(&dir, &test, &stride(eval_rows, num("--n-coreml", 0))),
@@ -580,7 +623,11 @@ fn main() {
                     run.name.push(']');
                     run.detail = format!("{} + drafter_fix {}", run.detail, fix.as_str());
                 }
-                eprintln!("  [{lane}] {} rows in {:.1}s", run.rows.len(), t0.elapsed().as_secs_f64());
+                eprintln!(
+                    "  [{lane}] {} rows in {:.1}s",
+                    run.rows.len(),
+                    t0.elapsed().as_secs_f64()
+                );
                 runs.push(run);
             }
             Err(e) => {
@@ -594,12 +641,13 @@ fn main() {
         end: box_state::capture(),
     };
     if runs.is_empty() {
-        fail(&format!("every requested lane SKIPPED — nothing measured: {}", skipped.join("; ")));
+        fail(&format!(
+            "every requested lane SKIPPED — nothing measured: {}",
+            skipped.join("; ")
+        ));
     }
 
-    println!(
-        "\n## cua-s1-forms arena — their {eval_name} split @ 8273f347 ({eval_rows} rows)\n"
-    );
+    println!("\n## cua-s1-forms arena — their {eval_name} split @ 8273f347 ({eval_rows} rows)\n");
     println!("box: {}\n", box_state::render_line(&span));
     println!(
         "| lane | serving | N | top-1 | per gold action | picked | latency p50 / p95 / p99 | 2nd timer p50 / p95 / p99 |"
@@ -630,10 +678,12 @@ fn main() {
             .take(40)
             .map(|(&i, &p)| json!({"row": i, "gold": test[i].options[test[i].label], "pick": test[i].options[p]}))
             .collect();
-        report.push(json!({"lane": run.name, "detail": run.detail, "n": n, "correct": ok,
+        report.push(
+            json!({"lane": run.name, "detail": run.detail, "n": n, "correct": ok,
                            "per_action": per_action(run, &test),
                            "picked": pick_hist(run, &test), "latency": lat, "latency_2nd": lat2,
-                           "floor_chance": chance, "floor_skip": skip, "first_errors": errors}));
+                           "floor_chance": chance, "floor_skip": skip, "first_errors": errors}),
+        );
     }
     let (chance, skip) = floors(&test, &stride(eval_rows, 0));
     println!(
@@ -657,7 +707,11 @@ fn main() {
         );
         for run in &runs {
             let (ok, n) = acc_on(run, &test, Some(&common));
-            println!("  {:<28} {ok}/{n} = {:.2}%", run.name, 100.0 * ok as f64 / n.max(1) as f64);
+            println!(
+                "  {:<28} {ok}/{n} = {:.2}%",
+                run.name,
+                100.0 * ok as f64 / n.max(1) as f64
+            );
         }
     }
     if !skipped.is_empty() {

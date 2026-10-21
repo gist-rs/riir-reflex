@@ -103,9 +103,7 @@ fn main() {
     for rec in &manifest {
         let state_id = rec["state_id"].as_str().expect("state_id");
         let question = rec["question"].as_str().expect("question");
-        let state_line = rec
-            .get("state_sentence")
-            .and_then(|v| v.as_str());
+        let state_line = rec.get("state_sentence").and_then(|v| v.as_str());
         let options = rec["options"].as_array().expect("options array");
         let qdef = serde_json::json!({
             "type": "noul",

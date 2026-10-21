@@ -127,7 +127,11 @@ pub fn parse_loadavg(vm_loadavg: &str) -> Option<f64> {
 /// `total = 4096.00M  used = 2811.94M  free = ...` → 2811.94.
 pub fn parse_swap_used_mb(vm_swapusage: &str) -> Option<f64> {
     let rest = vm_swapusage.split("used =").nth(1)?;
-    rest.split_whitespace().next()?.trim_end_matches('M').parse().ok()
+    rest.split_whitespace()
+        .next()?
+        .trim_end_matches('M')
+        .parse()
+        .ok()
 }
 
 /// The verdict, from parsed fields. Unreadable power → UNJUDGED.
@@ -141,7 +145,9 @@ pub fn judge(
     };
     let mut refusals = Vec::new();
     if power != "AC Power" {
-        refusals.push(format!("on {power} — Apple Silicon sheds sustained GPU clock off AC"));
+        refusals.push(format!(
+            "on {power} — Apple Silicon sheds sustained GPU clock off AC"
+        ));
     }
     match power_mode {
         Some("low") => refusals.push("Low Power Mode (powermode=1) caps clocks".to_string()),
@@ -149,9 +155,9 @@ pub fn judge(
         _ => {}
     }
     match load_1m {
-        Some(l) if l > MAX_LOAD => {
-            refusals.push(format!("load {l:.2} > {MAX_LOAD} — a sibling job is on the box"))
-        }
+        Some(l) if l > MAX_LOAD => refusals.push(format!(
+            "load {l:.2} > {MAX_LOAD} — a sibling job is on the box"
+        )),
         None => refusals.push("load unreadable".to_string()),
         _ => {}
     }
@@ -159,7 +165,10 @@ pub fn judge(
 }
 
 fn cmd(program: &str, args: &[&str]) -> Option<String> {
-    let out = std::process::Command::new(program).args(args).output().ok()?;
+    let out = std::process::Command::new(program)
+        .args(args)
+        .output()
+        .ok()?;
     match out.status.success() {
         true => Some(String::from_utf8_lossy(&out.stdout).into_owned()),
         false => None,
@@ -217,10 +226,10 @@ const WINDOWS_PROBE_PS: &str = concat!(
 );
 
 fn capture_windows() -> BoxState {
-    let out = cmd("powershell", &["-NoProfile", "-Command", WINDOWS_PROBE_PS])
-        .unwrap_or_default();
+    let out = cmd("powershell", &["-NoProfile", "-Command", WINDOWS_PROBE_PS]).unwrap_or_default();
     let line = |key: &str| {
-        out.lines().find_map(|l| l.trim().strip_prefix(key).map(str::to_string))
+        out.lines()
+            .find_map(|l| l.trim().strip_prefix(key).map(str::to_string))
     };
     let power = line("POWERLINE=").and_then(|v| parse_win_powerline(&v));
     let power_mode = line("SCHEME=").and_then(|v| parse_win_scheme(&v));
@@ -231,8 +240,9 @@ fn capture_windows() -> BoxState {
         _ => None,
     };
     let swap_used_mb = line("SWAP=").and_then(|v| parse_win_swap_mb(&v));
-    let (gpu_util_pct, gpu_mem_mib) =
-        line("GPU=").map(|v| parse_win_gpu(&v)).unwrap_or((None, None));
+    let (gpu_util_pct, gpu_mem_mib) = line("GPU=")
+        .map(|v| parse_win_gpu(&v))
+        .unwrap_or((None, None));
     let (latency_quotable, refusals) = judge(power.as_deref(), power_mode.as_deref(), load_1m);
     BoxState {
         power,
@@ -275,8 +285,8 @@ pub fn parse_win_scheme(scheme: &str) -> Option<String> {
         .filter(|n| !n.is_empty());
     let by_guid = |g: &str| {
         scheme.contains(g).then_some(match g {
-            "e9a42b02" => "low",       // Power saver
-            "381b4222" => "auto",      // Balanced
+            "e9a42b02" => "low",               // Power saver
+            "381b4222" => "auto",              // Balanced
             "8c5e7fda" | "ded574b5" => "high", // High performance / Ultimate
             _ => "auto",
         })
@@ -321,17 +331,14 @@ pub fn parse_win_gpu(gpu: &str) -> (Option<f64>, Option<f64>) {
             .parse::<f64>()
             .ok()
     });
-    let mem = gpu
-        .split(',')
-        .nth(1)
-        .and_then(|second| {
-            second
-                .trim()
-                .trim_end_matches("MiB")
-                .trim()
-                .parse::<f64>()
-                .ok()
-        });
+    let mem = gpu.split(',').nth(1).and_then(|second| {
+        second
+            .trim()
+            .trim_end_matches("MiB")
+            .trim()
+            .parse::<f64>()
+            .ok()
+    });
     (util, mem)
 }
 
@@ -343,7 +350,8 @@ pub fn render_line(span: &BoxStateSpan) -> String {
             b.power.as_deref().unwrap_or("?"),
             b.power_mode.as_deref().unwrap_or("?"),
             b.load_1m.map_or("?".to_string(), |l| format!("{l:.2}")),
-            b.swap_used_mb.map_or("?".to_string(), |s| format!("{s:.0}")),
+            b.swap_used_mb
+                .map_or("?".to_string(), |s| format!("{s:.0}")),
         );
         match (b.gpu_util_pct, b.gpu_mem_mib) {
             (Some(u), Some(m)) => format!("{base} gpu={u:.0}%/{m:.0}MiB"),
@@ -385,11 +393,15 @@ mod tests {
             Some("Battery Power")
         );
         assert_eq!(parse_power_source("garbage"), None);
-        let g = "System-wide power settings:\nCurrently in use:\n standby 1\n powermode            2\n";
+        let g =
+            "System-wide power settings:\nCurrently in use:\n standby 1\n powermode            2\n";
         assert_eq!(parse_power_mode(g).as_deref(), Some("high"));
         assert_eq!(parse_power_mode(" powermode 1").as_deref(), Some("low"));
         assert_eq!(parse_power_mode(" powermode 0").as_deref(), Some("auto"));
-        assert_eq!(parse_power_mode(" powermode 7").as_deref(), Some("unknown(7)"));
+        assert_eq!(
+            parse_power_mode(" powermode 7").as_deref(),
+            Some("unknown(7)")
+        );
         assert_eq!(parse_power_mode("no such line"), None);
         assert_eq!(parse_loadavg("{ 6.41 16.10 18.31 }"), Some(6.41));
         assert_eq!(parse_loadavg(""), None);
@@ -402,16 +414,23 @@ mod tests {
         // Verbatim from the 2026-10-04 ssh capture (Windows PowerShell
         // 5.1.26100.9444) — the fixture-pin law: never an invented shape.
         assert_eq!(parse_win_powerline("Online").as_deref(), Some("AC Power"));
-        assert_eq!(parse_win_powerline("Offline").as_deref(), Some("Battery Power"));
+        assert_eq!(
+            parse_win_powerline("Offline").as_deref(),
+            Some("Battery Power")
+        );
         assert_eq!(parse_win_powerline("Unknown"), None);
         let scheme = "Power Scheme GUID: 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c  (High performance)";
         assert_eq!(parse_win_scheme(scheme).as_deref(), Some("high"));
         assert_eq!(
-            parse_win_scheme("Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)").as_deref(),
+            parse_win_scheme("Power Scheme GUID: 381b4222-f694-41f0-9685-ff5bb260df2e  (Balanced)")
+                .as_deref(),
             Some("auto")
         );
         assert_eq!(
-            parse_win_scheme("Power Scheme GUID: e9a42b02-d848-4be9-98ee-8c72e8edc14c  (Power saver)").as_deref(),
+            parse_win_scheme(
+                "Power Scheme GUID: e9a42b02-d848-4be9-98ee-8c72e8edc14c  (Power saver)"
+            )
+            .as_deref(),
             Some("low")
         );
         // Localized away → the GUID fallback carries the verdict.
@@ -451,30 +470,57 @@ mod tests {
         assert_eq!(judge(power.as_deref(), mode.as_deref(), load).0, Some(true));
         // A sibling compile at ~60% CPU on 24 cores → load_eq 14.4 > 6.0.
         let busy = parse_win_load_eq("60", "24");
-        assert_eq!(judge(power.as_deref(), mode.as_deref(), busy).0, Some(false));
+        assert_eq!(
+            judge(power.as_deref(), mode.as_deref(), busy).0,
+            Some(false)
+        );
         // Power saver refuses; an unreadable powerline stays UNJUDGED.
         let saver = parse_win_scheme(
             "Power Scheme GUID: e9a42b02-d848-4be9-98ee-8c72e8edc14c  (Power saver)",
         );
-        assert_eq!(judge(power.as_deref(), saver.as_deref(), load).0, Some(false));
+        assert_eq!(
+            judge(power.as_deref(), saver.as_deref(), load).0,
+            Some(false)
+        );
         assert_eq!(judge(None, mode.as_deref(), load).0, None);
     }
 
     #[test]
     fn verdict_refuses_each_axis_and_only_those() {
-        assert_eq!(judge(Some("AC Power"), Some("high"), Some(2.0)), (Some(true), vec![]));
+        assert_eq!(
+            judge(Some("AC Power"), Some("high"), Some(2.0)),
+            (Some(true), vec![])
+        );
         // powermode 2 (High) and 0 (Automatic) are both fit — the first
         // preflight read "not 0" as Low Power and could never pass on AC.
-        assert_eq!(judge(Some("AC Power"), Some("auto"), Some(2.0)).0, Some(true));
-        assert_eq!(judge(Some("Battery Power"), Some("auto"), Some(1.0)).0, Some(false));
-        assert_eq!(judge(Some("AC Power"), Some("low"), Some(1.0)).0, Some(false));
-        assert_eq!(judge(Some("AC Power"), Some("high"), Some(MAX_LOAD + 0.01)).0, Some(false));
-        assert_eq!(judge(Some("AC Power"), Some("high"), Some(MAX_LOAD)).0, Some(true));
+        assert_eq!(
+            judge(Some("AC Power"), Some("auto"), Some(2.0)).0,
+            Some(true)
+        );
+        assert_eq!(
+            judge(Some("Battery Power"), Some("auto"), Some(1.0)).0,
+            Some(false)
+        );
+        assert_eq!(
+            judge(Some("AC Power"), Some("low"), Some(1.0)).0,
+            Some(false)
+        );
+        assert_eq!(
+            judge(Some("AC Power"), Some("high"), Some(MAX_LOAD + 0.01)).0,
+            Some(false)
+        );
+        assert_eq!(
+            judge(Some("AC Power"), Some("high"), Some(MAX_LOAD)).0,
+            Some(true)
+        );
         assert_eq!(judge(Some("AC Power"), Some("high"), None).0, Some(false));
         // unreadable power is UNJUDGED, never a pass
         assert_eq!(judge(None, Some("high"), Some(1.0)).0, None);
         // two axes → two reasons, not one pooled
-        assert_eq!(judge(Some("Battery Power"), Some("low"), Some(9.0)).1.len(), 3);
+        assert_eq!(
+            judge(Some("Battery Power"), Some("low"), Some(9.0)).1.len(),
+            3
+        );
     }
 
     #[test]

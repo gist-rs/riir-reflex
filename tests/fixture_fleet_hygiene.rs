@@ -75,11 +75,7 @@ fn fixture_fleet_hygiene_is_measured_and_walled() {
         let h = fixture_hygiene::audit_slices(&corpus, &cal, &eval);
         println!(
             "{:>24}: eval {} · mean_ovl {:.4} · max_ovl {:.4} · trigram hits {}",
-            name,
-            h.eval_n,
-            h.mean_unigram_overlap,
-            h.max_unigram_overlap,
-            h.trigram_hit_cases
+            name, h.eval_n, h.mean_unigram_overlap, h.max_unigram_overlap, h.trigram_hit_cases
         );
         facts.push((name, h));
     }

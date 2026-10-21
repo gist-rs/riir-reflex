@@ -48,7 +48,7 @@
 
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply};
@@ -125,8 +125,9 @@ impl JevaLane {
     /// The liveness probe: `GET /health` — 200 means up (the model is
     /// loaded before the listener binds — no lazy-load window).
     pub fn health(&self) -> Result<(), String> {
-        let (status, _headers, body) =
-            self.get("/health").map_err(|e| format!("jeva health: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/health")
+            .map_err(|e| format!("jeva health: {e}"))?;
         if status != 200 {
             return Err(format!(
                 "GET /health -> HTTP {status}: {} — is our jeva reference server \
@@ -143,10 +144,14 @@ impl JevaLane {
     /// served dtype + the allow_null posture ride the provenance string,
     /// never a hardcoded name (the gliner law).
     pub fn info(&self) -> Result<(String, String), String> {
-        let (status, _headers, body) =
-            self.get("/health").map_err(|e| format!("jeva health: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/health")
+            .map_err(|e| format!("jeva health: {e}"))?;
         if status != 200 {
-            return Err(format!("GET /health -> HTTP {status}: {}", String::from_utf8_lossy(&body)));
+            return Err(format!(
+                "GET /health -> HTTP {status}: {}",
+                String::from_utf8_lossy(&body)
+            ));
         }
         let parsed: Value =
             serde_json::from_slice(&body).map_err(|e| format!("jeva health parse: {e}"))?;
@@ -159,12 +164,19 @@ impl JevaLane {
             .filter(|m| !m.is_empty())
             .unwrap_or("jeva-4b")
             .to_string();
-        let dtype = parsed.get("dtype").and_then(Value::as_str).unwrap_or("unknown");
+        let dtype = parsed
+            .get("dtype")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
         let allow_null = parsed
             .get("allow_null")
             .and_then(Value::as_bool)
             .unwrap_or(false);
-        let device = parsed.get("device").and_then(Value::as_str).unwrap_or("cuda").to_string();
+        let device = parsed
+            .get("device")
+            .and_then(Value::as_str)
+            .unwrap_or("cuda")
+            .to_string();
         let provenance = if allow_null {
             format!("{model} dtype={dtype} allow_null=on")
         } else {
@@ -406,9 +418,11 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 let pick = match a.get("choice") {
                     // Their pick: the labels[argmax q] position (their
                     // choice is a LABEL STRING, never an index).
-                    Some(Value::String(s)) => keys.iter().position(|k| k == s).ok_or_else(|| {
-                        format!("qid {}: their choice {s:?} is not a presented key", q.qid)
-                    })?,
+                    Some(Value::String(s)) => {
+                        keys.iter().position(|k| k == s).ok_or_else(|| {
+                            format!("qid {}: their choice {s:?} is not a presented key", q.qid)
+                        })?
+                    }
                     // allow_null posture abstain (choice: null) — the
                     // argmax over the JOINT probabilities, disclosed in
                     // the module doc, never fabricated.
@@ -453,9 +467,10 @@ fn keyed_probs_by_object(a: &Value, q: &SuiteQuestion) -> Result<(Vec<f64>, Vec<
         .unwrap_or_default();
     let mut probs = Vec::with_capacity(keys.len());
     for k in &keys {
-        let p = dist.get(k).and_then(Value::as_f64).ok_or_else(|| {
-            format!("qid {}: choice probabilities missing key {k}", q.qid)
-        })?;
+        let p = dist
+            .get(k)
+            .and_then(Value::as_f64)
+            .ok_or_else(|| format!("qid {}: choice probabilities missing key {k}", q.qid))?;
         probs.push(p);
     }
     Ok((probs, keys))
@@ -480,9 +495,10 @@ fn keyed_probs_by_array(a: &Value, q: &SuiteQuestion) -> Result<(Vec<f64>, Vec<S
         .unwrap_or_default();
     let mut probs = Vec::with_capacity(levels.len());
     for lvl in &levels {
-        let p = dist.get(lvl).and_then(Value::as_f64).ok_or_else(|| {
-            format!("qid {}: score probabilities missing level {lvl}", q.qid)
-        })?;
+        let p = dist
+            .get(lvl)
+            .and_then(Value::as_f64)
+            .ok_or_else(|| format!("qid {}: score probabilities missing level {lvl}", q.qid))?;
         probs.push(p);
     }
     Ok((probs, levels))
@@ -594,7 +610,10 @@ mod tests {
     fn score_body_passes_the_array_through_verbatim() {
         let c = case(QKind::Score, json!(["lo", "mid", "hi"]));
         let body = build_body(&c).unwrap();
-        assert_eq!(body["questions"]["q0"]["criteria"], json!(["lo", "mid", "hi"]));
+        assert_eq!(
+            body["questions"]["q0"]["criteria"],
+            json!(["lo", "mid", "hi"])
+        );
     }
 
     #[test]
@@ -609,19 +628,19 @@ mod tests {
         // measured 400 on emotion/banking77/semantic_defects); the
         // sequence arm sets texts = keys. Null and empty-string values
         // both read as bare labels.
-        let null_c = case(
-            QKind::Choice,
-            json!({"joy": null, "sadness": null}),
-        );
+        let null_c = case(QKind::Choice, json!({"joy": null, "sadness": null}));
         let body = build_body(&null_c).unwrap();
-        assert_eq!(body["questions"]["q0"]["criteria"], json!(["joy", "sadness"]));
-
-        let empty_c = case(
-            QKind::Choice,
-            json!({"joy": "", "sadness": "  "}),
+        assert_eq!(
+            body["questions"]["q0"]["criteria"],
+            json!(["joy", "sadness"])
         );
+
+        let empty_c = case(QKind::Choice, json!({"joy": "", "sadness": "  "}));
         let body = build_body(&empty_c).unwrap();
-        assert_eq!(body["questions"]["q0"]["criteria"], json!(["joy", "sadness"]));
+        assert_eq!(
+            body["questions"]["q0"]["criteria"],
+            json!(["joy", "sadness"])
+        );
     }
 
     #[test]
@@ -648,10 +667,7 @@ mod tests {
         // text renders "key: description"); a mixed map with an empty
         // value is a per-case loud refusal (the harness law), never a
         // silent description drop.
-        let c = case(
-            QKind::Choice,
-            json!({"billing": "invoices", "eng": ""}),
-        );
+        let c = case(QKind::Choice, json!({"billing": "invoices", "eng": ""}));
         let body = build_body(&c).unwrap();
         assert_eq!(
             body["questions"]["q0"]["criteria"],

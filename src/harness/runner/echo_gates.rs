@@ -144,7 +144,11 @@ fn entropy_hist_and_rate(eval: &super::Eval) -> (Vec<f64>, f64) {
     }
     let denom = (n_q + ENTROPY_BINS) as f64;
     let hist = counts.iter().map(|&c| (c as f64 + 1.0) / denom).collect();
-    let rate = if n_q == 0 { 0.0 } else { n_abstain as f64 / n_q as f64 };
+    let rate = if n_q == 0 {
+        0.0
+    } else {
+        n_abstain as f64 / n_q as f64
+    };
     (hist, rate)
 }
 
@@ -180,7 +184,10 @@ const ABSTENTION_RULE: &str = "KL(gold‖synth) ≤ 0.05 nats over the 10-bin no
 /// Compute the abstention-entropy gate from the two clean-read evals.
 /// The gate is the KL alone (the issue's rule); the rate pair rides as
 /// disclosure.
-pub(crate) fn abstention_gate(eval_gold: &super::Eval, eval_synth: &super::Eval) -> AbstentionGateBlock {
+pub(crate) fn abstention_gate(
+    eval_gold: &super::Eval,
+    eval_synth: &super::Eval,
+) -> AbstentionGateBlock {
     let (hist_a, rate_a) = entropy_hist_and_rate(eval_gold);
     let (hist_b, rate_b) = entropy_hist_and_rate(eval_synth);
     let kl_ab = kl(&hist_a, &hist_b);
@@ -304,7 +311,10 @@ mod tests {
 
     #[test]
     fn corrupt_state_p_zero_and_short_strings_pass_through() {
-        assert_eq!(corrupt_state("turn on the lights", 0.0, 7), "turn on the lights");
+        assert_eq!(
+            corrupt_state("turn on the lights", 0.0, 7),
+            "turn on the lights"
+        );
         assert_eq!(corrupt_state("run", 0.5, 7), "run");
         assert_eq!(corrupt_state("", 0.5, 7), "");
     }
@@ -333,10 +343,16 @@ mod tests {
     #[test]
     fn corrupt_state_empirical_rate_is_near_p() {
         // 2000 tokens, p = 0.2 → kept ≈ 1600 ± 60 (3σ-ish, deterministic).
-        let s: String = (0..2000).map(|i| format!("t{i}")).collect::<Vec<_>>().join(" ");
+        let s: String = (0..2000)
+            .map(|i| format!("t{i}"))
+            .collect::<Vec<_>>()
+            .join(" ");
         let out = corrupt_state(&s, 0.2, 99);
         let kept = out.split_whitespace().count();
-        assert!((1500..=1700).contains(&kept), "kept {kept} outside tolerance");
+        assert!(
+            (1500..=1700).contains(&kept),
+            "kept {kept} outside tolerance"
+        );
     }
 
     #[test]
@@ -378,8 +394,18 @@ mod tests {
         assert_eq!(r1, 0.0);
         assert_eq!(r2, 0.0);
         // The dominant mass sits in bin 0 (one-hot) vs bin 9 (uniform).
-        let m1 = h1.iter().enumerate().max_by(|x, y| x.1.total_cmp(y.1)).unwrap().0;
-        let m2 = h2.iter().enumerate().max_by(|x, y| x.1.total_cmp(y.1)).unwrap().0;
+        let m1 = h1
+            .iter()
+            .enumerate()
+            .max_by(|x, y| x.1.total_cmp(y.1))
+            .unwrap()
+            .0;
+        let m2 = h2
+            .iter()
+            .enumerate()
+            .max_by(|x, y| x.1.total_cmp(y.1))
+            .unwrap()
+            .0;
         assert_eq!(m1, 0);
         assert_eq!(m2, ENTROPY_BINS - 1);
     }
@@ -432,9 +458,27 @@ mod tests {
     fn ood_block_verdicts_follow_the_pre_registered_law() {
         let rungs = |d20: f64, lb20: f64| {
             vec![
-                OodRungRow { dropout_p: 0.10, acc_gold: 0.8, acc_synth: 0.83, delta: 0.03, delta_lb95: 0.01 },
-                OodRungRow { dropout_p: 0.20, acc_gold: 0.7, acc_synth: 0.7 + d20, delta: d20, delta_lb95: lb20 },
-                OodRungRow { dropout_p: 0.30, acc_gold: 0.6, acc_synth: 0.61, delta: 0.01, delta_lb95: -0.005 },
+                OodRungRow {
+                    dropout_p: 0.10,
+                    acc_gold: 0.8,
+                    acc_synth: 0.83,
+                    delta: 0.03,
+                    delta_lb95: 0.01,
+                },
+                OodRungRow {
+                    dropout_p: 0.20,
+                    acc_gold: 0.7,
+                    acc_synth: 0.7 + d20,
+                    delta: d20,
+                    delta_lb95: lb20,
+                },
+                OodRungRow {
+                    dropout_p: 0.30,
+                    acc_gold: 0.6,
+                    acc_synth: 0.61,
+                    delta: 0.01,
+                    delta_lb95: -0.005,
+                },
             ]
         };
         // Clean win + gate rung survives → transfer-ok, retention reported.

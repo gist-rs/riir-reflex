@@ -58,9 +58,7 @@ use serde::Serialize;
 use katgpt_core::sigmoid_calibration::SigmoidGateCalibrator;
 
 use super::{Eval, QKind, Suite, SuiteCase};
-use crate::harness::metrics::{
-    CalibrationPair, brier_of, conformal_naive_floor, ece_of, nll_of,
-};
+use crate::harness::metrics::{CalibrationPair, brier_of, conformal_naive_floor, ece_of, nll_of};
 
 /// The G1-constrained λ ladder — the unconstrained ladder extended DOWN so
 /// the calibration constraint has somewhere to stand (ties → the smaller

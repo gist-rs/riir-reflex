@@ -285,10 +285,8 @@ const G_ALPHA_LADDER: [LadderValue; 2] = [
     LadderValue::Discrete("fixed-1"),
 ];
 #[cfg(feature = "nb_scope")]
-const G_VIEW_LADDER: [LadderValue; 2] = [
-    LadderValue::Discrete("bag"),
-    LadderValue::Discrete("pair"),
-];
+const G_VIEW_LADDER: [LadderValue; 2] =
+    [LadderValue::Discrete("bag"), LadderValue::Discrete("pair")];
 #[cfg(feature = "option_cond")]
 const G_OC_LADDER: [LadderValue; 7] = [
     LadderValue::Scale(0.0),
@@ -396,7 +394,9 @@ pub(super) fn build_genome_selection<const N: usize>(
     effective_cap: usize,
     base_cfg: &EngineConfig,
     accept_margin: f64,
-    #[cfg(feature = "option_cond")] events_for_pool: impl Fn(&[TrainDoc]) -> Vec<crate::option_cond::OcEvent>,
+    #[cfg(feature = "option_cond")] events_for_pool: impl Fn(
+        &[TrainDoc],
+    ) -> Vec<crate::option_cond::OcEvent>,
     #[cfg(not(feature = "option_cond"))] _events_for_pool: (),
 ) -> Result<GenomeSelection, String> {
     let spec = inp.spec;
@@ -558,12 +558,7 @@ pub(super) fn build_genome_selection<const N: usize>(
     let ridge_desc = String::new();
     eprintln!(
         "    genome-select: seed (route {} head {}{}{}{}) → sel-slice acc {:.4}",
-        seed.route_scale,
-        seed.head_scale,
-        nb_desc,
-        oc_desc,
-        ridge_desc,
-        seed.cal_acc
+        seed.route_scale, seed.head_scale, nb_desc, oc_desc, ridge_desc, seed.cal_acc
     );
 
     let (walk_end, moves, passes) = descend(
@@ -614,7 +609,8 @@ mod tests {
     #[test]
     fn walk_finds_the_ladder_optimum() {
         let surface = |p: &GenomePoint| -> Result<f64, String> {
-            Ok((0.5 - ((p.route_scale - 16.0) / 16.0).powi(2)
+            Ok((0.5
+                - ((p.route_scale - 16.0) / 16.0).powi(2)
                 - ((p.head_scale - 1.0) / 1.0).powi(2)) as f64)
         };
         let coords = vec![
@@ -629,8 +625,14 @@ mod tests {
         ];
         let mut seed = GenomePoint::skeleton(2.0, 0.0);
         seed.cal_acc = surface(&seed).unwrap();
-        let (end, moves, passes) =
-            descend(seed, &coords, surface, GENOME_MOVE_MARGIN, GENOME_MAX_PASSES).unwrap();
+        let (end, moves, passes) = descend(
+            seed,
+            &coords,
+            surface,
+            GENOME_MOVE_MARGIN,
+            GENOME_MAX_PASSES,
+        )
+        .unwrap();
         assert_eq!(end.route_scale, 16.0);
         assert_eq!(end.head_scale, 1.0);
         assert_eq!(moves.len(), 2, "one move per coordinate");
@@ -653,9 +655,18 @@ mod tests {
         }];
         let mut seed = GenomePoint::skeleton(8.0, 0.0);
         seed.cal_acc = 0.5;
-        let (end, moves, _) =
-            descend(seed, &coords, surface, GENOME_MOVE_MARGIN, GENOME_MAX_PASSES).unwrap();
-        assert_eq!(end.route_scale, 8.0, "the 0.005 bump is under the move margin");
+        let (end, moves, _) = descend(
+            seed,
+            &coords,
+            surface,
+            GENOME_MOVE_MARGIN,
+            GENOME_MAX_PASSES,
+        )
+        .unwrap();
+        assert_eq!(
+            end.route_scale, 8.0,
+            "the 0.005 bump is under the move margin"
+        );
         assert!(moves.is_empty());
     }
 
@@ -679,8 +690,14 @@ mod tests {
         }];
         let mut seed = GenomePoint::skeleton(8.0, 0.0);
         seed.cal_acc = 0.5;
-        let (end, moves, _) =
-            descend(seed, &coords, surface, GENOME_MOVE_MARGIN, GENOME_MAX_PASSES).unwrap();
+        let (end, moves, _) = descend(
+            seed,
+            &coords,
+            surface,
+            GENOME_MOVE_MARGIN,
+            GENOME_MAX_PASSES,
+        )
+        .unwrap();
         assert_eq!(end.route_scale, 32.0);
         assert_eq!(moves.len(), 1);
         assert_eq!(end.cal_acc, 0.8);

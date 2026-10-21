@@ -18,7 +18,9 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 fn sample_dir() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("examples").join("first_corpus")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("examples")
+        .join("first_corpus")
 }
 
 /// The engine exactly as `serve_boot` builds it (same builder, the
@@ -101,9 +103,8 @@ fn sample_corpus_answers_deterministically() {
 #[test]
 fn off_corpus_questions_still_abstain() {
     let mut eng = sample_engine();
-    let req = route_request(
-        "my sourdough starter stopped rising after i moved it to a colder kitchen",
-    );
+    let req =
+        route_request("my sourdough starter stopped rising after i moved it to a colder kitchen");
     let resp = eng.decide(&req).expect("decide");
     assert!(
         resp.answers[0].outcome.is_none(),
@@ -116,8 +117,10 @@ fn off_corpus_questions_still_abstain() {
 
 fn http_get(addr: &str, target: &str) -> String {
     let mut s = TcpStream::connect(addr).expect("connect");
-    s.write_all(format!("GET {target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n").as_bytes())
-        .unwrap();
+    s.write_all(
+        format!("GET {target} HTTP/1.1\r\nHost: x\r\nConnection: close\r\n\r\n").as_bytes(),
+    )
+    .unwrap();
     let mut body = String::new();
     for line in BufReader::new(s).lines() {
         body.push_str(&line.expect("body line"));

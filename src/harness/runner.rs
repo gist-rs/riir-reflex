@@ -45,28 +45,25 @@ use crate::engine::{
     GateObservation, Posture, Scratch, recommend_fused_gate,
 };
 use crate::harness::families::SynthData;
-use crate::harness::metrics::{chance_corrected_skill, chance_majority};
-#[cfg(feature = "option_cond")]
-use crate::harness::suites::typed_gold_events;
 use crate::harness::latency::{LatencyExtremes, fmt_p99_cell};
 use crate::harness::metrics::{
     CalibrationPair, ConfusionRow, G1Verdict, HardMetrics, brier_of, conformal_naive_floor,
     confusion_top, ece_of, g1_verdict_of, hard_metrics, score_metrics, soft_metrics,
     subset_accuracy,
 };
+use crate::harness::metrics::{chance_corrected_skill, chance_majority};
 use crate::harness::pair_heads::{
     ArmedPair, MAX_ARMED_PAIRS, MIN_CAL_SUPPORT, PairHead, PairHeadAb, PairSubsetRow, select_pairs,
 };
+#[cfg(feature = "option_cond")]
+use crate::harness::suites::typed_gold_events;
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc, build_ag_news, build_anli_jdi,
-    build_banking77_mteb, build_emotion,
-    build_hellaswag_jdi, build_massive_intent_en, build_mmlupro_jdi, build_prompt_injections,
-    build_s1mb_choice, build_s1mb_noul,
-    build_s1mb_score, build_sst5, build_thai_sib200,
-    build_thai_wisesight, build_typed_decisions,
+    build_banking77_mteb, build_emotion, build_hellaswag_jdi, build_massive_intent_en,
+    build_mmlupro_jdi, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
+    build_s1mb_score, build_sst5, build_thai_sib200, build_thai_wisesight, build_typed_decisions,
     build_wanli_en, build_winogrande_jdi, build_xnli_en, stratified_selection_slices,
-    stratified_split, train_docs,
-    train_row_label,
+    stratified_split, train_docs, train_row_label,
 };
 use crate::pyjson::serialize_state;
 use crate::readout::ReadoutMode;
@@ -105,48 +102,46 @@ pub use ridge_lane::{RidgeCandidate, RidgeSelection};
 #[cfg(feature = "nb_scope")]
 mod e0;
 #[cfg(feature = "nb_scope")]
-pub use e0::{render_e0_markdown, run_e0, E0Meta, E0Output, E0Suite, E0ViewStats};
+pub use e0::{E0Meta, E0Output, E0Suite, E0ViewStats, render_e0_markdown, run_e0};
 
 mod distill;
-pub use distill::{render_distill_markdown, run_distill, DistillMeta, DistillOutput, DistillSuite};
+pub use distill::{DistillMeta, DistillOutput, DistillSuite, render_distill_markdown, run_distill};
 
 mod router;
-pub use router::{render_router_markdown, run_teacher_router, RouterReport, RouterSuite};
+pub use router::{RouterReport, RouterSuite, render_router_markdown, run_teacher_router};
 
 mod ensemble;
 pub use ensemble::{
-    render_ensemble_gate_markdown, run_ensemble_gate, EnsembleGateMeta, EnsembleGateOutput,
-    EnsembleGateSuite,
+    EnsembleGateMeta, EnsembleGateOutput, EnsembleGateSuite, render_ensemble_gate_markdown,
+    run_ensemble_gate,
 };
 
 mod synth;
 pub use synth::{
-    load_synth_corpus, render_synth_markdown, run_synth_corpus, run_synth_plan, SynthArtifactMeta,
-    SynthOptions, SynthOutput,
+    SynthArtifactMeta, SynthOptions, SynthOutput, load_synth_corpus, render_synth_markdown,
+    run_synth_corpus, run_synth_plan,
 };
 
 mod corpus_ab;
-pub use corpus_ab::{render_corpus_ab_markdown, run_corpus_ab, CorpusAbOutput};
+pub use corpus_ab::{CorpusAbOutput, render_corpus_ab_markdown, run_corpus_ab};
 
 // Issue 077 — the option-PERMUTATION spread probe (lane-agnostic over the
 // `ChoiceOracle` seam; the pure core is `crate::harness::permutation`).
 mod perm_probe;
-pub use perm_probe::{
-    render_perm_probe_markdown, run_perm_probe, CaseRow, DEFAULT_PERM_K, DEFAULT_PERM_MAX_CASES,
-    PermLaneReport, PermProbeMeta, PermProbeOptions, PermProbeOutput, PermSuiteReport,
-};
 pub use crate::harness::permutation::SpreadVerdict;
+pub use perm_probe::{
+    CaseRow, DEFAULT_PERM_K, DEFAULT_PERM_MAX_CASES, PermLaneReport, PermProbeMeta,
+    PermProbeOptions, PermProbeOutput, PermSuiteReport, render_perm_probe_markdown, run_perm_probe,
+};
 
 // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe: the
 // pure core (`harness::null_stability`) + this runner half behind the
 // `NullOracle` seam (modelless control + opt-in comparison cells).
 mod null_probe;
+pub use crate::harness::null_stability::{DEFAULT_NULL_K, DEFAULT_NULL_MAX_CASES, NullVerdict};
 pub use null_probe::{
-    render_null_probe_markdown, run_null_probe, NullLaneReport, NullProbeMeta,
-    NullProbeOptions, NullProbeOutput, NullSuiteReport,
-};
-pub use crate::harness::null_stability::{
-    NullVerdict, DEFAULT_NULL_K, DEFAULT_NULL_MAX_CASES,
+    NullLaneReport, NullProbeMeta, NullProbeOptions, NullProbeOutput, NullSuiteReport,
+    render_null_probe_markdown, run_null_probe,
 };
 
 // Issue 090 C1 — the rubric-covariance + route-agreement probe: the pure
@@ -155,21 +150,21 @@ pub use crate::harness::null_stability::{
 // map_answers path).
 mod rubric_probe;
 pub use rubric_probe::{
-    render_rubric_markdown, run_rubric_probe, RubricProbeOptions, RubricProbeOutput,
-    RubricSuiteReport, RubricVerdict, DEFAULT_RUBRIC_MAX_CASES, DEFAULT_RUBRIC_SUITES,
+    DEFAULT_RUBRIC_MAX_CASES, DEFAULT_RUBRIC_SUITES, RubricProbeOptions, RubricProbeOutput,
+    RubricSuiteReport, RubricVerdict, render_rubric_markdown, run_rubric_probe,
 };
 
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{
-    render_density_pilot_markdown, run_density_pilot, DensityPilotMeta, DensityPilotOutput,
-    DensityPilotSuite, DensityRung,
+    DensityPilotMeta, DensityPilotOutput, DensityPilotSuite, DensityRung,
+    render_density_pilot_markdown, run_density_pilot,
 };
 mod gate_drift;
 pub use gate_drift::{
-    render_gate_drift_markdown, run_gate_drift, GateDriftMeta, GateDriftOptions,
-    GateDriftOutput, GateDriftSizeCell, DEFAULT_MAX_IN_PER_SUITE, DEFAULT_MAX_OFF_PER_SOURCE,
-    GATE_DRIFT_FAMILY, GATE_DRIFT_OFF_SOURCES,
+    DEFAULT_MAX_IN_PER_SUITE, DEFAULT_MAX_OFF_PER_SOURCE, GATE_DRIFT_FAMILY,
+    GATE_DRIFT_OFF_SOURCES, GateDriftMeta, GateDriftOptions, GateDriftOutput, GateDriftSizeCell,
+    render_gate_drift_markdown, run_gate_drift,
 };
 
 /// Where the fetch layer leaves the row files.
@@ -534,7 +529,11 @@ fn synthetic_build_unused(_rows: &Value, _max_rows: usize) -> Suite {
 /// every fixture set before the families was authored ungated and
 /// measured its overlap only after the inflation was published).
 pub fn synthetic_suite_names() -> Vec<&'static str> {
-    SUITES.iter().filter(|s| s.synthetic.is_some()).map(|s| s.name).collect()
+    SUITES
+        .iter()
+        .filter(|s| s.synthetic.is_some())
+        .map(|s| s.name)
+        .collect()
 }
 
 fn families_synth_semantic_defects() -> SynthData {
@@ -1630,8 +1629,8 @@ fn load_rows(dir: &Path, split: &str) -> Result<Value, String> {
     let mut rows: Vec<Value> = Vec::new();
     if split.contains(',') {
         for part in split.split(',').map(str::trim).filter(|p| !p.is_empty()) {
-            let component = load_rows_split(dir, part)
-                .map_err(|e| format!("split list [{split}]: {e}"))?;
+            let component =
+                load_rows_split(dir, part).map_err(|e| format!("split list [{split}]: {e}"))?;
             rows.extend(component);
         }
     } else {
@@ -1851,11 +1850,7 @@ pub(crate) fn specs_corpus_extended(
             .map(|d| d.text.clone())
             .take(cap_per_label)
             .collect();
-        for d in extra
-            .iter()
-            .filter(|d| d.label == *label)
-            .take(extra_cap)
-        {
+        for d in extra.iter().filter(|d| d.label == *label).take(extra_cap) {
             docs.push(d.text.clone());
             extra_used += 1;
         }
@@ -1940,9 +1935,7 @@ fn engine_request_into(
 
 /// The fresh-build half of [`engine_request`] — the owned path's
 /// constructor and [`engine_request_into`]'s shape-change path.
-fn fresh_question(
-    q: &SuiteQuestion,
-) -> Result<katgpt_core::decision_wire::Question, String> {
+fn fresh_question(q: &SuiteQuestion) -> Result<katgpt_core::decision_wire::Question, String> {
     use katgpt_core::decision_wire::Question;
     Ok(match q.kind {
         QKind::Choice => {
@@ -1950,9 +1943,7 @@ fn fresh_question(
                 .criteria
                 .as_object()
                 .map(|m| m.keys().cloned().collect())
-                .ok_or_else(|| {
-                    format!("case {}: choice criteria must be an object", q.qid)
-                })?;
+                .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
             Question::choice(q.qid.as_str(), q.instructions.as_str(), keys, None)
         }
         QKind::Score => {
@@ -1998,9 +1989,10 @@ fn refill_question_slot(
     slot.criteria = None;
     match q.kind {
         QKind::Choice => {
-            let obj = q.criteria.as_object().ok_or_else(|| {
-                format!("case {}: choice criteria must be an object", q.qid)
-            })?;
+            let obj = q
+                .criteria
+                .as_object()
+                .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
             refill_strings(&mut slot.options, obj.keys().map(String::as_str));
         }
         QKind::Score => {
@@ -2597,12 +2589,8 @@ struct SelSlice {
 /// selection slice (or a cal-front complement) never scores against its
 /// own text — the shared selection-slice law, applied at the event level.
 #[cfg(feature = "option_cond")]
-fn oc_events_for(
-    pool_rows: &Value,
-    pool: &[TrainDoc],
-) -> Vec<crate::option_cond::OcEvent> {
-    let texts: std::collections::HashSet<&str> =
-        pool.iter().map(|d| d.text.as_str()).collect();
+fn oc_events_for(pool_rows: &Value, pool: &[TrainDoc]) -> Vec<crate::option_cond::OcEvent> {
+    let texts: std::collections::HashSet<&str> = pool.iter().map(|d| d.text.as_str()).collect();
     typed_gold_events(pool_rows)
         .into_iter()
         .filter(|(_, _, state)| texts.contains(state.as_str()))
@@ -2725,9 +2713,7 @@ fn build_head_scale_selection<const N: usize>(
         let (ev, _) = eval_engine(&mut engine, &sel_cases, &sel_state_strs, false)?;
         let cal_acc = hard_metrics(&ev.forced_rows(&sel_cases)).accuracy;
         rows.push(HeadScaleCandidate { scale, cal_acc });
-        eprintln!(
-            "    head-select: scale {scale} → sel-slice acc {cal_acc:.4}"
-        );
+        eprintln!("    head-select: scale {scale} → sel-slice acc {cal_acc:.4}");
     }
     // Promotion-bar argmax: candidates compete only if they clear the
     // scale-0 baseline by HEAD_SELECT_MARGIN; ties among clearing
@@ -2828,7 +2814,9 @@ fn readout_report_on_cal<const N: usize>(
     // field is irrelevant here (only probs/picks are read back).
     #[cfg(feature = "option_cond")]
     let (mut engine, _) = match oc_events {
-        Some(ev) => build_engine_oc_with::<N>(suite, corpus_pool, labels, cap, cfg.clone(), &[], ev)?,
+        Some(ev) => {
+            build_engine_oc_with::<N>(suite, corpus_pool, labels, cap, cfg.clone(), &[], ev)?
+        }
         None => build_engine::<N>(suite, corpus_pool, labels, cap, cfg.clone())?,
     };
     #[cfg(not(feature = "option_cond"))]
@@ -2939,7 +2927,11 @@ fn resolve_gate_thresholds(
         .distance
         .as_ref()
         .map_or(fallback.distance_threshold, |r| r.threshold);
-    if distance_only { (0.0, distance) } else { (score, distance) }
+    if distance_only {
+        (0.0, distance)
+    } else {
+        (score, distance)
+    }
 }
 
 #[cfg(test)]
@@ -2950,7 +2942,7 @@ mod gate_lever_tests {
 
     use super::resolve_gate_thresholds;
     use crate::engine::{
-        recommend_fused_gate, EngineConfig, GateObservation, Posture, THIN_SUPPORT_FLOOR,
+        EngineConfig, GateObservation, Posture, THIN_SUPPORT_FLOOR, recommend_fused_gate,
     };
 
     fn obs(n: usize, base: f32) -> Vec<GateObservation> {
@@ -3038,14 +3030,12 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // selected cap; eligible = the dataset suites (the cap-selection
     // eligibility) — synthetic suites keep the default CLI posture for
     // HEADS: their baseline rows are harness sanity pins.
-    let head_selected = if inp.head_select
-        && spec.synthetic.is_none()
-        && spec.corpus_cap_per_label != usize::MAX
-    {
-        Some(build_head_scale_selection::<N>(inp, effective_cap)?)
-    } else {
-        None
-    };
+    let head_selected =
+        if inp.head_select && spec.synthetic.is_none() && spec.corpus_cap_per_label != usize::MAX {
+            Some(build_head_scale_selection::<N>(inp, effective_cap)?)
+        } else {
+            None
+        };
     let selected_scale = head_selected
         .as_ref()
         .map_or(inp.head_scale, |s| s.selected);
@@ -3063,7 +3053,11 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         && (spec.synthetic.is_some()
             || (spec.synthetic.is_none() && spec.corpus_cap_per_label != usize::MAX))
     {
-        Some(nb_lane::build_nb_selection::<N>(inp, effective_cap, selected_scale)?)
+        Some(nb_lane::build_nb_selection::<N>(
+            inp,
+            effective_cap,
+            selected_scale,
+        )?)
     } else {
         None
     };
@@ -3090,32 +3084,30 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // once. Events filter to the corpus pool's texts (the selection cases
     // never score against their own text).
     #[cfg(feature = "option_cond")]
-    let oc_selected = if inp.oc_select
-        && spec.synthetic.is_none()
-        && spec.corpus_cap_per_label != usize::MAX
-    {
-        // Eligibility: the suite must carry per-question gold events in its
-        // pool at all (typed_decisions is the only one today). A suite
-        // without them DECLINES the lever loudly — an error would abort
-        // every other suite's lane on a whole-workspace run.
-        if oc_events_for(inp.pool_rows, inp.train).is_empty() {
-            eprintln!(
-                "    oc-select: DECLINED — the suite's train rows carry no per-question gold \
+    let oc_selected =
+        if inp.oc_select && spec.synthetic.is_none() && spec.corpus_cap_per_label != usize::MAX {
+            // Eligibility: the suite must carry per-question gold events in its
+            // pool at all (typed_decisions is the only one today). A suite
+            // without them DECLINES the lever loudly — an error would abort
+            // every other suite's lane on a whole-workspace run.
+            if oc_events_for(inp.pool_rows, inp.train).is_empty() {
+                eprintln!(
+                    "    oc-select: DECLINED — the suite's train rows carry no per-question gold \
                  events to condition on (baseline posture holds, byte-identical)"
-            );
-            None
+                );
+                None
+            } else {
+                Some(oc_lane::build_oc_selection::<N>(
+                    inp,
+                    effective_cap,
+                    selected_scale,
+                    &default_cfg,
+                    |pool| oc_events_for(inp.pool_rows, pool),
+                )?)
+            }
         } else {
-            Some(oc_lane::build_oc_selection::<N>(
-                inp,
-                effective_cap,
-                selected_scale,
-                &default_cfg,
-                |pool| oc_events_for(inp.pool_rows, pool),
-            )?)
-        }
-    } else {
-        None
-    };
+            None
+        };
     #[cfg(feature = "option_cond")]
     if let Some(sel) = &oc_selected {
         default_cfg.oc_scale = sel.selected_scale;
@@ -3155,41 +3147,40 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
     // build). Runs BEFORE the fused-gate fit so the fitted thresholds
     // reflect whatever posture the genome settled on.
     #[cfg(feature = "nb_scope")]
-    let genome_selected = if inp.genome_select
-        && spec.synthetic.is_none()
-        && spec.corpus_cap_per_label != usize::MAX
-    {
-        let g = genome_lane::build_genome_selection::<N>(
-            inp,
-            effective_cap,
-            &default_cfg,
-            if inp.genome_accept_margin > 0.0 {
-                inp.genome_accept_margin
-            } else {
-                HEAD_SELECT_MARGIN
-            },
+    let genome_selected =
+        if inp.genome_select && spec.synthetic.is_none() && spec.corpus_cap_per_label != usize::MAX
+        {
+            let g = genome_lane::build_genome_selection::<N>(
+                inp,
+                effective_cap,
+                &default_cfg,
+                if inp.genome_accept_margin > 0.0 {
+                    inp.genome_accept_margin
+                } else {
+                    HEAD_SELECT_MARGIN
+                },
+                #[cfg(feature = "option_cond")]
+                |pool| oc_events_for(inp.pool_rows, pool),
+                #[cfg(not(feature = "option_cond"))]
+                (),
+            )?;
+            default_cfg.route_scale = g.selected.route_scale;
+            default_cfg.head_scale = g.selected.head_scale;
+            default_cfg.nb_scale = g.selected.nb_scale;
+            default_cfg.nb_alpha = nb_lane::alpha_of(g.selected.nb_alpha);
+            default_cfg.nb_view = nb_lane::view_of(g.selected.nb_view);
             #[cfg(feature = "option_cond")]
-            |pool| oc_events_for(inp.pool_rows, pool),
-            #[cfg(not(feature = "option_cond"))]
-            (),
-        )?;
-        default_cfg.route_scale = g.selected.route_scale;
-        default_cfg.head_scale = g.selected.head_scale;
-        default_cfg.nb_scale = g.selected.nb_scale;
-        default_cfg.nb_alpha = nb_lane::alpha_of(g.selected.nb_alpha);
-        default_cfg.nb_view = nb_lane::view_of(g.selected.nb_view);
-        #[cfg(feature = "option_cond")]
-        {
-            default_cfg.oc_scale = g.selected.oc_scale;
-        }
-        #[cfg(feature = "nb_ridge")]
-        {
-            default_cfg.ridge_scale = g.selected.ridge_scale;
-        }
-        Some(g)
-    } else {
-        None
-    };
+            {
+                default_cfg.oc_scale = g.selected.oc_scale;
+            }
+            #[cfg(feature = "nb_ridge")]
+            {
+                default_cfg.ridge_scale = g.selected.ridge_scale;
+            }
+            Some(g)
+        } else {
+            None
+        };
     #[cfg(not(feature = "nb_scope"))]
     let genome_selected: Option<genome_lane::GenomeSelection> = None;
     // The full-pool events (corpus pool = the complement of the cal front),
@@ -3472,23 +3463,24 @@ fn run_modelless<const N: usize>(
     // every engine built from here on carries the (qid, option) tables.
     // None → the plain path, byte-identical.
     let corpus_pool: &[TrainDoc] = train;
-    let build_at_posture = |cfg: EngineConfig| -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
-        #[cfg(feature = "option_cond")]
-        if let Some(ev) = oc_events_full.as_ref() {
-            return build_engine_oc_with::<N>(
-                spec.name,
-                corpus_pool,
-                labels,
-                effective_cap,
-                cfg,
-                &[],
-                ev,
-            );
-        }
-        #[cfg(not(feature = "option_cond"))]
-        let _ = &oc_events_full;
-        build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)
-    };
+    let build_at_posture =
+        |cfg: EngineConfig| -> Result<(DecisionEngine<N, EMBED_DIM>, Vec<String>), String> {
+            #[cfg(feature = "option_cond")]
+            if let Some(ev) = oc_events_full.as_ref() {
+                return build_engine_oc_with::<N>(
+                    spec.name,
+                    corpus_pool,
+                    labels,
+                    effective_cap,
+                    cfg,
+                    &[],
+                    ev,
+                );
+            }
+            #[cfg(not(feature = "option_cond"))]
+            let _ = &oc_events_full;
+            build_engine::<N>(spec.name, corpus_pool, labels, effective_cap, cfg)
+        };
 
     // Corpus corpora: eval-cap docs per label, from the SAME pool the
     // thresholds were fitted on (the complement of the stratified cal
@@ -3609,7 +3601,9 @@ fn run_modelless<const N: usize>(
                     conf_cal: Some(cal_eval_test.confs[ci][qi]),
                     abstain_raw: Some(raw_eval.abstained[ci][qi]),
                     abstain_cal: Some(cal_eval_test.abstained[ci][qi]),
-                    cause_cal: cause_cal.abstained().then(|| cause_cal.as_str().to_string()),
+                    cause_cal: cause_cal
+                        .abstained()
+                        .then(|| cause_cal.as_str().to_string()),
                 });
             }
         }
@@ -3631,9 +3625,7 @@ fn run_modelless<const N: usize>(
     let forced = raw_eval.forced_rows(&suite.cases);
     let hard = hard_metrics(&forced);
     // Plan 011 §B3: the JDI reference columns from the same forced rows.
-    let jdi_chance = chance_majority(
-        &forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>(),
-    );
+    let jdi_chance = chance_majority(&forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>());
     let jdi_skill = chance_corrected_skill(hard.accuracy, jdi_chance);
     // Issue 024 T3: the same walk restricted to the unflagged cases. None
     // (feature off / out of scope) stays an absence in results.json.
@@ -3826,196 +3818,198 @@ fn run_modelless<const N: usize>(
     };
     Ok((
         LaneResult {
-        lane: "modelless",
-        model: "modelless".to_string(),
-        hard,
-        readout_ece: Some(readout_ece_cal),
-        // Issue 073 T4 field, modelless lane: the readout Brier twin of
-        // readout_ece — computed on the same calibrated readout pairs the
-        // G1 tail reads. Report-only; never a gate.
-        readout_brier: Some(readout_brier_cal),
-        raw_abstain: Some(raw_abstain),
-        calibrated_abstain: Some(calibrated_abstain),
-        // Issue 060: the CALIBRATED gate's causes — the why behind the
-        // published abstain rate (the raw engine's own gate runs un-fitted
-        // thresholds; its causes are not the published story).
-        abstain_causes: Some(cal_eval_test.abstain_causes()),
-        readout_ece_raw: Some(readout_ece_raw),
-        readout_ece_calibrated: Some(readout_ece_cal),
-        floor_ece: Some(floor_ece),
-        g1_pass,
-        g1_verdict: Some(g1_verdict),
-        drex_conf_readout: None,
-        by_question_type,
-        soft_acc,
-        brier_soft,
-        score_mae,
-        within_1,
-        latency_p50_ms: lat.p50_ms,
-        latency_p99_ms: lat.p99_ms,
-        latency_tail_support: lat.tail_support,
-        acc_deleaked,
-        jdi_chance: Some(jdi_chance),
-        jdi_skill: Some(jdi_skill),
-        readout_report,
-        corpus_fallbacks,
-        latency_extremes: lat.extremes,
-        determinism_ok: lat.determinism_ok,
-        determinism_n: lat.determinism_n,
-        seconds: t_start.elapsed().as_secs_f64(),
-        n_cases: suite.cases.len(),
-        n_questions: raw_eval.n_questions(),
-        score_threshold,
-        distance_threshold,
-        threshold_recommendation: Some(threshold_recommendation),
-        corpus_cap: Some(CorpusCapInfo {
-            effective: effective_cap,
-            source: cap_source.to_string(),
-            selection: selection.map(|s| s.rows),
-        }),
-        corpus_digest: Some(corpus_digest),
-        head_selection: head_selected,
-        nb_selection: nb_selected,
-        #[cfg(feature = "option_cond")]
-        oc_selection: oc_selected,
-        #[cfg(feature = "nb_ridge")]
-        ridge_selection: ridge_selected,
-        genome_selection: genome_selected,
-        transductive,
-        confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
-        items,
-        pair_head_ab: if inp.pair_head_ab {
-            let (top2_ab, pred_ab) = pair_head_ab_pass(
-                &raw_eval,
-                suite,
-                state_strs,
-                &cal_eval,
-                &cal_cases,
-                train,
-                labels,
-                effective_cap,
-                &crate::embed::Embedder,
-            )?;
-            Some((top2_ab, pred_ab))
-        } else {
-            None
-        },
-        nli_feature_ab: if inp.nli_feature_ab {
-            nli_lane::nli_feature_ab_pass(
-                &raw_eval,
-                suite,
-                &cal_eval,
-                &cal_cases,
-                Some(nli_lane::G1Inputs {
-                    engine_calibrated_test_ece: readout_ece_cal,
-                    conformal_floor_test: floor_ece,
+            lane: "modelless",
+            model: "modelless".to_string(),
+            hard,
+            readout_ece: Some(readout_ece_cal),
+            // Issue 073 T4 field, modelless lane: the readout Brier twin of
+            // readout_ece — computed on the same calibrated readout pairs the
+            // G1 tail reads. Report-only; never a gate.
+            readout_brier: Some(readout_brier_cal),
+            raw_abstain: Some(raw_abstain),
+            calibrated_abstain: Some(calibrated_abstain),
+            // Issue 060: the CALIBRATED gate's causes — the why behind the
+            // published abstain rate (the raw engine's own gate runs un-fitted
+            // thresholds; its causes are not the published story).
+            abstain_causes: Some(cal_eval_test.abstain_causes()),
+            readout_ece_raw: Some(readout_ece_raw),
+            readout_ece_calibrated: Some(readout_ece_cal),
+            floor_ece: Some(floor_ece),
+            g1_pass,
+            g1_verdict: Some(g1_verdict),
+            drex_conf_readout: None,
+            by_question_type,
+            soft_acc,
+            brier_soft,
+            score_mae,
+            within_1,
+            latency_p50_ms: lat.p50_ms,
+            latency_p99_ms: lat.p99_ms,
+            latency_tail_support: lat.tail_support,
+            acc_deleaked,
+            jdi_chance: Some(jdi_chance),
+            jdi_skill: Some(jdi_skill),
+            readout_report,
+            corpus_fallbacks,
+            latency_extremes: lat.extremes,
+            determinism_ok: lat.determinism_ok,
+            determinism_n: lat.determinism_n,
+            seconds: t_start.elapsed().as_secs_f64(),
+            n_cases: suite.cases.len(),
+            n_questions: raw_eval.n_questions(),
+            score_threshold,
+            distance_threshold,
+            threshold_recommendation: Some(threshold_recommendation),
+            corpus_cap: Some(CorpusCapInfo {
+                effective: effective_cap,
+                source: cap_source.to_string(),
+                selection: selection.map(|s| s.rows),
+            }),
+            corpus_digest: Some(corpus_digest),
+            head_selection: head_selected,
+            nb_selection: nb_selected,
+            #[cfg(feature = "option_cond")]
+            oc_selection: oc_selected,
+            #[cfg(feature = "nb_ridge")]
+            ridge_selection: ridge_selected,
+            genome_selection: genome_selected,
+            transductive,
+            confusion: Some(confusion_rows(&raw_eval, &suite.cases, CONFUSION_TOP)),
+            items,
+            pair_head_ab: if inp.pair_head_ab {
+                let (top2_ab, pred_ab) = pair_head_ab_pass(
+                    &raw_eval,
+                    suite,
+                    state_strs,
+                    &cal_eval,
+                    &cal_cases,
+                    train,
+                    labels,
+                    effective_cap,
+                    &crate::embed::Embedder,
+                )?;
+                Some((top2_ab, pred_ab))
+            } else {
+                None
+            },
+            nli_feature_ab: if inp.nli_feature_ab {
+                nli_lane::nli_feature_ab_pass(
+                    &raw_eval,
+                    suite,
+                    &cal_eval,
+                    &cal_cases,
+                    Some(nli_lane::G1Inputs {
+                        engine_calibrated_test_ece: readout_ece_cal,
+                        conformal_floor_test: floor_ece,
+                        cal_capacity: nli_cal_capacity,
+                        cal_min_obs: nli_cal_min_obs,
+                    }),
+                )?
+            } else {
+                None
+            },
+            nli_m1: if inp.nli_m1 {
+                // Issue 047 M1: the fit pool (cal front + corpus-excluded
+                // train rest, premise-guarded) is built at the lane's own
+                // corpus law, then read by BOTH deployed engines — the pass
+                // itself never touches an engine.
+                let (pool_cases, n_premise_excluded) =
+                    nli_m1::build_pool_cases(&cal_cases, inp.pool_rows, effective_cap)?;
+                let pool_state_strs: Vec<String> = pool_cases
+                    .iter()
+                    .map(|c| serialize_state(&c.state))
+                    .collect();
+                let (pool_raw, _) =
+                    eval_engine(&mut raw_engine, &pool_cases, &pool_state_strs, false)?;
+                let (pool_fitted, _) =
+                    eval_engine(&mut fitted, &pool_cases, &pool_state_strs, false)?;
+                nli_m1::nli_m1_pass(&nli_m1::M1Inputs {
+                    spec_name: spec.name,
+                    suite,
+                    raw_eval: &raw_eval,
+                    cal_eval_test: &cal_eval_test,
+                    floor_pairs: &floor_pairs,
+                    floor_ece,
+                    pool_cases: &pool_cases,
+                    pool_raw: &pool_raw,
+                    pool_fitted: &pool_fitted,
+                    n_premise_excluded,
                     cal_capacity: nli_cal_capacity,
                     cal_min_obs: nli_cal_min_obs,
-                }),
-            )?
-        } else {
-            None
+                })?
+            } else {
+                None
+            },
+            #[cfg(feature = "mc_ensemble")]
+            mc_ab: if let Some(mcc) = inp.mc_ab {
+                Some(super::mc_ab::mc_ab_pass(
+                    &mut fitted,
+                    suite,
+                    state_strs,
+                    &cal_cases,
+                    cal_state_strs,
+                    super::mc_ab::McBaseline {
+                        confs_calibrated: &cal_eval_test.confs,
+                        confs_raw: &raw_eval.confs,
+                        picks: &raw_eval.picks,
+                    },
+                    mcc,
+                )?)
+            } else {
+                None
+            },
+            // Issue 066 (`--density-gate`): the density half's paired A/B —
+            // report-only, over the SAME frozen test read the row publishes
+            // (the shipped arm IS this row's calibrated gate; the density arm
+            // rebuilds at the same posture + knob, calibrator re-fit on the
+            // same cal pairs).
+            #[cfg(feature = "density_gate")]
+            density_ab: if inp.density_gate {
+                let shipped = super::density_ab::ShippedArm {
+                    abstained: &cal_eval_test.abstained,
+                    picks: &cal_eval_test.picks,
+                    confs: &cal_eval_test.confs,
+                };
+                let build = |dcfg: EngineConfig| build_at_posture(dcfg);
+                Some(super::density_ab::density_ab_pass::<N>(
+                    spec.name,
+                    &build,
+                    &fitted_cfg_for_transductive,
+                    &cal_pairs,
+                    &cal_cases,
+                    cal_state_strs,
+                    &suite.cases,
+                    state_strs,
+                    shipped,
+                )?)
+            } else {
+                None
+            },
+            // Plan 627 / Issue 090 C2 (`--set-refine-ab`): the set-conditioned
+            // state refinement's paired A/B — report-only, over the SAME
+            // frozen test read the row publishes (the shipped arm IS this
+            // row's posture; the refined arm rebuilds at the same posture +
+            // the knob, calibrator re-fit on the same cal pairs).
+            #[cfg(feature = "set_refine")]
+            set_refine_ab: if let Some((gamma, tau)) = inp.set_refine {
+                let build = |rcfg: EngineConfig| build_at_posture(rcfg);
+                Some(super::set_refine_ab::set_refine_ab_pass::<N>(
+                    spec.name,
+                    &build,
+                    &fitted_cfg_for_transductive,
+                    gamma,
+                    tau,
+                    &cal_pairs,
+                    &suite.cases,
+                    state_strs,
+                    &cal_eval_test.picks,
+                    &cal_eval_test.abstained,
+                    &cal_eval_test.confs,
+                )?)
+            } else {
+                None
+            },
         },
-        nli_m1: if inp.nli_m1 {
-            // Issue 047 M1: the fit pool (cal front + corpus-excluded
-            // train rest, premise-guarded) is built at the lane's own
-            // corpus law, then read by BOTH deployed engines — the pass
-            // itself never touches an engine.
-            let (pool_cases, n_premise_excluded) =
-                nli_m1::build_pool_cases(&cal_cases, inp.pool_rows, effective_cap)?;
-            let pool_state_strs: Vec<String> = pool_cases
-                .iter()
-                .map(|c| serialize_state(&c.state))
-                .collect();
-            let (pool_raw, _) = eval_engine(&mut raw_engine, &pool_cases, &pool_state_strs, false)?;
-            let (pool_fitted, _) = eval_engine(&mut fitted, &pool_cases, &pool_state_strs, false)?;
-            nli_m1::nli_m1_pass(&nli_m1::M1Inputs {
-                spec_name: spec.name,
-                suite,
-                raw_eval: &raw_eval,
-                cal_eval_test: &cal_eval_test,
-                floor_pairs: &floor_pairs,
-                floor_ece,
-                pool_cases: &pool_cases,
-                pool_raw: &pool_raw,
-                pool_fitted: &pool_fitted,
-                n_premise_excluded,
-                cal_capacity: nli_cal_capacity,
-                cal_min_obs: nli_cal_min_obs,
-            })?
-        } else {
-            None
-        },
-        #[cfg(feature = "mc_ensemble")]
-        mc_ab: if let Some(mcc) = inp.mc_ab {
-            Some(super::mc_ab::mc_ab_pass(
-                &mut fitted,
-                suite,
-                state_strs,
-                &cal_cases,
-                cal_state_strs,
-                super::mc_ab::McBaseline {
-                    confs_calibrated: &cal_eval_test.confs,
-                    confs_raw: &raw_eval.confs,
-                    picks: &raw_eval.picks,
-                },
-                mcc,
-            )?)
-        } else {
-            None
-        },
-        // Issue 066 (`--density-gate`): the density half's paired A/B —
-        // report-only, over the SAME frozen test read the row publishes
-        // (the shipped arm IS this row's calibrated gate; the density arm
-        // rebuilds at the same posture + knob, calibrator re-fit on the
-        // same cal pairs).
-        #[cfg(feature = "density_gate")]
-        density_ab: if inp.density_gate {
-            let shipped = super::density_ab::ShippedArm {
-                abstained: &cal_eval_test.abstained,
-                picks: &cal_eval_test.picks,
-                confs: &cal_eval_test.confs,
-            };
-            let build = |dcfg: EngineConfig| build_at_posture(dcfg);
-            Some(super::density_ab::density_ab_pass::<N>(
-                spec.name,
-                &build,
-                &fitted_cfg_for_transductive,
-                &cal_pairs,
-                &cal_cases,
-                cal_state_strs,
-                &suite.cases,
-                state_strs,
-                shipped,
-            )?)
-        } else {
-            None
-        },
-        // Plan 627 / Issue 090 C2 (`--set-refine-ab`): the set-conditioned
-        // state refinement's paired A/B — report-only, over the SAME
-        // frozen test read the row publishes (the shipped arm IS this
-        // row's posture; the refined arm rebuilds at the same posture +
-        // the knob, calibrator re-fit on the same cal pairs).
-        #[cfg(feature = "set_refine")]
-        set_refine_ab: if let Some((gamma, tau)) = inp.set_refine {
-            let build = |rcfg: EngineConfig| build_at_posture(rcfg);
-            Some(super::set_refine_ab::set_refine_ab_pass::<N>(
-                spec.name,
-                &build,
-                &fitted_cfg_for_transductive,
-                gamma,
-                tau,
-                &cal_pairs,
-                &suite.cases,
-                state_strs,
-                &cal_eval_test.picks,
-                &cal_eval_test.abstained,
-                &cal_eval_test.confs,
-            )?)
-        } else {
-            None
-        },
-    },
         modelless_questions,
     ))
 }
@@ -4037,11 +4031,7 @@ fn run_modelless<const N: usize>(
 /// compiles to nothing and the plain fallback below serves (its substrate
 /// loader refuses an env `ane` LOUD — an ANE number can never silently
 /// wear a CPU label either way).
-#[cfg(all(
-    feature = "laya-riir",
-    feature = "laya-riir-ane",
-    target_os = "macos"
-))]
+#[cfg(all(feature = "laya-riir", feature = "laya-riir-ane", target_os = "macos"))]
 fn load_laya_agent(
     ckpt: &str,
     ck: crate::laya::config::Checkpoint,
@@ -4063,10 +4053,10 @@ fn load_laya_agent(
         }
         return crate::laya::riir::RiirAgent::load_ane(&weights_root(), ck, &ane_root, &manifest)
             .map_err(|e| format!("laya ane load ({ckpt}): {e}"));
-        }
-        crate::laya::riir::RiirAgent::load(&weights_root(), ck)
-            .map_err(|e| format!("laya load ({ckpt}): {e}"))
     }
+    crate::laya::riir::RiirAgent::load(&weights_root(), ck)
+        .map_err(|e| format!("laya load ({ckpt}): {e}"))
+}
 
 /// The no-ANE-build form: plain load (an env `ane` value is refused loud
 /// by the substrate — fail loud, never a silent fallback). Also the form
@@ -4100,12 +4090,15 @@ fn run_laya_checkpoint(
     // Untimed, excluded from the lane's latency/metrics; bucket skips are
     // named and simply shrink the probe set.
     cal_cases: Option<&[SuiteCase]>,
-) -> Result<(
-    LaneResult,
-    Vec<String>,
-    super::cascade::LayaQuestions,
-    Option<super::cascade::LayaQuestions>,
-), String> {
+) -> Result<
+    (
+        LaneResult,
+        Vec<String>,
+        super::cascade::LayaQuestions,
+        Option<super::cascade::LayaQuestions>,
+    ),
+    String,
+> {
     use crate::laya::config::Checkpoint;
 
     let t_start = Instant::now();
@@ -4148,7 +4141,10 @@ fn run_laya_checkpoint(
         for case in cases {
             match agent.system_one(&case.state, &case_questions(case)) {
                 Ok(_) => {
-                    eprintln!("  [laya {ckpt}] gpu pre-ramp: 1 unmeasured warmup case ({})", case.id);
+                    eprintln!(
+                        "  [laya {ckpt}] gpu pre-ramp: 1 unmeasured warmup case ({})",
+                        case.id
+                    );
                     break;
                 }
                 Err(crate::laya::LayaError::Bucket { .. }) => continue,
@@ -4314,7 +4310,8 @@ fn run_laya_checkpoint(
         return Err(format!(
             "all {} case(s) exceed the ANE buckets (max {}) — no servable cases; \
              this device row is absent for this suite (named, not fabricated)",
-            cases.len(), max_bucket,
+            cases.len(),
+            max_bucket,
         ));
     }
 
@@ -4323,8 +4320,8 @@ fn run_laya_checkpoint(
     // The leak flags are remapped through the bucket skips so the served
     // slice and the keep-mask stay index-aligned (subset_accuracy asserts
     // exactly that).
-    let served_flags: Option<Vec<bool>> = leak_flags
-        .map(|f| served_orig.iter().map(|&i| f[i]).collect());
+    let served_flags: Option<Vec<bool>> =
+        leak_flags.map(|f| served_orig.iter().map(|&i| f[i]).collect());
     // Issue 038 T4′: the escalator's per-question record (served case
     // indices + picks) — the cascade lane's escalation half.
     let laya_questions = super::cascade::LayaQuestions {
@@ -4444,9 +4441,7 @@ fn assemble_laya_lane_result(
     let hard = hard_metrics(&forced);
     // Plan 011 §B3: the JDI reference columns, derived from the same
     // forced rows `hard` read (never folded into `hard.accuracy`).
-    let jdi_chance = chance_majority(
-        &forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>(),
-    );
+    let jdi_chance = chance_majority(&forced.iter().map(|(g, _)| *g).collect::<Vec<usize>>());
     let jdi_skill = chance_corrected_skill(hard.accuracy, jdi_chance);
     let acc_deleaked = leak_flags.and_then(|keep| {
         let per_case: Vec<usize> = cases.iter().map(|c| c.as_ref().questions.len()).collect();
@@ -4575,7 +4570,7 @@ fn assemble_laya_lane_result(
         score_threshold: f32::NAN, // laya exposes no abstain knob — N/A
         distance_threshold: f32::NAN,
         threshold_recommendation: None,
-        corpus_cap: None, // the laya lanes have no corpus
+        corpus_cap: None,     // the laya lanes have no corpus
         head_selection: None, // no fitted heads on the laya lanes
         nb_selection: None,
         #[cfg(feature = "option_cond")]
@@ -4584,7 +4579,7 @@ fn assemble_laya_lane_result(
         ridge_selection: None,
         genome_selection: None, // the laya lanes run no joint selection
         transductive: None,
-        confusion: None,  // the pair probe is the modelless lane's instrument
+        confusion: None, // the pair probe is the modelless lane's instrument
         items,
         pair_head_ab: None,
         nli_feature_ab: None,
@@ -4597,7 +4592,7 @@ fn assemble_laya_lane_result(
         set_refine_ab: None, // the laya lanes run no modelless seam
         readout_report: None,
         corpus_fallbacks: Vec::new(), // laya reads no train rows (Issue 039)
-        corpus_digest: None, // laya reads no train rows (Issue 057)
+        corpus_digest: None,          // laya reads no train rows (Issue 057)
     }
 }
 
@@ -4852,12 +4847,15 @@ fn run_laya_checkpoint(
     _laya_max_questions: usize,
     _leak_flags: Option<&[bool]>,
     _cal_cases: Option<&[SuiteCase]>,
-) -> Result<(
-    LaneResult,
-    Vec<String>,
-    super::cascade::LayaQuestions,
-    Option<super::cascade::LayaQuestions>,
-), String> {
+) -> Result<
+    (
+        LaneResult,
+        Vec<String>,
+        super::cascade::LayaQuestions,
+        Option<super::cascade::LayaQuestions>,
+    ),
+    String,
+> {
     Err("laya-riir feature off".to_string())
 }
 
@@ -4917,9 +4915,10 @@ fn clm_request(case: &SuiteCase) -> Result<katgpt_core::decision_wire::DecisionR
     for q in &case.questions {
         let question = match q.kind {
             QKind::Choice => {
-                let obj = q.criteria.as_object().ok_or_else(|| {
-                    format!("case {}: choice criteria must be an object", q.qid)
-                })?;
+                let obj = q
+                    .criteria
+                    .as_object()
+                    .ok_or_else(|| format!("case {}: choice criteria must be an object", q.qid))?;
                 // THEIR candidates law: the description when present, else
                 // the key (their `crit[k] in (None, "")` fallback).
                 let options: Vec<String> = obj
@@ -4945,9 +4944,7 @@ fn clm_request(case: &SuiteCase) -> Result<katgpt_core::decision_wire::DecisionR
                             })
                             .collect()
                     })
-                    .ok_or_else(|| {
-                        format!("case {}: score criteria must be an array", q.qid)
-                    })?;
+                    .ok_or_else(|| format!("case {}: score criteria must be an array", q.qid))?;
                 Question::score(q.qid.as_str(), q.instructions.as_str(), levels)
             }
             QKind::Noul => Question::noul(q.qid.as_str(), q.instructions.as_str()),
@@ -4965,17 +4962,10 @@ fn clm_request(case: &SuiteCase) -> Result<katgpt_core::decision_wire::DecisionR
 /// pick, confidence), so a nondeterministic server shows up identically
 /// in both lanes' `det` columns.
 #[cfg(feature = "clm-lane")]
-fn clm_repeat_render(
-    answers: &[katgpt_core::decision_wire::Answer],
-) -> String {
+fn clm_repeat_render(answers: &[katgpt_core::decision_wire::Answer]) -> String {
     answers
         .iter()
-        .map(|a| {
-            format!(
-                "{:?}|{:?}|{:.6}",
-                a.outcome, a.probabilities, a.confidence
-            )
-        })
+        .map(|a| format!("{:?}|{:?}|{:.6}", a.outcome, a.probabilities, a.confidence))
         .collect::<Vec<_>>()
         .join(";")
 }
@@ -4985,10 +4975,7 @@ fn clm_repeat_render(
 /// cross-lane consistency law — the same wall-clock every other lane's
 /// p50 reports), `usage.input_tokens` summed for the run log.
 #[cfg(feature = "clm-lane")]
-fn run_clm_lane(
-    suite: &Suite,
-    leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, u64), String> {
+fn run_clm_lane(suite: &Suite, leak_flags: Option<&[bool]>) -> Result<(LaneResult, u64), String> {
     use crate::lanes::clm::{ClmLane, DEFAULT_MODEL};
     use katgpt_core::decision_wire::Outcome;
 
@@ -5016,8 +5003,10 @@ fn run_clm_lane(
             questions: vec![Question::noul("warm", "Is this the warmup?")],
         };
         if let Err(e) = lane.decide(&warm) {
-            return Err(format!("clm warmup: {e} — is their stack serving at \
-                 CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"));
+            return Err(format!(
+                "clm warmup: {e} — is their stack serving at \
+                 CLM_SERVE_URL? (scripts/clm_serve_4090.sh status)"
+            ));
         }
     }
     let mut determinism_ok: Option<bool> = Some(true);
@@ -5109,11 +5098,11 @@ fn run_clm_lane(
 /// The feature-off stub: an explicit `--clm` is a LOUD refusal naming the
 /// rebuild, never a silent absence (the build-stamp law).
 #[cfg(not(feature = "clm-lane"))]
-fn run_clm_lane(
-    _suite: &Suite,
-    _leak_flags: Option<&[bool]>,
-) -> Result<(LaneResult, u64), String> {
-    Err("clm-lane feature off — rebuild with --features clm-lane to measure the CLM reference".to_string())
+fn run_clm_lane(_suite: &Suite, _leak_flags: Option<&[bool]>) -> Result<(LaneResult, u64), String> {
+    Err(
+        "clm-lane feature off — rebuild with --features clm-lane to measure the CLM reference"
+            .to_string(),
+    )
 }
 
 /// The shared JSONL-subprocess-oracle handle — spawn + handshake + the
@@ -5159,8 +5148,7 @@ impl JsonlOracle {
             ));
         }
         let python = std::env::var(python_env).unwrap_or_else(|_| "python3".to_string());
-        let device =
-            std::env::var(device_env).unwrap_or_else(|_| default_device.to_string());
+        let device = std::env::var(device_env).unwrap_or_else(|_| default_device.to_string());
 
         let mut child = std::process::Command::new(&python)
             .arg(&script)
@@ -5302,7 +5290,10 @@ fn run_jsonl_oracle_lane(
         &[],
     )?;
     let model = oracle.model.clone();
-    eprintln!("    [{lane}] oracle up: {} on {}", oracle.model, oracle.device);
+    eprintln!(
+        "    [{lane}] oracle up: {} on {}",
+        oracle.model, oracle.device
+    );
 
     // The trim law: the SAME question cap as the laya lanes, so a capped
     // run never compares a full-N row against a capped row.
@@ -5365,9 +5356,9 @@ fn run_jsonl_oracle_lane(
                 .get("answers")
                 .and_then(|a| a.as_object())
                 .ok_or_else(|| format!("{lane} response (case {ci}): no answers object"))?;
-            let a = answers.get(&q.qid).ok_or_else(|| {
-                format!("{lane} response (case {ci}): missing qid {}", q.qid)
-            })?;
+            let a = answers
+                .get(&q.qid)
+                .ok_or_else(|| format!("{lane} response (case {ci}): missing qid {}", q.qid))?;
             let (p, pick, conf) = parse_python_answer(q, a)
                 .map_err(|e| format!("{lane} response (case {ci}): {e}"))?;
             cprobs.push(p);
@@ -5660,8 +5651,7 @@ fn run_clef_lane(
             .ok()
             .and_then(|v| v.parse::<usize>().ok())
             .unwrap_or(crate::lanes::clef::DEFAULT_MAX_CASES);
-        let uncapped = std::env::var(crate::lanes::clef::UNCAPPED_ENV)
-            .is_ok_and(|v| v == "1");
+        let uncapped = std::env::var(crate::lanes::clef::UNCAPPED_ENV).is_ok_and(|v| v == "1");
         if cases.len() > max_cases && !uncapped {
             return Err(format!(
                 "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — \
@@ -5776,9 +5766,11 @@ fn run_openthai_lane(
             }],
             gold: vec![],
         };
-        let raw = lane.decide_raw(&warm).map_err(|e| format!("openthai warmup: {e}"))?;
-        let parsed: Value = serde_json::from_str(&raw)
-            .map_err(|e| format!("openthai warmup response: {e}"))?;
+        let raw = lane
+            .decide_raw(&warm)
+            .map_err(|e| format!("openthai warmup: {e}"))?;
+        let parsed: Value =
+            serde_json::from_str(&raw).map_err(|e| format!("openthai warmup response: {e}"))?;
         model = OpenThaiLane::model_of(&parsed);
         lane.decide(&warm)
             .map_err(|e| format!("openthai warmup: {e}"))?;
@@ -5849,9 +5841,7 @@ fn run_openthai_lane(
         picks.push(cpicks);
         confs.push(cconfs);
     }
-    eprintln!(
-        "    [openthai] abstain slots: {abstains} · input tokens: {input_tokens}"
-    );
+    eprintln!("    [openthai] abstain slots: {abstains} · input tokens: {input_tokens}");
 
     Ok(assemble_laya_lane_result(
         "openthai",
@@ -5912,9 +5902,11 @@ fn run_drex_lane(
             }],
             gold: vec![],
         };
-        let raw = lane.decide_raw(&warm).map_err(|e| format!("drex warmup: {e}"))?;
-        let parsed: Value = serde_json::from_str(&raw)
-            .map_err(|e| format!("drex warmup response: {e}"))?;
+        let raw = lane
+            .decide_raw(&warm)
+            .map_err(|e| format!("drex warmup: {e}"))?;
+        let parsed: Value =
+            serde_json::from_str(&raw).map_err(|e| format!("drex warmup response: {e}"))?;
         model = DrexLane::model_of(&parsed);
         lane.decide(&warm)
             .map_err(|e| format!("drex warmup: {e}"))?;
@@ -6006,12 +5998,10 @@ fn run_drex_lane(
             Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
             None => "absent (no wire confidence)".to_string(),
         };
-        let floor = r
-            .floor_ece
-            .map_or_else(
-                || "below the occupancy floor".to_string(),
-                |e| format!("ece={e:.4}"),
-            );
+        let floor = r.floor_ece.map_or_else(
+            || "below the occupancy floor".to_string(),
+            |e| format!("ece={e:.4}"),
+        );
         eprintln!(
             "    [drex] their-confidence cells: choice {} · score {} · floor {} \
              (cal {} / test {})",
@@ -6077,12 +6067,13 @@ fn run_d1_lane(
             }],
             gold: vec![],
         };
-        let raw = lane.decide_raw(&warm).map_err(|e| format!("d1 warmup: {e}"))?;
-        let parsed: Value = serde_json::from_str(&raw)
-            .map_err(|e| format!("d1 warmup response: {e}"))?;
-        model = D1Lane::model_of(&parsed);
-        lane.decide(&warm)
+        let raw = lane
+            .decide_raw(&warm)
             .map_err(|e| format!("d1 warmup: {e}"))?;
+        let parsed: Value =
+            serde_json::from_str(&raw).map_err(|e| format!("d1 warmup response: {e}"))?;
+        model = D1Lane::model_of(&parsed);
+        lane.decide(&warm).map_err(|e| format!("d1 warmup: {e}"))?;
     }
     eprintln!("    [d1] service up: {model}");
 
@@ -6174,12 +6165,10 @@ fn run_d1_lane(
             Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
             None => "absent (no wire confidence)".to_string(),
         };
-        let floor = r
-            .floor_ece
-            .map_or_else(
-                || "below the occupancy floor".to_string(),
-                |e| format!("ece={e:.4}"),
-            );
+        let floor = r.floor_ece.map_or_else(
+            || "below the occupancy floor".to_string(),
+            |e| format!("ece={e:.4}"),
+        );
         eprintln!(
             "    [d1] their-confidence cells: choice {} · score {} · floor {} \
              (cal {} / test {})",
@@ -6246,9 +6235,11 @@ fn run_jeva_lane(
             }],
             gold: vec![],
         };
-        let raw = lane.decide_raw(&warm).map_err(|e| format!("jeva warmup: {e}"))?;
-        let parsed: Value = serde_json::from_str(&raw)
-            .map_err(|e| format!("jeva warmup response: {e}"))?;
+        let raw = lane
+            .decide_raw(&warm)
+            .map_err(|e| format!("jeva warmup: {e}"))?;
+        let parsed: Value =
+            serde_json::from_str(&raw).map_err(|e| format!("jeva warmup response: {e}"))?;
         model = JevaLane::model_of(&parsed);
         lane.decide(&warm)
             .map_err(|e| format!("jeva warmup: {e}"))?;
@@ -6343,9 +6334,10 @@ fn run_jeva_lane(
             Some(c) => format!("n={} ece={:.4} brier={:.4}", c.n, c.ece, c.brier),
             None => "absent (no wire confidence)".to_string(),
         };
-        let floor = r
-            .floor_ece
-            .map_or_else(|| "below the occupancy floor".to_string(), |e| format!("ece={e:.4}"));
+        let floor = r.floor_ece.map_or_else(
+            || "below the occupancy floor".to_string(),
+            |e| format!("ece={e:.4}"),
+        );
         eprintln!(
             "    [jeva] their-confidence cells: choice {} · score {} · floor {} \
              (cal {} / test {})",
@@ -6560,8 +6552,7 @@ fn run_d3_lane(
             }],
             gold: vec![],
         };
-        lane.decide(&warm)
-            .map_err(|e| format!("d3 warmup: {e}"))?;
+        lane.decide(&warm).map_err(|e| format!("d3 warmup: {e}"))?;
     }
 
     // The trim law (the gliner lane's law): the SAME question cap as the
@@ -6904,12 +6895,8 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
             // order; winogrande/hellaswag are fixed positional wires with
             // their own consts.
             "anli_jdi" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
-            "winogrande_jdi" => {
-                Some(crate::harness::suites::WINOGRANDE_JDI_KEYS.to_vec())
-            }
-            "hellaswag_jdi" => {
-                Some(crate::harness::suites::HELLASWAG_JDI_KEYS.to_vec())
-            }
+            "winogrande_jdi" => Some(crate::harness::suites::WINOGRANDE_JDI_KEYS.to_vec()),
+            "hellaswag_jdi" => Some(crate::harness::suites::HELLASWAG_JDI_KEYS.to_vec()),
             "thai_wisesight" => Some(crate::harness::suites::WISESIGHT_KEYS.to_vec()),
             "prompt_injections" => Some(vec!["0", "1"]),
             _ => None,
@@ -7110,8 +7097,7 @@ pub mod seat {
         let spec = SUITES
             .iter()
             .find(|s| s.name == name)
-            .ok_or_else(|| format!("seat: unknown suite {name}"))?
-            as &SuiteSpec;
+            .ok_or_else(|| format!("seat: unknown suite {name}"))? as &SuiteSpec;
         let synthetic = spec.synthetic.is_some();
         if synthetic && !spec.modelless_lane {
             // Unreachable over the current registry (Issue 045 made every
@@ -7604,9 +7590,7 @@ pub mod seat {
     /// µs per case. LATENCY ONLY — the accuracy face of laya is the
     /// published harness row, never re-derived here.
     #[cfg(feature = "laya-riir")]
-    pub fn laya_escalation_latency_us(
-        cases: &[SuiteCase],
-    ) -> Result<Vec<u64>, String> {
+    pub fn laya_escalation_latency_us(cases: &[SuiteCase]) -> Result<Vec<u64>, String> {
         use crate::laya::config::Checkpoint;
         let agent = super::load_laya_agent("english", Checkpoint::English)?;
         if let Some(case) = cases.first() {
@@ -8140,14 +8124,12 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         } else {
             opts.mc_samples
         },
-        p_grid: opts.mc_p_drop.map_or_else(
-            || super::mc_ab::DEFAULT_P_GRID.to_vec(),
-            |p| vec![p],
-        ),
-        lambda_grid: opts.mc_lambda.map_or_else(
-            || super::mc_ab::DEFAULT_LAMBDA_GRID.to_vec(),
-            |l| vec![l],
-        ),
+        p_grid: opts
+            .mc_p_drop
+            .map_or_else(|| super::mc_ab::DEFAULT_P_GRID.to_vec(), |p| vec![p]),
+        lambda_grid: opts
+            .mc_lambda
+            .map_or_else(|| super::mc_ab::DEFAULT_LAMBDA_GRID.to_vec(), |l| vec![l]),
     };
     let mut results: Vec<SuiteResult> = Vec::new();
     let mut errors: Vec<String> = Vec::new();
@@ -8249,10 +8231,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 }
             }
         };
-        #[cfg(any(
-            not(feature = "slice_leak"),
-            target_arch = "wasm32"
-        ))]
+        #[cfg(any(not(feature = "slice_leak"), target_arch = "wasm32"))]
         let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = (None, None);
         let leak_flags_ref: Option<&[bool]> = leak_flags.as_deref();
 
@@ -8434,7 +8413,12 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         if opts.laya_python {
             for ck in laya_checkpoints_for(spec.name) {
                 eprintln!("    laya-python[{ck}]: running…");
-                match run_laya_python_checkpoint(&prepared.suite, ck, opts.laya_max_questions, leak_flags_ref) {
+                match run_laya_python_checkpoint(
+                    &prepared.suite,
+                    ck,
+                    opts.laya_max_questions,
+                    leak_flags_ref,
+                ) {
                     Ok(r) => {
                         eprintln!(
                             "    laya-python[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
@@ -8784,15 +8768,16 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             eprintln!("    paw-local: running…");
             let (python, script) = crate::lanes::paw_local::resolve_invocation();
             let cfg = crate::lanes::paw::PawConfig::from_env();
-            let run = crate::lanes::paw_local::PawLocalSession::spawn(&python, &script)
-                .and_then(|mut session| {
+            let run = crate::lanes::paw_local::PawLocalSession::spawn(&python, &script).and_then(
+                |mut session| {
                     crate::lanes::paw_local::run_suite(
                         &mut session,
                         &cfg,
                         &prepared.suite,
                         opts.laya_max_questions,
                     )
-                });
+                },
+            );
             match run {
                 Ok(Some(r)) => {
                     eprintln!(
@@ -8801,7 +8786,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         r.refusals,
                         r.n_questions,
                         r.latency_p50_ms,
-                        r.determinism_ok.map_or("—".to_string(), |ok| if ok { "✓".into() } else { "✗".into() }),
+                        r.determinism_ok.map_or("—".to_string(), |ok| if ok {
+                            "✓".into()
+                        } else {
+                            "✗".into()
+                        }),
                         (r.seconds * 10.0).round() / 10.0
                     );
                     Some(r)
@@ -8835,14 +8824,21 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                     // gates THIS checkpoint's escalation on the cal-slice
                     // delta. Any missing half reads unprobed (armed + named
                     // reason) — never a silent fallthrough.
-                    let worthiness = opts.cascade_worthiness.then(|| super::cascade::WorthinessInput {
-                        gate: mq.cal_gate.as_ref(),
-                        escalator: laya_cal_questions.get(ck),
-                        cal_cases: prepared.cal_cases.as_slice(),
-                        min_delta: opts.cascade_worthiness_margin,
-                        min_probe_lcb: opts.cascade_worthiness_lcb,
-                    });
-                    match super::cascade::compose(&prepared.suite.cases, mq, lq, worthiness.as_ref()) {
+                    let worthiness =
+                        opts.cascade_worthiness
+                            .then(|| super::cascade::WorthinessInput {
+                                gate: mq.cal_gate.as_ref(),
+                                escalator: laya_cal_questions.get(ck),
+                                cal_cases: prepared.cal_cases.as_slice(),
+                                min_delta: opts.cascade_worthiness_margin,
+                                min_probe_lcb: opts.cascade_worthiness_lcb,
+                            });
+                    match super::cascade::compose(
+                        &prepared.suite.cases,
+                        mq,
+                        lq,
+                        worthiness.as_ref(),
+                    ) {
                         Ok(rep) => {
                             let disarm_note = rep
                                 .worthiness
@@ -8946,19 +8942,25 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                                no calibration claim when the calibrator never moved"
                 .to_string();
             if opts.gate_fit_selection {
-                p.push_str("; --gate-fit-selection: thresholds fitted on the stratified \
+                p.push_str(
+                    "; --gate-fit-selection: thresholds fitted on the stratified \
                             selection slice, probe corpus excluding the fit docs \
-                            (issue 042 lever 1)");
+                            (issue 042 lever 1)",
+                );
             }
             if opts.gate_distance_only {
-                p.push_str("; --gate-distance-only: score axis disabled (threshold 0.0), \
+                p.push_str(
+                    "; --gate-distance-only: score axis disabled (threshold 0.0), \
                             the fused gate runs on the corpus-distance axis alone \
-                            (issue 042 lever 2)");
+                            (issue 042 lever 2)",
+                );
             }
             if !opts.kn_route {
-                p.push_str("; --no-kn-route: the legacy k==N index-alignment route \
+                p.push_str(
+                    "; --no-kn-route: the legacy k==N index-alignment route \
                             binding disabled — route terms arm only via by-name \
-                            resolution (issue 079 content-bound posture)");
+                            resolution (issue 079 content-bound posture)",
+                );
             }
             if opts.drafter_fix != crate::engine::DrafterFix::Off {
                 p.push_str(&format!(
@@ -9007,8 +9009,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                         // env value flows to RiirAgent::load -> from_env,
                         // which refuses loudly when the laya-riir-cubecl
                         // feature is absent (plan 611).
-                        "cubecl (LAYA_DEVICE -> load; wgpu portable op layer, plan 611)"
-                            .to_string()
+                        "cubecl (LAYA_DEVICE -> load; wgpu portable op layer, plan 611)".to_string()
                     }
                     Err(e) => format!("unknown ({e})"),
                 }
@@ -9435,9 +9436,9 @@ fn fmt_gate_fit(r: &LaneResult) -> String {
 /// hand-typed name list — a dataset suite joining the registry joins the
 /// crosswalk by existing.
 fn jdi_crosswalk_applies(name: &str) -> bool {
-    SUITES.iter().any(|sp| {
-        sp.name == name && sp.synthetic.is_none() && !sp.named_only
-    })
+    SUITES
+        .iter()
+        .any(|sp| sp.name == name && sp.synthetic.is_none() && !sp.named_only)
 }
 
 pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
@@ -9485,11 +9486,20 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         out.meta.corpus_cap_mode
     ));
     s.push_str(&format!("- label heads: {}\n", out.meta.head_posture));
-    s.push_str(&format!("- count tables (issue 038): {}\n", out.meta.nb_posture));
+    s.push_str(&format!(
+        "- count tables (issue 038): {}\n",
+        out.meta.nb_posture
+    ));
     #[cfg(feature = "option_cond")]
-    s.push_str(&format!("- option-conditioned tables (issue 038 T7b): {}\n", out.meta.oc_posture));
+    s.push_str(&format!(
+        "- option-conditioned tables (issue 038 T7b): {}\n",
+        out.meta.oc_posture
+    ));
     #[cfg(feature = "nb_ridge")]
-    s.push_str(&format!("- NBSVM ridge readout (issue 038 T7a): {}\n", out.meta.ridge_posture));
+    s.push_str(&format!(
+        "- NBSVM ridge readout (issue 038 T7a): {}\n",
+        out.meta.ridge_posture
+    ));
     s.push_str(&format!(
         "- corpus: {} \n- calibration: {}\n- sampling: {}\n- readout: {}\n- floor: {}\n- determinism: {}\n",
         out.meta.corpus_protocol,
@@ -9639,7 +9649,11 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
 
 ",
                 pt(&gs.selected),
-                if gs.held { "HELD — the composed posture stands" } else { "ACCEPTED" },
+                if gs.held {
+                    "HELD — the composed posture stands"
+                } else {
+                    "ACCEPTED"
+                },
                 gs.passes
             ));
             if !gs.moves.is_empty() {
@@ -10175,16 +10189,22 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
         // disclaims calibratedness, d1's card claims it), printed apart
         // from the comparable ece(maxp) column on purpose. One render
         // path for every lane carrying the shared readout.
-        let push_conf_cells = |s: &mut String, label: &str, cr: &crate::lanes::drex::DrexConfReadout| {
-            let cell = |name: &str, c: &Option<crate::lanes::drex::DrexConfCell>| match c {
-                Some(c) => format!("{name} n={} ece={} brier={}", c.n, fmt4(c.ece), fmt4(c.brier)),
-                None => format!("{name} absent (no wire confidence)"),
-            };
-            let floor = cr.floor_ece.map_or_else(
-                || "below the occupancy floor (n < 40)".to_string(),
-                |e| format!("ece={}", fmt4(e)),
-            );
-            s.push_str(&format!(
+        let push_conf_cells =
+            |s: &mut String, label: &str, cr: &crate::lanes::drex::DrexConfReadout| {
+                let cell = |name: &str, c: &Option<crate::lanes::drex::DrexConfCell>| match c {
+                    Some(c) => format!(
+                        "{name} n={} ece={} brier={}",
+                        c.n,
+                        fmt4(c.ece),
+                        fmt4(c.brier)
+                    ),
+                    None => format!("{name} absent (no wire confidence)"),
+                };
+                let floor = cr.floor_ece.map_or_else(
+                    || "below the occupancy floor (n < 40)".to_string(),
+                    |e| format!("ece={}", fmt4(e)),
+                );
+                s.push_str(&format!(
                 "\n**{label} their-confidence cells:** {} · {} · floor {} (cal {} / test {}; {})\n\n",
                 cell("choice", &cr.choice),
                 cell("score", &cr.score),
@@ -10193,8 +10213,12 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 cr.floor_n_test,
                 cr.floor_posture,
             ));
-        };
-        if let Some(cr) = suite.drex.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
+            };
+        if let Some(cr) = suite
+            .drex
+            .as_ref()
+            .and_then(|r| r.drex_conf_readout.as_ref())
+        {
             push_conf_cells(&mut s, "drex", cr);
         }
         if let Some(cr) = suite.d1.as_ref().and_then(|r| r.drex_conf_readout.as_ref()) {
@@ -10261,7 +10285,8 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                         fmt4(r.hard.macro_f1),
                         fmt_opt(r.jdi_chance),
                         fmt_opt(r.jdi_skill),
-                        r.determinism_ok.map_or("—", |ok| if ok { "✓" } else { "✗" }),
+                        r.determinism_ok
+                            .map_or("—", |ok| if ok { "✓" } else { "✗" }),
                     ));
                 }
                 s.push('\n');
@@ -10482,7 +10507,7 @@ wire's first-class abstention is ours alone).
     // — so the row is necessarily quoted, never re-runnable here. Static
     // by design, the same law as the block above.
     s.push_str(
-r#"## Landscape — fast-decisions (vendor suite; NOT measured by this harness)
+        r#"## Landscape — fast-decisions (vendor suite; NOT measured by this harness)
 
 fastino's `fast-decisions` suite — 17 English operational-decision
 domains (commerce support intent/topic, ticket routing, product feedback,
@@ -10626,7 +10651,10 @@ mod host_label_tests {
 
     #[test]
     fn override_wins_over_uname() {
-        assert_eq!(host_label(Some("4090-windows"), Some("shikuwa")), "4090-windows");
+        assert_eq!(
+            host_label(Some("4090-windows"), Some("shikuwa")),
+            "4090-windows"
+        );
     }
 
     #[test]
@@ -10741,12 +10769,7 @@ mod drex_conf_readout_tests {
 
     #[test]
     fn cells_split_by_kind_and_noul_is_never_a_cell() {
-        let kinds = [
-            QKind::Choice,
-            QKind::Noul,
-            QKind::Score,
-            QKind::Choice,
-        ];
+        let kinds = [QKind::Choice, QKind::Noul, QKind::Score, QKind::Choice];
         let case = case_of(&kinds);
         let picks = vec![picks_all_zero(4)];
         let confs = vec![vec![Some(0.9), None, Some(0.4), Some(0.9)]];
@@ -11004,11 +11027,14 @@ mod clm_request_tests {
             id: "t".to_string(),
             state,
             questions,
-            gold: vec![crate::harness::suites::GoldAnswer {
-                idx: 0,
-                soft: vec![],
-                gold_score: None,
-            }; n],
+            gold: vec![
+                crate::harness::suites::GoldAnswer {
+                    idx: 0,
+                    soft: vec![],
+                    gold_score: None,
+                };
+                n
+            ],
         }
     }
 
@@ -11041,7 +11067,10 @@ mod clm_request_tests {
         let req = clm_request(&case(json!("plain state"), vec![q])).unwrap();
         // A bare-string state passes through their to_text unchanged.
         assert_eq!(req.state, "plain state");
-        assert_eq!(req.questions[0].options, vec!["negative", "neutral", "positive"]);
+        assert_eq!(
+            req.questions[0].options,
+            vec!["negative", "neutral", "positive"]
+        );
     }
 
     #[test]
@@ -11064,7 +11093,7 @@ mod corpus_digest_tests {
     //! and sensitivity to every axis the corpus-cap echo cannot see (the
     //! typed 800→1200 lift class). Pure over its inputs — no dataset dir.
 
-    use super::{corpus_digest, per_label_corpus_docs, TrainDoc};
+    use super::{TrainDoc, corpus_digest, per_label_corpus_docs};
 
     fn doc(label: &str, text: &str) -> TrainDoc {
         TrainDoc {
@@ -11129,7 +11158,11 @@ mod corpus_digest_tests {
         let labels = vec!["a".to_string(), "b".to_string()];
         let (drafter, _) = per_label_corpus_docs(&pool(), &labels, 2);
         let nb = vec![
-            vec!["alpha-1".to_string(), "alpha-2".to_string(), "alpha-3".to_string()],
+            vec![
+                "alpha-1".to_string(),
+                "alpha-2".to_string(),
+                "alpha-3".to_string(),
+            ],
             vec!["beta-1".to_string()],
         ];
         assert_ne!(

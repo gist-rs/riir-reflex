@@ -22,7 +22,7 @@
 
 use crate::embed::hashed_tokens_into;
 use crate::nb_scope::NbAlpha;
-use katgpt_core::contrastive_scope::{scope_score, ContrastiveScoreBuilder, ContrastiveScoreTable};
+use katgpt_core::contrastive_scope::{ContrastiveScoreBuilder, ContrastiveScoreTable, scope_score};
 
 /// Vocabulary width of the underlying token hash (the `nb_scope` pool —
 /// one lexicon across both table families keeps the token stream
@@ -184,17 +184,20 @@ impl OptionCond {
     #[must_use]
     pub fn in_score(&self, qid: &str, option: &str, tokens: &[u32]) -> Option<f32> {
         let key = oc_key(qid, option);
-        let pos = self
-            .index
-            .binary_search_by(|(k, _)| k.cmp(&key))
-            .ok()?;
+        let pos = self.index.binary_search_by(|(k, _)| k.cmp(&key)).ok()?;
         Some(-scope_score(&self.index[pos].1, tokens))
     }
 
     /// Per-option in-scores for one question into `out` (length = the
     /// option count; missing keys contribute `None` → the caller's term is
     /// absent for that option, never a fabricated zero).
-    pub fn in_scores(&self, qid: &str, options: &[impl AsRef<str>], tokens: &[u32], out: &mut [Option<f32>]) {
+    pub fn in_scores(
+        &self,
+        qid: &str,
+        options: &[impl AsRef<str>],
+        tokens: &[u32],
+        out: &mut [Option<f32>],
+    ) {
         for (slot, opt) in out.iter_mut().zip(options.iter()) {
             *slot = self.in_score(qid, opt.as_ref(), tokens);
         }

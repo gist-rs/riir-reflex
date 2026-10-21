@@ -52,8 +52,6 @@ const ANCHOR_IN_CORPUS: usize = 42;
 const ANCHOR_LOO: usize = 42;
 const N_STATES: usize = 120;
 
-
-
 #[test]
 fn fixture_bytes_match_the_pinned_blake3() {
     // The include_str! bytes hashed through the same blake3 the pin names —
@@ -89,8 +87,16 @@ fn unserved_tetris_v3_v4_fixtures_hash_to_their_pins() {
     // nothing.
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     for (name, file, pin) in [
-        ("tetris_v3", "tetris_oracle_laya_en_v3.jsonl", TETRIS_V3_FILE_BLAKE3),
-        ("tetris_v4", "tetris_oracle_laya_en_v4.jsonl", TETRIS_V4_FILE_BLAKE3),
+        (
+            "tetris_v3",
+            "tetris_oracle_laya_en_v3.jsonl",
+            TETRIS_V3_FILE_BLAKE3,
+        ),
+        (
+            "tetris_v4",
+            "tetris_oracle_laya_en_v4.jsonl",
+            TETRIS_V4_FILE_BLAKE3,
+        ),
     ] {
         let path = manifest.join("tests/fixtures").join(file);
         let bytes = std::fs::read(&path)
@@ -152,7 +158,10 @@ fn fit_is_bit_deterministic_and_hits_the_published_anchors() {
             in_agree += 1;
         }
     }
-    assert_eq!(in_agree, ANCHOR_IN_CORPUS, "in-corpus agreement drifted from the v3 refit (Bench 892)");
+    assert_eq!(
+        in_agree, ANCHOR_IN_CORPUS,
+        "in-corpus agreement drifted from the v3 refit (Bench 892)"
+    );
 
     // Determinism: a fresh fit from the same corpus is byte-identical.
     let (corpus2, _) = parse_corpus(TETRIS_FIXTURE);

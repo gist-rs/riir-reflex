@@ -25,7 +25,11 @@ const FLAPPY_FIXTURE: &str = include_str!("../assets/game_heads/flappy_oracle_la
 fn fitted_heads() -> Arc<GameHeads> {
     static HEADS: OnceLock<Arc<GameHeads>> = OnceLock::new();
     Arc::clone(HEADS.get_or_init(|| {
-        Arc::new(GameHeads::build(TETRIS_FIXTURE, LANES_FIXTURE, FLAPPY_FIXTURE))
+        Arc::new(GameHeads::build(
+            TETRIS_FIXTURE,
+            LANES_FIXTURE,
+            FLAPPY_FIXTURE,
+        ))
     }))
 }
 
@@ -35,13 +39,7 @@ fn spawn_lanes(laya: LayaLane) -> String {
     let eng = Arc::new(Mutex::new(demo_engine()));
     let laya = Arc::new(Mutex::new(laya));
     std::thread::spawn(move || {
-        let _ = serve_listener_with(
-            listener,
-            eng,
-            laya,
-            vec![],
-            fitted_heads(),
-        );
+        let _ = serve_listener_with(listener, eng, laya, vec![], fitted_heads());
     });
     addr
 }
@@ -278,7 +276,10 @@ fn sidecar_is_permissive_any_json_value_parses_and_answers() {
         r#"{"unknown_schema_version":99}"#,
     ] {
         let resp = post_body(&addr, &spot_body_sidecar(&sentence, prompt, sidecar), None);
-        assert!(resp.starts_with("HTTP/1.1 200"), "sidecar {sidecar}: {resp}");
+        assert!(
+            resp.starts_with("HTTP/1.1 200"),
+            "sidecar {sidecar}: {resp}"
+        );
         let body = resp.split("\r\n\r\n").nth(1).unwrap_or_default();
         assert_eq!(
             body, baseline_body,
@@ -294,7 +295,11 @@ fn sidecar_is_permissive_any_json_value_parses_and_answers() {
 fn malformed_body_still_400s_with_the_sidecar_field_present() {
     let addr = spawn_lanes(LayaLane::Off);
     let sentence = first_fixture_sentence();
-    let valid = spot_body_sidecar(&sentence, "Does the stack look clean?", r#"{"grid":[[0,0]]}"#);
+    let valid = spot_body_sidecar(
+        &sentence,
+        "Does the stack look clean?",
+        r#"{"grid":[[0,0]]}"#,
+    );
     // drop the final `}` — a truncated body is malformed JSON
     let broken = &valid[..valid.len() - 1];
     let resp = post_body(&addr, broken, None);
@@ -440,7 +445,7 @@ mod mapping {
 /// closure is `laya_serve::route_job`, exercised by the serialized smoke
 /// + the fixture-timing lane; its forward math is G5-pinned elsewhere).
 mod routing {
-    use super::{post_body, spawn_lanes, BODY};
+    use super::{BODY, post_body, spawn_lanes};
     use katgpt_core::decision_wire::{Calibration, DecisionResponse, Lane, Routing};
     use riir_reflex::serve::{LayaLane, LayaRoute, LayaServeError};
     use std::sync::{Arc, Mutex};
@@ -467,11 +472,13 @@ mod routing {
     ) -> (String, Arc<Mutex<Vec<LayaRoute>>>) {
         let seen: Arc<Mutex<Vec<LayaRoute>>> = Arc::new(Mutex::new(Vec::new()));
         let seen2 = Arc::clone(&seen);
-        let lane = LayaLane::Ready(Arc::new(move |req: &katgpt_core::decision_wire::DecisionRequest, route: LayaRoute| {
-            let _ = req;
-            seen2.lock().unwrap().push(route);
-            table(route)
-        }));
+        let lane = LayaLane::Ready(Arc::new(
+            move |req: &katgpt_core::decision_wire::DecisionRequest, route: LayaRoute| {
+                let _ = req;
+                seen2.lock().unwrap().push(route);
+                table(route)
+            },
+        ));
         (spawn_lanes(lane), seen)
     }
 
@@ -513,7 +520,10 @@ mod routing {
         assert!(resp.starts_with("HTTP/1.1 422"), "got: {resp}");
         assert!(resp.contains("max 128"), "got: {resp}");
         assert!(resp.contains("never padded"), "got: {resp}");
-        assert!(resp.contains("laya (auto)"), "the remedy names the auto lane: {resp}");
+        assert!(
+            resp.contains("laya (auto)"),
+            "the remedy names the auto lane: {resp}"
+        );
     }
 
     #[test]

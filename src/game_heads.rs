@@ -1102,7 +1102,11 @@ impl GameHeads {
     /// The loud-absent posture: every lane absent (`respond` falls through
     /// for everything).
     pub fn absent() -> Self {
-        Self { tetris: None, lanes: None, flappy: None }
+        Self {
+            tetris: None,
+            lanes: None,
+            flappy: None,
+        }
     }
 
     pub fn has_tetris(&self) -> bool {
@@ -1126,7 +1130,13 @@ impl GameHeads {
     /// Panics when the tetris lane is absent (callers gate on
     /// [`Self::has_tetris`]; the tests and the boot log always do).
     pub fn digest_hex(&self) -> String {
-        self.tetris.as_ref().expect("tetris head absent").fit.digest.to_hex().to_string()
+        self.tetris
+            .as_ref()
+            .expect("tetris head absent")
+            .fit
+            .digest
+            .to_hex()
+            .to_string()
     }
 
     /// The tetris head's chosen λ (the LOO-selected ridge, honesty).
@@ -1136,12 +1146,21 @@ impl GameHeads {
 
     /// The tetris corpus size (options), for the boot log.
     pub fn n_options(&self) -> usize {
-        self.tetris.as_ref().expect("tetris head absent").fit.n_options
+        self.tetris
+            .as_ref()
+            .expect("tetris head absent")
+            .fit
+            .n_options
     }
 
     /// The tetris head's pinned question (from the fixture's `_meta`).
     pub fn question(&self) -> &str {
-        &self.tetris.as_ref().expect("tetris head absent").fit.question
+        &self
+            .tetris
+            .as_ref()
+            .expect("tetris head absent")
+            .fit
+            .question
     }
 
     /// The tetris grammar, for the round-trip tests.
@@ -1168,7 +1187,12 @@ impl GameHeads {
 
     /// The flappy head's pinned question (for the tests' request builders).
     pub fn flappy_question(&self) -> &str {
-        &self.flappy.as_ref().expect("flappy head absent").fit.question
+        &self
+            .flappy
+            .as_ref()
+            .expect("flappy head absent")
+            .fit
+            .question
     }
 
     /// The flappy v3 grammars, for the round-trip tests
@@ -1381,7 +1405,9 @@ pub mod head_vessels {
         payload: &[u8],
     ) -> Result<(String, f64, usize, Standardizer<F>, [f64; D]), HeadVesselError> {
         if payload.len() < 36 || payload[0..4] != HEAD_PAYLOAD_MAGIC {
-            return Err(HeadVesselError::BadPayload("not a head payload (magic)".into()));
+            return Err(HeadVesselError::BadPayload(
+                "not a head payload (magic)".into(),
+            ));
         }
         if rd_u32(payload, 4)? != HEAD_PAYLOAD_VERSION {
             return Err(HeadVesselError::BadPayload(format!(
@@ -1409,7 +1435,9 @@ pub mod head_vessels {
         let qlen = rd_u32(payload, 32)? as usize;
         let mut at = 36 + qlen;
         if payload.len() < at {
-            return Err(HeadVesselError::BadPayload("question overruns payload".into()));
+            return Err(HeadVesselError::BadPayload(
+                "question overruns payload".into(),
+            ));
         }
         let question = String::from_utf8(payload[36..at].to_vec())
             .map_err(|_| HeadVesselError::BadPayload("question is not UTF-8".into()))?;
@@ -1434,7 +1462,16 @@ pub mod head_vessels {
         if !lambda.is_finite() {
             return Err(HeadVesselError::BadPayload("lambda is not finite".into()));
         }
-        Ok((question, lambda, n_options, Standardizer { mean: mean_arr, inv_std: inv_std_arr }, weights))
+        Ok((
+            question,
+            lambda,
+            n_options,
+            Standardizer {
+                mean: mean_arr,
+                inv_std: inv_std_arr,
+            },
+            weights,
+        ))
     }
 
     /// The mint-side shape: one fitted head's fields, borrowable for
@@ -1490,8 +1527,12 @@ pub mod head_vessels {
     ) -> Result<Vec<MintedHead>, String> {
         let read_fixture = |name: &str, pin: &str| -> Result<String, String> {
             let p = fixtures_dir.join(name);
-            let bytes = std::fs::read(&p)
-                .map_err(|e| format!("fixture {}: {e} (pass --fixtures <assets/game_heads>)", p.display()))?;
+            let bytes = std::fs::read(&p).map_err(|e| {
+                format!(
+                    "fixture {}: {e} (pass --fixtures <assets/game_heads>)",
+                    p.display()
+                )
+            })?;
             let got = blake3::hash(&bytes).to_hex().to_string();
             if got != pin {
                 return Err(format!(
@@ -1505,7 +1546,8 @@ pub mod head_vessels {
         };
         let tetris_text = read_fixture(super::TETRIS_FIXTURE_FILE, super::TETRIS_FIXTURE_BLAKE3)?;
         let lanes_text = read_fixture(super::LANES_FIXTURE_FILE, super::LANES_FIXTURE_BLAKE3)?;
-        let flappy_text = read_fixture(super::FLAPPY_FIXTURE_FILE, super::FLAPPY_V3_FIXTURE_BLAKE3)?;
+        let flappy_text =
+            read_fixture(super::FLAPPY_FIXTURE_FILE, super::FLAPPY_V3_FIXTURE_BLAKE3)?;
 
         let heads = GameHeads::build(&tetris_text, &lanes_text, &flappy_text);
 
@@ -1537,8 +1579,12 @@ pub mod head_vessels {
             lambda: t.fit.lambda,
             n_options: t.fit.n_options,
         });
-        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[0]), &minted.bytes)
-            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[0]).display()))?;
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[0]), &minted.bytes).map_err(|e| {
+            format!(
+                "write {}: {e}",
+                out_dir.join(HEAD_VESSEL_FILES[0]).display()
+            )
+        })?;
 
         // Lanes
         let l = heads.lanes.as_ref().expect("build fits all three");
@@ -1563,8 +1609,12 @@ pub mod head_vessels {
             lambda: l.fit.lambda,
             n_options: l.fit.n_options,
         });
-        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[1]), &minted.bytes)
-            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[1]).display()))?;
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[1]), &minted.bytes).map_err(|e| {
+            format!(
+                "write {}: {e}",
+                out_dir.join(HEAD_VESSEL_FILES[1]).display()
+            )
+        })?;
 
         // Flappy
         let f = heads.flappy.as_ref().expect("build fits all three");
@@ -1589,8 +1639,12 @@ pub mod head_vessels {
             lambda: f.fit.lambda,
             n_options: f.fit.n_options,
         });
-        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[2]), &minted.bytes)
-            .map_err(|e| format!("write {}: {e}", out_dir.join(HEAD_VESSEL_FILES[2]).display()))?;
+        std::fs::write(out_dir.join(HEAD_VESSEL_FILES[2]), &minted.bytes).map_err(|e| {
+            format!(
+                "write {}: {e}",
+                out_dir.join(HEAD_VESSEL_FILES[2]).display()
+            )
+        })?;
 
         Ok(report)
     }
@@ -1598,7 +1652,8 @@ pub mod head_vessels {
     fn decode_head_fitted<const F: usize, const D: usize>(
         verified: &VerifiedVessel,
     ) -> Result<FittedGameHead<F, D>, HeadVesselError> {
-        let (question, lambda, n_options, stdizer, weights) = decode_head_payload::<F, D>(verified.payload())?;
+        let (question, lambda, n_options, stdizer, weights) =
+            decode_head_payload::<F, D>(verified.payload())?;
         Ok(FittedGameHead {
             weights,
             stdizer,
@@ -1635,12 +1690,18 @@ pub mod head_vessels {
                     .as_ref()
                     .map(decode_head_fitted::<TETRIS_DECODED_F, TETRIS_D>)
                     .transpose()?
-                    .map(|fit| TetrisHead { grammar: tetris_spot(), fit }),
+                    .map(|fit| TetrisHead {
+                        grammar: tetris_spot(),
+                        fit,
+                    }),
                 lanes: lanes
                     .as_ref()
                     .map(decode_head_fitted::<LANES_DECODED_F, LANES_D>)
                     .transpose()?
-                    .map(|fit| LanesHead { grammar: lanes_option(), fit }),
+                    .map(|fit| LanesHead {
+                        grammar: lanes_option(),
+                        fit,
+                    }),
                 flappy: flappy
                     .as_ref()
                     .map(decode_head_fitted::<FLAPPY_V3_DECODED_F, FLAPPY_V3_D>)

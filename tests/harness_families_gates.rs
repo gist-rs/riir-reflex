@@ -457,15 +457,23 @@ fn families_discriminate_their_inputs() {
 const WIDE_FAMILIES: &[&str] = &["semantic_defects"];
 
 /// Per-family banned label tokens (exact token match, lowercased).
-const LABEL_BANS: &[(&str, &[&str])] = &[
-    (
-        "semantic_defects",
-        &[
-            "clean", "off", "by", "one", "inverted", "condition", "unwrapped",
-            "none", "swapped", "lookup", "swallowed", "error",
-        ],
-    ),
-];
+const LABEL_BANS: &[(&str, &[&str])] = &[(
+    "semantic_defects",
+    &[
+        "clean",
+        "off",
+        "by",
+        "one",
+        "inverted",
+        "condition",
+        "unwrapped",
+        "none",
+        "swapped",
+        "lookup",
+        "swallowed",
+        "error",
+    ],
+)];
 
 /// Mean unigram overlap ceiling per family (eval-text token share that
 /// appears in the family's corpus∪cal pool). The old evals measured
@@ -502,12 +510,10 @@ fn wide_eval_digest(def: &families::FamilyDef) -> String {
 /// The digest pins, one per widened family. Bootstrap: a mismatch panic
 /// prints the computed digest — paste it here in the same change that
 /// moved the fixtures (never delete a pin to make a red go away).
-const WIDE_EVAL_DIGESTS: &[(&str, &str)] = &[
-    (
-        "semantic_defects",
-        "52573a21b72da3444c97293728f85e6256226499ae6794ed75585227d69cac78",
-    ),
-];
+const WIDE_EVAL_DIGESTS: &[(&str, &str)] = &[(
+    "semantic_defects",
+    "52573a21b72da3444c97293728f85e6256226499ae6794ed75585227d69cac78",
+)];
 
 #[test]
 fn wide_evals_meet_the_authoring_law() {

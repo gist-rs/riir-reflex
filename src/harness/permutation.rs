@@ -32,7 +32,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use super::suites::{shuffle, GoldAnswer, QKind, SplitMix64, SuiteCase, SuiteQuestion};
+use super::suites::{GoldAnswer, QKind, SplitMix64, SuiteCase, SuiteQuestion, shuffle};
 
 /// The order-sensitivity gate: a lane's MEDIAN top-pick swing across
 /// orderings must stay ≤ 2 probability points (issue 077 T1).
@@ -132,9 +132,11 @@ pub fn permute_choice(q: &SuiteQuestion, order: &[usize]) -> Result<SuiteQuestio
 fn is_permutation(order: &[usize], n: usize) -> bool {
     order.len() == n && {
         let mut seen = vec![false; n];
-        order.iter().all(|&o| o < n && !seen[o] && {
-            seen[o] = true;
-            true
+        order.iter().all(|&o| {
+            o < n && !seen[o] && {
+                seen[o] = true;
+                true
+            }
         })
     }
 }
@@ -256,9 +258,7 @@ pub fn case_spread(
             ));
         }
     }
-    let label_at = |ord: &[usize], pos: usize| -> String {
-        labels[ord[pos]].clone()
-    };
+    let label_at = |ord: &[usize], pos: usize| -> String { labels[ord[pos]].clone() };
     // Reference pick from the identity ordering ([0]).
     let ref_orig = orderings[0][answers[0].pick];
     let ref_pick = labels[ref_orig].clone();
@@ -272,15 +272,15 @@ pub fn case_spread(
         .zip(answers.iter())
         .map(|(ord, a)| a.probs[ord.iter().position(|&o| o == ref_orig).unwrap_or(0)])
         .collect();
-    let p_gold = gold_label.and_then(|g| labels.iter().position(|l| l == g)).map(
-        |gold_orig| {
+    let p_gold = gold_label
+        .and_then(|g| labels.iter().position(|l| l == g))
+        .map(|gold_orig| {
             orderings
                 .iter()
                 .zip(answers.iter())
                 .map(|(ord, a)| a.probs[ord.iter().position(|&o| o == gold_orig).unwrap_or(0)])
                 .collect::<Vec<f64>>()
-        },
-    );
+        });
     let max = p_ref.iter().copied().fold(f64::MIN, f64::max);
     let min = p_ref.iter().copied().fold(f64::MAX, f64::min);
     let swing = (max - min).clamp(0.0, 1.0);
@@ -354,8 +354,7 @@ pub fn spread_stats(spreads: &[CaseSpread]) -> SpreadStats {
         };
     }
     let mut swings: Vec<f64> = spreads.iter().map(|s| s.swing * 100.0).collect();
-    swings
-        .sort_by(|a, b| a.total_cmp(b));
+    swings.sort_by(|a, b| a.total_cmp(b));
     let median = percentile(&swings, 0.5);
     let max = swings[n - 1];
     let flips = spreads.iter().filter(|s| s.flipped).count();
@@ -383,10 +382,7 @@ pub fn spread_stats(spreads: &[CaseSpread]) -> SpreadStats {
 pub fn canary_case() -> SuiteCase {
     let mut m = Map::new();
     for l in ["alpha", "beta", "gamma", "delta", "epsilon"] {
-        m.insert(
-            l.to_string(),
-            Value::String(format!("the {l} option")),
-        );
+        m.insert(l.to_string(), Value::String(format!("the {l} option")));
     }
     SuiteCase {
         id: "perm_canary".to_string(),
@@ -510,8 +506,8 @@ mod tests {
                 OrderingAnswer { probs, pick: pos }
             })
             .collect();
-        let s = case_spread("c", "q", &labels, &orderings, &answers, Some("gamma"))
-            .expect("spread");
+        let s =
+            case_spread("c", "q", &labels, &orderings, &answers, Some("gamma")).expect("spread");
         assert_eq!(s.ref_pick, "gamma");
         assert!(!s.flipped);
         assert!(s.swing < 1e-12, "content-faithful lane must not swing");
@@ -566,10 +562,7 @@ mod tests {
                 .as_object()
                 .map(|m| m.keys().cloned().collect())
                 .unwrap_or_default();
-            let pick = keys
-                .iter()
-                .position(|k| *k == self.gold_label)
-                .unwrap_or(0);
+            let pick = keys.iter().position(|k| *k == self.gold_label).unwrap_or(0);
             let mut probs = vec![0.0; keys.len()];
             probs[pick] = 1.0;
             Ok(OrderingAnswer { probs, pick })
@@ -603,8 +596,8 @@ mod tests {
     #[test]
     fn the_canary_reds_an_order_biased_lane() {
         let canary = canary_case();
-        let s = run_slot(&mut FirstOptionOracle, &canary, 0, 5, Some("gamma"))
-            .expect("canary spread");
+        let s =
+            run_slot(&mut FirstOptionOracle, &canary, 0, 5, Some("gamma")).expect("canary spread");
         assert!(s.flipped, "a position reader must flip under permutation");
         assert!(
             s.swing > 0.9,

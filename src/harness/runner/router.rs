@@ -34,7 +34,7 @@ use std::path::{Path, PathBuf};
 
 use katgpt_core::exact_sigmoid_f64;
 
-use super::distill::{read_teacher_bin, TeacherBinWriter};
+use super::distill::{TeacherBinWriter, read_teacher_bin};
 use super::{git_sha, iso8601_utc};
 use crate::harness::runner::hostname_refusing_unknown;
 
@@ -127,7 +127,12 @@ fn discover_bins(dir: &Path) -> Result<BTreeMap<String, (PathBuf, String)>, Stri
     Ok(out)
 }
 
-fn load_source(dir: &Path, suite: &str, path: &Path, seal: String) -> Result<(RouterSource, super::distill::TeacherColumn), String> {
+fn load_source(
+    dir: &Path,
+    suite: &str,
+    path: &Path,
+    seal: String,
+) -> Result<(RouterSource, super::distill::TeacherColumn), String> {
     let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
     let col = read_teacher_bin(&bytes).map_err(|e| format!("{} ({suite}): {e}", path.display()))?;
     let n_rows = col.gold.len();
@@ -247,8 +252,16 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
         let (src_b, col_b) = load_source(&input_dirs[*i_b], suite, path_b, seal_b.clone())?;
 
         // JOIN VERIFICATION — classes equality + per-row gold pins.
-        let classes_a = col_a.header.get("classes").cloned().unwrap_or(serde_json::Value::Null);
-        let classes_b = col_b.header.get("classes").cloned().unwrap_or(serde_json::Value::Null);
+        let classes_a = col_a
+            .header
+            .get("classes")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
+        let classes_b = col_b
+            .header
+            .get("classes")
+            .cloned()
+            .unwrap_or(serde_json::Value::Null);
         if classes_a != classes_b {
             skipped.push(format!(
                 "{suite}: classes universes differ across captures — refusing the join"
@@ -264,7 +277,12 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
             ));
             continue;
         }
-        if col_a.gold.iter().zip(col_b.gold.iter()).any(|(g1, g2)| g1 != g2) {
+        if col_a
+            .gold
+            .iter()
+            .zip(col_b.gold.iter())
+            .any(|(g1, g2)| g1 != g2)
+        {
             skipped.push(format!(
                 "{suite}: per-row gold pins disagree — the captures are not row-aligned; \
                  refusing the join"
@@ -364,7 +382,9 @@ pub fn render_router_markdown(report: &RouterReport) -> String {
         report.inputs.join(", "),
         report.temperature,
     ));
-    s.push_str("\n| suite | sources (acc) | gate g | routed acc | mode | classes | routed blake3 |\n");
+    s.push_str(
+        "\n| suite | sources (acc) | gate g | routed acc | mode | classes | routed blake3 |\n",
+    );
     s.push_str("|---|---|---|---|---|---|---|\n");
     for v in &report.suites {
         let srcs = v
@@ -377,11 +397,17 @@ pub fn render_router_markdown(report: &RouterReport) -> String {
             "| {} | {} | {} | {} | {} | {} | {} |\n",
             v.name,
             srcs,
-            v.gate.map(|g| format!("{g:.4}")).unwrap_or_else(|| "—".into()),
+            v.gate
+                .map(|g| format!("{g:.4}"))
+                .unwrap_or_else(|| "—".into()),
             v.routed_accuracy
                 .map(|a| format!("{a:.4}"))
                 .unwrap_or_else(|| "—".into()),
-            if v.gate.is_some() { "blend" } else { "passthrough" },
+            if v.gate.is_some() {
+                "blend"
+            } else {
+                "passthrough"
+            },
             v.n_classes,
             v.routed_blake3.clone().unwrap_or_else(|| "—".into()),
         ));
@@ -398,7 +424,7 @@ pub fn render_router_markdown(report: &RouterReport) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::harness::runner::distill::{read_teacher_bin, TeacherBinWriter};
+    use crate::harness::runner::distill::{TeacherBinWriter, read_teacher_bin};
 
     fn tiny_bin(gold: &[u32], q_rows: &[Vec<f32>], teacher: &str, classes: &[&str]) -> Vec<u8> {
         let header = serde_json::json!({

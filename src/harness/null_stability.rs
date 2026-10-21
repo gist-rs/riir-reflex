@@ -55,7 +55,7 @@
 use serde::Serialize;
 use serde_json::{Map, Value};
 
-use crate::readout::{confidence_with, ReadoutMode};
+use crate::readout::{ReadoutMode, confidence_with};
 
 use super::suites::{GoldAnswer, QKind, SuiteCase, SuiteQuestion};
 
@@ -187,7 +187,7 @@ impl DecoyPool {
             sa.total_cmp(&sb)
         });
         let _ = seed; // the linspace is deterministic without a stream;
-                      // the seed is kept in the signature for record parity.
+        // the seed is kept in the signature for record parity.
         let n = cands.len();
         if n <= k {
             return cands.into_iter().cloned().collect();
@@ -216,11 +216,7 @@ impl DecoyPool {
 /// When the question is not a choice or a decoy collides with an existing
 /// key (the sampler excludes slot labels; this is the belt-and-braces
 /// refusal).
-pub fn augmented_case(
-    case: &SuiteCase,
-    qi: usize,
-    decoys: &[String],
-) -> Result<SuiteCase, String> {
+pub fn augmented_case(case: &SuiteCase, qi: usize, decoys: &[String]) -> Result<SuiteCase, String> {
     let q = case
         .questions
         .get(qi)
@@ -582,9 +578,11 @@ pub fn a1_stats(recs: &[NullCaseRecord]) -> Vec<A1ArmStats> {
         .map(|(ai, ref_arm)| {
             let abst = |r: &NullCaseRecord| usize::from(r.arms[ai].abstained);
             let abstain_rate = recs.iter().map(abst).sum::<usize>() as f64 / n as f64;
-            let ref_abstain_rate =
-                recs.iter().map(|r| usize::from(r.arms[0].abstained)).sum::<usize>() as f64
-                    / n as f64;
+            let ref_abstain_rate = recs
+                .iter()
+                .map(|r| usize::from(r.arms[0].abstained))
+                .sum::<usize>() as f64
+                / n as f64;
             let mut dconf: Vec<f64> = recs
                 .iter()
                 .map(|r| (r.arms[ai].confidence - r.arms[0].confidence).abs() * 100.0)
@@ -595,10 +593,7 @@ pub fn a1_stats(recs: &[NullCaseRecord]) -> Vec<A1ArmStats> {
             } else {
                 dconf[dconf.len() / 2]
             };
-            let decoy_wins = recs
-                .iter()
-                .filter(|r| r.arms[ai].decoy_won)
-                .count();
+            let decoy_wins = recs.iter().filter(|r| r.arms[ai].decoy_won).count();
             A1ArmStats {
                 k: ref_arm.k,
                 abstain_rate,
@@ -671,11 +666,8 @@ pub fn a2_stats(recs: &[NullCaseRecord]) -> Vec<A2ArmStats> {
 #[must_use]
 pub fn a3_stats(recs: &[NullCaseRecord]) -> A3Stats {
     let answered: Vec<&NullCaseRecord> = recs.iter().filter(|r| r.noul.answered).collect();
-    let noul_bit_identical = (!answered.is_empty()).then(|| {
-        answered
-            .iter()
-            .all(|r| r.noul.bit_identical)
-    });
+    let noul_bit_identical =
+        (!answered.is_empty()).then(|| answered.iter().all(|r| r.noul.bit_identical));
     let top = recs
         .first()
         .map(|r| r.arms.len().saturating_sub(1))
@@ -759,7 +751,10 @@ mod tests {
         assert!(trigram_jaccard("card arrival", "card arrived") > 0.5);
         assert_eq!(trigram_jaccard("", ""), 1.0);
         assert_eq!(trigram_jaccard("", "abc"), 0.0);
-        assert!(trigram_jaccard("sports news", "sports") > trigram_jaccard("sports news", "card arrival"));
+        assert!(
+            trigram_jaccard("sports news", "sports")
+                > trigram_jaccard("sports news", "card arrival")
+        );
     }
 
     #[test]
@@ -777,7 +772,10 @@ mod tests {
         assert_eq!(d.len(), 3);
         assert!(!d.iter().any(|x| slot.contains(x)));
         // Deterministic.
-        assert_eq!(d, pool.graded_decoys(&slot, Some("sports"), 3, NULL_PROBE_SEED));
+        assert_eq!(
+            d,
+            pool.graded_decoys(&slot, Some("sports"), 3, NULL_PROBE_SEED)
+        );
         // Fewer candidates than k: capped, no duplicates.
         let d2 = pool.graded_decoys(&slot, Some("sports"), 10, NULL_PROBE_SEED);
         assert_eq!(d2.len(), 4);
@@ -839,8 +837,18 @@ mod tests {
             &labels,
             &[(0, 5), (8, 13)],
             &[a1, a2],
-            &[Some(NoulAnswer { p_yes: 0.25, yes: Some(false), confidence: 0.5 }),
-             Some(NoulAnswer { p_yes: 0.25, yes: Some(false), confidence: 0.5 })],
+            &[
+                Some(NoulAnswer {
+                    p_yes: 0.25,
+                    yes: Some(false),
+                    confidence: 0.5,
+                }),
+                Some(NoulAnswer {
+                    p_yes: 0.25,
+                    yes: Some(false),
+                    confidence: 0.5,
+                }),
+            ],
             Some("alpha"),
         )
         .expect("record");
@@ -852,7 +860,18 @@ mod tests {
         assert!(rec.noul.answered);
         assert!(rec.noul.bit_identical);
         // Shape mismatch refused.
-        assert!(null_case_record("c1", "q1", &labels, &[(0, 5)], &[ans(8, 0.5, 0.3, 0.8)], &[None], None).is_err());
+        assert!(
+            null_case_record(
+                "c1",
+                "q1",
+                &labels,
+                &[(0, 5)],
+                &[ans(8, 0.5, 0.3, 0.8)],
+                &[None],
+                None
+            )
+            .is_err()
+        );
     }
 
     #[test]
@@ -940,8 +959,18 @@ mod tests {
             &labels,
             &[(0, 5), (256, 261)],
             &[ans(0, 0.5, 0.3, 0.7), ans(256, 0.1, 0.05, 0.7)],
-            &[Some(NoulAnswer { p_yes: 0.25, yes: Some(false), confidence: 0.4 }),
-             Some(NoulAnswer { p_yes: 0.25, yes: Some(false), confidence: 0.4 })],
+            &[
+                Some(NoulAnswer {
+                    p_yes: 0.25,
+                    yes: Some(false),
+                    confidence: 0.4,
+                }),
+                Some(NoulAnswer {
+                    p_yes: 0.25,
+                    yes: Some(false),
+                    confidence: 0.4,
+                }),
+            ],
             None,
         )
         .expect("record");
@@ -955,8 +984,18 @@ mod tests {
             &labels,
             &[(0, 5), (256, 261)],
             &[ans(0, 0.5, 0.3, 0.7), ans(256, 0.1, 0.05, 0.4)],
-            &[Some(NoulAnswer { p_yes: 0.25, yes: Some(false), confidence: 0.4 }),
-             Some(NoulAnswer { p_yes: 0.26, yes: Some(false), confidence: 0.4 })],
+            &[
+                Some(NoulAnswer {
+                    p_yes: 0.25,
+                    yes: Some(false),
+                    confidence: 0.4,
+                }),
+                Some(NoulAnswer {
+                    p_yes: 0.26,
+                    yes: Some(false),
+                    confidence: 0.4,
+                }),
+            ],
             None,
         )
         .expect("record");

@@ -207,11 +207,7 @@ fn serve_edge_thai_degrades_safely() {
     let addr = spawn_server();
 
     let resp = post(&addr, "/decide", &body);
-    let status = resp
-        .lines()
-        .next()
-        .unwrap_or_default()
-        .to_string();
+    let status = resp.lines().next().unwrap_or_default().to_string();
     assert!(
         status.contains(" 200 "),
         "a Thai state must never 5xx on the serve edge (got: {status})"

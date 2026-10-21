@@ -69,15 +69,15 @@
 use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::path::Path;
 
-use super::{
-    density_pilot::{DensityGate, DensityRung},
-    distill::{argmax_lowest_pos, construct_teacher},
-    git_sha, hostname_refusing_unknown, iso8601_utc, percentile_us, prepare, Prepared,
-    RunOptions, SuiteSpec, SUITES,
-};
-use crate::harness::suites::{GoldAnswer, QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc};
 #[cfg(feature = "nb_scope")]
 use super::e0::RUMOR_N;
+use super::{
+    Prepared, RunOptions, SUITES, SuiteSpec,
+    density_pilot::{DensityGate, DensityRung},
+    distill::{argmax_lowest_pos, construct_teacher},
+    git_sha, hostname_refusing_unknown, iso8601_utc, percentile_us, prepare,
+};
+use crate::harness::suites::{GoldAnswer, QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc};
 #[cfg(feature = "nb_scope")]
 use crate::nb_scope::{NbAlpha, NbScope, NbView, view_tokens_into};
 
@@ -265,7 +265,10 @@ impl VetoShape {
             .first()
             .ok_or_else(|| "suite has no cases — cannot clone the question shape".to_string())?;
         let q = case.questions.first().ok_or_else(|| {
-            format!("{}: no questions for its gold — not a single-question suite", case.id)
+            format!(
+                "{}: no questions for its gold — not a single-question suite",
+                case.id
+            )
         })?;
         if suite.cases.iter().any(|c| c.questions.len() != 1) {
             return Err("multi-question suite — the synth lane speaks one gold per row".into());
@@ -399,7 +402,8 @@ pub(crate) const FLYBY_CONTINUATIONS_PER_ARM: u32 = 4;
 /// `b0 = 0` half (see [`B0Judge::already_serves`]) and can only NARROW the
 /// candidate set entering the veto — never widen acceptance.
 #[must_use]
-#[allow(dead_code)] // pinned by the truth-table test; the production pre-filter enforces the b0 half — this full predicate ships for a future LOCAL bd leg (refine's arm-H consumes its twin)
+#[allow(dead_code)]
+// pinned by the truth-table test; the production pre-filter enforces the b0 half — this full predicate ships for a future LOCAL bd leg (refine's arm-H consumes its twin)
 #[allow(clippy::similar_names)] // b0/bd ARE the FlyBy vocabulary — the near-identical names are the domain's own, not a slip
 pub(crate) fn rescue_keep(b0_successes: u32, bd_successes: u32) -> bool {
     b0_successes == 0 && bd_successes >= RESCUE_BD_KEEP_MIN
@@ -472,8 +476,8 @@ fn build_b0_judge(suite: &str, corpus_cap: usize, prepared: &Prepared) -> Result
                     fallback.len()
                 );
             }
-            let mut engine = crate::engine::DecisionEngine::<$n, { crate::embed::EMBED_DIM }>::
-                build_specs(
+            let mut engine =
+                crate::engine::DecisionEngine::<$n, { crate::embed::EMBED_DIM }>::build_specs(
                     specs,
                     crate::engine::EngineConfig {
                         // Forced: never abstain (conf ≤ 1 < threshold) — the
@@ -537,7 +541,9 @@ fn common_affix(a: &[String], b: &[String]) -> (usize, usize) {
         p += 1;
     }
     let mut s = 0;
-    while s < a.len() - p && s < b.len() - p && a[a.len() - 1 - s].eq_ignore_ascii_case(&b[b.len() - 1 - s])
+    while s < a.len() - p
+        && s < b.len() - p
+        && a[a.len() - 1 - s].eq_ignore_ascii_case(&b[b.len() - 1 - s])
     {
         s += 1;
     }
@@ -612,7 +618,10 @@ pub(crate) fn plan_suite(
         .iter()
         .filter_map(|c| {
             single_text_field(&c.state).and_then(|f| {
-                c.state.get(&f).and_then(serde_json::Value::as_str).map(norm_key)
+                c.state
+                    .get(&f)
+                    .and_then(serde_json::Value::as_str)
+                    .map(norm_key)
             })
         })
         .collect();
@@ -725,15 +734,26 @@ pub(crate) fn plan_suite(
         for l in buckets.keys() {
             w.insert(l.clone(), 1.0);
         }
-        let rule: &'static str =
-            "uniform (nb_scope feature off — the E0 weighting is unavailable)";
+        let rule: &'static str = "uniform (nb_scope feature off — the E0 weighting is unavailable)";
         (w, rule)
     };
 
     let order: Vec<String> = buckets.keys().cloned().collect();
-    let alloc = allocate(&order, &weights, &buckets, sopts.max_accepted, sopts.max_per_label);
+    let alloc = allocate(
+        &order,
+        &weights,
+        &buckets,
+        sopts.max_accepted,
+        sopts.max_per_label,
+    );
 
-    Ok(SuitePlan { buckets, alloc, weights, weighting_rule, counts })
+    Ok(SuitePlan {
+        buckets,
+        alloc,
+        weights,
+        weighting_rule,
+        counts,
+    })
 }
 
 /// Proportional apportionment by weight with per-label availability +
@@ -747,9 +767,7 @@ fn allocate(
     max_accepted: usize,
     max_per_label: usize,
 ) -> BTreeMap<String, usize> {
-    let room = |l: &str| -> usize {
-        available.get(l).map_or(0, |v| v.len().min(max_per_label))
-    };
+    let room = |l: &str| -> usize { available.get(l).map_or(0, |v| v.len().min(max_per_label)) };
     let eff: Vec<(String, u128)> = order
         .iter()
         .filter(|l| room(l) > 0)
@@ -836,7 +854,10 @@ fn per_intent_rumor(prepared: &super::Prepared) -> Result<BTreeMap<String, f64>,
     // Pool docs per label.
     let mut docs_by_label: BTreeMap<String, Vec<&str>> = BTreeMap::new();
     for d in &prepared.train {
-        docs_by_label.entry(d.label.clone()).or_default().push(&d.text);
+        docs_by_label
+            .entry(d.label.clone())
+            .or_default()
+            .push(&d.text);
     }
     let mut out = BTreeMap::new();
     for (label, states) in &states_by_label {
@@ -887,8 +908,11 @@ fn write_artifact(
     let mut header = serde_json::to_value(meta).map_err(|e| e.to_string())?;
     header["per_label"] = serde_json::to_value(per_label).map_err(|e| e.to_string())?;
     let mut bytes: Vec<u8> = Vec::with_capacity(1 << 16);
-    bytes
-        .extend_from_slice(serde_json::to_string(&header).map_err(|e| e.to_string())?.as_bytes());
+    bytes.extend_from_slice(
+        serde_json::to_string(&header)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+    );
     bytes.push(b'\n');
     for c in accepted {
         let row = SynthRow {
@@ -898,8 +922,11 @@ fn write_artifact(
             src: c.src,
             span: [c.span.0, c.span.1],
         };
-        bytes
-            .extend_from_slice(serde_json::to_string(&row).map_err(|e| e.to_string())?.as_bytes());
+        bytes.extend_from_slice(
+            serde_json::to_string(&row)
+                .map_err(|e| e.to_string())?
+                .as_bytes(),
+        );
         bytes.push(b'\n');
     }
     std::fs::create_dir_all(out_dir).map_err(|e| format!("create {}: {e}", out_dir.display()))?;
@@ -941,9 +968,8 @@ pub fn load_synth_corpus(
             &got[..16]
         ));
     }
-    let text =
-        String::from_utf8(bytes.clone())
-            .map_err(|e| format!("{}: not utf-8: {e}", path.display()))?;
+    let text = String::from_utf8(bytes.clone())
+        .map_err(|e| format!("{}: not utf-8: {e}", path.display()))?;
     let mut lines = text.lines();
     let header_line = lines
         .next()
@@ -995,7 +1021,10 @@ pub fn load_synth_corpus(
         if t.trim().is_empty() {
             return Err(format!("{}: row {} empty text", path.display(), ln + 2));
         }
-        docs.push(TrainDoc { label: label.to_string(), text: t.to_string() });
+        docs.push(TrainDoc {
+            label: label.to_string(),
+            text: t.to_string(),
+        });
     }
     if docs.len() != meta.accepted {
         return Err(format!(
@@ -1133,13 +1162,19 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
     // default-posture engine over the same train pool the veto's universe
     // came from. `None` = the shipped veto-only posture.
     let mut rescue_judge = if sopts.rescue_prefilter {
-        Some(build_b0_judge(spec.name, spec.corpus_cap_per_label, &prepared)?)
+        Some(build_b0_judge(
+            spec.name,
+            spec.corpus_cap_per_label,
+            &prepared,
+        )?)
     } else {
         None
     };
-    let rescue_rule: Option<String> = sopts
-        .rescue_prefilter
-        .then(|| format!("flyby-b0-local-veto-augment-v1 (bd≥{RESCUE_BD_KEEP_MIN} stays the veto's authority)"));
+    let rescue_rule: Option<String> = sopts.rescue_prefilter.then(|| {
+        format!(
+            "flyby-b0-local-veto-augment-v1 (bd≥{RESCUE_BD_KEEP_MIN} stays the veto's authority)"
+        )
+    });
     eprintln!(
         "  [synth {}] teacher {}/{} · {} candidate(s) across {} label(s) · budget {}{}{}",
         spec.name,
@@ -1148,8 +1183,16 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         plan.buckets.values().map(Vec::len).sum::<usize>(),
         plan.buckets.len(),
         plan.alloc.values().sum::<usize>(),
-        if let Some(r) = &density_rule { format!(" · density gate: {r}") } else { String::new() },
-        if rescue_rule.is_some() { " · rescue pre-filter: b0 local, veto authority".to_string() } else { String::new() },
+        if let Some(r) = &density_rule {
+            format!(" · density gate: {r}")
+        } else {
+            String::new()
+        },
+        if rescue_rule.is_some() {
+            " · rescue pre-filter: b0 local, veto authority".to_string()
+        } else {
+            String::new()
+        },
     );
 
     let mut accepted: Vec<SynthCand> = Vec::new();
@@ -1278,8 +1321,13 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         density_rule: density_rule.clone(),
         rescue_rule: rescue_rule.clone(),
     };
-    let (path, seal_hex) =
-        write_artifact(sopts.out_dir.as_path(), spec.name, &meta, &per_label, &accepted)?;
+    let (path, seal_hex) = write_artifact(
+        sopts.out_dir.as_path(),
+        spec.name,
+        &meta,
+        &per_label,
+        &accepted,
+    )?;
     eprintln!(
         "  [synth {}] done: {} accepted / {} forwarded · {} rescue-rejected · p50 {p50} ms · \
          {:.1}s → {}",
@@ -1366,7 +1414,9 @@ pub fn run_synth_plan(opts: &RunOptions, sopts: &SynthOptions) -> Result<String,
             prepared.train.len(),
         ));
         md.push_str(&format!("weighting: {}\n\n", plan.weighting_rule));
-        md.push_str("| label | weight | candidates | allocated | sample |\n|---|---|---|---|---|\n");
+        md.push_str(
+            "| label | weight | candidates | allocated | sample |\n|---|---|---|---|---|\n",
+        );
         for (label, cands) in &plan.buckets {
             let alloc = plan.alloc.get(label).copied().unwrap_or(0);
             let sample = cands
@@ -1417,8 +1467,10 @@ pub fn render_synth_markdown(out: &SynthOutput) -> String {
         &out.meta.git_sha[..8.min(out.meta.git_sha.len())],
         out.meta.date_utc,
     ));
-    s.push_str("\n| suite | teacher | cands | accepted | vetoed | forwards | p50 ms | s | \
-                blake3 |\n|---|---|---|---|---|---|---|---|---|\n");
+    s.push_str(
+        "\n| suite | teacher | cands | accepted | vetoed | forwards | p50 ms | s | \
+                blake3 |\n|---|---|---|---|---|---|---|---|---|\n",
+    );
     for v in &out.suites {
         s.push_str(&format!(
             "| {} | {}/{} | {} | {} | {} | {} | {:.0} | {:.0} | {}… |\n",
@@ -1438,12 +1490,7 @@ pub fn render_synth_markdown(out: &SynthOutput) -> String {
     for v in &out.suites {
         s.push_str(&format!(
             "| {} | {} | {}/{}/{}/{} |\n",
-            v.name,
-            v.weighting_rule,
-            v.dedup_pool,
-            v.dedup_cal,
-            v.dedup_dup,
-            v.outside_universe
+            v.name, v.weighting_rule, v.dedup_pool, v.dedup_cal, v.dedup_dup, v.outside_universe
         ));
     }
     // The rescue pre-filter disclosure (Issue 156 T4) — only when armed on
@@ -1459,8 +1506,10 @@ pub fn render_synth_markdown(out: &SynthOutput) -> String {
             s.push_str(&format!("| {} | {} |\n", v.name, v.rescue_rejected));
         }
     }
-    s.push_str("\nPer-label allocation (top 20 by accepted):\n\n| label | weight | cands | \
-                alloc | accepted | vetoed |\n|---|---|---|---|---|---|\n");
+    s.push_str(
+        "\nPer-label allocation (top 20 by accepted):\n\n| label | weight | cands | \
+                alloc | accepted | vetoed |\n|---|---|---|---|---|---|\n",
+    );
     for v in &out.suites {
         let mut rows: Vec<_> = v.per_label.iter().collect();
         rows.sort_by(|a, b| b.1.accepted.cmp(&a.1.accepted).then(a.0.cmp(b.0)));
@@ -1488,7 +1537,10 @@ mod tests {
     }
 
     fn doc(label: &str, text: &str) -> TrainDoc {
-        TrainDoc { label: label.to_string(), text: text.to_string() }
+        TrainDoc {
+            label: label.to_string(),
+            text: text.to_string(),
+        }
     }
 
     #[test]
@@ -1610,7 +1662,10 @@ mod tests {
             "frame2 × span-from-frame1 present, got {texts:?}"
         );
         // Cal text and pool rows never appear.
-        assert!(!texts.iter().any(|t| t.contains("saturday")), "cal texts excluded");
+        assert!(
+            !texts.iter().any(|t| t.contains("saturday")),
+            "cal texts excluded"
+        );
         assert!(
             !texts.contains(&"wake me up at six pm on friday".to_string()),
             "pool rows excluded"
@@ -1741,7 +1796,10 @@ mod tests {
         assert_eq!(loaded_meta.suite, "fixture");
         assert_eq!(
             docs,
-            accepted.iter().map(|c| doc(&c.label, &c.text)).collect::<Vec<_>>()
+            accepted
+                .iter()
+                .map(|c| doc(&c.label, &c.text))
+                .collect::<Vec<_>>()
         );
 
         // Tamper: rewrite a text byte → the sidecar must refuse it.
@@ -1794,7 +1852,10 @@ mod tests {
         let q = &case.questions[0];
         let keys: Vec<&String> = q.criteria.as_object().unwrap().keys().collect();
         assert_eq!(keys.len(), 2);
-        assert_eq!(case.gold[0].idx, 1, "gold position follows the sorted universe");
+        assert_eq!(
+            case.gold[0].idx, 1,
+            "gold position follows the sorted universe"
+        );
         assert_eq!(gold_pos, 1, "the returned position matches the gold index");
         assert_eq!(gold_key, "audio_volume_other");
         assert_eq!(case.state["utterance"], "make it louder");
@@ -1885,7 +1946,10 @@ mod tests {
         .expect("case");
         let far_state = crate::pyjson::serialize_state(&far.state);
         let far_pick = judge.continuation(&far, &far_state).expect("cont far");
-        assert_ne!(far_pick, far_gold, "the off-corpus text must not pick the far gold");
+        assert_ne!(
+            far_pick, far_gold,
+            "the off-corpus text must not pick the far gold"
+        );
         let far_served = judge
             .already_serves(&far, &far_state, far_gold)
             .expect("serve far");

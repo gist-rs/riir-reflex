@@ -329,8 +329,9 @@ impl WorthinessInput<'_> {
         // margin leg OR (when the leg is on) the probe delta's one-sided
         // 95% lower bound clears the floor. The bound is computed from
         // the accs + n the verdict already carries.
-        let probe_lcb =
-            self.min_probe_lcb.map(|floor| (floor, probe_delta_lcb95(laya_acc, ml_acc, probe_n)));
+        let probe_lcb = self
+            .min_probe_lcb
+            .map(|floor| (floor, probe_delta_lcb95(laya_acc, ml_acc, probe_n)));
         let disarmed = match probe_lcb {
             Some((floor, lcb)) => !(delta >= self.min_delta || lcb >= floor),
             None => delta < self.min_delta,
@@ -412,9 +413,7 @@ pub fn compose(
     };
     // Issue 042 lever 3: a disarmed suite keeps the modelless forced pick
     // on every abstain — the escalation path below is skipped entirely.
-    let escalation_armed = worthiness_verdict
-        .as_ref()
-        .is_none_or(|v| !v.disarmed);
+    let escalation_armed = worthiness_verdict.as_ref().is_none_or(|v| !v.disarmed);
 
     // case index → served position (the escalation lookup).
     let mut served_pos: std::collections::HashMap<usize, usize> =
@@ -506,7 +505,9 @@ mod tests {
         SuiteCase {
             id: id.to_string(),
             state: serde_json::json!({"text": id}),
-            questions: (0..n_questions).map(|qi| question(&format!("{id}-q{qi}"))).collect(),
+            questions: (0..n_questions)
+                .map(|qi| question(&format!("{id}-q{qi}")))
+                .collect(),
             gold: (0..n_questions)
                 .map(|qi| GoldAnswer {
                     idx: qi % 2, // deterministic gold: 0, 1, 0, 1, …
@@ -584,7 +585,10 @@ mod tests {
         assert_eq!(rep.escalated_modelless_correct, 1);
         assert_eq!(rep.escalator_served_questions, 4);
         // decomposition: answered + escalated + un_escalated == total.
-        assert_eq!(rep.n_answered + rep.n_escalated + rep.n_un_escalated, rep.n_questions);
+        assert_eq!(
+            rep.n_answered + rep.n_escalated + rep.n_un_escalated,
+            rep.n_questions
+        );
     }
 
     #[test]
@@ -611,7 +615,10 @@ mod tests {
     #[test]
     fn compose_no_abstain_is_pure_modelless() {
         let cases = vec![case("c0", 2), case("c1", 2)];
-        let m = mq(vec![vec![0, 1], vec![1, 0]], vec![vec![false, false], vec![false, false]]);
+        let m = mq(
+            vec![vec![0, 1], vec![1, 0]],
+            vec![vec![false, false], vec![false, false]],
+        );
         let l = lq(vec![0, 1], vec![vec![1, 1], vec![1, 1]]);
         let rep = compose(&cases, &m, &l, None).expect("compose");
         assert_eq!(rep.n_escalated, 0);
@@ -707,10 +714,7 @@ mod tests {
         let (cal_cases, test_cases, m) = worthiness_fixture();
         // Escalator: 1/2 per cal case (10/20 = 0.5) vs modelless 0.75.
         // Delta −0.25 < 0 → disarm.
-        let cal_laya = lq(
-            (0..10).collect(),
-            (0..10).map(|_| vec![1, 1]).collect(),
-        );
+        let cal_laya = lq((0..10).collect(), (0..10).map(|_| vec![1, 1]).collect());
         let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
         let w = worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.0);
         let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
@@ -724,7 +728,10 @@ mod tests {
         // stand as the forced picks.
         assert_eq!(rep.n_escalated, 0);
         assert_eq!(rep.n_un_escalated, 2);
-        assert_eq!(rep.n_answered + rep.n_escalated + rep.n_un_escalated, rep.n_questions);
+        assert_eq!(
+            rep.n_answered + rep.n_escalated + rep.n_un_escalated,
+            rep.n_questions
+        );
         // accuracy == the modelless forced accuracy over the same set
         // (c0q0 ✓, c0q1 pick 0 vs gold 1 ✗, c1q0 forced 0 vs gold 0 ✓,
         // c1q1 pick 1 vs gold 1 ✓ → 3/4).
@@ -736,10 +743,7 @@ mod tests {
         let (cal_cases, test_cases, m) = worthiness_fixture();
         // Escalator right everywhere on cal (20/20 = 1.0 vs modelless
         // 0.75): delta +0.25 ≥ 0 → armed; the test-side escalation happens.
-        let cal_laya = lq(
-            (0..10).collect(),
-            (0..10).map(|_| vec![0, 1]).collect(),
-        );
+        let cal_laya = lq((0..10).collect(), (0..10).map(|_| vec![0, 1]).collect());
         let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
         let w = worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.0);
         let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
@@ -756,10 +760,7 @@ mod tests {
     fn worthiness_delta_at_margin_is_armed() {
         let (cal_cases, test_cases, m) = worthiness_fixture();
         // delta exactly +0.25 against min_delta +0.25: >= arms.
-        let cal_laya = lq(
-            (0..10).collect(),
-            (0..10).map(|_| vec![0, 1]).collect(),
-        );
+        let cal_laya = lq((0..10).collect(), (0..10).map(|_| vec![0, 1]).collect());
         let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
         let w = worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.25);
         let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
@@ -782,14 +783,24 @@ mod tests {
         let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
         let v = rep.worthiness.as_ref().expect("verdict");
         assert!(!v.disarmed);
-        assert!(v.unprobed_reason.as_deref().unwrap().contains("modelless cal-gate"));
+        assert!(
+            v.unprobed_reason
+                .as_deref()
+                .unwrap()
+                .contains("modelless cal-gate")
+        );
         assert_eq!(rep.n_escalated, 2); // pre-lever behavior: escalation ran
         // escalator half absent.
         let w2 = worthiness_input(m.cal_gate.as_ref(), None, &cal_cases, 0.0);
         let rep2 = compose(&test_cases, &m, &test_laya, Some(&w2)).expect("compose");
         let v2 = rep2.worthiness.as_ref().expect("verdict");
         assert!(!v2.disarmed);
-        assert!(v2.unprobed_reason.as_deref().unwrap().contains("escalator cal records"));
+        assert!(
+            v2.unprobed_reason
+                .as_deref()
+                .unwrap()
+                .contains("escalator cal records")
+        );
         assert_eq!(rep2.n_escalated, 2);
     }
 
@@ -806,7 +817,12 @@ mod tests {
         let v = rep.worthiness.as_ref().expect("verdict");
         assert!(!v.disarmed);
         assert_eq!(v.probe_n, 2);
-        assert!(v.unprobed_reason.as_deref().unwrap().contains("thin support"));
+        assert!(
+            v.unprobed_reason
+                .as_deref()
+                .unwrap()
+                .contains("thin support")
+        );
         assert_eq!(rep.n_escalated, 2);
     }
 
@@ -863,7 +879,10 @@ mod tests {
         assert!((ag - 0.085_368_828).abs() < 1e-9, "ag_news LCB {ag}");
         // massive_intent_en: Δ +0.1500 at n 60 → LCB +0.0064 (< 0.05).
         let massive = probe_delta_lcb95(0.7, 0.55, 60);
-        assert!((massive - 0.006_362_314).abs() < 1e-9, "massive LCB {massive}");
+        assert!(
+            (massive - 0.006_362_314).abs() < 1e-9,
+            "massive LCB {massive}"
+        );
         // sst5: Δ +0.0718 at n 195 → LCB −0.0059 (< 0.05).
         let sst5 = probe_delta_lcb95(0.358_974_358_974_359, 0.287_179_487_179_487_16, 195);
         assert!((sst5 - (-0.005_880_891)).abs() < 1e-9, "sst5 LCB {sst5}");
@@ -879,10 +898,7 @@ mod tests {
         // The ag_news shape on the fixture: delta +0.25 (laya 1.0 vs
         // modelless 0.75 over the 20-question probe) against margin 0.3 —
         // the margin leg fails; the LCB leg arms (+0.0907 ≥ 0.05).
-        let cal_laya = lq(
-            (0..10).collect(),
-            (0..10).map(|_| vec![0, 1]).collect(),
-        );
+        let cal_laya = lq((0..10).collect(), (0..10).map(|_| vec![0, 1]).collect());
         let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
         let w = WorthinessInput {
             min_probe_lcb: Some(0.05),
@@ -928,7 +944,11 @@ mod tests {
         };
         let rep = compose(&test_cases, &m20, &test_laya, Some(&w)).expect("compose");
         let v = rep.worthiness.as_ref().expect("verdict");
-        assert!(v.disarmed, "LCB {:#} < 0 must not rescue a sub-margin delta", v.probe_lcb.unwrap());
+        assert!(
+            v.disarmed,
+            "LCB {:#} < 0 must not rescue a sub-margin delta",
+            v.probe_lcb.unwrap()
+        );
         assert!(v.probe_lcb.expect("lcb present") < 0.0);
         assert_eq!(rep.n_escalated, 0); // disarmed: every abstain stands
     }
@@ -936,19 +956,22 @@ mod tests {
     #[test]
     fn lcb_flag_off_rows_keep_the_lever3_byte_shape() {
         let (cal_cases, test_cases, m) = worthiness_fixture();
-        let cal_laya = lq(
-            (0..10).collect(),
-            (0..10).map(|_| vec![0, 1]).collect(),
-        );
+        let cal_laya = lq((0..10).collect(), (0..10).map(|_| vec![0, 1]).collect());
         let test_laya = lq(vec![0, 1], vec![vec![0, 0], vec![1, 1]]);
         // Leg off: no probe_lcb key, margin-leg semantics untouched.
         let w = worthiness_input(m.cal_gate.as_ref(), Some(&cal_laya), &cal_cases, 0.16);
         let rep = compose(&test_cases, &m, &test_laya, Some(&w)).expect("compose");
         let v = rep.worthiness.as_ref().expect("verdict");
         assert!(v.probe_lcb.is_none());
-        assert!(!v.disarmed, "delta +0.25 ≥ margin 0.16 arms via the margin leg");
+        assert!(
+            !v.disarmed,
+            "delta +0.25 ≥ margin 0.16 arms via the margin leg"
+        );
         let json_off = serde_json::to_value(v).expect("serialize");
-        assert!(json_off.get("probe_lcb").is_none(), "flag-off rows carry no LCB key");
+        assert!(
+            json_off.get("probe_lcb").is_none(),
+            "flag-off rows carry no LCB key"
+        );
         // Leg on but floor unreachable: the key appears, verdict unchanged.
         let w2 = WorthinessInput {
             min_probe_lcb: Some(0.99),
@@ -956,9 +979,15 @@ mod tests {
         };
         let rep2 = compose(&test_cases, &m, &test_laya, Some(&w2)).expect("compose");
         let v2 = rep2.worthiness.as_ref().expect("verdict");
-        assert_eq!(v2.disarmed, v.disarmed, "an unreachable floor changes nothing here");
+        assert_eq!(
+            v2.disarmed, v.disarmed,
+            "an unreachable floor changes nothing here"
+        );
         let json_on = serde_json::to_value(v2).expect("serialize");
-        assert!(json_on.get("probe_lcb").is_some(), "leg-on rows carry the LCB key");
+        assert!(
+            json_on.get("probe_lcb").is_some(),
+            "leg-on rows carry the LCB key"
+        );
         // Unprobed rows never arm via the LCB — the leg cannot read them.
         let w3 = WorthinessInput {
             min_probe_lcb: Some(0.05),

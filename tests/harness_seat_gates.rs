@@ -243,9 +243,18 @@ fn eval_case_into_matches_eval_seat_case_by_case() {
             "{NAME} case {ci}: question count drifted"
         );
         for (qi, qo) in outs.iter().enumerate() {
-            assert_eq!(qo.probs, frame.probs[qi], "{NAME} case {ci} q{qi}: probs drifted");
-            assert_eq!(qo.pick, frame.picks[qi], "{NAME} case {ci} q{qi}: pick drifted");
-            assert_eq!(qo.conf, frame.confs[qi], "{NAME} case {ci} q{qi}: conf drifted");
+            assert_eq!(
+                qo.probs, frame.probs[qi],
+                "{NAME} case {ci} q{qi}: probs drifted"
+            );
+            assert_eq!(
+                qo.pick, frame.picks[qi],
+                "{NAME} case {ci} q{qi}: pick drifted"
+            );
+            assert_eq!(
+                qo.conf, frame.confs[qi],
+                "{NAME} case {ci} q{qi}: conf drifted"
+            );
             assert_eq!(
                 qo.abstained, frame.abstained[qi],
                 "{NAME} case {ci} q{qi}: abstention drifted"

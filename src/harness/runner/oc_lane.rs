@@ -83,7 +83,10 @@ pub(super) fn build_oc_selection<const N: usize>(
     };
     let base = eval_at(0.0)?;
     eprintln!("    oc-select: scale 0 (off) → sel-slice acc {base:.4}");
-    let mut rows = vec![OcCandidate { scale: 0.0, cal_acc: base }];
+    let mut rows = vec![OcCandidate {
+        scale: 0.0,
+        cal_acc: base,
+    }];
     let (mut selected, mut best) = (0.0f32, base);
     for &scale in &OC_SCALE_LADDER {
         let cal_acc = eval_at(scale)?;

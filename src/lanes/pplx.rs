@@ -100,7 +100,7 @@
 
 use std::time::{Duration, Instant};
 
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::harness::suites::{QKind, SuiteCase, SuiteQuestion};
 use crate::lanes::http_mini::{self, HttpReply};
@@ -192,8 +192,9 @@ impl PplxLane {
     /// hardcoded model id, the gliner law), and the `PPLX_DEVICE`
     /// disclosure stamp.
     pub fn info(&self) -> Result<(String, String), String> {
-        let (status, _headers, body) =
-            self.get("/health").map_err(|e| format!("pplx health: {e}"))?;
+        let (status, _headers, body) = self
+            .get("/health")
+            .map_err(|e| format!("pplx health: {e}"))?;
         if status != 200 {
             return Err(format!(
                 "GET /health -> HTTP {status}: {} — is their autojev server \
@@ -416,9 +417,7 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 let dist = a
                     .get("probabilities")
                     .and_then(Value::as_object)
-                    .ok_or_else(|| {
-                        format!("qid {}: choice answer has no probabilities", q.qid)
-                    })?;
+                    .ok_or_else(|| format!("qid {}: choice answer has no probabilities", q.qid))?;
                 let keys: Vec<String> = q
                     .criteria
                     .as_object()
@@ -460,15 +459,16 @@ pub fn map_answers(case: &SuiteCase, body: &Value) -> Result<Vec<AnswerTriple>, 
                 let dist = a
                     .get("probabilities")
                     .and_then(Value::as_object)
-                    .ok_or_else(|| {
-                        format!("qid {}: score answer has no probabilities", q.qid)
-                    })?;
+                    .ok_or_else(|| format!("qid {}: score answer has no probabilities", q.qid))?;
                 let n = q.criteria.as_array().map_or(0, Vec::len);
                 let mut probs = Vec::with_capacity(n);
                 for i in 0..n {
-                    let p = dist.get(&i.to_string()).and_then(Value::as_f64).ok_or_else(
-                        || format!("qid {}: score probabilities missing level {i}", q.qid),
-                    )?;
+                    let p = dist
+                        .get(&i.to_string())
+                        .and_then(Value::as_f64)
+                        .ok_or_else(|| {
+                            format!("qid {}: score probabilities missing level {i}", q.qid)
+                        })?;
                     probs.push(p);
                 }
                 // Their `score` is E[level] — a float, never the pick; the
@@ -536,55 +536,62 @@ mod tests {
     /// the macOS ECONNRESET flake the openthai stub documents), and
     /// capturing each `(request line, request body)` on a channel so the
     /// tests can assert what actually reached the wire.
-    fn serve(canned: String) -> (std::net::SocketAddr, std::sync::mpsc::Receiver<(String, Vec<u8>)>) {
+    fn serve(
+        canned: String,
+    ) -> (
+        std::net::SocketAddr,
+        std::sync::mpsc::Receiver<(String, Vec<u8>)>,
+    ) {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
         let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || loop {
-            let (stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let mut writer = match stream.try_clone() {
-                Ok(w) => w,
-                Err(_) => continue,
-            };
-            let mut reader = BufReader::new(stream);
-            let mut request_line = String::new();
-            if reader.read_line(&mut request_line).is_err() {
-                continue;
-            }
-            let mut content_length = 0usize;
-            let mut line = String::new();
+        std::thread::spawn(move || {
             loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim_end();
-                        if trimmed.is_empty() {
-                            break;
-                        }
-                        if let Some((k, v)) = trimmed.split_once(':')
-                            && k.eq_ignore_ascii_case("content-length")
-                        {
-                            content_length = v.trim().parse().unwrap_or(0);
+                let (stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
                         }
                     }
                 }
+                let mut body = vec![0u8; content_length];
+                if reader.read_exact(&mut body).is_err() {
+                    continue;
+                }
+                let _ = tx.send((request_line.clone(), body));
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
             }
-            let mut body = vec![0u8; content_length];
-            if reader.read_exact(&mut body).is_err() {
-                continue;
-            }
-            let _ = tx.send((request_line.clone(), body));
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                canned.len(),
-                canned
-            );
-            let _ = writer.write_all(resp.as_bytes());
-            let _ = writer.flush();
         });
         (addr, rx)
     }
@@ -616,7 +623,12 @@ mod tests {
         let c = case(
             json!("s"),
             vec![
-                ("q1", QKind::Choice, "pick", json!({"a": "desc a", "b": null})),
+                (
+                    "q1",
+                    QKind::Choice,
+                    "pick",
+                    json!({"a": "desc a", "b": null}),
+                ),
                 ("q2", QKind::Score, "rate", json!(["lo", "mid", "hi"])),
             ],
         );
@@ -627,7 +639,10 @@ mod tests {
             json!({"a": "desc a", "b": null})
         );
         assert_eq!(body["questions"]["q2"]["type"], "score");
-        assert_eq!(body["questions"]["q2"]["criteria"], json!(["lo", "mid", "hi"]));
+        assert_eq!(
+            body["questions"]["q2"]["criteria"],
+            json!(["lo", "mid", "hi"])
+        );
         // THEIR score bound is 2..=10 (server.py Score pydantic) — UNLIKE
         // the drex wire's 1..=255: one level refuses HERE, and eleven too.
         let one = case(json!("s"), vec![("q3", QKind::Score, "r", json!(["only"]))]);
@@ -642,11 +657,17 @@ mod tests {
         let zero = case(json!("s"), vec![("q5", QKind::Choice, "p", json!({}))]);
         assert!(build_body(&zero).is_err());
         // 256 choice options refuses (their max_length=255).
-        let over: std::collections::BTreeMap<String, Value> =
-            (0..=MAX_OPTIONS).map(|i| (format!("o{i}"), Value::Null)).collect();
+        let over: std::collections::BTreeMap<String, Value> = (0..=MAX_OPTIONS)
+            .map(|i| (format!("o{i}"), Value::Null))
+            .collect();
         let over = case(
             json!("s"),
-            vec![("q6", QKind::Choice, "p", serde_json::to_value(over).unwrap())],
+            vec![(
+                "q6",
+                QKind::Choice,
+                "p",
+                serde_json::to_value(over).unwrap(),
+            )],
         );
         assert!(build_body(&over).is_err());
     }
@@ -730,9 +751,15 @@ mod tests {
             }
         });
         let err = map_answers(&c, &resp).unwrap_err();
-        assert!(err.contains("confidence"), "loud error names the axis: {err}");
+        assert!(
+            err.contains("confidence"),
+            "loud error names the axis: {err}"
+        );
         // The score arm carries the same law.
-        let s = case(json!("s"), vec![("q2", QKind::Score, "r", json!(["lo", "hi"]))]);
+        let s = case(
+            json!("s"),
+            vec![("q2", QKind::Score, "r", json!(["lo", "hi"]))],
+        );
         let sresp = json!({
             "answers": {
                 "q2": {"type": "score", "score": 0.5,
@@ -809,7 +836,10 @@ mod tests {
         );
         let (answers, _client_ms, tokens) = lane.decide(&c).expect("round trip");
         let (line, body) = rx.recv().expect("captured request");
-        assert!(line.starts_with("POST /v1/systemone HTTP/1.1"), "saw {line:?}");
+        assert!(
+            line.starts_with("POST /v1/systemone HTTP/1.1"),
+            "saw {line:?}"
+        );
         let seen: Value = serde_json::from_slice(&body).expect("request body is json");
         assert_eq!(seen["model"], "jev-latest");
         assert_eq!(seen["questions"]["q0"]["type"], "noul");
@@ -876,6 +906,9 @@ mod tests {
         let (addr2, _rx2) = serve(loading);
         let lane2 = PplxLane::from_url(&format!("http://{addr2}"));
         let err = lane2.info().unwrap_err();
-        assert!(err.contains("loading"), "the refusal names the window: {err}");
+        assert!(
+            err.contains("loading"),
+            "the refusal names the window: {err}"
+        );
     }
 }

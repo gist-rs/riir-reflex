@@ -190,8 +190,18 @@ const SHAPES_CUDA: &[(usize, usize, usize, &str)] = &[
     (106, 1024, 1536, "narrow n-crossover probe"),
     (106, 1024, 2048, "narrow n-crossover probe"),
     (106, 1024, 2560, "narrow n-crossover probe"),
-    (106, 1024, 3072, "ag_news QKV (narrow LOSES here — floor evidence)"),
-    (106, 1024, 5248, "ag_news gate/up (narrow LOSES here — floor evidence)"),
+    (
+        106,
+        1024,
+        3072,
+        "ag_news QKV (narrow LOSES here — floor evidence)",
+    ),
+    (
+        106,
+        1024,
+        5248,
+        "ag_news gate/up (narrow LOSES here — floor evidence)",
+    ),
     (45, 1024, 1024, "short-seq O (narrow zone)"),
     (45, 1024, 5248, "short-seq gate/up (floor evidence)"),
     (4, 1024, 1024, "head s1 (m=4 tail GEMM)"),
@@ -244,7 +254,9 @@ fn main() {
     };
     let ladder = Cuda::new().expect("cuda backend (reg4 on)");
     if control {
-        eprintln!("--control: both backends at the baseline posture — pair deltas are instrument artifact");
+        eprintln!(
+            "--control: both backends at the baseline posture — pair deltas are instrument artifact"
+        );
     }
     let cpu = Cpu;
 
@@ -252,11 +264,7 @@ fn main() {
     // cache contract — see the metal arm's note).
     let weights: Vec<Vec<f32>> = SHAPES_CUDA
         .iter()
-        .map(|&(_, k, n, _)| {
-            (0..n * k)
-                .map(|i| (i % 5) as f32 * 0.2 - 0.4)
-                .collect()
-        })
+        .map(|&(_, k, n, _)| (0..n * k).map(|i| (i % 5) as f32 * 0.2 - 0.4).collect())
         .collect();
 
     for (shape_idx, &(m, k, n, label)) in SHAPES_CUDA.iter().enumerate() {
@@ -281,9 +289,7 @@ fn main() {
         let rel_ladder = rel_diff(&dc, &sync);
         let bit_identical = dc == sync;
         if rel_base > 1e-3 || rel_ladder > 1e-3 {
-            panic!(
-                "shape {m}x{k}x{n}: DIVERGED base {rel_base:e} ladder {rel_ladder:e}"
-            );
+            panic!("shape {m}x{k}x{n}: DIVERGED base {rel_base:e} ladder {rel_ladder:e}");
         }
 
         // Warmup both (chain repopulation after the pass boundary).

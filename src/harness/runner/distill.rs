@@ -58,7 +58,7 @@ use std::path::Path;
 
 #[cfg(feature = "laya-riir")]
 use super::case_questions;
-use super::{git_sha, iso8601_utc, load_rows, percentile_us, RunOptions, SuiteSpec, SUITES};
+use super::{RunOptions, SUITES, SuiteSpec, git_sha, iso8601_utc, load_rows, percentile_us};
 use crate::harness::runner::hostname_refusing_unknown;
 use crate::harness::suites::{stratified_split, train_docs};
 
@@ -102,8 +102,9 @@ impl KeyMap {
     #[must_use]
     pub fn for_suite(suite: &str) -> Option<Self> {
         match suite {
-            "massive_intent_en" | "banking77" | "ag_news" | "emotion"
-            | "xnli_en" => Some(Self::Name),
+            "massive_intent_en" | "banking77" | "ag_news" | "emotion" | "xnli_en" => {
+                Some(Self::Name)
+            }
             // Issue 623 (2026-10-10 owner extension): the pplx capture slot
             // rides the same FixedInt law — noul 2-class, int labels, the
             // full 2-class universe presented (the gold pin verifies it).
@@ -196,7 +197,10 @@ impl StudentUniverse {
     /// label would corrupt the join silently — refuse), sort (the
     /// student's `label_universe` law). Returns the student classes and
     /// the corpus→student INDEX permutation for row-level remaps.
-    pub(crate) fn apply(&self, corpus_classes: &[String]) -> Result<(Vec<String>, Vec<usize>), String> {
+    pub(crate) fn apply(
+        &self,
+        corpus_classes: &[String],
+    ) -> Result<(Vec<String>, Vec<usize>), String> {
         let mut student: Vec<String> = Vec::with_capacity(corpus_classes.len());
         for c in corpus_classes {
             let t = self.translate(c)?;
@@ -209,7 +213,15 @@ impl StudentUniverse {
         }
         let mut sorted = student.clone();
         sorted.sort();
-        let perm: Vec<usize> = student.iter().map(|s| sorted.iter().position(|x| x == s).expect("sorted contains every element")).collect();
+        let perm: Vec<usize> = student
+            .iter()
+            .map(|s| {
+                sorted
+                    .iter()
+                    .position(|x| x == s)
+                    .expect("sorted contains every element")
+            })
+            .collect();
         Ok((sorted, perm))
     }
 }
@@ -234,7 +246,10 @@ pub(crate) enum TeacherForward {
     /// The OpenThai loopback service (the Bench 074 wire, ungated). The
     /// keyed probabilities are built from their positional answer over
     /// the question's presented keys.
-    Openthai { lane: crate::lanes::openthai::OpenThaiLane, provenance: String },
+    Openthai {
+        lane: crate::lanes::openthai::OpenThaiLane,
+        provenance: String,
+    },
     /// The Bekko JSONL subprocess oracle (riir-train Issue 608, ungated —
     /// the `--bekko` lane's script over the shared [`super::JsonlOracle`]
     /// wire). The subprocess stays up for the whole suite pass; the keyed
@@ -245,15 +260,24 @@ pub(crate) enum TeacherForward {
     /// `--clef` lane's client over the same Jev-shaped wire). The keyed
     /// probabilities reuse the openthai keying over the positional answer
     /// (one keying law, many oracles).
-    Clef { lane: crate::lanes::clef::ClefLane, provenance: String },
+    Clef {
+        lane: crate::lanes::clef::ClefLane,
+        provenance: String,
+    },
     /// The pplx-decider loopback service (reflex Issue 082's lane as the
     /// Issue-623 teacher, ungated). Same keyed-probs tail as clef.
-    Pplx { lane: crate::lanes::pplx::PplxLane, provenance: String },
+    Pplx {
+        lane: crate::lanes::pplx::PplxLane,
+        provenance: String,
+    },
     /// The vLLM-SR d3 loopback service (riir-train Issue 629 T2's B3-arm
     /// teacher, ungated — Apache-2.0 at tag v3.1.0, verified 629 T0). Same
     /// SystemOne wire as pplx (their server is adapted from pplx's);
     /// same keyed-probs tail.
-    D3 { lane: crate::lanes::d3::D3Lane, provenance: String },
+    D3 {
+        lane: crate::lanes::d3::D3Lane,
+        provenance: String,
+    },
     /// The Jeva loopback service (reflex Issue 090 B2's capture rider,
     /// feeding riir-train 632 T2): OUR reference server
     /// (`scripts/jeva_server.py`) over their in-repo `jeva.Jeva`. Weights
@@ -262,7 +286,10 @@ pub(crate) enum TeacherForward {
     /// (the bekko attribution law). Same keyed-probs tail as clef/pplx/d3
     /// (the capture posture is the server's default allow_null=0 — joint
     /// == conditional, no ρ dilution in the teacher targets).
-    Jeva { lane: crate::lanes::jeva::JevaLane, provenance: String },
+    Jeva {
+        lane: crate::lanes::jeva::JevaLane,
+        provenance: String,
+    },
 }
 
 impl TeacherForward {
@@ -299,15 +326,15 @@ impl TeacherForward {
     /// and the Apache-2.0-served openthai read as None here).
     pub(crate) fn license(&self) -> Option<&'static str> {
         match self {
-            Self::Bekko { .. } => {
-                Some("MIT (hotchpotch/bekko-system-one — Copyright (c) 2026 Yuichi \
-                      Tatsumi; verified 2026-10-02)")
-            }
-            Self::Jeva { .. } => {
-                Some("UNDECLARED (LIQIIIII/Jeva-4B weights; code Apache-2.0 \
+            Self::Bekko { .. } => Some(
+                "MIT (hotchpotch/bekko-system-one — Copyright (c) 2026 Yuichi \
+                      Tatsumi; verified 2026-10-02)",
+            ),
+            Self::Jeva { .. } => Some(
+                "UNDECLARED (LIQIIIII/Jeva-4B weights; code Apache-2.0 \
                       LiQiiiii/Jeva) — capture-for-measurement posture per \
-                      riir-train 632 T0; adoption fail-closed")
-            }
+                      riir-train 632 T0; adoption fail-closed",
+            ),
             _ => None,
         }
     }
@@ -320,12 +347,10 @@ impl TeacherForward {
     pub(crate) fn warmup(&mut self, case: &super::SuiteCase) -> Result<(), String> {
         match self {
             #[cfg(feature = "laya-riir")]
-            Self::Laya { agent, .. } => {
-                agent
-                    .system_one(&case.state, &case_questions(case))
-                    .map(|_| ())
-                    .map_err(|e| format!("laya warmup: {e}"))
-            }
+            Self::Laya { agent, .. } => agent
+                .system_one(&case.state, &case_questions(case))
+                .map(|_| ())
+                .map_err(|e| format!("laya warmup: {e}")),
             Self::Openthai { lane, provenance } => {
                 lane.health()?;
                 let raw = lane
@@ -333,18 +358,19 @@ impl TeacherForward {
                     .map_err(|e| format!("openthai warmup: {e}"))?;
                 let parsed: serde_json::Value = serde_json::from_str(&raw)
                     .map_err(|e| format!("openthai warmup parse: {e}"))?;
-                *provenance = format!("openthai:{}", crate::lanes::openthai::OpenThaiLane::model_of(&parsed));
+                *provenance = format!(
+                    "openthai:{}",
+                    crate::lanes::openthai::OpenThaiLane::model_of(&parsed)
+                );
                 Ok(())
             }
             // One discarded forward post-handshake: the loud proof the
             // oracle ANSWERS (the handshake only proves it loaded), and
             // the latency stat is not cold-skewed (the seam's law).
-            Self::Bekko { oracle } => {
-                oracle
-                    .ask(case)
-                    .map(|_| ())
-                    .map_err(|e| format!("bekko warmup: {e}"))
-            }
+            Self::Bekko { oracle } => oracle
+                .ask(case)
+                .map(|_| ())
+                .map_err(|e| format!("bekko warmup: {e}")),
             // The clef handshake (info) IS a full probe round trip over the
             // wire — it fills the model provenance (the envelope's model
             // field, else the CLEF_MODEL stamp); then one discarded forward
@@ -358,33 +384,33 @@ impl TeacherForward {
             }
             // pplx's health ran at construct (it fills the provenance);
             // warmup is the loud proof + the cold-path absorb.
-            Self::Pplx { lane, .. } => {
-                lane.decide(case)
-                    .map(|_| ())
-                    .map_err(|e| format!("pplx warmup: {e}"))
-            }
+            Self::Pplx { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("pplx warmup: {e}")),
             // d3's health ran at construct (the pplx law); warmup is the
             // loud proof + the cold-path absorb.
-            Self::D3 { lane, .. } => {
-                lane.decide(case)
-                    .map(|_| ())
-                    .map_err(|e| format!("d3 warmup: {e}"))
-            }
+            Self::D3 { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("d3 warmup: {e}")),
             // The jeva law: health at construct filled the provenance;
             // warmup is the loud proof + the cold-path absorb (their
             // hybrid option cache warms on the first pass).
-            Self::Jeva { lane, .. } => {
-                lane.decide(case)
-                    .map(|_| ())
-                    .map_err(|e| format!("jeva warmup: {e}"))
-            }
+            Self::Jeva { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("jeva warmup: {e}")),
         }
     }
 
     /// One row's keyed probabilities + wall ms. The FIRST question's
     /// answer (the distill join is one gold per row — the single-question
     /// contract the T3 suites speak).
-    pub(crate) fn forward(&mut self, case: &super::SuiteCase) -> Result<(Vec<(String, f64)>, u64), String> {
+    pub(crate) fn forward(
+        &mut self,
+        case: &super::SuiteCase,
+    ) -> Result<(Vec<(String, f64)>, u64), String> {
         match self {
             #[cfg(feature = "laya-riir")]
             Self::Laya { agent, .. } => {
@@ -403,14 +429,16 @@ impl TeacherForward {
                 let (outcome, client_ms) = lane
                     .decide(case)
                     .map_err(|e| format!("openthai forward ({}): {e}", case.id))?;
-                let (probs, _pick, _conf) = outcome.answers.first().ok_or_else(|| {
-                    format!("{}: no answer for its single question", case.id)
-                })?;
-                let q = case.questions.first().ok_or_else(|| {
-                    format!("{}: no questions for its single gold", case.id)
-                })?;
-                let keyed = openthai_keyed_probs(q, probs)
-                    .map_err(|e| format!("{}: {e}", case.id))?;
+                let (probs, _pick, _conf) = outcome
+                    .answers
+                    .first()
+                    .ok_or_else(|| format!("{}: no answer for its single question", case.id))?;
+                let q = case
+                    .questions
+                    .first()
+                    .ok_or_else(|| format!("{}: no questions for its single gold", case.id))?;
+                let keyed =
+                    openthai_keyed_probs(q, probs).map_err(|e| format!("{}: {e}", case.id))?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -426,16 +454,17 @@ impl TeacherForward {
                 let ms = t0.elapsed().as_millis() as u64;
                 let resp: serde_json::Value = serde_json::from_str(raw.trim())
                     .map_err(|e| format!("bekko forward ({}): parse: {e}", case.id))?;
-                let q = case.questions.first().ok_or_else(|| {
-                    format!("{}: no questions for its single gold", case.id)
-                })?;
+                let q = case
+                    .questions
+                    .first()
+                    .ok_or_else(|| format!("{}: no questions for its single gold", case.id))?;
                 let a = resp
                     .get("answers")
                     .and_then(|v| v.as_object())
                     .and_then(|m| m.get(&q.qid))
                     .ok_or_else(|| format!("{}: no bekko answer for qid {}", case.id, q.qid))?;
-                let (probs, _pick, _conf) = super::parse_python_answer(q, a)
-                    .map_err(|e| format!("{}: {e}", case.id))?;
+                let (probs, _pick, _conf) =
+                    super::parse_python_answer(q, a).map_err(|e| format!("{}: {e}", case.id))?;
                 let keyed =
                     openthai_keyed_probs(q, &probs).map_err(|e| format!("{}: {e}", case.id))?;
                 Ok((keyed, ms))
@@ -550,12 +579,10 @@ fn bekko_teacher_pins_with(get: impl Fn(&str) -> Option<String>) -> (String, Str
     const REV_68M: &str = "6eb1bae2d35066b0d634fabaf8c79beafc6fd9f1";
     const REV_17M: &str = "2147c3d9d00559bf972616c2589eee967e266f3b";
     let model = get("BEKKO_MODEL").unwrap_or_else(|| M400.to_string());
-    let revision = get("BEKKO_REVISION").unwrap_or_else(|| {
-        match model.as_str() {
-            M400 => REV_400M.to_string(),
-            M68 => REV_68M.to_string(),
-            _ => REV_17M.to_string(),
-        }
+    let revision = get("BEKKO_REVISION").unwrap_or_else(|| match model.as_str() {
+        M400 => REV_400M.to_string(),
+        M68 => REV_68M.to_string(),
+        _ => REV_17M.to_string(),
     });
     (model, revision)
 }
@@ -593,7 +620,10 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
                 "cpu",
                 "the venv needs torch + transformers + sentence-transformers \
                  (the card's runtime pins; MIT license — verified 2026-10-02)",
-                &[("BEKKO_MODEL", model.as_str()), ("BEKKO_REVISION", revision.as_str())],
+                &[
+                    ("BEKKO_MODEL", model.as_str()),
+                    ("BEKKO_REVISION", revision.as_str()),
+                ],
             )?;
             Ok(TeacherForward::Bekko { oracle })
         }
@@ -603,7 +633,10 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             // posture keeps its plan-011 account law). The wire is proven
             // + the model provenance filled at warmup.
             let lane = crate::lanes::clef::ClefLane::from_env()?;
-            Ok(TeacherForward::Clef { lane, provenance: "clef:?".to_string() })
+            Ok(TeacherForward::Clef {
+                lane,
+                provenance: "clef:?".to_string(),
+            })
         }
         "pplx" => {
             // Health at construct (the openthai law — a server that is
@@ -645,7 +678,10 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
                     other => return Err(format!("unknown checkpoint {other}")),
                 };
                 let agent = Box::new(super::load_laya_agent(ckpt, ck)?);
-                Ok(TeacherForward::Laya { agent, provenance: ckpt })
+                Ok(TeacherForward::Laya {
+                    agent,
+                    provenance: ckpt,
+                })
             }
             #[cfg(not(feature = "laya-riir"))]
             {
@@ -673,8 +709,10 @@ fn t3_skip_reason(suite: &str) -> &'static str {
              distillation there waits for the option-conditioned scorer \
              (riir-instinct Issue 005 E0 note)"
         }
-        _ => "not a T3 teacher suite (no train-row join: the synthetic family \
-              generates in-process; its students need the synthetic-suite rig first)",
+        _ => {
+            "not a T3 teacher suite (no train-row join: the synthetic family \
+              generates in-process; its students need the synthetic-suite rig first)"
+        }
     }
 }
 
@@ -749,8 +787,12 @@ fn map_targets(
     probabilities: &[(String, f64)],
     classes: &[String],
 ) -> Result<(usize, usize, Vec<f32>), String> {
-    let class_of =
-        |s: &str| classes.iter().position(|c| c == s).ok_or_else(|| format!("class {s:?} absent"));
+    let class_of = |s: &str| {
+        classes
+            .iter()
+            .position(|c| c == s)
+            .ok_or_else(|| format!("class {s:?} absent"))
+    };
     let mut q = vec![0.0f32; classes.len()];
     let pick_pos = argmax_lowest_pos(probabilities);
     match keymap {
@@ -809,8 +851,9 @@ impl TeacherBinWriter {
     /// Serializes `header` once; `n_classes` is implied by the header's
     /// `classes` array on read.
     pub(crate) fn new(header: &serde_json::Value) -> Result<Self, String> {
-        let header_bytes =
-            serde_json::to_string(header).map_err(|e| format!("header json: {e}"))?.into_bytes();
+        let header_bytes = serde_json::to_string(header)
+            .map_err(|e| format!("header json: {e}"))?
+            .into_bytes();
         let mut bytes = Vec::with_capacity(1 << 20);
         bytes.extend_from_slice(TEACHER_MAGIC);
         bytes.extend_from_slice(&TEACHER_VERSION.to_le_bytes());
@@ -852,11 +895,7 @@ pub(crate) fn read_teacher_bin(bytes: &[u8]) -> Result<TeacherColumn, String> {
     if bytes.len() < 12 || &bytes[..4] != TEACHER_MAGIC {
         return Err(fail("bad magic (not a RIDT teacher bin)"));
     }
-    let version = u32::from_le_bytes(
-        bytes[4..8]
-            .try_into()
-            .map_err(|_| fail("version bytes"))?,
-    );
+    let version = u32::from_le_bytes(bytes[4..8].try_into().map_err(|_| fail("version bytes"))?);
     if version != TEACHER_VERSION {
         return Err(fail(&format!("unsupported version {version}")));
     }
@@ -865,12 +904,14 @@ pub(crate) fn read_teacher_bin(bytes: &[u8]) -> Result<TeacherColumn, String> {
             .try_into()
             .map_err(|_| fail("header-len bytes"))?,
     ) as usize;
-    let header_end = 12usize.checked_add(header_len).ok_or_else(|| fail("header len overflow"))?;
+    let header_end = 12usize
+        .checked_add(header_len)
+        .ok_or_else(|| fail("header len overflow"))?;
     if bytes.len() < header_end {
         return Err(fail("truncated header"));
     }
-    let header: serde_json::Value =
-        serde_json::from_slice(&bytes[12..header_end]).map_err(|e| fail(&format!("header json: {e}")))?;
+    let header: serde_json::Value = serde_json::from_slice(&bytes[12..header_end])
+        .map_err(|e| fail(&format!("header json: {e}")))?;
     let classes = header
         .get("classes")
         .and_then(serde_json::Value::as_array)
@@ -885,7 +926,11 @@ pub(crate) fn read_teacher_bin(bytes: &[u8]) -> Result<TeacherColumn, String> {
         .ok_or_else(|| fail("header carries no n_rows"))? as usize;
     let row_len = 8 + n_classes * 4;
     let body = &bytes[header_end..];
-    if body.len() != n_rows.checked_mul(row_len).ok_or_else(|| fail("row-count overflow"))? {
+    if body.len()
+        != n_rows
+            .checked_mul(row_len)
+            .ok_or_else(|| fail("row-count overflow"))?
+    {
         return Err(fail(&format!(
             "body is {} byte(s), header says {n_rows} row(s) × {row_len} = expected {}",
             body.len(),
@@ -898,25 +943,38 @@ pub(crate) fn read_teacher_bin(bytes: &[u8]) -> Result<TeacherColumn, String> {
     for r in 0..n_rows {
         let base = header_end + r * row_len;
         let u = |off: usize| -> u32 {
-            u32::from_le_bytes(bytes[base + off..base + off + 4].try_into().expect("row slice"))
+            u32::from_le_bytes(
+                bytes[base + off..base + off + 4]
+                    .try_into()
+                    .expect("row slice"),
+            )
         };
         let g = u(0) as usize;
         let p = u(4) as usize;
         if g >= n_classes || p >= n_classes {
-            return Err(fail(&format!("row {r}: class index out of range (gold {g}, pick {p})")));
+            return Err(fail(&format!(
+                "row {r}: class index out of range (gold {g}, pick {p})"
+            )));
         }
         let mut row_q = Vec::with_capacity(n_classes);
         for c in 0..n_classes {
             let off = 8 + c * 4;
             row_q.push(f32::from_le_bytes(
-                bytes[base + off..base + off + 4].try_into().expect("q slice"),
+                bytes[base + off..base + off + 4]
+                    .try_into()
+                    .expect("q slice"),
             ));
         }
         gold.push(g as u32);
         pick.push(p as u32);
         q.push(row_q);
     }
-    Ok(TeacherColumn { header, gold, pick, q })
+    Ok(TeacherColumn {
+        header,
+        gold,
+        pick,
+        q,
+    })
 }
 
 /// Distill one suite's train rows through the selected teacher
@@ -960,8 +1018,7 @@ fn distill_suite(
     let n_classes = classes.len();
 
     let keymap = KeyMap::for_suite(spec.name)
-        .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?
-    ;
+        .ok_or_else(|| format!("{}: no key mapping (not a T3 suite)", spec.name))?;
     // The 623 root-cause law (see [`StudentUniverse`]): emit the dump in
     // the STUDENT label spelling, derived at capture time. The corpus
     // classes stay the pinning space (map_targets runs unchanged); the
@@ -1048,7 +1105,11 @@ fn distill_suite(
     for (doc, case) in docs.iter().zip(built.cases.iter()) {
         let t0 = std::time::Instant::now();
         let (probabilities, ms) = teacher.forward(case)?;
-        durs_ms.push(if ms > 0 { ms } else { t0.elapsed().as_millis() as u64 });
+        durs_ms.push(if ms > 0 {
+            ms
+        } else {
+            t0.elapsed().as_millis() as u64
+        });
         // Pinning happens in CORPUS spelling (unchanged law); the row then
         // rides the student permutation out (the 623 capture-time law).
         let (gold_c, pick_c, q) = map_targets(
@@ -1084,11 +1145,9 @@ fn distill_suite(
     let (p50, p99, _support) = percentile_us(&durs_ms);
     let teacher_accuracy = hits as f64 / docs.len() as f64;
 
-    std::fs::create_dir_all(out_dir)
-        .map_err(|e| format!("create {}: {e}", out_dir.display()))?;
+    std::fs::create_dir_all(out_dir).map_err(|e| format!("create {}: {e}", out_dir.display()))?;
     let path = out_dir.join(format!("{}_teacher.bin", spec.name));
-    std::fs::write(&path, &out_bytes)
-        .map_err(|e| format!("write {}: {e}", path.display()))?;
+    std::fs::write(&path, &out_bytes).map_err(|e| format!("write {}: {e}", path.display()))?;
     let seal = blake3::hash(&out_bytes);
     let sidecar = out_dir.join(format!("{}_teacher.bin.blake3", spec.name));
     std::fs::write(&sidecar, format!("{}\n", seal.to_hex()))
@@ -1193,7 +1252,9 @@ pub fn render_distill_markdown(out: &DistillOutput) -> String {
         out.meta.limit,
         out.meta.row_rule
     ));
-    s.push_str("\n| suite | ckpt | rows | classes | teacher acc | p50 ms | p99 ms | s | blake3 |\n");
+    s.push_str(
+        "\n| suite | ckpt | rows | classes | teacher acc | p50 ms | p99 ms | s | blake3 |\n",
+    );
     s.push_str("|---|---|---|---|---|---|---|---|---|\n");
     for v in &out.suites {
         s.push_str(&format!(
@@ -1303,15 +1364,16 @@ mod tests {
             c
         };
         let (student, perm) = su.apply(&corpus).unwrap();
-        assert_eq!(student, vec!["0".to_string(), "1".to_string(), "2".to_string()]);
+        assert_eq!(
+            student,
+            vec!["0".to_string(), "1".to_string(), "2".to_string()]
+        );
         // corpus[0]="contradiction"→int 2→student[2]; corpus[1]="entailment"→0;
         // corpus[2]="neutral"→1.
         assert_eq!(perm, vec![2, 0, 1]);
         // Identity: sorted input, identity permutation.
         let id = StudentUniverse::Identity;
-        let (s, p) = id
-            .apply(&["b".to_string(), "a".to_string()])
-            .unwrap();
+        let (s, p) = id.apply(&["b".to_string(), "a".to_string()]).unwrap();
         assert_eq!(s, vec!["a".to_string(), "b".to_string()]);
         assert_eq!(p, vec![1, 0]);
     }
@@ -1320,10 +1382,7 @@ mod tests {
     fn apply_refuses_non_injective_mappings() {
         // Two corpus names colliding onto one student label — the silent-
         // corruption class — refuses loud.
-        let keys: Vec<String> = ["a", "b", "a"]
-            .iter()
-            .map(|s| (*s).to_string())
-            .collect();
+        let keys: Vec<String> = ["a", "b", "a"].iter().map(|s| (*s).to_string()).collect();
         let su = StudentUniverse::PositionalInt(keys);
         // "a" appears at positions 0 and 2 — translating TWO DIFFERENT
         // corpus classes ("a" and "a") is degenerate input the corpus side
@@ -1356,10 +1415,12 @@ mod tests {
         // Student universe arrived at label "1" first: classes = [1, 0, 2].
         let classes = vec!["1".to_string(), "0".to_string(), "2".to_string()];
         let p = probs(&[("a", 0.1), ("b", 0.6), ("c", 0.3)]);
-        let (gold, pick, q) =
-            map_targets(KeyMap::FixedInt, "2", 2, &p, &classes).expect("map");
+        let (gold, pick, q) = map_targets(KeyMap::FixedInt, "2", 2, &p, &classes).expect("map");
         assert_eq!(gold, 2, "doc label \"2\" is classes[2]");
-        assert_eq!(pick, 0, "argmax at position 1 → int label \"1\" = classes[0]");
+        assert_eq!(
+            pick, 0,
+            "argmax at position 1 → int label \"1\" = classes[0]"
+        );
         // position 0 (p .1) → class "0" → slot 1; position 1 (.6) → "1" → 0; 2 (.3) → "2" → 2.
         assert_eq!(q, vec![0.6, 0.1, 0.3]);
     }
@@ -1370,7 +1431,11 @@ mod tests {
             .iter()
             .map(|s| (*s).to_string())
             .collect();
-        let p = probs(&[("check_weather", 0.2), ("send_email", 0.7), ("arrange_flight", 0.1)]);
+        let p = probs(&[
+            ("check_weather", 0.2),
+            ("send_email", 0.7),
+            ("arrange_flight", 0.1),
+        ]);
         let (gold, pick, q) =
             map_targets(KeyMap::Name, "send_email", 1, &p, &classes).expect("map");
         assert_eq!(gold, 2);
@@ -1417,7 +1482,11 @@ mod tests {
         let q = choice_question(serde_json::json!({"b_key": 1, "a_key": 2, "c_key": 3}));
         let keyed = openthai_keyed_probs(&q, &[0.2, 0.7, 0.1]).expect("keyed");
         let keys: Vec<&str> = keyed.iter().map(|(k, _)| k.as_str()).collect();
-        assert_eq!(keys, vec!["b_key", "a_key", "c_key"], "the criteria object's own key order (the same iteration map_answers reads)");
+        assert_eq!(
+            keys,
+            vec!["b_key", "a_key", "c_key"],
+            "the criteria object's own key order (the same iteration map_answers reads)"
+        );
         assert_eq!(keyed[1].1, 0.7);
     }
 
@@ -1435,7 +1504,10 @@ mod tests {
         q.criteria = serde_json::Value::Null;
         let keyed = openthai_keyed_probs(&q, &[0.9, 0.1]).expect("keyed");
         assert_eq!(
-            keyed.iter().map(|(k, v)| (k.as_str(), *v)).collect::<Vec<_>>(),
+            keyed
+                .iter()
+                .map(|(k, v)| (k.as_str(), *v))
+                .collect::<Vec<_>>(),
             vec![("0", 0.9), ("1", 0.1)],
             "their p(yes) arrives as [p_no, p_yes] — the gold idx space"
         );

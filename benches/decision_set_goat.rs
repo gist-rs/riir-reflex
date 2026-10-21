@@ -227,11 +227,9 @@ fn main() {
     );
     println!("[canary] allocator counted {canary_count} alloc(s) — instrument live");
 
-    let engine: DecisionEngine<2, EMBED_DIM> = DecisionEngine::build_specs(
-        demo_specs(),
-        EngineConfig::default(),
-    )
-    .expect("demo corpus well-formed");
+    let engine: DecisionEngine<2, EMBED_DIM> =
+        DecisionEngine::build_specs(demo_specs(), EngineConfig::default())
+            .expect("demo corpus well-formed");
     let n_questions = 8;
     let p99 = run_gates("default", engine, &request(n_questions), n_questions);
 
@@ -248,7 +246,12 @@ fn main() {
         };
         let engine: DecisionEngine<2, EMBED_DIM> =
             DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
-        run_gates("nb_scope armed", engine, &nb_request(n_questions), n_questions);
+        run_gates(
+            "nb_scope armed",
+            engine,
+            &nb_request(n_questions),
+            n_questions,
+        );
     }
 
     // ── Plan 627 T3 G2/G4: the same gates with `set_refine` ARMED — the
@@ -267,7 +270,12 @@ fn main() {
         };
         let engine: DecisionEngine<2, EMBED_DIM> =
             DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
-        run_gates("set_refine armed", engine, &nb_request(n_questions), n_questions);
+        run_gates(
+            "set_refine armed",
+            engine,
+            &nb_request(n_questions),
+            n_questions,
+        );
     }
 
     // ── Issue 038 T7b: the option-conditioned tables ARMED — every
@@ -335,7 +343,11 @@ fn main() {
                 Question::score(
                     "q1",
                     "How risky is promoting this build now?",
-                    vec!["low".to_string(), "moderate".to_string(), "high".to_string()],
+                    vec![
+                        "low".to_string(),
+                        "moderate".to_string(),
+                        "high".to_string(),
+                    ],
                 ),
                 Question::noul("q2", "Should the rollout proceed now?"),
             ];
@@ -362,7 +374,12 @@ verified the health endpoints and the error budget is clean."
         };
         let engine: DecisionEngine<2, EMBED_DIM> =
             DecisionEngine::build_specs(demo_specs(), cfg).expect("demo corpus well-formed");
-        run_gates("nb_ridge armed", engine, &nb_request(n_questions), n_questions);
+        run_gates(
+            "nb_ridge armed",
+            engine,
+            &nb_request(n_questions),
+            n_questions,
+        );
     }
 
     println!("═══════════════════════════════════════════════════════════════");

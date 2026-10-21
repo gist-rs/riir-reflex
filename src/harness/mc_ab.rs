@@ -45,7 +45,7 @@ use crate::embed::EMBED_DIM;
 use crate::engine::{DecisionEngine, Scratch};
 use crate::harness::runner::engine_request;
 use crate::harness::suites::{QKind, Suite, SuiteCase};
-use crate::mc_ensemble::{solve_mc_into, McConfig};
+use crate::mc_ensemble::{McConfig, solve_mc_into};
 use katgpt_core::decision_wire::Outcome;
 use katgpt_core::perturbation_ensemble::EnsembleHistogram;
 use serde::Serialize;
@@ -270,11 +270,7 @@ fn cal_baseline<const N: usize>(
     cases: &[SuiteCase],
     state_strs: &[String],
 ) -> Result<Vec<QRow>, String> {
-    let max_q = cases
-        .iter()
-        .map(|c| c.questions.len())
-        .max()
-        .unwrap_or(1);
+    let max_q = cases.iter().map(|c| c.questions.len()).max().unwrap_or(1);
     let mut sc = Scratch::<EMBED_DIM>::new();
     sc.prepare(max_q.max(1));
     let mut rows = Vec::new();
@@ -329,11 +325,7 @@ fn run_mc<const N: usize>(
             h
         })
         .collect();
-    let max_q = cases
-        .iter()
-        .map(|c| c.questions.len())
-        .max()
-        .unwrap_or(1);
+    let max_q = cases.iter().map(|c| c.questions.len()).max().unwrap_or(1);
     let mut sc = Scratch::<EMBED_DIM>::new();
     sc.prepare(max_q.max(1));
     let mut flat = 0usize;
@@ -412,7 +404,10 @@ pub fn mc_ab_pass<const N: usize>(
     //    precedent — stderr, opt-in, never a metric).
     if std::env::var_os("RIIR_DEBUG_CAL_RANK").is_some() {
         let cal = engine.calibration();
-        eprintln!("[cal-rank] {} calibration {} T={}", suite.name, cal.method, cal.temperature);
+        eprintln!(
+            "[cal-rank] {} calibration {} T={}",
+            suite.name, cal.method, cal.temperature
+        );
         for (ci, case) in suite.cases.iter().enumerate() {
             for (qi, _q) in case.questions.iter().enumerate() {
                 eprintln!(
@@ -447,12 +442,10 @@ pub fn mc_ab_pass<const N: usize>(
     if !cal_cases.is_empty() {
         let cal_rows = cal_baseline(engine, cal_cases, cal_state_strs)?;
         if cal_rows.len() >= MIN_CAL_QUESTIONS {
-            let base_auc = auc(
-                &cal_rows
-                    .iter()
-                    .map(|r| (r.conf_cal, r.pick == r.gold))
-                    .collect::<Vec<_>>(),
-            );
+            let base_auc = auc(&cal_rows
+                .iter()
+                .map(|r| (r.conf_cal, r.pick == r.gold))
+                .collect::<Vec<_>>());
             let mut cal_hists_per_p: Vec<(f32, Vec<EnsembleHistogram>)> = Vec::new();
             let mut p_rows: Vec<McPCalRow> = Vec::new();
             let mut deltas: Vec<f64> = Vec::new();
@@ -491,8 +484,7 @@ pub fn mc_ab_pass<const N: usize>(
             let mut lam_deltas: Vec<f64> = Vec::new();
             for &lam in &cfg.lambda_grid {
                 let lcb_acc = rule_accuracy(&cal_rows, sel_hists, |r, h| {
-                    h.top_by_lcb(lam)
-                        .map(|p| engine_idx_to_gold(r.kind, p))
+                    h.top_by_lcb(lam).map(|p| engine_idx_to_gold(r.kind, p))
                 })
                 .0;
                 let flipped = rows_where_lcb_differs(&cal_rows, sel_hists, lam).len();
@@ -605,8 +597,7 @@ pub fn mc_ab_pass<const N: usize>(
     })
     .0;
     let acc_lcb = rule_accuracy(&test_rows, &hists, |r, h| {
-        h.top_by_lcb(lam_sel)
-            .map(|p| engine_idx_to_gold(r.kind, p))
+        h.top_by_lcb(lam_sel).map(|p| engine_idx_to_gold(r.kind, p))
     })
     .0;
     let lcb_flipped = rows_where_lcb_differs(&test_rows, &hists, lam_sel).len();
@@ -709,9 +700,9 @@ mod tests {
     /// → defaults + `selection: None` (the disclosed absence).
     #[test]
     fn tiny_suite_pass_is_well_formed() {
-        use crate::embed::{Embedder, EMBED_DIM};
+        use crate::embed::{EMBED_DIM, Embedder};
         use crate::harness::suites::{GoldAnswer, SuiteQuestion};
-        use serde_json::{json, Value};
+        use serde_json::{Value, json};
 
         let experts = vec![
             crate::engine::DomainExpert::new(
@@ -804,8 +795,12 @@ mod tests {
         assert!(rec.auc_baseline_cal_conf.is_finite());
         assert!(rec.auc_u_pair.is_finite());
         assert!(rec.auc_baseline_cal_conf >= 0.0 && rec.auc_baseline_cal_conf <= 1.0);
-        for a in [rec.acc_legacy_pick, rec.acc_majority_pick, rec.acc_mean_pick, rec.acc_lcb_pick]
-        {
+        for a in [
+            rec.acc_legacy_pick,
+            rec.acc_majority_pick,
+            rec.acc_mean_pick,
+            rec.acc_lcb_pick,
+        ] {
             assert!((0.0..=1.0).contains(&a), "acc in [0,1]: {a}");
         }
         let last = rec.coverage_rows.last().unwrap();
@@ -825,16 +820,20 @@ mod tests {
     /// `1 − legacy`, the complement signature the first PoC run caught.
     #[test]
     fn noul_mean_pick_is_not_the_inverted_legacy_pick() {
-        use crate::embed::{Embedder, EMBED_DIM};
+        use crate::embed::{EMBED_DIM, Embedder};
         use crate::harness::suites::{GoldAnswer, SuiteQuestion};
         use serde_json::Value;
 
         let experts = vec![
             crate::engine::DomainExpert::new(
-                "billing", &["my card was charged twice".to_string()], &Embedder,
+                "billing",
+                &["my card was charged twice".to_string()],
+                &Embedder,
             ),
             crate::engine::DomainExpert::new(
-                "tech", &["the app crashes on launch".to_string()], &Embedder,
+                "tech",
+                &["the app crashes on launch".to_string()],
+                &Embedder,
             ),
         ];
         let mut engine = crate::engine::DecisionEngine::<2, EMBED_DIM>::build(
@@ -852,7 +851,11 @@ mod tests {
             id: id.to_string(),
             state: Value::String(state.to_string()),
             questions: vec![nq()],
-            gold: vec![GoldAnswer { idx: gold, soft: vec![], gold_score: None }],
+            gold: vec![GoldAnswer {
+                idx: gold,
+                soft: vec![],
+                gold_score: None,
+            }],
         };
         // Gold 1 = yes (about billing). If the mean rule forgot the flip it
         // would answer the complement and score exactly 1 − legacy.

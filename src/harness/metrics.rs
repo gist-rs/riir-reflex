@@ -381,8 +381,7 @@ pub fn auroc_of(pairs: &[(f64, bool)]) -> f64 {
         }
         i = j;
     }
-    (rank_sum_pos - n_pos as f64 * (n_pos as f64 + 1.0) / 2.0)
-        / (n_pos as f64 * n_neg as f64)
+    (rank_sum_pos - n_pos as f64 * (n_pos as f64 + 1.0) / 2.0) / (n_pos as f64 * n_neg as f64)
 }
 
 /// Brier decomposition over the SAME 15-bin edges `ece_of` uses — the
@@ -426,7 +425,11 @@ pub fn brier_resolution_of(pairs: &[(f64, bool)]) -> (f64, f64, f64) {
             resolution += w * (mean_acc - base) * (mean_acc - base);
         }
     }
-    (reliability - resolution + uncertainty, resolution, uncertainty)
+    (
+        reliability - resolution + uncertainty,
+        resolution,
+        uncertainty,
+    )
 }
 
 /// The reference ECE bin edges: `np.linspace(0, 1, 16)` — 15 equal bins.
@@ -664,7 +667,11 @@ mod subset_accuracy_tests {
 #[must_use]
 pub fn macro_f1_of(golds: &[usize], preds: &[usize]) -> f64 {
     assert!(!golds.is_empty(), "macro_f1_of: non-empty golds required");
-    assert_eq!(golds.len(), preds.len(), "macro_f1_of: picks must pair with gold");
+    assert_eq!(
+        golds.len(),
+        preds.len(),
+        "macro_f1_of: picks must pair with gold"
+    );
     let mut classes: Vec<usize> = golds.iter().chain(preds.iter()).copied().collect();
     classes.sort_unstable();
     classes.dedup();
@@ -699,7 +706,10 @@ pub fn macro_f1_of(golds: &[usize], preds: &[usize]) -> f64 {
 /// case; disclosed in the crosswalk header).
 #[must_use]
 pub fn chance_majority(golds: &[usize]) -> f64 {
-    assert!(!golds.is_empty(), "chance_majority: non-empty golds required");
+    assert!(
+        !golds.is_empty(),
+        "chance_majority: non-empty golds required"
+    );
     let mut counts: BTreeMap<usize, usize> = BTreeMap::new();
     for g in golds {
         *counts.entry(*g).or_default() += 1;

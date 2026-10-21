@@ -87,12 +87,11 @@ pub(crate) fn request(
     timeout: Duration,
     extra_headers: &[(&str, &str)],
 ) -> Result<HttpReply, LaneHttpError> {
-    let mut stream =
-        TcpStream::connect((host, port)).map_err(|source| LaneHttpError::Connect {
-            host: host.to_string(),
-            port,
-            source,
-        })?;
+    let mut stream = TcpStream::connect((host, port)).map_err(|source| LaneHttpError::Connect {
+        host: host.to_string(),
+        port,
+        source,
+    })?;
     stream
         .set_read_timeout(Some(timeout))
         .and_then(|_| stream.set_write_timeout(Some(timeout)))
@@ -120,9 +119,7 @@ pub(crate) fn request(
         .and_then(|_| stream.flush())
         .map_err(LaneHttpError::Write)?;
     let mut raw = Vec::new();
-    stream
-        .read_to_end(&mut raw)
-        .map_err(LaneHttpError::Read)?;
+    stream.read_to_end(&mut raw).map_err(LaneHttpError::Read)?;
     parse_http_response(&raw)
 }
 
@@ -135,9 +132,9 @@ pub(crate) fn request(
 /// complete body).
 pub(crate) fn parse_http_response(raw: &[u8]) -> Result<HttpReply, LaneHttpError> {
     let text = String::from_utf8_lossy(raw);
-    let (head, body) = text.split_once("\r\n\r\n").ok_or_else(|| {
-        LaneHttpError::Parse("response has no header/body separator".into())
-    })?;
+    let (head, body) = text
+        .split_once("\r\n\r\n")
+        .ok_or_else(|| LaneHttpError::Parse("response has no header/body separator".into()))?;
     let mut lines = head.split("\r\n");
     let status_line = lines.next().unwrap_or_default();
     let status: u16 = status_line
@@ -157,7 +154,9 @@ pub(crate) fn parse_http_response(raw: &[u8]) -> Result<HttpReply, LaneHttpError
         .is_some_and(|v| v.to_ascii_lowercase().contains("chunked"))
     {
         decode_chunked(&body_bytes).map_err(LaneHttpError::Parse)?
-    } else if let Some(len) = headers.get("content-length").and_then(|v| v.parse::<usize>().ok())
+    } else if let Some(len) = headers
+        .get("content-length")
+        .and_then(|v| v.parse::<usize>().ok())
     {
         let mut b = body_bytes;
         b.truncate(len);
@@ -178,11 +177,9 @@ fn decode_chunked(body: &[u8]) -> Result<Vec<u8>, String> {
         let Some((size_line, after)) = rest.split_once("\r\n") else {
             return Err("chunked body: missing chunk-size line".into());
         };
-        let size = usize::from_str_radix(
-            size_line.split(';').next().unwrap_or_default().trim(),
-            16,
-        )
-        .map_err(|_| format!("chunked body: bad chunk size {size_line:?}"))?;
+        let size =
+            usize::from_str_radix(size_line.split(';').next().unwrap_or_default().trim(), 16)
+                .map_err(|_| format!("chunked body: bad chunk size {size_line:?}"))?;
         if size == 0 {
             return Ok(out);
         }
@@ -209,7 +206,8 @@ mod tests {
     /// truncation.
     #[test]
     fn http_response_splits_head_and_body() {
-        let raw = b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}";
+        let raw =
+            b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 2\r\n\r\n{}";
         let (status, headers, body) = parse_http_response(raw).unwrap();
         assert_eq!(status, 200);
         assert_eq!(
@@ -230,8 +228,7 @@ mod tests {
         assert_eq!(status, 200);
         assert_eq!(body, b"{\"a\":1}");
         assert!(headers.contains_key("transfer-encoding"));
-        let raw2 =
-            b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{} plus bytes a keep-alive peer \
+        let raw2 = b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\n{} plus bytes a keep-alive peer \
               would still have in flight";
         let (_, _, body2) = parse_http_response(raw2).unwrap();
         assert_eq!(body2, b"{}");
@@ -330,12 +327,18 @@ mod tests {
         let (request_line, body, saw) = server.join().expect("server thread");
         assert_eq!(request_line, "POST /x HTTP/1.1\r\n");
         assert_eq!(body, br#"{"a":1}"#.to_vec());
-        assert!(saw.contains("auth=Bearer tok"), "extra header missing: {saw:?}");
+        assert!(
+            saw.contains("auth=Bearer tok"),
+            "extra header missing: {saw:?}"
+        );
         assert!(
             saw.contains(&format!("host=127.0.0.1:{}", addr.port())),
             "host header missing: {saw:?}"
         );
-        assert!(saw.contains("conn=close"), "connection header missing: {saw:?}");
+        assert!(
+            saw.contains("conn=close"),
+            "connection header missing: {saw:?}"
+        );
         assert!(
             saw.contains("ctype=application/json"),
             "content-type on a POST missing: {saw:?}"
@@ -377,7 +380,9 @@ mod tests {
             }
             let mut stream = stream;
             stream
-                .write_all(b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n")
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n2\r\nok\r\n0\r\n\r\n",
+                )
                 .expect("respond");
             (request_line, saw_body_headers)
         });

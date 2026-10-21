@@ -378,10 +378,10 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--set-refine-tau needs a number"));
             }
             #[cfg(not(feature = "set_refine"))]
-            "--set-refine-ab" | "--set-refine-gamma" | "--set-refine-tau" => die(
-                "--set-refine-* needs the set_refine feature — rebuild: \
-                 cargo build --release -p riir-reflex --bin harness --features set_refine",
-            ),
+            "--set-refine-ab" | "--set-refine-gamma" | "--set-refine-tau" => {
+                die("--set-refine-* needs the set_refine feature — rebuild: \
+                 cargo build --release -p riir-reflex --bin harness --features set_refine")
+            }
             "--nli-feature-ab" => opts.nli_feature_ab = true,
             "--nli-m1" => opts.nli_m1 = true,
             #[cfg(feature = "mc_ensemble")]
@@ -541,7 +541,9 @@ fn harness_main() {
                 let parsed: Vec<std::path::PathBuf> =
                     dirs.split(',').map(std::path::PathBuf::from).collect();
                 if parsed.len() < 2 {
-                    die("--teacher-router needs >= 2 capture dirs (comma-separated) — a single dir is a passthrough, not a router");
+                    die(
+                        "--teacher-router needs >= 2 capture dirs (comma-separated) — a single dir is a passthrough, not a router",
+                    );
                 }
                 teacher_router = Some(parsed);
             }
@@ -557,10 +559,9 @@ fn harness_main() {
             "--synth-density-pilot" => synth_density_pilot = true,
             "--synth-teacher" => {
                 i += 1;
-                synth_teacher = args
-                    .get(i)
-                    .cloned()
-                    .unwrap_or_else(|| die("--synth-teacher needs a name (laya | openthai | bekko)"));
+                synth_teacher = args.get(i).cloned().unwrap_or_else(|| {
+                    die("--synth-teacher needs a name (laya | openthai | bekko)")
+                });
             }
             "--synth-max" => {
                 i += 1;
@@ -607,9 +608,10 @@ fn harness_main() {
                     .get(i)
                     .cloned()
                     .unwrap_or_else(|| die("--synth-density-gate needs a rung (p50 | p75 | p90)"));
-                synth_density_gate = Some(runner::DensityRung::from_token(&tok).unwrap_or_else(|| {
-                    die("--synth-density-gate needs a rung (p50 | p75 | p90)")
-                }));
+                synth_density_gate =
+                    Some(runner::DensityRung::from_token(&tok).unwrap_or_else(|| {
+                        die("--synth-density-gate needs a rung (p50 | p75 | p90)")
+                    }));
             }
             "--synth-rescue-prefilter" => synth_rescue_prefilter = true,
             "--corpus-ab" => {
@@ -784,11 +786,9 @@ fn harness_main() {
         }
         #[cfg(not(feature = "basis_cert"))]
         if basis_split {
-            die(
-                "--basis-split needs the `basis_cert` feature (it forwards \
+            die("--basis-split needs the `basis_cert` feature (it forwards \
                  katgpt-core/basis_split): rebuild with \
-                 --features basis_cert",
-            );
+                 --features basis_cert");
         }
         let popts = runner::PermProbeOptions {
             k: if perm_k == 0 {
@@ -818,7 +818,11 @@ fn harness_main() {
             if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
             if popts.jeva { " +jeva" } else { "" },
-            if popts.basis_split { " +basis-cert" } else { "" },
+            if popts.basis_split {
+                " +basis-cert"
+            } else {
+                ""
+            },
             if opts.clef_local { " +clef-local" } else { "" },
         );
         let out = match runner::run_perm_probe(&opts, &popts) {
@@ -1089,9 +1093,7 @@ fn harness_main() {
     // not a silent no-op.
     #[cfg(feature = "probe_delta_ab")]
     if opts.probe_delta_ab && corpus_ab.is_none() {
-        die(
-            "--probe-delta-ab certifies the --corpus-ab paired A/B; pass --corpus-ab <artifact>",
-        );
+        die("--probe-delta-ab certifies the --corpus-ab paired A/B; pass --corpus-ab <artifact>");
     }
 
     // riir-train Issue 576 T3: the Arm-B TEACHER pass — laya probabilities
@@ -1473,9 +1475,7 @@ fn harness_main() {
             let mut lanes = 0usize;
             let mut write_lane = |lane: &runner::LaneResult, buf: &mut String| {
                 for it in &lane.items {
-                    buf.push_str(
-                        &serde_json::to_string(it).expect("item outcome serialize"),
-                    );
+                    buf.push_str(&serde_json::to_string(it).expect("item outcome serialize"));
                     buf.push('\n');
                 }
                 lanes += 1;

@@ -148,11 +148,7 @@ impl SurfaceIdentities {
 /// The two value families, one pass: max residuals over both. The surface
 /// label names WHICH distribution was fed (engine raw / engine normalized
 /// / wire rounded) — the runner half instantiates one per surface.
-pub fn identity_residuals(
-    surface: &'static str,
-    q: &[f64],
-    pick: usize,
-) -> SurfaceIdentities {
+pub fn identity_residuals(surface: &'static str, q: &[f64], pick: usize) -> SurfaceIdentities {
     let families = [ramp_v(q.len()), phi_scatter_v(q.len())];
     let mut scale_res = 0.0f64;
     let mut shift_res = 0.0f64;

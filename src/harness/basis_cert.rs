@@ -70,7 +70,7 @@
 //! `runner::basis_cert` behind the embed seam (no `ChoiceOracle` — the
 //! certificate never runs an engine).
 
-use katgpt_core::basis_split::{held_out_leakage, split, Whitening, MAX_DIM};
+use katgpt_core::basis_split::{MAX_DIM, Whitening, held_out_leakage, split};
 
 /// The embed width this certificate runs at (the hashed-feature embed's
 /// own width, mirrored so the pure core stays decoupled from the
@@ -283,7 +283,9 @@ fn certify_inner(
 ) -> Result<(BasisCertReport, FittedBasis), String> {
     let d = CERT_DIM;
     if d > MAX_DIM {
-        return Err(format!("cert dim {d} over the primitive's MAX_DIM {MAX_DIM}"));
+        return Err(format!(
+            "cert dim {d} over the primitive's MAX_DIM {MAX_DIM}"
+        ));
     }
     for (idx, p) in fit_pairs.iter().chain(holdout_pairs.iter()).enumerate() {
         if p.delta.len() != d {
@@ -486,8 +488,7 @@ fn certify_inner(
             whiten_into(&p.delta, &mut w);
             hold_whitened.push(w);
         }
-        let hold_deltas: Vec<&[f64]> =
-            hold_whitened.iter().map(|v| v.as_slice()).collect();
+        let hold_deltas: Vec<&[f64]> = hold_whitened.iter().map(|v| v.as_slice()).collect();
         let mut proj_scratch = vec![0.0f64; d];
         let mut bx_scratch = vec![0.0f64; *k];
         held_out_leakage(
@@ -520,7 +521,12 @@ fn certify_inner(
                 }
                 whiten_into(&p.delta, &mut cross_w);
                 katgpt_core::basis_split::project_invariant_into(
-                    &basis, *k, d, &cross_w, &mut bx_scratch, &mut proj,
+                    &basis,
+                    *k,
+                    d,
+                    &cross_w,
+                    &mut bx_scratch,
+                    &mut proj,
                 )
                 .map_err(|e| format!("{family:?} project: {e}"))?;
                 let (mut num, mut den) = (0.0, 0.0);
@@ -630,7 +636,9 @@ mod tests {
     pub(crate) fn whiten_pop(n: usize, salt: &str) -> Vec<[f32; CERT_DIM]> {
         let mut lcg: u64 = 0x9E37_79B9_7F4A_7C15 ^ (salt.len() as u64);
         let next = |lcg: &mut u64| {
-            *lcg = lcg.wrapping_mul(6364136223846793005).wrapping_add(1442695040888963407);
+            *lcg = lcg
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
             *lcg
         };
         (0..n)
@@ -654,7 +662,11 @@ mod tests {
     /// [`MIN_FIT_PAIRS`] (the structural floor).
     #[test]
     fn planted_marker_direction_certifies_with_low_holdout_leakage() {
-        let opts: [(&str, &str); 3] = [("alpha", "ship the release"), ("beta", "roll back"), ("gamma", "hold")];
+        let opts: [(&str, &str); 3] = [
+            ("alpha", "ship the release"),
+            ("beta", "roll back"),
+            ("gamma", "hold"),
+        ];
         let mk = |perm: Option<[usize; 3]>, state: String| {
             let order: Vec<usize> = perm.map(|p| p.to_vec()).unwrap_or_else(|| vec![0, 1, 2]);
             let labels: Vec<String> = order.iter().map(|&i| opts[i].0.to_string()).collect();
@@ -671,7 +683,10 @@ mod tests {
         let mut fit_pairs = Vec::new();
         for i in 0..300usize {
             let identity = mk(None, format!("cluster green case {i} status nominal"));
-            let variant = mk(Some([2, 0, 1]), format!("cluster green case {i} status nominal"));
+            let variant = mk(
+                Some([2, 0, 1]),
+                format!("cluster green case {i} status nominal"),
+            );
             fit_pairs.push(pair_from(&identity, &variant, PairFamily::Ordering));
         }
         // HOLDOUT: the same permutation on unseen STATES — the direction
@@ -679,7 +694,10 @@ mod tests {
         let mut holdout_pairs = Vec::new();
         for i in 0..300usize {
             let identity = mk(None, format!("cluster green holdout {i} status nominal"));
-            let variant = mk(Some([2, 0, 1]), format!("cluster green holdout {i} status nominal"));
+            let variant = mk(
+                Some([2, 0, 1]),
+                format!("cluster green holdout {i} status nominal"),
+            );
             holdout_pairs.push(pair_from(&identity, &variant, PairFamily::Ordering));
         }
         let pop = whiten_pop(320, "planted");
@@ -767,10 +785,7 @@ mod tests {
         let pop = whiten_pop(320, "casing");
         let rep = certify(&fit, &fit, &[p], &pop);
         assert_eq!(rep.verdict, "sufficient_variation", "got {rep:?}");
-        assert_eq!(
-            rep.casing_null_residual, None,
-            "all-null casing arm → None"
-        );
+        assert_eq!(rep.casing_null_residual, None, "all-null casing arm → None");
     }
 
     /// The rendering law: order reaches the text, and through the boundary
@@ -886,9 +901,7 @@ mod tests {
         let pop = whiten_pop(320, "planted");
         let (rep, dirs) = certify_with_directions(&fit_pairs, &holdout, &[], &pop);
         assert_eq!(rep.verdict, "sufficient_variation", "got {rep:?}");
-        let leakage = rep
-            .pair_leakage
-            .expect("certified → leakage measured");
+        let leakage = rep.pair_leakage.expect("certified → leakage measured");
         assert!(
             leakage.is_finite() && (0.0..=2.0).contains(&leakage),
             "leakage is a finite squared-ratio, got {leakage}"
@@ -937,8 +950,7 @@ mod tests {
         let specs = vec![
             crate::engine::DomainExpert::new(
                 "billing",
-                &["refund the customer invoice balance billing account"
-                    .to_string()],
+                &["refund the customer invoice balance billing account".to_string()],
                 &crate::embed::Embedder,
             ),
             DomainExpert::new(
@@ -996,14 +1008,9 @@ mod tests {
         eng.solve_sample_into(&req, &mut sc, None, Some((&dir, 8.0)))
             .unwrap();
         let pert = eng.to_response(&req, &sc);
-        let moved = base
-            .answers
-            .iter()
-            .zip(pert.answers.iter())
-            .any(|(b, p)| {
-                b.probabilities != p.probabilities
-                    || b.confidence.to_bits() != p.confidence.to_bits()
-            });
+        let moved = base.answers.iter().zip(pert.answers.iter()).any(|(b, p)| {
+            b.probabilities != p.probabilities || b.confidence.to_bits() != p.confidence.to_bits()
+        });
         assert!(moved, "a ±8·v perturbation must move the readout");
     }
 

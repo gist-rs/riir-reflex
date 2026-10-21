@@ -189,13 +189,10 @@ mod tests {
         let a = trigrams("The quick brown fox.");
         let b = trigrams("the QUICK, brown FOX");
         assert_eq!(a, b);
-        let expected: HashSet<[String; 3]> = [[
-            "the".to_string(),
-            "quick".to_string(),
-            "brown".to_string(),
-        ]]
-        .into_iter()
-        .collect();
+        let expected: HashSet<[String; 3]> =
+            [["the".to_string(), "quick".to_string(), "brown".to_string()]]
+                .into_iter()
+                .collect();
         assert!(expected.is_subset(&a));
     }
 

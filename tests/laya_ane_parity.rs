@@ -41,9 +41,9 @@ use std::path::PathBuf;
 
 use serde_json::Value;
 
+use riir_reflex::laya::Result;
 use riir_reflex::laya::config::Checkpoint;
 use riir_reflex::laya::riir::RiirAgent;
-use riir_reflex::laya::Result;
 
 /// issue 017's near-tie tolerance — a decision flip is explainable only
 /// when the golden's top-2 margin is under `2 × NEAR_TIE` (the fp16 error
@@ -155,7 +155,10 @@ fn g5_ane_decision_parity_per_checkpoint() -> Result<()> {
             "{name}: the ANE agent must label itself 'ane' — a green line that \
              cannot name its device verifies nothing"
         );
-        println!("{name}: G5-ANE posture = {} (constructor-selected)", agent.device());
+        println!(
+            "{name}: G5-ANE posture = {} (constructor-selected)",
+            agent.device()
+        );
 
         let mut forwards = 0usize;
         let mut agree = 0usize;
@@ -311,11 +314,7 @@ fn g5_ane_decision_parity_per_checkpoint() -> Result<()> {
                 .filter(|r| {
                     r["checkpoints"]
                         .as_array()
-                        .map(|a| {
-                            a.iter()
-                                .filter_map(|v| v.as_str())
-                                .any(|s| s == name)
-                        })
+                        .map(|a| a.iter().filter_map(|v| v.as_str()).any(|s| s == name))
                         .unwrap_or(false)
                 })
                 .map(|r| r["questions"].as_array().map(Vec::len).unwrap_or(0))

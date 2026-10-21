@@ -32,7 +32,7 @@
 use super::perm_probe::stride_indices;
 use super::*;
 use crate::harness::rubric::{
-    identity_residuals, RouteAgreement, SurfaceIdentities, WIRE_SUM_BUDGET,
+    RouteAgreement, SurfaceIdentities, WIRE_SUM_BUDGET, identity_residuals,
 };
 
 /// Default suites: the choice six (the null-probe set) + the two score
@@ -260,9 +260,7 @@ fn rubric_suite<const N: usize>(
         let resp = engine
             .decide_with(&req, &mut sc)
             .map_err(|e| format!("engine decide ({}): {e}", case.id))?;
-        if resp.answers.len() != case.questions.len()
-            || sc.domains.len() != case.questions.len()
-        {
+        if resp.answers.len() != case.questions.len() || sc.domains.len() != case.questions.len() {
             return Err(format!(
                 "engine decide ({}): {}/{} answers, {}/{} routes",
                 case.id,
@@ -287,10 +285,9 @@ fn rubric_suite<const N: usize>(
                 QKind::Choice | QKind::Score => {}
             }
             let outcome_pick = match (&ans.outcome, q.kind) {
-                (
-                    Some(katgpt_core::decision_wire::Outcome::Choice { index }),
-                    QKind::Choice,
-                ) => *index as usize,
+                (Some(katgpt_core::decision_wire::Outcome::Choice { index }), QKind::Choice) => {
+                    *index as usize
+                }
                 (Some(katgpt_core::decision_wire::Outcome::Score { level }), QKind::Score) => {
                     *level as usize
                 }
@@ -304,11 +301,7 @@ fn rubric_suite<const N: usize>(
             probed_qi.push(qi);
 
             // Surface 1: engine raw (f32 widened, engine pick).
-            let q_raw: Vec<f64> = ans
-                .probabilities
-                .iter()
-                .map(|p| f64::from(*p))
-                .collect();
+            let q_raw: Vec<f64> = ans.probabilities.iter().map(|p| f64::from(*p)).collect();
             fold_surface(&mut surfaces[0], &q_raw, outcome_pick);
             // Surface 2: the exact f64 L1 the serve edge derives from the
             // same answer (systemone::wire_distribution's math).
@@ -397,7 +390,9 @@ fn rubric_suite<const N: usize>(
                 let Some(serde_json::Value::Object(a)) = wire.get(&q.qid) else {
                     return Err(format!("wire answer missing ({}:{})", case.id, q.qid));
                 };
-                let Some(dist_map) = a.get("probabilities").and_then(serde_json::Value::as_object)
+                let Some(dist_map) = a
+                    .get("probabilities")
+                    .and_then(serde_json::Value::as_object)
                 else {
                     return Err(format!(
                         "wire probabilities missing ({}:{})",
@@ -428,13 +423,15 @@ fn rubric_suite<const N: usize>(
                         let pick_text = a
                             .get("choice")
                             .and_then(serde_json::Value::as_str)
-                            .ok_or_else(|| format!("wire choice missing ({}:{})", case.id, q.qid))?;
-                        let pick = keys
-                            .iter()
-                            .position(|k| k == pick_text)
                             .ok_or_else(|| {
-                                format!("wire choice {pick_text:?} not an option ({}:{})", case.id, q.qid)
+                                format!("wire choice missing ({}:{})", case.id, q.qid)
                             })?;
+                        let pick = keys.iter().position(|k| k == pick_text).ok_or_else(|| {
+                            format!(
+                                "wire choice {pick_text:?} not an option ({}:{})",
+                                case.id, q.qid
+                            )
+                        })?;
                         (probs, pick)
                     }
                     QKind::Score => {
@@ -468,23 +465,29 @@ fn rubric_suite<const N: usize>(
         ));
     }
     if n_abstained > 0 {
-        skips.push(format!("{n_abstained} abstained slot(s) skipped (no distribution)"));
+        skips.push(format!(
+            "{n_abstained} abstained slot(s) skipped (no distribution)"
+        ));
     }
     if n_noul > 0 {
         skips.push(format!("{n_noul} noul question(s) out of C1 scope"));
     }
 
     let verdict = if surfaces.iter().all(SurfaceIdentities::structural_ok)
-        && surfaces
-            .iter()
-            .all(|s| s.sum_residual <= WIRE_SUM_BUDGET)
+        && surfaces.iter().all(|s| s.sum_residual <= WIRE_SUM_BUDGET)
     {
         RubricVerdict::Pass
     } else {
         RubricVerdict::Red
     };
-    let max_scale = surfaces.iter().map(|s| s.scale_residual).fold(0.0f64, f64::max);
-    let max_shift = surfaces.iter().map(|s| s.shift_residual).fold(0.0f64, f64::max);
+    let max_scale = surfaces
+        .iter()
+        .map(|s| s.scale_residual)
+        .fold(0.0f64, f64::max);
+    let max_shift = surfaces
+        .iter()
+        .map(|s| s.shift_residual)
+        .fold(0.0f64, f64::max);
     eprintln!(
         "    rubric[modelless]: {} slot(s) · wire renders {} · scale {max_scale:.1e} · shift \
          {max_shift:.1e} · argmax Δ {}/{}/{} · Σq {}/{}/{} · {}",

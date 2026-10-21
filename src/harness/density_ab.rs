@@ -34,8 +34,8 @@
 use crate::embed::EMBED_DIM;
 use crate::engine::threshold::threshold_recommendation;
 use crate::engine::{DecisionEngine, EngineConfig, GateObservation, Posture, Scratch};
-use crate::harness::metrics::{ece_of, CalibrationPair};
-use crate::harness::runner::{eval_engine, engine_request, AbstainCauses};
+use crate::harness::metrics::{CalibrationPair, ece_of};
+use crate::harness::runner::{AbstainCauses, engine_request, eval_engine};
 use crate::harness::suites::{QKind, SuiteCase};
 use serde::Serialize;
 
@@ -161,7 +161,11 @@ pub fn density_ab_pass<const N: usize>(
     // the score/distance axes use).
     let (mut probe, _) = build(dcfg.clone())?;
     let mut sc = Scratch::<EMBED_DIM>::new();
-    let max_q = cal_cases.iter().map(|c| c.questions.len()).max().unwrap_or(1);
+    let max_q = cal_cases
+        .iter()
+        .map(|c| c.questions.len())
+        .max()
+        .unwrap_or(1);
     sc.prepare(max_q);
     let mut density_obs: Vec<GateObservation> = Vec::new();
     for (ci, case) in cal_cases.iter().enumerate() {

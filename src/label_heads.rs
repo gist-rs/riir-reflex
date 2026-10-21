@@ -115,7 +115,7 @@ impl<const N: usize, const D: usize> LabelHeads<N, D> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::embed::{Embedder, EMBED_DIM};
+    use crate::embed::{EMBED_DIM, Embedder};
 
     fn corpus() -> Vec<Vec<[f32; EMBED_DIM]>> {
         let domains: [&[&str]; 3] = [
@@ -160,10 +160,18 @@ mod tests {
             "same shape is the precondition of the bit compare"
         );
         for (x, y) in a.w.iter().zip(b.w.iter()) {
-            assert_eq!(x.to_bits(), y.to_bits(), "weights must refit bit-identically");
+            assert_eq!(
+                x.to_bits(),
+                y.to_bits(),
+                "weights must refit bit-identically"
+            );
         }
         for (x, y) in a.b.iter().zip(b.b.iter()) {
-            assert_eq!(x.to_bits(), y.to_bits(), "biases must refit bit-identically");
+            assert_eq!(
+                x.to_bits(),
+                y.to_bits(),
+                "biases must refit bit-identically"
+            );
         }
     }
 
