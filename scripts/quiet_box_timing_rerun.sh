@@ -79,7 +79,17 @@ if [ -e "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
     exit 1
 fi
 echo $$ > "$PID_FILE"
-trap 'rc=$?; rm -f "$PID_FILE"; exit $rc' EXIT
+QUIET_BOX_COMPLETED=0
+cleanup() {
+    rc=$?
+    rm -f "$PID_FILE"
+    if [ "$QUIET_BOX_COMPLETED" != "1" ] && [ "$rc" = "0" ]; then
+        echo "✗ quiet_box_timing_rerun ABORTED mid-run while reporting success — forcing exit 1" >&2
+        exit 1
+    fi
+    exit "$rc"
+}
+trap cleanup EXIT
 
 say() { echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"; }
 
@@ -142,6 +152,7 @@ EOF
                 echo "  moved: STOP, the cross-host gate will refuse, re-verify at the new posture."
             } > "$OUT_ABS/READY_TO_PUBLISH.md"
             say "QUOTABLE — READY_TO_PUBLISH.md stamped"
+            QUIET_BOX_COMPLETED=1   # the only success exit — see cleanup above
             exit 0
             ;;
         false)
