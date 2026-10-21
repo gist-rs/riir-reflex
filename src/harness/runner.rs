@@ -9078,7 +9078,10 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             n_cases: prepared.suite.cases.len(),
             n_questions,
             cases_digest: cases_digest(spec.name, &prepared.suite.cases),
-            modal_floor: super::modal_floor::census(&prepared.suite.cases),
+            modal_floor: super::modal_floor::census(
+                &prepared.suite.cases,
+                Some(prepared.cal_cases.as_slice()),
+            ),
             modelless,
             laya: laya_results,
             cascade,
