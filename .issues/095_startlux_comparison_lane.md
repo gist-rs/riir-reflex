@@ -1,6 +1,6 @@
 # Issue 095 — StartLux-Decision v1.1 comparison lane (`--startlux`)
 
-**Status:** OPEN — filed 2026-10-21 (4090 box, feeding riir-train [635](../riir-train/.issues/635_4090_startlux_teacher_capture_lane.md) T3). **Claimed:** zed-635-startlux-t3, 1792611000, expires 2026-10-24T00:00:00Z.
+**Status:** PARTIAL — T1+T2 LANDED 2026-10-21 (`3a9e8f5`), T3 board pass EXECUTED same day (Bench 155 — 4/8 incumbent suites beaten), T4 capture in flight. Filed 2026-10-21 (4090 box, feeding riir-train [635](../riir-train/.issues/635_4090_startlux_teacher_capture_lane.md) T3). **Claimed:** zed-635-startlux-t3, 1792611000, expires 2026-10-24T00:00:00Z.
 
 ## Why
 
@@ -61,7 +61,7 @@ bounds check (1..=255 choice is looser than their knockout path allows — fine)
 
 ## Plan
 
-- [ ] **T1 — the lane module** `src/lanes/startlux.rs` (ungated: the import
+- [x] **T1 — the lane module** `src/lanes/startlux.rs` (ungated: the import
   law — `crate::harness::suites` + `crate::lanes::http_mini` + std + serde_json;
   wire fns reused from pplx). Env contract: `STARTLUX_SERVE_URL` (default
   `http://127.0.0.1:8090` — the engine's own default port), `STARTLUX_TIMEOUT_MS`
@@ -70,21 +70,34 @@ bounds check (1..=255 choice is looser than their knockout path allows — fine)
   T2/T2b posture is Q4_K_M `-ngl 99`), `STARTLUX_API_KEY` (optional bearer;
   loopback serve runs without). Stub-listener tests: health posture refusals
   (wrong kind / causal bidir / keys-only public shape), choice+none_probability /
-  score / noul round trips through the REAL micro-client.
-- [ ] **T2 — the harness wiring**: RunOptions.startlux, SuiteResults.startlux,
+  score / noul round trips through the REAL micro-client. — **LANDED `3a9e8f5`:
+  5 tests green; clippy 3 postures (default / --no-default-features /
+  --all-features) + lib 443 green.**
+- [x] **T2 — the harness wiring**: RunOptions.startlux, SuiteResults.startlux,
   RunMeta.startlux_lane + render line, `--startlux` flag, dump-items list,
   `--distill-teacher startlux` (TeacherForward::Startlux + the license token
-  carrying the NC-lineage string).
-- [ ] **T3 — the board pass** (riir-train 635 T3): boot the documented stack on
+  carrying the NC-lineage string). — **LANDED `3a9e8f5` (the dump-items list
+  also gained the missing `jeva` row — the same omission class).**
+- [x] **T3 — the board pass** (riir-train 635 T3): boot the documented stack on
   the 4090 (llama-server b11549 `-ngl 99` :8081 + `STARTLUX_LLAMACPP_BIDIR=server`
   wrapper :8090), `--startlux --skip-laya` over the 9 suites, one frozen read;
   the paired table vs per-suite incumbents (clef 0.9540 banking77 / 0.9333
   massive / 0.6033 sst5; agentjev 0.7720 typed; openthai 0.9000 xnli; laya 0.9500
   ag_news). A lane that beats no incumbent still feeds 635 T4 (router columns are
-  complements).
-- [ ] **T4 — the capture**: `--distill --distill-teacher startlux` over the T3
+  complements). — **EXECUTED 2026-10-21 (Bench 155, `.benchmarks/155_startlux_board.md`):
+  9/9 suites, det ✓ ×9, G1-class ECE sane except typed_decisions 0.1581 (the
+  T2b overconfidence shape, smaller at serve posture). 4/8 incumbents BEATEN:
+  typed +2.25 / sst5 +1.17 / injections +6.90 / xnli +3.67; loses: massive −2.0 /
+  ag_news −3.25 / emotion −8.75 / banking77 −4.0. T5 EARNED on the four; latency
+  NOT QUOTABLE (sibling build load 13.68 at run start — box-state law, accuracy
+  unaffected).**
+- [-] **T4 — the capture**: `--distill --distill-teacher startlux` over the T3
   suites — RIDT keyed-probs, license token in the header, captured-but-suspect
-  flag + dual-shuffle acceptance gates per the 635 T2b consequences.
+  flag + dual-shuffle acceptance gates per the 635 T2b consequences. — **IN
+  FLIGHT (same window): full-pool train-row capture running detached
+  (`.raw/startlux_teacher/`); ag_news ≈ 90 min (20k rows), banking77
+  knockout-dominated (p50 ratio ≈ 4-5×/row); manifest (NC-lineage + suspect
+  flag) lands with the bins.**
 - [ ] **NOT in this lane** (scope law): perm-probe/null-probe lane arms (the
   order-sensitivity question was answered by the 635 T2b probe: 2.71% — the
   shuffle-robust gate law rides the capture, not another probe), the JDI
