@@ -153,14 +153,14 @@ cargo run --release --bin harness -- --skip-laya --head-select --nb-select --rid
 # its own decide path; gate median ≤ 2 pt; the modelless control holds
 # ties-only flips + the L1 fp envelope (a control red refuses the run).
 # Comparison lanes ride --drex / --d1 / --agentjev / --jeva (servers up, loud
-# refusals); --clef-local rides the seated in-process ANE arm (plan 619 T3.3,
+# refusals); --clef-local rides the seated in-process ANE arm (riir-infer plan 619 T3.3,
 # feature clef-ane — the HTTP arm is never wired into the probe: uncapped
 # hosted spend; bench 153: order-invariant by construction, 0.00 pt / 0 flips);
 # laya rides its feature + G5 parity FIRST (`--test laya_riir_parity`).
 cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
 cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
 
-# The clef comparison lanes (plan 011 hosted + plan 619 local): `--clef`
+# The clef comparison lanes (plan 011 hosted + riir-infer plan 619 local): `--clef`
 # runs Cloudflare's decision model over the operator-run loopback forwarder
 # (CLEF_* env contract in src/lanes/clef.rs; spend ceiling CLEF_SMOKE_MAX_CASES);
 # `--clef-local` (feature `clef-ane`, macOS) runs clef-text-0.6b IN-PROCESS on
