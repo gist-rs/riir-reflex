@@ -61,6 +61,15 @@ import traceback
 from dataclasses import asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+# A non-UTF-8 console (cp874) would kill this script on its first
+# non-ASCII glyph; degrade the glyph, never the verdict (katgpt-rs
+# Issue 804). A captured stream without reconfigure is left alone.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
+
 PORT = int(os.environ.get("JEVA_PORT", "8095"))
 BIND = os.environ.get("JEVA_BIND", "127.0.0.1")
 MODEL_ID = os.environ.get("JEVA_MODEL", "LIQIIIII/Jeva-4B")
