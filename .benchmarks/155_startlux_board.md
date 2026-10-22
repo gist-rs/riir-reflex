@@ -55,5 +55,15 @@ Board #1 confirmation: the 72.88 public_skill is a selection-on-public number (6
 ## Artifacts
 
 - `results.json` + `TABLES.md`: `.benchmarks/155_startlux_board/` (this dir).
-- Teacher capture (RIDT, train rows only, license token in the header): `.raw/startlux_teacher/` — in flight at record time; the window's manifest carries the NC-lineage + suspect flag (635 law).
+- Teacher capture (RIDT, train rows only, license token in the header):
+  **COMPLETE** — `.raw/startlux_teacher/`, 6/6 T3 suites sealed + `.blake3`
+  sidecars + the binding `MANIFEST.md` (NC-lineage + captured-but-suspect flag
+  + per-family train-vs-test gaps: massive +3.8 pt, banking77 +0.7, ag_news
+  −1.1, xnli −2.9, emotion −2.6, sst5 −1.9 — train inflation concentrates on
+  massive; the T2b deferred degeneracy comparator reads these bins when the
+  synthesis pipeline window opens). Incident disclosed in the manifest: the
+  backend died silently at ~4h11m/~217k read-outs mid-capture (emotion lost
+  mid-suite, re-sealed in window 2; per-suite atomic seals kept every bin
+  complete or absent, never partial). Stack torn down at window close (VRAM
+  331 MiB baseline).
 - Stack boot line (the documented one, ~3.5 min cold reload): llama-server b11549 `-ngl 99 ... --port 8081` + `STARTLUX_LLAMACPP_BIDIR=server startlux-decide serve --model models/startlux-decision-v1.1-27b-instant --backend llamacpp --port 8090`. Torn down at window end (the 10-19 resident-stack lesson).

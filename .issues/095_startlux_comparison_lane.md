@@ -91,13 +91,20 @@ bounds check (1..=255 choice is looser than their knockout path allows — fine)
   ag_news −3.25 / emotion −8.75 / banking77 −4.0. T5 EARNED on the four; latency
   NOT QUOTABLE (sibling build load 13.68 at run start — box-state law, accuracy
   unaffected).**
-- [-] **T4 — the capture**: `--distill --distill-teacher startlux` over the T3
+- [x] **T4 — the capture**: `--distill --distill-teacher startlux` over the T3
   suites — RIDT keyed-probs, license token in the header, captured-but-suspect
-  flag + dual-shuffle acceptance gates per the 635 T2b consequences. — **IN
-  FLIGHT (same window): full-pool train-row capture running detached
-  (`.raw/startlux_teacher/`); ag_news ≈ 90 min (20k rows), banking77
-  knockout-dominated (p50 ratio ≈ 4-5×/row); manifest (NC-lineage + suspect
-  flag) lands with the bins.**
+  flag + dual-shuffle acceptance gates per the 635 T2b consequences. — **EXECUTED
+  (two windows, 2026-10-21T23:43Z → 2026-10-22T09:40Z local-anchored): ALL 6 T3
+  suites sealed — ag_news 20000 rows (acc 0.9061) / emotion 15999 (0.7712) / sst5
+  8533 (0.5955) / injections 546 (0.9835) / xnli 20000 (0.9073) / massive 11514
+  (0.9510) / banking77 9993 (0.9207, p50 986 ms — the knockout cost). NC-lineage
+  license token VERIFIED in the bin headers; `.raw/startlux_teacher/MANIFEST.md`
+  carries the binding manifest (NC-lineage + suspect flag + per-family ECE/
+  train-vs-test gaps + the incident record). Incident: the backend died silently
+  at ~4h11m/~217k read-outs (no trace — disclosed envelope: checkpoint per
+  suite, expect one reboot per multi-hour window); emotion lost mid-suite in
+  window 1, re-sealed in window 2; zero concurrent-writer corruption. Stack
+  torn down at close (VRAM 331 MiB baseline).**
 - [ ] **NOT in this lane** (scope law): perm-probe/null-probe lane arms (the
   order-sensitivity question was answered by the 635 T2b probe: 2.71% — the
   shuffle-robust gate law rides the capture, not another probe), the JDI
