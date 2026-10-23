@@ -21,6 +21,17 @@
 # is recorded loudly and the remaining suites still run (never abort
 # everything).
 #
+# Issue 096 — the resume law. A SKIPPED page that holds fewer rows than its
+# position wants is NOT necessarily the terminal page: the end-of-run dedupe
+# (Issue 058) rewrites mid-sequence pages in place, so a 100-row page can sit
+# on disk as a 99-row file. The resume predicate therefore consults the
+# page's own num_rows_total (the /rows API stamps it on EVERY page and the
+# dedupe's `.rows |=` rewrite preserves it): offset+n < total means the
+# dataset holds more rows — keep walking. A short page with no readable
+# num_rows_total falls back to the legacy stop, LOUDLY. Proven by
+# `scripts/fetch_datasets.sh --self-test` (hermetic loopback server; layer 8
+# of ci_feature_guard.sh).
+#
 # banking77 — PolyAI/banking77 (the Colab variant) is script-based and 404s on
 # /rows; the mteb/banking77 mirror (the bench_apps variant) is fetched instead.
 # dataset, which the datasets-server no longer serves — /rows 404s and /splits
@@ -28,6 +39,9 @@
 #
 # Usage:  scripts/fetch_datasets.sh
 #         FORCE=1 scripts/fetch_datasets.sh
+#         BASE=http://127.0.0.1:PORT ... (test override — the datasets-server
+#         root; self-test rides it, never the real hub)
+#         scripts/fetch_datasets.sh --self-test
 #
 # Exit: 0 = every attempted page fetched clean; 1 = at least one failure
 # (see the FAIL lines and the manifest's Gaps section).
@@ -37,7 +51,7 @@ set -eu
 PAGE=100
 SLEEP="${SLEEP:-0.3}"
 FORCE="${FORCE:-0}"
-BASE="https://datasets-server.huggingface.co"
+BASE="${BASE:-https://datasets-server.huggingface.co}"
 SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
 ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 # OUT / TRAIN_CAP overrides (issue 038 T2): a larger train pull goes to a
@@ -129,6 +143,30 @@ EOF
     fi
 }
 
+# The dataset total a /rows response page carries (Issue 096): the API
+# stamps num_rows_total on EVERY page, and the dedupe's `.rows |=` rewrite
+# preserves every top-level field — so any stored page can answer "does the
+# dataset hold more rows beyond my offset?" without re-reading size.json
+# (whose config/split keying is lossy for the as_split-renamed suites).
+# Prints the integer, or nothing when absent/unreadable (the caller falls
+# back to the legacy stop, loudly).
+rows_total_of() {
+    if have jq; then
+        jq -r '.num_rows_total // empty' "$1" 2>/dev/null || true
+    elif [ -n "$PY3" ]; then
+        $PY3 - "$1" <<'EOF'
+import json, sys
+try:
+    with open(sys.argv[1], encoding="utf-8") as f:
+        v = json.load(f).get("num_rows_total", "")
+    if isinstance(v, int):
+        print(v)
+except Exception:
+    pass
+EOF
+    fi
+}
+
 # True if <suite>/splits.json shows the config/split pair.
 splits_have() {
     if have jq; then
@@ -189,7 +227,25 @@ fetch_suite() {
                 total=$((total + n))
                 files=$((files + 1))
                 if [ "$n" -lt "$want" ]; then
-                    break   # a short page can only be the terminal page
+                    # Issue 096: a short SKIPPED page is the terminal page
+                    # only if the dataset really ends here. The end-of-run
+                    # dedupe rewrites mid-sequence pages in place (a 100-row
+                    # page becomes a 99-row FILE), so decide with the page's
+                    # own num_rows_total, not the row count.
+                    ds_total=$(rows_total_of "$file" 2>/dev/null || echo "")
+                    offset=$((part * PAGE))
+                    case "$ds_total" in
+                        ''|*[!0-9]*)
+                            log "  note   $suite/$as_split-$pagenum short page with no readable num_rows_total — treated as terminal (legacy stop, Issue 096 fallback)"
+                            break
+                            ;;
+                    esac
+                    if [ "$((offset + n))" -lt "$ds_total" ]; then
+                        log "  resume $suite/$as_split-$pagenum short page is NOT terminal ($n rows at offset $offset, dataset total $ds_total) — continuing"
+                        part=$((part + 1))
+                        continue
+                    fi
+                    break   # offset+n == num_rows_total: the true terminal page
                 fi
                 if [ "$cap" != "all" ] && [ "$total" -ge "$cap" ]; then
                     break
@@ -723,4 +779,163 @@ main() {
     fi
 }
 
-main "$@"
+# ── Issue 096 self-test ─────────────────────────────────────────────────
+# Hermetic: a loopback python3 server plays the datasets-server (zero hub
+# traffic — the licence probe is pre-planted cached); the fixture plants a
+# DEDUPED mid-sequence page (99 rows, num_rows_total intact — the `.rows |=`
+# rewrite preserves it) and asserts the resume walks PAST it. Three
+# scenarios:
+#   1. the defect shape — resume over a deduped 99-row page-000 completes
+#      the pull (pages 002+003 fetched; summary 349 rows in 4 files); the
+#      old predicate stopped at 000 and reported a clean 199-row "complete"
+#      pull (rethink Bench-071 provisioning hit exactly this on sst5);
+#   2. idempotence + the true terminal — the re-run fetches nothing, fires
+#      the resume line ONLY for the still-short page-000, and the genuinely
+#      terminal 50-row page-003 stops without one (no page-004);
+#   3. degraded metadata — a short page with NO num_rows_total falls back
+#      to the legacy stop, loudly.
+ST_TMP=""
+ST_SERVER_PID=""
+ST_FAIL_COUNT=0
+st_fail() { log "  selftest FAIL: $*"; ST_FAIL_COUNT=$((ST_FAIL_COUNT + 1)); }
+st_expect_file() { [ -f "$1" ] || st_fail "missing file: $1"; }
+st_expect_grep() { grep -q "$1" "$2" 2>/dev/null || st_fail "$3"; }
+st_write_page() { # <path> <total|-1 none> <start> <count> [drop_idx]
+    python3 - "$@" <<'EOF'
+import json, sys
+path, total, start, count = (sys.argv[1], int(sys.argv[2]),
+                             int(sys.argv[3]), int(sys.argv[4]))
+drop = int(sys.argv[5]) if len(sys.argv) > 5 else -1
+rows = [{"row_idx": i,
+         "row": {"sentence": "train-%d" % i, "label": i % 5},
+         "truncated_cells": []}
+        for i in range(start, start + count) if i != drop]
+body = {"features": [], "rows": rows}
+if total >= 0:
+    body["num_rows_total"] = total
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(body, f)
+EOF
+}
+st_run_fetch() { # <out-dir> <log-file> — the child fetch, hermetic posture
+    BASE="$st_base" OUT="$1" SUITES=sst5 SLEEP=0 TRAIN_CAP=400 FORCE=0 \
+        sh "$SCRIPT_DIR/fetch_datasets.sh" >"$2" 2>&1
+}
+self_test() {
+    have python3 || { log "self-test: REFUSED — python3 is required (the loopback fixture server)"; return 1; }
+    have curl || { log "self-test: REFUSED — curl is required"; return 1; }
+    ST_TMP=$(mktemp -d "${TMPDIR:-/tmp}/fetch_datasets_selftest.XXXXXX")
+    cat > "$ST_TMP/server.py" <<'PYEOF'
+import json
+from http.server import BaseHTTPRequestHandler, HTTPServer
+from urllib.parse import urlparse, parse_qs
+
+TOTALS = {"test": 9, "train": 350}
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+    def do_GET(self):
+        u = urlparse(self.path)
+        if u.path != "/rows":
+            self.send_error(404)
+            return
+        q = {k: v[0] for k, v in parse_qs(u.query).items()}
+        split = q.get("split", "train")
+        offset = int(q.get("offset", "0"))
+        length = int(q.get("length", "100"))
+        total = TOTALS.get(split, 0)
+        rows = [{"row_idx": i,
+                 "row": {"sentence": "%s-%d" % (split, i), "label": i % 5},
+                 "truncated_cells": []}
+                for i in range(offset, min(offset + length, total))]
+        body = json.dumps(
+            {"num_rows_total": total, "features": [], "rows": rows}).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+server = HTTPServer(("127.0.0.1", 0), Handler)
+print(server.server_address[1], flush=True)
+server.serve_forever()
+PYEOF
+    python3 "$ST_TMP/server.py" > "$ST_TMP/port" 2> "$ST_TMP/server.log" &
+    ST_SERVER_PID=$!
+    tries=0
+    while [ ! -s "$ST_TMP/port" ] && [ "$tries" -lt 100 ]; do
+        tries=$((tries + 1))
+        sleep 0.1
+    done
+    if [ ! -s "$ST_TMP/port" ]; then
+        log "self-test: FAIL — fixture server never reported a port (log: $ST_TMP/server.log)"
+        return 1
+    fi
+    st_base="http://127.0.0.1:$(cat "$ST_TMP/port")"
+
+    # ── Scenario 1: the defect shape ──
+    out1="$ST_TMP/out1"
+    mkdir -p "$out1/sst5"
+    printf '{}' > "$out1/sst5/license.json"   # the hub licence probe skips cached
+    st_write_page "$out1/sst5/train-000.json" 350 0 100 7
+    st_write_page "$out1/sst5/train-001.json" 350 100 100
+    log1="$ST_TMP/run1.log"
+    st_rc=0
+    st_run_fetch "$out1" "$log1" || st_rc=$?
+    [ "$st_rc" -eq 0 ] || st_fail "scenario 1: child fetch exited $st_rc"
+    st_expect_file "$out1/sst5/test-000.json"
+    st_expect_grep '  resume sst5/train-000' "$log1" \
+        "scenario 1: no resume line for the deduped page (the walk stopped at it)"
+    st_expect_file "$out1/sst5/train-002.json"
+    st_expect_file "$out1/sst5/train-003.json"
+    st_expect_grep 'sst5/train: 349 rows in 4 file(s)' "$log1" \
+        "scenario 1: summary is not the completed pull"
+
+    # ── Scenario 2: the completed tree re-run (idempotence + true terminal) ──
+    log2="$ST_TMP/run2.log"
+    st_rc=0
+    st_run_fetch "$out1" "$log2" || st_rc=$?
+    [ "$st_rc" -eq 0 ] || st_fail "scenario 2: child fetch exited $st_rc"
+    st_n=$(grep -c '^  fetch' "$log2" 2>/dev/null || true)
+    [ "$st_n" -eq 0 ] || st_fail "scenario 2: $st_n page(s) re-fetched on a complete tree (expected 0)"
+    st_n=$(grep -c '^  resume' "$log2" 2>/dev/null || true)
+    [ "$st_n" -eq 1 ] || st_fail "scenario 2: expected exactly 1 resume line (the still-short 000), got $st_n"
+    if [ -f "$out1/sst5/train-004.json" ]; then
+        st_fail "scenario 2: train-004 fetched past the true terminal page"
+    fi
+    st_expect_grep 'sst5/train: 349 rows in 4 file(s)' "$log2" \
+        "scenario 2: summary drifted on the re-run"
+
+    # ── Scenario 3: degraded metadata — legacy stop, loud ──
+    out3="$ST_TMP/out3"
+    mkdir -p "$out3/sst5"
+    printf '{}' > "$out3/sst5/license.json"
+    st_write_page "$out3/sst5/train-000.json" -1 0 100 7
+    log3="$ST_TMP/run3.log"
+    st_rc=0
+    st_run_fetch "$out3" "$log3" || st_rc=$?
+    [ "$st_rc" -eq 0 ] || st_fail "scenario 3: child fetch exited $st_rc"
+    st_expect_grep 'no readable num_rows_total' "$log3" \
+        "scenario 3: the legacy-stop fallback was not loud"
+    st_n=$(grep -c '^  fetch  sst5/train' "$log3" 2>/dev/null || true)
+    [ "$st_n" -eq 0 ] || st_fail "scenario 3: $st_n train page(s) fetched past a metadata-less short page (expected the legacy stop)"
+    st_expect_grep 'sst5/train: 99 rows in 1 file(s)' "$log3" \
+        "scenario 3: summary is not the legacy-stop state"
+
+    kill "$ST_SERVER_PID" 2>/dev/null || true
+    wait "$ST_SERVER_PID" 2>/dev/null || true
+    rm -rf "$ST_TMP"
+    if [ "$ST_FAIL_COUNT" -eq 0 ]; then
+        log "self-test: PASS — resume walks past deduped pages; terminal stays terminal; degraded metadata falls back loud"
+        return 0
+    fi
+    log "self-test: FAIL ($ST_FAIL_COUNT assertion(s) — see the selftest FAIL lines above)"
+    return 1
+}
+
+case "${1:-}" in
+    --self-test) self_test ;;
+    *) main "$@" ;;
+esac

@@ -1099,6 +1099,21 @@ that suite (re-derive with `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`
 | xnli_en | 200 | 20000 (of 392702) | `5804bb68e1bd16af0288cc9698ae08ac54718c414aca88993b5b30914d922a38` |
 | typed_decisions | 12 | 1200 (all; Issue 052 lift) | `83ea62fb0b240f66e959850c625d4337176ef068dd03d6c3d862e2f4d947d88a` |
 
+⛔ **Which state these aggregate rows pin (Issue 096 T3, measured 2026-10-23):**
+the aggregates were derived 2026-09-26 — BEFORE the Issue-058 fetch-plane
+dedupe (2026-10-01). The dedupe rewrites train pages IN PLACE (dropping
+exact self+test duplicate rows), so a tree deduped AFTER recording
+re-derives a DIFFERENT aggregate: each row pins the tree AS RECORDED, not
+"any tree with these page counts". Two-sided confirmation on this box's
+post-dedupe t20k: sst5 re-derives to `c2bf5abc48c13b0ef780474bd92f6047c1
+3bfa0a6c8c50a551a7fda748b3f83e` at 86 pages / **8533** rows (11 exact
+dupes dropped from the raw 8544) — ≠ the recorded `ebfb0317…`/8544 —
+while xnli_en re-derives byte-identical to its recorded row (the dedupe
+dropped 0 rows there). Consumers (slice floors, seat gates) read the LIVE
+tree; these recorded aggregates are the historical pins of what the
+published pre-dedupe tables ran on. Re-derive the live state with the
+same one-liner: `cd <suite> && b3sum train-*.json | sort -k2 | b3sum`.
+
 prompt_injections is unchanged (its cap already covers the train split:
 546 of 546). typed_decisions was lifted to the full train split by
 Issue 052 (Bench 078, 2026-09-28): TRAIN cap 800 → 1200 — the 800-row cap

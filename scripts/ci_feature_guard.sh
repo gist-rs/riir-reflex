@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # riir-reflex local CI guard — the same lanes every sibling repo runs.
-# Layers (9): (1) clippy default -D warnings, (2) clippy --all-features,
+# Layers (10): (1) clippy default -D warnings, (2) clippy --all-features,
 # (3) clippy --no-default-features (the flag-OFF posture must compile),
 # (4) cargo test (semantics gates, default features), (5) clippy at the
 # laya feature set, (6) the G2+G4 decision-set bench (full mode — cargo
@@ -8,13 +8,15 @@
 # measures an unoptimised binary), (7) the G5 laya parity gate (full
 # mode; SKIP-LOUD when no weights root resolves — a skip is a deferral,
 # never a green zero, and the final line NAMES what was skipped),
-# (8) the .docs numbered-book shape gate (cheap — always runs), and
-# (9) the site-mirror parity check against ../reflex-site (cheap —
-# always runs; SKIP-LOUD when the sibling checkout is absent).
+# (8) the fetch_datasets resume self-test (Issue 096 — cheap, hermetic
+# loopback, always runs), (9) the .docs numbered-book shape gate (cheap
+# — always runs), and (10) the site-mirror parity check against
+# ../reflex-site (cheap — always runs; SKIP-LOUD when the sibling
+# checkout is absent).
 #
-# Steps 6-7 run in full mode only; in quick mode the [n/9] numbering IS
-# the partial signal (cargo steps stop at [5/9]; the two cheap doc
-# layers 8-9 still run).
+# Steps 6-7 run in full mode only; in quick mode the [n/10] numbering IS
+# the partial signal (cargo steps stop at [5/10]; the three cheap layers
+# 8-10 still run).
 set -euo pipefail
 
 LAYER="${1:-full}"
@@ -66,16 +68,21 @@ if [ "$LAYER" = "full" ]; then
   fi
 fi
 
-# ── The two cheap doc layers run in BOTH modes (a directory walk and a
-# file compare cost nothing against the cargo lanes above). Layer 8 fails
-# the guard on any shape finding; layer 9 is the site-mirror parity check
-# — exit 2 (sibling checkout absent) is a LOUD skip and a deferral, never
-# a green (the required_features_touched.sh precedent).
+# ── The three cheap layers run in BOTH modes (a loopback self-test, a
+# directory walk and a file compare cost nothing against the cargo lanes
+# above). Layer 8 fails the guard if the resume predicate regresses;
+# layer 9 fails the guard on any shape finding; layer 10 is the
+# site-mirror parity check — exit 2 (sibling checkout absent) is a LOUD
+# skip and a deferral, never a green (the required_features_touched.sh
+# precedent).
 
-echo "== [8/9] .docs numbered-book shape (scripts/docs_shape_gate.py)"
+echo "== [8/10] fetch_datasets resume self-test (Issue 096 — hermetic loopback)"
+sh scripts/fetch_datasets.sh --self-test
+
+echo "== [9/10] .docs numbered-book shape (scripts/docs_shape_gate.py)"
 python3 scripts/docs_shape_gate.py
 
-echo "== [9/9] site-mirror parity (.docs/ ↔ ../reflex-site, sync_mirror.py --check)"
+echo "== [10/10] site-mirror parity (.docs/ ↔ ../reflex-site, sync_mirror.py --check)"
 if [ ! -f "../reflex-site/scripts/sync_mirror.py" ]; then
   echo "⚠ SKIPPED — ../reflex-site not checked out (or sync_mirror.py not landed there yet), so this layer verified NOTHING."
   echo "  (the site mirror at reflex.gist.rs serves .docs/03_decision_flow/decision_flow.svg + .docs/04_agent_skill/SKILL.md;"
