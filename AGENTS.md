@@ -228,6 +228,18 @@ cargo test --release --features slice_leak --test slice_leak_oracle -- --nocaptu
 cargo run --release --features nb_scope --bin harness -- --e0 \
   --out .benchmarks/053_e0_evidence_density
 
+# Residual-stability depth probe (Issue 094 T2, opt-in `twt_profile`;
+# report-only, no serving-path change): per question the serving pick + one
+# encoder_forward_capture through riir-infer Issue 1106's StabilityTracker.
+# Reads: the substrate's SUFFIX stabilization depth + the consumer-side
+# WINDOWED-TROUGH depth (the English checkpoint's residual stream
+# re-accelerates in the tail — trough l2 ≈ 4–20 mid-depth, 90–130 final —
+# so the suffix law is structurally None here; the trough is the usable
+# candidate). Band defaults pin the measured scale (cos 0.995 / l2 25 /
+# window 2); AUROC(trough→correct) + ECE(trough) vs the T1 modal floor.
+cargo run --release --features twt_profile --bin harness -- --depth-probe \
+  --depth-max-cases 100 --out .benchmarks/depth_probe_n100
+
 # Distill teacher pass (riir-train Issue 576 T3, opt-in `laya-riir`;
 # student = riir-train examples/instinct_arm_b, Bench 609):
 cargo run --release --features laya-riir-metal --bin harness -- --distill \
