@@ -5,6 +5,56 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-23 — Issue 096 CLOSED: fetch_datasets resume truncation at a deduped page — the predicate consults the page's own num_rows_total
+
+**Status: Resolved. Landing: reflex `9f686a8` (fix + two-sided self-test +
+guard layer 8 + the manifest pin-state note).**
+
+The defect: `scripts/fetch_datasets.sh`'s paging stop condition is "a page
+returns fewer than 100 rows", but the end-of-run Issue-058 dedupe rewrites
+mid-sequence train pages IN PLACE — a 100-row page becomes a 99-row FILE.
+On any later resume the skip path read that as the terminal page and
+stopped CLEANLY (`failed_requests=0`, no FAIL line, a summary that looked
+like success): the rethink Bench-071 provisioning hit it twice on this box
+(sst5 t20k truncated at 1199/8544-style pulls; the harness's
+slice-integrity floor caught the shrunken pool at seat time, but a suite
+with no floor reader would have truncated silently).
+
+The fix (issue T1): the skip path consults the skipped page's OWN
+`num_rows_total` — the /rows API stamps it on EVERY page and the dedupe's
+`.rows |=` rewrite preserves every top-level field — so `offset+n < total`
+means the dataset holds more rows and the walk CONTINUES (`resume` log
+line); a short page with no readable total takes the legacy stop, LOUDLY
+(`note` line). Shape (a)+(c) of the issue's candidates, fused — and it
+sidesteps size.json's lossy config/split keying for the as_split-renamed
+suites (anli/mmlupro store a differently-named split as `train`). `BASE`
+became an env override (the test seam).
+
+The proof (T2): `scripts/fetch_datasets.sh --self-test` — a hermetic
+loopback python3 fixture server (zero hub traffic; the hub licence probe
+pre-planted cached), three scenarios: (1) the defect shape — resume over a
+deduped 99-row page-000 completes the pull (349 rows / 4 files, pages
+002+003 fetched); (2) idempotence + the true terminal — the re-run fetches
+NOTHING, fires the resume line only for the still-short page-000, and the
+genuinely terminal 50-row page-003 stops without one (no page-004);
+(3) degraded metadata — a short page with no `num_rows_total` takes the
+loud legacy stop. TWO-SIDED: the new code PASSES; a copy with
+`rows_total_of` stubbed to empty (the exact legacy predicate) FAILS with 6
+findings naming the truncation. Wired as `ci_feature_guard.sh` layer 8
+(guard 9 → 10 layers; the two doc layers renumbered 9/10 — the [n/10]
+numbering is the quick-mode partial signal).
+
+The manifest note (T3): the aggregate-digest table's rows were derived
+2026-09-26, BEFORE the Issue-058 dedupe (2026-10-01) — each row pins the
+tree AS RECORDED, not "any tree with these page counts". Measured both
+directions on this box's post-dedupe t20k: sst5 re-derives `c2bf5abc…` at
+86 pages / 8533 rows (11 exact dupes dropped from the raw 8544; ≠ the
+recorded `ebfb0317…`/8544), while xnli_en re-derives byte-identical to its
+recorded row (the dedupe dropped 0 rows there) — the two-sided proof that
+the dedupe, not drift, moves the figure. The fix itself changes NO
+artifact bytes (the resume predicate only decides whether to keep
+walking).
+
 ## 2026-10-18 — Issue 093 CLOSED: CorpusDistanceGate capacity-law drift MEASURED (Bench 154) — drift confirmed, no desert, response owner-gated
 
 **Status: Resolved (recorded negative — T2's negative-close condition FAILED
