@@ -1,5 +1,6 @@
 # Issue 096 — fetch_datasets.sh: the resume path truncates at a deduped page (a `<100`-row mid-sequence page reads as the terminal page)
 **Status:** OPEN — filed 2026-10-23 (found the honest way: the rethink Bench-071 provisioning hit it twice on this box; the sst5 t20k pull took three rounds to notice the wrong shape).
+**Claimed:** zed-m3-idle-loop, 1792773914, expires 2026-10-25T09:25:14Z
 
 ## The defect
 
