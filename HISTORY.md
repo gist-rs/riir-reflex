@@ -55,6 +55,15 @@ the dedupe, not drift, moves the figure. The fix itself changes NO
 artifact bytes (the resume predicate only decides whether to keep
 walking).
 
+REAL-TREE validation (same day, the artifact the defect actually bit):
+re-running `SUITES=sst5 OUT=.raw/datasets_t20k TRAIN_CAP=20000` over this
+box's repaired t20k walks past EVERY deduped mid-sequence page — train-011
+and train-013 (the issue's own reproduction), plus 032/047/051/057/059… —
+and stops only at the true terminal page-085 (44 rows, offset 8500+44 =
+8544 = total): `8533 rows in 86 file(s)`, exit 0, zero network (every page
+skips). The legacy predicate would have stopped at train-011 declaring a
+clean 1199-row pull — the exact defect shape, now impossible.
+
 ## 2026-10-18 — Issue 093 CLOSED: CorpusDistanceGate capacity-law drift MEASURED (Bench 154) — drift confirmed, no desert, response owner-gated
 
 **Status: Resolved (recorded negative — T2's negative-close condition FAILED
