@@ -175,6 +175,12 @@ laya-riir = ["riir-infer-laya/laya-riir", "dep:blake3"]
 # parity must be green at THIS posture before any riir-Metal number is
 # published.
 laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
+# The Issue 094 T2 depth-probe lane (riir-infer Issue 1106's consumer): the
+# headless residual-stability probe — per question, `RiirAgent::encoder_
+# forward_capture` streams the residual stream through the substrate's
+# `StabilityTracker` and reports the stabilization depth. Report-only,
+# calibration-cost (one device sync per stage), never a serving path.
+twt_profile = ["laya-riir", "riir-infer-laya/twt_profile"]
 # The riir forward's ANE whole-graph backend — MOVED with the lane
 # (`riir-infer-laya/laya-riir-ane`, macOS target-scoped there): the
 # encoder executes the digest-pinned BC1S Core ML artifacts (Plan 002

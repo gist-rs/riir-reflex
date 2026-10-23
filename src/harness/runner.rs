@@ -144,6 +144,16 @@ pub use null_probe::{
     render_null_probe_markdown, run_null_probe,
 };
 
+// Issue 094 T2 — the residual-stability depth probe (riir-infer Issue 1106's
+// consumer): report-only, CPU-budgeted, behind `twt_profile`.
+#[cfg(feature = "twt_profile")]
+mod depth_probe;
+#[cfg(feature = "twt_profile")]
+pub use depth_probe::{
+    DepthProbeOptions, DepthProbeOutput, DepthRow, DepthSuiteRow, render_depth_probe_markdown,
+    run_depth_probe,
+};
+
 // Issue 090 C1 — the rubric-covariance + route-agreement probe: the pure
 // core (`harness::rubric`) + this runner half (modelless control; the
 // wire surface renders through the serve edge's own translate → decide →

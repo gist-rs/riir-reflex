@@ -266,6 +266,19 @@ fn harness_main() {
     // (exclusive early-exit mode; the comparison lanes reuse
     // --drex/--d1/--agentjev).
     let mut null_probe = false;
+    // Issue 094 T2 — the depth probe (feature `twt_profile`).
+    #[cfg(feature = "twt_profile")]
+    let mut depth_probe = false;
+    #[cfg(not(feature = "twt_profile"))]
+    let depth_probe = false;
+    #[cfg(feature = "twt_profile")]
+    let mut depth_max_cases = 0usize;
+    #[cfg(feature = "twt_profile")]
+    let mut depth_band_cos = 0.0f32;
+    #[cfg(feature = "twt_profile")]
+    let mut depth_band_l2 = 0.0f32;
+    #[cfg(feature = "twt_profile")]
+    let mut depth_trough_window = 0usize;
     let mut null_k: Vec<usize> = Vec::new();
     let mut null_max_cases = 0usize;
     // Issue 090 C1 — the rubric-covariance + route-agreement probe
@@ -472,6 +485,40 @@ fn harness_main() {
                     .unwrap_or_else(|| die("--perm-max-cases needs a number"));
             }
             "--null-probe" => null_probe = true,
+            #[cfg(feature = "twt_profile")]
+            "--depth-probe" => depth_probe = true,
+            #[cfg(feature = "twt_profile")]
+            "--depth-max-cases" => {
+                i += 1;
+                depth_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--depth-max-cases needs a number"));
+            }
+            #[cfg(feature = "twt_profile")]
+            "--depth-band-cos" => {
+                i += 1;
+                depth_band_cos = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--depth-band-cos needs a float"));
+            }
+            #[cfg(feature = "twt_profile")]
+            "--depth-band-l2" => {
+                i += 1;
+                depth_band_l2 = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--depth-band-l2 needs a float"));
+            }
+            #[cfg(feature = "twt_profile")]
+            "--depth-trough-window" => {
+                i += 1;
+                depth_trough_window = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--depth-trough-window needs a number"));
+            }
             "--rubric-probe" => rubric_probe = true,
             "--rubric-max-cases" => {
                 i += 1;
@@ -958,6 +1005,79 @@ fn harness_main() {
         );
         return;
     }
+    // Issue 094 T2 — the residual-stability depth probe (feature
+    // `twt_profile`): exclusive early-exit mode, REPORT-ONLY (the issue's
+    // posture — no exit-code coupling beyond the loud refusals; a shallow
+    // depth is a finding, never a failure).
+    #[cfg(feature = "twt_profile")]
+    if depth_probe {
+        let dopts = runner::DepthProbeOptions {
+            max_cases: if depth_max_cases == 0 {
+                100
+            } else {
+                depth_max_cases
+            },
+            band_cos: if depth_band_cos == 0.0 {
+                0.995
+            } else {
+                depth_band_cos
+            },
+            band_l2: if depth_band_l2 == 0.0 {
+                25.0
+            } else {
+                depth_band_l2
+            },
+            trough_window: if depth_trough_window == 0 {
+                2
+            } else {
+                depth_trough_window
+            },
+        };
+        println!(
+            "harness --depth-probe: datasets {} · suites {:?} · ≤{} case(s)/suite · \
+             band cos ≥ {} / l2 ≤ {} · laya lane (report-only)",
+            opts.datasets_dir.display(),
+            opts.suites,
+            dopts.max_cases,
+            dopts.band_cos,
+            dopts.band_l2,
+        );
+        let out = match runner::run_depth_probe(&opts, &dopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("depth_probe.json");
+        let md_path = out_dir.join("DEPTH_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("depth probe serialize");
+        let md = runner::render_depth_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --depth-probe: DONE — {} suite(s), {} question row(s), \
+             {} skipped; wrote {} + {}",
+            out.suites.len(),
+            out.rows.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    #[cfg(not(feature = "twt_profile"))]
+    if depth_probe {
+        die(
+            "--depth-probe needs the `twt_profile` feature — rebuild with \
+             --features twt_profile",
+        );
+    }
     // Issue 090 C1 — the rubric-covariance + route-agreement probe:
     // exclusive early-exit mode. The modelless CONTROL reds the run
     // (exit 1) on an I1/I2 identity residual beyond tolerance, an I3
@@ -1076,10 +1196,11 @@ fn harness_main() {
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 12] = [
+        let modes: [(&str, bool); 13] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--null-probe", null_probe),
+            ("--depth-probe", depth_probe),
             ("--rubric-probe", rubric_probe),
             ("--gate-drift-probe", gate_drift_probe),
             ("--distill", distill),
