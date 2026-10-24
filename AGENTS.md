@@ -264,6 +264,18 @@ cargo run --release --features laya-riir-metal --bin harness -- --distill \
 # DECLARED-NC RESTRICTED, adoption fail-closed):
 cargo run --release --bin harness -- --skip-laya --startlux
 
+# mammoth/elephant comparison lane (rethink Issue 032 T10 / Research 012,
+# `--mammoth`): Base Labs' mammoth-1 — the JDI 0.4.1 board-#1 public print
+# 75.34 (MIT — the first permissively-licensed board-#1; no NC posture) — or
+# elephant-1 (72.24) on Baseten Model APIs, reached ONLY through the
+# operator-run loopback TLS forwarder (the clef A0 law; the hop is part of
+# the row's latency claim). MEASUREMENT-ONLY — no RIDT arm: API outputs
+# never enter a capture artifact (teacher lineage stays self-hosted,
+# riir-train 640). Re-fetch the Baseten ToS + Model-APIs policy before the
+# run (the free week ended 2026-10-27 23:59 PT; the key is an OWNER act):
+MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
+  cargo run --release --bin harness -- --mammoth --suites typed_decisions --skip-laya
+
 # The T2.5 modelless teacher router (riir-train Issue 629 T2.5; offline — no
 # GPU, no test row): sigmoid-gated per-suite blend over CAPTURED RIDT columns
 # (T=0.01, never softmax; per-row gold-pin join verification; emits the routed
