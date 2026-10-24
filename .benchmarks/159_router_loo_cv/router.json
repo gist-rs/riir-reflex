@@ -1,0 +1,162 @@
+{
+  "inputs": [
+    ".raw/distill_teacher",
+    ".raw/distill_teacher_jeva"
+  ],
+  "temperature": 0.01,
+  "suites": [
+    {
+      "name": "ag_news",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher",
+          "bin_path": ".raw/distill_teacher/ag_news_teacher.bin",
+          "teacher": "unknown",
+          "checkpoint": "english",
+          "blake3": "eb4e3fefd38daf6c",
+          "n_rows": 20000,
+          "accuracy": 0.97695,
+          "mean_max_prob": 0.9341739050000906,
+          "mean_margin": 0.888005649933964
+        },
+        {
+          "dir": ".raw/distill_teacher_jeva",
+          "bin_path": ".raw/distill_teacher_jeva/ag_news_teacher.bin",
+          "teacher": "jeva",
+          "checkpoint": "LIQIIIII/Jeva-4B dtype=torch.bfloat16",
+          "blake3": "96fffe003fd24180",
+          "n_rows": 20000,
+          "accuracy": 0.7331,
+          "mean_max_prob": 0.7295364993780852,
+          "mean_margin": 0.5624304452165961
+        }
+      ],
+      "gate": 0.9999999999743121,
+      "routed_accuracy": 0.97695,
+      "routed_accuracy_cv": 0.97695,
+      "routed_blake3": "9580f37322d149e6",
+      "n_classes": 4
+    },
+    {
+      "name": "banking77",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher",
+          "bin_path": ".raw/distill_teacher/banking77_teacher.bin",
+          "teacher": "unknown",
+          "checkpoint": "english",
+          "blake3": "13741e67931605da",
+          "n_rows": 9993,
+          "accuracy": 0.4312018412889022,
+          "mean_max_prob": 0.7993833682532725,
+          "mean_margin": 0.7338879312184776
+        },
+        {
+          "dir": ".raw/distill_teacher_jeva",
+          "bin_path": ".raw/distill_teacher_jeva/banking77_teacher.bin",
+          "teacher": "jeva",
+          "checkpoint": "LIQIIIII/Jeva-4B dtype=torch.bfloat16",
+          "blake3": "05e1325a8e377352",
+          "n_rows": 9993,
+          "accuracy": 0.9274492144501151,
+          "mean_max_prob": 0.9262489543985964,
+          "mean_margin": 0.87975940918521
+        }
+      ],
+      "gate": 2.807051740133754e-22,
+      "routed_accuracy": 0.9274492144501151,
+      "routed_accuracy_cv": 0.9274492144501151,
+      "routed_blake3": "7871da02574e0763",
+      "n_classes": 77
+    },
+    {
+      "name": "massive_intent_en",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher",
+          "bin_path": ".raw/distill_teacher/massive_intent_en_teacher.bin",
+          "teacher": "unknown",
+          "checkpoint": "english",
+          "blake3": "1964c4e882983260",
+          "n_rows": 11514,
+          "accuracy": 0.7340628799722078,
+          "mean_max_prob": 0.9356453621205779,
+          "mean_margin": 0.8938296942465138
+        },
+        {
+          "dir": ".raw/distill_teacher_jeva",
+          "bin_path": ".raw/distill_teacher_jeva/massive_intent_en_teacher.bin",
+          "teacher": "jeva",
+          "checkpoint": "LIQIIIII/Jeva-4B dtype=torch.bfloat16",
+          "blake3": "9c0c200d2d914ebe",
+          "n_rows": 11514,
+          "accuracy": 0.9479763765850269,
+          "mean_max_prob": 0.9170095245429102,
+          "mean_margin": 0.8759457263458162
+        }
+      ],
+      "gate": 5.126900410757433e-10,
+      "routed_accuracy": 0.9479763765850269,
+      "routed_accuracy_cv": 0.9479763765850269,
+      "routed_blake3": "87ed93982312ecea",
+      "n_classes": 60
+    },
+    {
+      "name": "prompt_injections",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher_jeva",
+          "bin_path": ".raw/distill_teacher_jeva/prompt_injections_teacher.bin",
+          "teacher": "jeva",
+          "checkpoint": "LIQIIIII/Jeva-4B dtype=torch.bfloat16",
+          "blake3": "3c94f3848c1ba7b2",
+          "n_rows": 546,
+          "accuracy": 0.8443223443223443,
+          "mean_max_prob": 0.8422593210206364,
+          "mean_margin": 0.6845186417683576
+        }
+      ],
+      "gate": null,
+      "routed_accuracy": null,
+      "routed_accuracy_cv": null,
+      "routed_blake3": "3c94f3848c1ba7b2",
+      "n_classes": 2
+    },
+    {
+      "name": "xnli_en",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher",
+          "bin_path": ".raw/distill_teacher/xnli_en_teacher.bin",
+          "teacher": "unknown",
+          "checkpoint": "english",
+          "blake3": "fa61aee843d01551",
+          "n_rows": 20000,
+          "accuracy": 0.96535,
+          "mean_max_prob": 0.9413998948290944,
+          "mean_margin": 0.8974405200764537
+        },
+        {
+          "dir": ".raw/distill_teacher_jeva",
+          "bin_path": ".raw/distill_teacher_jeva/xnli_en_teacher.bin",
+          "teacher": "jeva",
+          "checkpoint": "LIQIIIII/Jeva-4B dtype=torch.bfloat16",
+          "blake3": "c18c9e9e48570f98",
+          "n_rows": 20000,
+          "accuracy": 0.85075,
+          "mean_max_prob": 0.8453056063354015,
+          "mean_margin": 0.7251685457080602
+        }
+      ],
+      "gate": 0.9999894566006033,
+      "routed_accuracy": 0.96535,
+      "routed_accuracy_cv": 0.96535,
+      "routed_blake3": "ff2aae7523067817",
+      "n_classes": 3
+    }
+  ],
+  "skipped": [
+    "emotion: row counts differ (16000 vs 15999) — different datasets posture or survivor predicate; refusing the join",
+    "sst5: row counts differ (8544 vs 8533) — different datasets posture or survivor predicate; refusing the join"
+  ]
+}

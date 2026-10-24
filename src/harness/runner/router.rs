@@ -24,6 +24,15 @@
 //!    teacher artifact for T3's student / T4's frozen read) + the router
 //!    manifest. Single-source suites pass through BYTE-IDENTICAL (copied
 //!    with their sidecar; the source provenance header is preserved).
+//! 7. the 640-T4 CROSS-VALIDATION gate (verdict round 1): the gate g is
+//!    computed from the SAME rows the routed accuracy is measured on —
+//!    in-sample by construction, and the optimism grows with every added
+//!    column (the mammoth/elephant extension's exact hazard). Every blend
+//!    suite therefore also carries a leave-one-row-out routed accuracy
+//!    (`routed_accuracy_cv`): each row's pick uses a gate computed with that
+//!    row dropped from BOTH accuracy sums — exact, deterministic, the pick
+//!    never sees its own row. The emitted artifact keeps the full-data gate
+//!    (the deployable form); the CV column is the honest estimate beside it.
 //!
 //! Honest-read caveats carried in the manifest: every accuracy here is a
 //! TRAIN-row number (the captures' no-cheat law) — the routed artifact's
@@ -62,6 +71,10 @@ pub struct RouterSuite {
     /// `Some(g)` = routed blend; `None` = passthrough (single source).
     pub gate: Option<f64>,
     pub routed_accuracy: Option<f64>,
+    /// The 640-T4 cross-validation read (verdict round 1): leave-one-row-out
+    /// routed accuracy — each row scored under a gate that never saw it.
+    /// `None` = passthrough, or a sub-2-row suite (no held-out fold exists).
+    pub routed_accuracy_cv: Option<f64>,
     pub routed_blake3: Option<String>,
     pub n_classes: usize,
 }
@@ -97,6 +110,39 @@ fn argmax_lowest_pos(q: &[f32]) -> usize {
 /// (the det gate is same-binary by construction).
 fn sigmoid(x: f64) -> f64 {
     exact_sigmoid_f64(x)
+}
+
+/// The 640-T4 cross-validation gate (verdict round 1): the in-sample oracle
+/// reads optimistic because the gate g is fitted on the rows it is scored
+/// on. Leave-one-row-out: row r's pick uses `g_r` computed with row r
+/// dropped from BOTH accuracy sums — `((hits_a−hit_r) − (hits_b−hit_r)) /
+/// (n−1)`, O(1) per row, no RNG, bit-reproducible. `None` below 2 rows (no
+/// held-out fold exists).
+fn routed_accuracy_loo_cv(
+    col_a: &super::distill::TeacherColumn,
+    col_b: &super::distill::TeacherColumn,
+    hits_a: usize,
+    hits_b: usize,
+) -> Option<f64> {
+    let n = col_a.gold.len();
+    if n < 2 {
+        return None;
+    }
+    let denom = (n - 1) as f64 * ROUTER_TEMPERATURE;
+    let mut cv_hits = 0usize;
+    for r in 0..n {
+        let hit_a = usize::from(col_a.pick[r] == col_a.gold[r]);
+        let hit_b = usize::from(col_b.pick[r] == col_b.gold[r]);
+        let gap = (hits_a - hit_a) as f64 - (hits_b - hit_b) as f64;
+        let g = sigmoid(gap / denom);
+        let q_route: Vec<f32> = col_a.q[r]
+            .iter()
+            .zip(col_b.q[r].iter())
+            .map(|(&a, &b)| (g * f64::from(a) + (1.0 - g) * f64::from(b)) as f32)
+            .collect();
+        cv_hits += usize::from(argmax_lowest_pos(&q_route) == col_a.gold[r] as usize);
+    }
+    Some(cv_hits as f64 / n as f64)
 }
 
 /// One source dir's discovered columns: `<suite>_teacher.bin` → (path, blake3).
@@ -239,6 +285,7 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
                 sources: vec![src],
                 gate: None,
                 routed_accuracy: None,
+                routed_accuracy_cv: None,
                 routed_blake3: Some(seal.clone()),
                 n_classes,
             });
@@ -293,6 +340,14 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
         // Gate + blend.
         let gate = sigmoid((src_a.accuracy - src_b.accuracy) / ROUTER_TEMPERATURE);
         let n_classes = col_a.q.first().map_or(0, Vec::len);
+        let hits = |col: &super::distill::TeacherColumn| {
+            col.pick
+                .iter()
+                .zip(col.gold.iter())
+                .filter(|(p, g)| p == g)
+                .count()
+        };
+        let routed_accuracy_cv = routed_accuracy_loo_cv(&col_a, &col_b, hits(&col_a), hits(&col_b));
         let datasets_dir = col_a
             .header
             .get("datasets_dir")
@@ -320,6 +375,9 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
                 "temperature": ROUTER_TEMPERATURE,
                 "law": "g = sigmoid((acc_a - acc_b) / T) per suite; q_route = g*q_a + (1-g)*q_b; \
                         sigmoid, never softmax",
+                "routed_accuracy_cv": routed_accuracy_cv,
+                "cv_law": "leave-one-row-out (the 640-T4 gate): each row scored under a gate \
+                           that never saw it; the artifact keeps the full-data gate",
                 "sources": [
                     { "dir": src_a.dir, "teacher": src_a.teacher, "checkpoint": src_a.checkpoint,
                       "blake3": src_a.blake3, "train_accuracy": src_a.accuracy },
@@ -356,6 +414,7 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
             sources: vec![src_a, src_b],
             gate: Some(gate),
             routed_accuracy: Some(routed_hits as f64 / n_rows as f64),
+            routed_accuracy_cv,
             routed_blake3: Some(seal.as_str()[..16].to_string()),
             n_classes,
         });
@@ -383,9 +442,9 @@ pub fn render_router_markdown(report: &RouterReport) -> String {
         report.temperature,
     ));
     s.push_str(
-        "\n| suite | sources (acc) | gate g | routed acc | mode | classes | routed blake3 |\n",
+        "\n| suite | sources (acc) | gate g | routed acc | cv (loo) | mode | classes | routed blake3 |\n",
     );
-    s.push_str("|---|---|---|---|---|---|---|\n");
+    s.push_str("|---|---|---|---|---|---|---|---|\n");
     for v in &report.suites {
         let srcs = v
             .sources
@@ -394,13 +453,16 @@ pub fn render_router_markdown(report: &RouterReport) -> String {
             .collect::<Vec<_>>()
             .join(" ⊕ ");
         s.push_str(&format!(
-            "| {} | {} | {} | {} | {} | {} | {} |\n",
+            "| {} | {} | {} | {} | {} | {} | {} | {} |\n",
             v.name,
             srcs,
             v.gate
                 .map(|g| format!("{g:.4}"))
                 .unwrap_or_else(|| "—".into()),
             v.routed_accuracy
+                .map(|a| format!("{a:.4}"))
+                .unwrap_or_else(|| "—".into()),
+            v.routed_accuracy_cv
                 .map(|a| format!("{a:.4}"))
                 .unwrap_or_else(|| "—".into()),
             if v.gate.is_some() {
@@ -502,6 +564,87 @@ mod tests {
         assert_eq!(argmax_lowest_pos(&[0.3, 0.5, 0.5]), 1);
         assert_eq!(argmax_lowest_pos(&[0.5, 0.5, 0.5]), 0);
         assert_eq!(argmax_lowest_pos(&[0.1, 0.2, 0.9]), 2);
+    }
+
+    fn hits_of(col: &crate::harness::runner::distill::TeacherColumn) -> usize {
+        col.pick
+            .iter()
+            .zip(col.gold.iter())
+            .filter(|(p, g)| p == g)
+            .count()
+    }
+
+    #[test]
+    fn loo_cv_on_a_complement_fixture_reads_zero_where_insample_reads_half() {
+        // The 640-T4 optimism class, at the smallest shape that shows it:
+        // a wins row 0 and loses row 1, b the exact complement. The in-sample
+        // gate is 0.5, the blends tie, and the lowest-position tie law hands
+        // row 0's hit to the routed column — 0.5 read on rows the honest
+        // estimate cannot keep. LOO routes each row AWAY from the teacher
+        // that got it (the gate's own success on a row makes that row look
+        // better for the OTHER column once the row is dropped), so the CV
+        // read is 0.0 — the estimator is honest in both directions.
+        let gold = [0u32, 1];
+        let qa = [vec![1.0f32, 0.0], vec![1.0, 0.0]];
+        let qb = [vec![0.0f32, 1.0], vec![0.0, 1.0]];
+        let col_a = read_teacher_bin(&tiny_bin(&gold, &qa, "a", &["x", "y"])).expect("a");
+        let col_b = read_teacher_bin(&tiny_bin(&gold, &qb, "b", &["x", "y"])).expect("b");
+        assert_eq!((hits_of(&col_a), hits_of(&col_b)), (1, 1));
+        // In-sample: g = sigmoid(0) = 0.5; both blends tie; lowest position
+        // wins row 0 (gold) and loses row 1.
+        let g = sigmoid(0.0);
+        let in_sample: Vec<usize> = (0..2)
+            .map(|r| {
+                let q: Vec<f32> = col_a.q[r]
+                    .iter()
+                    .zip(col_b.q[r].iter())
+                    .map(|(&a, &b)| (g * f64::from(a) + (1.0 - g) * f64::from(b)) as f32)
+                    .collect();
+                argmax_lowest_pos(&q)
+            })
+            .collect();
+        assert_eq!(in_sample, vec![0, 0]);
+        assert_eq!(
+            in_sample
+                .iter()
+                .zip(gold.iter())
+                .filter(|(p, g)| **p == **g as usize)
+                .count(),
+            1
+        );
+        // The honest read: 0.0.
+        assert_eq!(
+            routed_accuracy_loo_cv(&col_a, &col_b, hits_of(&col_a), hits_of(&col_b)),
+            Some(0.0)
+        );
+    }
+
+    #[test]
+    fn loo_cv_equals_insample_when_one_column_dominates() {
+        // No selection optimism where there is no selection: a dominates
+        // every row, so every LOO gate still routes to a and the CV read
+        // equals the in-sample read exactly.
+        let gold = [0u32, 1, 0];
+        let qa = [vec![1.0f32, 0.0], vec![0.0, 1.0], vec![1.0, 0.0]];
+        let qb = [vec![0.0f32, 1.0], vec![1.0, 0.0], vec![0.0, 1.0]];
+        let col_a = read_teacher_bin(&tiny_bin(&gold, &qa, "a", &["x", "y"])).expect("a");
+        let col_b = read_teacher_bin(&tiny_bin(&gold, &qb, "b", &["x", "y"])).expect("b");
+        assert_eq!(hits_of(&col_a), 3);
+        assert_eq!(hits_of(&col_b), 0);
+        assert_eq!(
+            routed_accuracy_loo_cv(&col_a, &col_b, hits_of(&col_a), hits_of(&col_b)),
+            Some(1.0)
+        );
+    }
+
+    #[test]
+    fn loo_cv_needs_two_rows() {
+        let gold = [0u32];
+        let qa = [vec![1.0f32, 0.0]];
+        let qb = [vec![0.0f32, 1.0]];
+        let col_a = read_teacher_bin(&tiny_bin(&gold, &qa, "a", &["x", "y"])).expect("a");
+        let col_b = read_teacher_bin(&tiny_bin(&gold, &qb, "b", &["x", "y"])).expect("b");
+        assert_eq!(routed_accuracy_loo_cv(&col_a, &col_b, 1, 0), None);
     }
 
     #[test]
