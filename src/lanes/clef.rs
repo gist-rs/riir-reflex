@@ -623,6 +623,12 @@ impl LocalAneLane {
         ))
     }
 
+    /// The pinned artifact's vocabulary size — the entropy→confidence
+    /// map's normalizer (issue 094 T3).
+    pub fn vocab(&self) -> u32 {
+        self.runtime.config().vocab_size
+    }
+
     pub fn decide(
         &self,
         case: &SuiteCase,
@@ -631,6 +637,19 @@ impl LocalAneLane {
         let answers = self.decide_inner(case)?;
         let ms = t0.elapsed().as_secs_f64() * 1000.0;
         Ok((answers, ms, None))
+    }
+
+    /// The probe lane's entry (issue 094 T3): the decide answers plus the
+    /// case-level last-position vocabulary entropy (NATS) from the SAME
+    /// decode pass — no second ANE forward. (answers, wall ms, entropy).
+    pub fn decide_with_entropy(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<AnswerTriple>, f64, f32), String> {
+        let t0 = Instant::now();
+        let (answers, entropy) = self.pipeline(case)?;
+        let ms = t0.elapsed().as_secs_f64() * 1000.0;
+        Ok((answers, ms, entropy))
     }
 
     /// The canonical determinism input: one JSON line over the mapped
@@ -647,6 +666,14 @@ impl LocalAneLane {
     }
 
     fn decide_inner(&self, case: &SuiteCase) -> Result<Vec<AnswerTriple>, String> {
+        self.pipeline(case).map(|(t, _)| t)
+    }
+
+    /// The shared pipeline: clef questions from the case, one
+    /// `answer_with_entropy` pass (the entropy is free with the answers
+    /// — same decode), the map back into OUR option order (the
+    /// map_answers law). Returns (triples, entropy nats).
+    fn pipeline(&self, case: &SuiteCase) -> Result<(Vec<AnswerTriple>, f32), String> {
         let questions: Vec<(String, riir_infer_clef::lane::ClefQuestion)> = case
             .questions
             .iter()
@@ -699,10 +726,11 @@ impl LocalAneLane {
             })
             .collect::<Result<Vec<_>, String>>()?;
 
-        let out = self
+        let bundle = self
             .runtime
-            .answer(&case.state, &questions)
+            .answer_with_entropy(&case.state, &questions)
             .map_err(|e| format!("clef-local ({}): {e}", case.id))?;
+        let out = &bundle.answers;
 
         // Map back into OUR option order (the map_answers law):
         // noul = [false, true]; choice = the HARNESS criteria-key order
@@ -755,7 +783,7 @@ impl LocalAneLane {
                 };
             triples.push(triple);
         }
-        Ok(triples)
+        Ok((triples, bundle.last_position_entropy))
     }
 }
 

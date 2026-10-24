@@ -153,6 +153,16 @@ pub use depth_probe::{
     DepthProbeOptions, DepthProbeOutput, DepthRow, DepthSuiteRow, render_depth_probe_markdown,
     run_depth_probe,
 };
+// Issue 094 T3 — the clef HEADFUL confidence-candidate probe: the local
+// ANE lane's last-position vocabulary entropy against BOTH floors
+// (conformal + modal). Report-only, macOS + `clef-ane` only.
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+mod clef_conf_probe;
+#[cfg(all(feature = "clef-ane", target_os = "macos"))]
+pub use clef_conf_probe::{
+    ClefConfProbeOptions, ClefConfProbeOutput, ClefConfRow, ClefConfSuiteRow,
+    render_clef_conf_probe_markdown, run_clef_conf_probe,
+};
 
 // Issue 090 C1 — the rubric-covariance + route-agreement probe: the pure
 // core (`harness::rubric`) + this runner half (modelless control; the

@@ -279,6 +279,13 @@ fn harness_main() {
     let mut depth_band_l2 = 0.0f32;
     #[cfg(feature = "twt_profile")]
     let mut depth_trough_window = 0usize;
+    // Issue 094 T3 — the clef headful conf probe (feature `clef-ane`, macOS).
+    #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+    let mut clef_conf_probe = false;
+    #[cfg(not(all(feature = "clef-ane", target_os = "macos")))]
+    let clef_conf_probe = false;
+    #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+    let mut clef_conf_max_cases = 0usize;
     let mut null_k: Vec<usize> = Vec::new();
     let mut null_max_cases = 0usize;
     // Issue 090 C1 — the rubric-covariance + route-agreement probe
@@ -518,6 +525,16 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--depth-trough-window needs a number"));
+            }
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            "--clef-conf-probe" => clef_conf_probe = true,
+            #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+            "--clef-conf-max-cases" => {
+                i += 1;
+                clef_conf_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--clef-conf-max-cases needs a number"));
             }
             "--rubric-probe" => rubric_probe = true,
             "--rubric-max-cases" => {
@@ -1078,6 +1095,61 @@ fn harness_main() {
              --features twt_profile",
         );
     }
+    // Issue 094 T3 — the clef headful conf probe (feature `clef-ane`,
+    // macOS): exclusive early-exit mode, REPORT-ONLY. The local ANE seat
+    // is constructed inside the runner (its artifacts_dir law).
+    #[cfg(all(feature = "clef-ane", target_os = "macos"))]
+    if clef_conf_probe {
+        let copts = runner::ClefConfProbeOptions {
+            max_cases: if clef_conf_max_cases == 0 {
+                100
+            } else {
+                clef_conf_max_cases
+            },
+        };
+        println!(
+            "harness --clef-conf-probe: datasets {} · suites {:?} · ≤{} case(s)/suite · \
+             clef-local lane (report-only)",
+            opts.datasets_dir.display(),
+            opts.suites,
+            copts.max_cases,
+        );
+        let out = match runner::run_clef_conf_probe(&opts, &copts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("clef_conf_probe.json");
+        let md_path = out_dir.join("CLEF_CONF_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("clef conf probe serialize");
+        let md = runner::render_clef_conf_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --clef-conf-probe: DONE — {} suite(s), {} question row(s), \
+             {} skipped; wrote {} + {}",
+            out.suites.len(),
+            out.rows.len(),
+            out.skipped.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    #[cfg(not(all(feature = "clef-ane", target_os = "macos")))]
+    if clef_conf_probe {
+        die(
+            "--clef-conf-probe needs the `clef-ane` feature (macOS) — rebuild with \
+             --features clef-ane",
+        );
+    }
     // Issue 090 C1 — the rubric-covariance + route-agreement probe:
     // exclusive early-exit mode. The modelless CONTROL reds the run
     // (exit 1) on an I1/I2 identity residual beyond tolerance, an I3
@@ -1196,11 +1268,12 @@ fn harness_main() {
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 13] = [
+        let modes: [(&str, bool); 14] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--null-probe", null_probe),
             ("--depth-probe", depth_probe),
+            ("--clef-conf-probe", clef_conf_probe),
             ("--rubric-probe", rubric_probe),
             ("--gate-drift-probe", gate_drift_probe),
             ("--distill", distill),

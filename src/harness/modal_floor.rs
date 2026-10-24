@@ -238,6 +238,23 @@ fn pick(
 /// carries no questions (an honest absence, never a fabricated row).
 #[must_use]
 pub fn census(eval: &[SuiteCase], reference: Option<&[SuiteCase]>) -> Option<ModalFloorRow> {
+    census_with_pairs(eval, reference).map(|(row, _)| row)
+}
+
+/// [`census`] plus the per-question (confidence, correct) pairs the T3
+/// confidence gate reads (issue 094: the modal floor priced as a
+/// CALIBRATION instrument, not only an accuracy bar). The confidence is
+/// the picked option's census share — pool mass share when the key pool
+/// carries mass on the case's own options (Σ of the SAME adjusted counts
+/// the pick ranked, so LOO mode's withheld vote is withheld here too),
+/// else the global-census share of the picked identity over the whole
+/// census population. Deterministic integer ratios, same iteration order
+/// as the accuracy walk.
+#[must_use]
+pub fn census_with_pairs(
+    eval: &[SuiteCase],
+    reference: Option<&[SuiteCase]>,
+) -> Option<(ModalFloorRow, Vec<(f64, bool)>)> {
     let entries = question_entries(eval);
     let n = entries.len();
     if n == 0 {
@@ -253,6 +270,7 @@ pub fn census(eval: &[SuiteCase], reference: Option<&[SuiteCase]>) -> Option<Mod
 
     let mut correct = 0usize;
     let mut n_fallback = 0usize;
+    let mut pairs = Vec::with_capacity(n);
     for e in &entries {
         let empty_pool: BTreeMap<&str, u32> = BTreeMap::new();
         let pool = per_key.get(e.key.as_str()).unwrap_or(&empty_pool);
@@ -263,21 +281,43 @@ pub fn census(eval: &[SuiteCase], reference: Option<&[SuiteCase]>) -> Option<Mod
         if fell_back {
             n_fallback += 1;
         }
+        // The confidence of the modal pick: the pick ranked on adjusted
+        // (pool, global) counts — the denominator is the same family.
+        let picked: &str = e.options.get(pick_idx).map(String::as_str).unwrap_or_default();
+        let adj = |counts: &IdentityCounts<'_>, id: &str| -> u32 {
+            let c = counts.get(id).copied().unwrap_or(0);
+            if loo && Some(id) == e.own.as_deref() {
+                c.saturating_sub(1)
+            } else {
+                c
+            }
+        };
+        let pair = if fell_back {
+            let census_n = census_entries.len().max(1);
+            f64::from(adj(&global, picked)) / census_n as f64
+        } else {
+            let total: u32 = e.options.iter().map(|id| adj(pool, id)).sum();
+            f64::from(adj(pool, picked)) / f64::from(total.max(1))
+        };
+        pairs.push((pair, pick_idx == e.gold_idx));
     }
 
     let census_n = census_entries.len();
     let global_modal_share =
         f64::from(global.values().copied().max().unwrap_or(0)) / census_n.max(1) as f64;
 
-    Some(ModalFloorRow {
-        acc: correct as f64 / n as f64,
-        n_questions: n,
-        n_keys: per_key.len(),
-        n_fallback,
-        global_modal_share,
-        reference: if loo { REFERENCE_LOO } else { REFERENCE_CAL },
-        key_rule: KEY_RULE,
-    })
+    Some((
+        ModalFloorRow {
+            acc: correct as f64 / n as f64,
+            n_questions: n,
+            n_keys: per_key.len(),
+            n_fallback,
+            global_modal_share,
+            reference: if loo { REFERENCE_LOO } else { REFERENCE_CAL },
+            key_rule: KEY_RULE,
+        },
+        pairs,
+    ))
 }
 
 /// The tables block for one suite: the floor line + one ⛔ line per lane at
@@ -384,6 +424,37 @@ mod tests {
         assert!((f.acc - 2.0 / 3.0).abs() < 1e-12);
         assert_eq!(f.n_fallback, 1);
         assert!((f.global_modal_share - 2.0 / 3.0).abs() < 1e-12);
+    }
+
+    /// The T3 pairs: the modal pick's share as its confidence — pool-mass
+    /// share when the key pool engages (2/2 = 1.0 on the covered key),
+    /// global-census share on the fallback (2/3), and correctness
+    /// per-question (2/3, the same acc the row reads).
+    #[test]
+    fn census_pairs_carry_the_pick_share_as_confidence() {
+        let reference = vec![
+            case("r0", "card charged twice today morning", 0),
+            case("r1", "card charged twice today evening", 0),
+            case("r2", "totally other words here", 1),
+        ];
+        let eval = vec![
+            case("a", "card charged twice today noon", 0),
+            case("c", "never seen this key before", 0),
+        ];
+        let (f, pairs) = census_with_pairs(&eval, Some(&reference)).expect("row + pairs");
+        assert_eq!(pairs.len(), 2);
+        assert_eq!(f.n_questions, 2);
+        // a: pool {pos:2} over own options [pos, neg, neu] → total 2,
+        // pick pos share 2/2 = 1.0, correct.
+        assert!((pairs[0].0 - 1.0).abs() < 1e-12, "pool share: {:?}", pairs[0]);
+        assert!(pairs[0].1);
+        // c: unseen key → fallback; pick = global modal pos; share =
+        // global count(pos)=2 over census n=3 → 2/3, correct.
+        assert!((pairs[1].0 - 2.0 / 3.0).abs() < 1e-12, "fallback share: {:?}", pairs[1]);
+        assert!(pairs[1].1);
+        // The census row must be unchanged from the pairs-free call.
+        let f2 = census(&eval, Some(&reference)).expect("row");
+        assert_eq!(f, f2);
     }
 
     #[test]
