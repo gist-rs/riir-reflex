@@ -24,7 +24,7 @@
 //!                                       refuses loud naming the rebuild)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--paw] [--paw-local]
+//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--opendecider] [--paw] [--paw-local]
 //!                                      [--cascade] [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -157,6 +157,20 @@
 //! staleness law; the free week ends 2026-10-27 23:59 PT; T10.1: the key
 //! is an OWNER act). An unreachable/unused-cred lane is a loud absence,
 //! never a silent skip.
+//! `--opendecider` adds the OpenDecider-nano SELF-HOSTED comparison lane
+//! (rethink Issue 038 / Research 013 — the third encoder-candidate's P0
+//! admission rig): their `opendecider serve` (pip `opendecider[serve]`;
+//! Jev-compatible `/v1/systemone`) at `OPENDECIDER_SERVE_URL` (default
+//! `http://127.0.0.1:8000`); ~400M Ettin-encoder-400m + MLP decision head,
+//! Apache-2.0 with LICENSE file present (HF sha `1e1f0a73…` — the pin in
+//! 038). The handshake is ONE minimal noul probe (the clef law); the
+//! spend ceiling defaults to 50 cases (`OPENDECIDER_ALLOW_UNCAPPED=1`
+//! records the local zero-marginal-cost posture — the P0's 400-case read
+//! rides it). THE P0 GATE IS PRE-REGISTERED IN rethink Issue 038: bar
+//! 0.7825 on the frozen typed_decisions test cell, ONE adjudicating read,
+//! the wire-smoke on TRAIN rows only (never test rows), the pinned
+//! fail-classification + selection-on-test rules. An unreachable serve is
+//! a loud absence, never a silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -743,6 +757,7 @@ fn harness_main() {
             "--jeva" => opts.jeva = true,
             "--startlux" => opts.startlux = true,
             "--mammoth" => opts.mammoth = true,
+            "--opendecider" => opts.opendecider = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -1728,6 +1743,7 @@ fn harness_main() {
                 &suite.jeva,
                 &suite.startlux,
                 &suite.mammoth,
+                &suite.opendecider,
             ]
             .into_iter()
             .flatten()

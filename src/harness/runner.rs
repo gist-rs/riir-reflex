@@ -1490,6 +1490,15 @@ pub struct SuiteResult {
     /// capture artifact (the T10.2 law). Absent when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mammoth: Option<LaneResult>,
+    /// rethink Issue 038 / Research 013: the OpenDecider-nano SELF-HOSTED
+    /// comparison lane's row — the third encoder-candidate's P0 admission
+    /// rig (Apache-2.0, ~400M Ettin-encoder-400m + MLP decision head) via
+    /// their `opendecider serve` on the SAME `/v1/systemone` wire. The P0
+    /// gate is pre-registered in 038 (bar 0.7825, one frozen read; the
+    /// selection-on-test caveat lives there). Absent when the lane did not
+    /// run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub opendecider: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1643,6 +1652,8 @@ pub struct RunMeta {
     /// APIs behind the operator-run loopback TLS forwarder — the hop
     /// disclosed; MIT, MEASUREMENT-ONLY, no RIDT arm).
     pub mammoth_lane: String,
+    /// The opendecider lane's posture disclosure (rethink Issue 038).
+    pub opendecider_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6573,17 +6584,49 @@ fn run_startlux_lane(
 /// model field from `MAMMOTH_MODEL`). MEASUREMENT-ONLY: no RIDT arm — API
 /// outputs never enter a capture artifact (the T10.2 law). The spend
 /// ceiling (the clef A6 law): free week ≠ unmetered.
-fn run_mammoth_lane(
+/// The teacher-wire lane surface the shared run core consumes: the
+/// pplx-family `/v1/systemone` lanes (mammoth, opendecider) differ only in
+/// construction, labels, spend-ceiling envs, and the determinism
+/// projection — the loop machinery is ONE core (the DRY law; the
+/// 2026-10-25 extraction on the opendecider landing, rethink Issue 038
+/// T1; the mammoth path is behavior-preserving by construction — the same
+/// statements, parameterized).
+trait TeacherWireLane {
+    /// The lane label in errors, progress lines, and the record.
+    fn label(&self) -> &'static str;
+    /// The handshake: `(model_echo, device)`.
+    fn info(&self) -> Result<(String, String), String>;
+    /// One decision round: `(answer triples, client_ms, input_tokens)`.
+    fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<crate::lanes::pplx::AnswerTriple>, f64, u64), String>;
+    /// The verbatim body (the determinism rerun's compare input).
+    fn decide_raw(&self, case: &SuiteCase) -> Result<String, String>;
+    /// The determinism-compare projection (lane-family policy, static).
+    fn determinism_view(raw: &str) -> Result<String, String>;
+    /// The spend-ceiling env names + default (the clef A6 law).
+    fn spend_env(&self) -> &'static str;
+    fn uncapped_env(&self) -> &'static str;
+    fn max_cases_default(&self) -> usize;
+}
+
+/// The ONE shared loop: warmup, the trim law, the spend ceiling, the
+/// decide loop with observed-repeat determinism (first 10 cases; the
+/// reruns TRIPLE those cases' spend — disclosed), and the
+/// [`assemble_laya_lane_result`] assembly. The per-lane surface is
+/// [`TeacherWireLane`].
+fn run_teacher_wire_lane<L: TeacherWireLane>(
+    lane: L,
     suite: &Suite,
     laya_max_questions: usize,
     leak_flags: Option<&[bool]>,
 ) -> Result<LaneResult, String> {
-    use crate::lanes::mammoth::MammothLane;
+    let lane_name = lane.label();
 
     let t_start = Instant::now();
-    let lane = MammothLane::from_env()?;
     let (model, device) = lane.info()?;
-    eprintln!("    [mammoth] service up: {model} on {device}");
+    eprintln!("    [{lane_name}] service up: {model} on {device}");
 
     // WARMUP (the clm lane's cold-start law, the clef shape): one FIXED
     // throwaway request absorbs the hosted route's cold path (a free-week
@@ -6623,22 +6666,24 @@ fn run_mammoth_lane(
         cases = &suite.cases[..cut];
     }
 
-    // The spend ceiling (the clef A6 law): free week ≠ unmetered; a run
-    // above the default smoke cap REFUSES unless explicitly overridden.
-    let max_cases = std::env::var(crate::lanes::mammoth::MAX_CASES_ENV)
+    // The spend ceiling (the clef A6 law): a run above the default smoke
+    // cap REFUSES unless explicitly overridden (the hosted lanes' spend
+    // law; a local zero-marginal-cost serve records the uncapped posture
+    // explicitly instead).
+    let max_cases = std::env::var(lane.spend_env())
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
-        .unwrap_or(crate::lanes::mammoth::DEFAULT_MAX_CASES);
-    let uncapped = std::env::var(crate::lanes::mammoth::UNCAPPED_ENV).is_ok_and(|v| v == "1");
+        .unwrap_or_else(|| lane.max_cases_default());
+    let uncapped = std::env::var(lane.uncapped_env()).is_ok_and(|v| v == "1");
     if cases.len() > max_cases && !uncapped {
         return Err(format!(
             "refusing: {} cases exceeds the {CAP} spend ceiling (active cap {}, default \
-             {}) — free week is not unmetered; raise {CAP} or set {UNC}=1 to run uncapped",
+             {}) — raise {CAP} or set {UNC}=1 to run uncapped",
             cases.len(),
             max_cases,
-            crate::lanes::mammoth::DEFAULT_MAX_CASES,
-            CAP = crate::lanes::mammoth::MAX_CASES_ENV,
-            UNC = crate::lanes::mammoth::UNCAPPED_ENV,
+            lane.max_cases_default(),
+            CAP = lane.spend_env(),
+            UNC = lane.uncapped_env(),
         ));
     }
 
@@ -6654,7 +6699,7 @@ fn run_mammoth_lane(
         let t0 = Instant::now();
         let (answers, _client_ms, tokens) = lane
             .decide(case)
-            .map_err(|e| format!("mammoth lane (case {ci}): {e}"))?;
+            .map_err(|e| format!("{lane_name} lane (case {ci}): {e}"))?;
         durs_ms.push(t0.elapsed().as_millis() as u64);
         input_tokens += tokens;
 
@@ -6666,19 +6711,19 @@ fn run_mammoth_lane(
             determinism_n += 1;
             let raw1 = lane
                 .decide_raw(case)
-                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+                .map_err(|e| format!("{lane_name} determinism rerun: {e}"))?;
             let raw2 = lane
                 .decide_raw(case)
-                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
-            // The compare projects the envelope minus the serve-meta block:
-            // a qev-backed serve stamps wall-clock timing inside the body
-            // (varies per call BY DESIGN — the answers are the content;
-            // measured 2026-10-24, sst5). The pplx bodies carry no clock —
-            // their lane compares verbatim (the recorded divergence).
-            let view1 = crate::lanes::mammoth::MammothLane::determinism_view(&raw1)
-                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
-            let view2 = crate::lanes::mammoth::MammothLane::determinism_view(&raw2)
-                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+                .map_err(|e| format!("{lane_name} determinism rerun: {e}"))?;
+            // The compare projects through the lane's own view: the mammoth
+            // family strips the qev serve-meta clock (measured 2026-10-24,
+            // sst5 — answers byte-identical, the timing varies per call BY
+            // DESIGN); the pplx/opendecider bodies carry no clock — verbatim
+            // (the recorded divergence).
+            let view1 = L::determinism_view(&raw1)
+                .map_err(|e| format!("{lane_name} determinism rerun: {e}"))?;
+            let view2 = L::determinism_view(&raw2)
+                .map_err(|e| format!("{lane_name} determinism rerun: {e}"))?;
             if view1 != view2 {
                 *determinism_ok.get_or_insert(true) = false;
             }
@@ -6696,10 +6741,10 @@ fn run_mammoth_lane(
         picks.push(cpicks);
         confs.push(cconfs);
     }
-    eprintln!("    [mammoth] input tokens summed: {input_tokens}");
+    eprintln!("    [{lane_name}] input tokens summed: {input_tokens}");
 
     Ok(assemble_laya_lane_result(
-        "mammoth",
+        lane_name,
         &model,
         suite.name,
         cases,
@@ -6712,6 +6757,93 @@ fn run_mammoth_lane(
         Some(determinism_n),
         t_start.elapsed().as_secs_f64(),
     ))
+}
+
+impl TeacherWireLane for crate::lanes::mammoth::MammothLane {
+    fn label(&self) -> &'static str {
+        "mammoth"
+    }
+    fn info(&self) -> Result<(String, String), String> {
+        self.info()
+    }
+    fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<crate::lanes::pplx::AnswerTriple>, f64, u64), String> {
+        self.decide(case)
+    }
+    fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
+        self.decide_raw(case)
+    }
+    fn determinism_view(raw: &str) -> Result<String, String> {
+        // The inherent associated fn (the qev serve-meta clock strip — the
+        // full path keeps this unambiguous against the trait method).
+        crate::lanes::mammoth::MammothLane::determinism_view(raw)
+    }
+    fn spend_env(&self) -> &'static str {
+        crate::lanes::mammoth::MAX_CASES_ENV
+    }
+    fn uncapped_env(&self) -> &'static str {
+        crate::lanes::mammoth::UNCAPPED_ENV
+    }
+    fn max_cases_default(&self) -> usize {
+        crate::lanes::mammoth::DEFAULT_MAX_CASES
+    }
+}
+
+/// The mammoth lane's thin construction + delegation (the shared core is
+/// [`run_teacher_wire_lane`]).
+fn run_mammoth_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    let lane = crate::lanes::mammoth::MammothLane::from_env()?;
+    run_teacher_wire_lane(lane, suite, laya_max_questions, leak_flags)
+}
+
+impl TeacherWireLane for crate::lanes::opendecider::OpenDeciderLane {
+    fn label(&self) -> &'static str {
+        "opendecider"
+    }
+    fn info(&self) -> Result<(String, String), String> {
+        self.info()
+    }
+    fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<crate::lanes::pplx::AnswerTriple>, f64, u64), String> {
+        self.decide(case)
+    }
+    fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
+        self.decide_raw(case)
+    }
+    fn determinism_view(raw: &str) -> Result<String, String> {
+        // Verbatim passthrough (their server is not the qev stack; the
+        // 038-T1 smoke verifies before any measured read — the mammoth
+        // precedent applies if a clock key ever shows up).
+        crate::lanes::opendecider::OpenDeciderLane::determinism_view(raw)
+    }
+    fn spend_env(&self) -> &'static str {
+        crate::lanes::opendecider::MAX_CASES_ENV
+    }
+    fn uncapped_env(&self) -> &'static str {
+        crate::lanes::opendecider::UNCAPPED_ENV
+    }
+    fn max_cases_default(&self) -> usize {
+        crate::lanes::opendecider::DEFAULT_MAX_CASES
+    }
+}
+
+/// The opendecider lane's thin construction + delegation (rethink Issue
+/// 038 T1; the P0 admission rig — the gate lives in 038, pre-registered).
+fn run_opendecider_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    let lane = crate::lanes::opendecider::OpenDeciderLane::from_env()?;
+    run_teacher_wire_lane(lane, suite, laya_max_questions, leak_flags)
 }
 /// `pplx-decider-v1.1-27b` (the JDI 2026-10-07 #1; Apache-2.0, UNGATED —
 /// teacher-eligible, the read decides riir-train 623's pick) served
@@ -8140,6 +8272,17 @@ pub struct RunOptions {
     /// unreachable/unused-cred lane is a LOUD error, never a silent skip.
     /// Default off.
     pub mammoth: bool,
+    /// Also run the OpenDecider-nano self-hosted comparison lane (rethink
+    /// Issue 038 / Research 013 — the third encoder-candidate's P0
+    /// admission rig): their `opendecider serve` (pip
+    /// `opendecider[serve]`, Jev-compatible `/v1/systemone`) at
+    /// `OPENDECIDER_SERVE_URL` (default `http://127.0.0.1:8000`), 0.8 GB
+    /// weights, CPU-runnable. The handshake is ONE minimal noul probe; the
+    /// spend ceiling defaults to 50 cases (`OPENDECIDER_ALLOW_UNCAPPED=1`
+    /// records the local zero-marginal-cost posture — the P0's 400-case
+    /// read rides it). The wire-smoke runs on TRAIN rows only (the 038
+    /// gate). Default off.
+    pub opendecider: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -8374,6 +8517,7 @@ impl RunOptions {
             jeva: false,
             startlux: false,
             mammoth: false,
+            opendecider: false,
             paw: false,
             paw_local: false,
             clef_local: false,
@@ -9148,6 +9292,34 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // opendecider self-hosted comparison lane (rethink Issue 038 /
+        // Research 013): OpenDecider-nano via their `opendecider serve`,
+        // the same cases, the same metrics tail. The P0 gate (bar, one
+        // frozen read, fail classification) is pre-registered in 038 — this
+        // block is the rig that produces the read.
+        let opendecider_result = if opts.opendecider {
+            eprintln!("    opendecider: running…");
+            match run_opendecider_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref)
+            {
+                Ok(r) => {
+                    eprintln!(
+                        "    opendecider: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (opendecider): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -9319,6 +9491,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             jeva: jeva_result,
             startlux: startlux_result,
             mammoth: mammoth_result,
+            opendecider: opendecider_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -9833,6 +10006,40 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              TLS forwarder to inference.baseten.co on MAMMOTH_SERVE_URL, default \
              http://127.0.0.1:8793, with MAMMOTH_API_TOKEN set — rethink Issue 032 \
              T10; T10.1: the key is an OWNER act; window ends 2026-10-27 23:59 PT)"
+                .to_string()
+        },
+        opendecider_lane: if opts.opendecider {
+            let url = std::env::var(crate::lanes::opendecider::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::opendecider::DEFAULT_SERVE_URL.into());
+            let posture = crate::lanes::opendecider::OpenDeciderLane::from_env()
+                .and_then(|l| l.info())
+                .map_or_else(
+                    |e| format!("(handshake unreadable: {e})"),
+                    |(m, d)| format!("{m} on {d}"),
+                );
+            format!(
+                "on — the OpenDecider-nano self-hosted lane (rethink Issue 038 / \
+                 Research 013; ~400M Ettin-encoder-400m + MLP decision head, \
+                 Apache-2.0 with LICENSE file present — the third \
+                 encoder-candidate; not affiliated) via their `opendecider serve` \
+                 at {url} ({posture}): same cases, the pplx-family /v1/systemone \
+                 wire (the wire functions REUSED from the pplx lane), gold-label \
+                 scoring; the handshake is ONE minimal noul probe (the clef law); \
+                 determinism = verbatim observed-repeat (their server is not the \
+                 qev stack — no clock key is known; a disclosed one lands as a \
+                 projection BEFORE any measured read); spend ceiling \
+                 OPENDECIDER_SMOKE_MAX_CASES default 50 (OPENDECIDER_ALLOW_UNCAPPED=1 \
+                 records the local zero-marginal-cost posture — the P0's 400-case \
+                 read rides it); THE P0 GATE IS PRE-REGISTERED IN rethink Issue 038 \
+                 (bar 0.7825, one frozen read, the wire-smoke on TRAIN rows only, \
+                 the selection-on-test caveat lives there); an adoption/seat move \
+                 is a separate owner-gated posture (ESC re-arm, Research 002)"
+            )
+        } else {
+            "off (pass --opendecider to add the self-hosted comparison lane; \
+             pip install \"opendecider[serve]\" then `opendecider serve --model \
+             manjunathshiva/opendecider-nano` on OPENDECIDER_SERVE_URL, default \
+             http://127.0.0.1:8000 — rethink Issue 038 / Research 013)"
                 .to_string()
         },
         paw_lane: if opts.paw {

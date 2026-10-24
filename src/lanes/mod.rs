@@ -94,3 +94,12 @@ pub mod mammoth;
 // lane IS the self-hosted capture path (no third party, local compute).
 // Ungated: the same import law.
 pub mod elephant;
+// rethink Issue 038 T1 / Research 013: the OpenDecider-nano SELF-HOSTED
+// lane — the third encoder-candidate's P0 admission rig (~400M,
+// Ettin-encoder-400m + MLP decision head, Apache-2.0 with LICENSE file
+// present) served by THEIR production server (`opendecider serve`) which
+// speaks Jev's `/v1/systemone` natively — the SAME pplx-family wire. The
+// P0 gate, postures and fail-classification are pre-registered in 038
+// (bar 0.7825, one frozen read, train-row wire-smoke only). Ungated: the
+// same import law.
+pub mod opendecider;
