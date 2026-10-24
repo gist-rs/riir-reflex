@@ -301,6 +301,22 @@ pub(crate) enum TeacherForward {
         lane: crate::lanes::startlux::StartluxLane,
         provenance: String,
     },
+    /// The elephant-1 SELF-HOSTED service (riir-train Issue 640 T2(a)/T3,
+    /// the capture-capable twin of the hosted mammoth lane, feeding
+    /// rethink 032 T10.2's local row): OUR reference stdlib server
+    /// (`scripts/elephant_server.py`) over THEIR runtime (OneJev qev
+    /// @81ce62f + serve.patch — the checkpoint's block-bidirectional +
+    /// slot_lm serve shape). Weights MIT (640 T0 — PERMISSIVE, the first
+    /// board-top entrant with no license asterisk), runtime Apache-2.0:
+    /// self-hosted local compute, no third party, so the teacher lineage
+    /// stays purely self-hosted AND the capture arm is lawful here (the
+    /// mammoth contrast). Same keyed-probs tail as clef/pplx/d3/jeva/
+    /// startlux (the pplx parser verbatim — qev is the dialect's origin;
+    /// probabilities keyed by option label, rounded 6 decimals).
+    Elephant {
+        lane: crate::lanes::elephant::ElephantLane,
+        provenance: String,
+    },
 }
 
 impl TeacherForward {
@@ -316,6 +332,7 @@ impl TeacherForward {
             Self::D3 { .. } => "d3",
             Self::Jeva { .. } => "jeva",
             Self::Startlux { .. } => "startlux",
+            Self::Elephant { .. } => "elephant",
         }
     }
 
@@ -330,6 +347,7 @@ impl TeacherForward {
             Self::Clef { provenance, .. } | Self::Pplx { provenance, .. } => provenance,
             Self::D3 { provenance, .. } | Self::Jeva { provenance, .. } => provenance,
             Self::Startlux { provenance, .. } => provenance,
+            Self::Elephant { provenance, .. } => provenance,
         }
     }
 
@@ -349,6 +367,7 @@ impl TeacherForward {
                       riir-train 632 T0; adoption fail-closed",
             ),
             Self::Startlux { .. } => Some(crate::lanes::startlux::LICENSE_LINE),
+            Self::Elephant { .. } => Some(crate::lanes::elephant::LICENSE_LINE),
             _ => None,
         }
     }
@@ -423,6 +442,14 @@ impl TeacherForward {
                 .decide(case)
                 .map(|_| ())
                 .map_err(|e| format!("startlux warmup: {e}")),
+            // The elephant law: health + the attention-posture provenance
+            // ran at construct; warmup is the loud proof + the cold-path
+            // absorb (their engine's first prefix fork page-ins the KV
+            // scratch on mps).
+            Self::Elephant { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("elephant warmup: {e}")),
         }
     }
 
@@ -528,6 +555,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("startlux forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &answers, "startlux")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Elephant { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("elephant forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "elephant")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -706,6 +741,17 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::Startlux { lane, provenance })
         }
+        "elephant" => {
+            // The pplx law verbatim, plus the lane's POSTURE disclosure:
+            // health at construct, provenance off /health — the resolved
+            // attention posture rides it (attention=noncausal is the
+            // checkpoint's trained shape; a causal serve reads as the
+            // wrong model, the 635 −26 pts class — the provenance makes
+            // the drift visible in every record).
+            let lane = crate::lanes::elephant::ElephantLane::default();
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Elephant { lane, provenance })
+        }
         "laya" => {
             #[cfg(feature = "laya-riir")]
             {
@@ -738,7 +784,7 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
         }
         other => Err(format!(
             "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
-             'bekko', 'clef', 'pplx', 'd3', 'jeva' and 'startlux')"
+             'bekko', 'clef', 'pplx', 'd3', 'jeva', 'startlux' and 'elephant')"
         )),
     }
 }

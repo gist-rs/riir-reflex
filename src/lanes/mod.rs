@@ -84,3 +84,13 @@ pub mod startlux;
 // enter a capture artifact (the T10.2 law; teacher lineage stays
 // self-hosted, riir-train 640). Ungated: the same import law.
 pub mod mammoth;
+// riir-train Issue 640 T2(a)/T3 (feeding rethink 032 T10.2's local row):
+// the elephant-1 SELF-HOSTED lane — the mammoth hosted lane's capture-
+// capable twin. Base Labs' elephant-1 (9B, JDI 0.4.1 board #4, MIT —
+// PERMISSIVE, 640 T0) served by OUR reference stdlib server
+// `scripts/elephant_server.py` over THEIR runtime (OneJev qev @81ce62f +
+// serve.patch — the checkpoint's block-bidirectional + slot_lm shape) on
+// the M3/4090. Same `/v1/systemone` wire (pplx functions REUSED); this
+// lane IS the self-hosted capture path (no third party, local compute).
+// Ungated: the same import law.
+pub mod elephant;

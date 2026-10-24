@@ -619,7 +619,7 @@ fn harness_main() {
                 distill_teacher = args
                     .get(i)
                     .cloned()
-                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx | d3 | jeva | startlux)"));
+                    .unwrap_or_else(|| die("--distill-teacher needs a name (laya | openthai | bekko | clef | pplx | d3 | jeva | startlux | elephant)"));
             }
             "--distill-out" => {
                 i += 1;
