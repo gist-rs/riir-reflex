@@ -277,6 +277,29 @@ impl MammothLane {
         Ok(String::from_utf8_lossy(&raw).into_owned())
     }
 
+    /// The determinism-compare projection of one raw body: the decision
+    /// content (`model` + `answers` + `usage`) with the serve-meta block
+    /// REMOVED. A qev-backed serve (the local MPS rig AND the hosted
+    /// Baseten route — same stack) stamps wall-clock timing inside the
+    /// envelope's `qev` key, which varies per call BY DESIGN; the pplx
+    /// bodies carry no clock (their lane compares verbatim — the recorded
+    /// divergence, the pplx test `decide_raw_is_verbatim_no_clock_to_strip`).
+    /// Comparing the raw envelope would read that clock as answer
+    /// instability on every suite (measured 2026-10-24, sst5: the answers
+    /// byte-identical across repeated probes, `determinism_ok` false on
+    /// the timing artifact alone). The projection stays in memory —
+    /// nothing persisted (the MEASUREMENT-ONLY law).
+    pub fn determinism_view(raw: &str) -> Result<String, String> {
+        let parsed: Value = serde_json::from_str(raw)
+            .map_err(|e| format!("determinism view parse: {e}"))?;
+        let mut obj = match parsed {
+            Value::Object(m) => m,
+            _ => return Err("determinism view: body is not a JSON object".into()),
+        };
+        obj.shift_remove("qev");
+        Ok(Value::Object(obj).to_string())
+    }
+
     fn post(&self, body: &str) -> Result<http_mini::HttpReply, String> {
         let bearer = self.token.as_deref().map(|t| format!("Bearer {t}"));
         let headers: &[(&str, &str)] = match &bearer {
@@ -586,5 +609,30 @@ mod tests {
         let lane = MammothLane::for_test(addr, Some("k-test"), DEFAULT_MODEL);
         let c = case(json!("s"), vec![("probe", QKind::Noul, "q?", Value::Null)]);
         assert_eq!(lane.decide_raw(&c).unwrap(), raw);
+    }
+
+    #[test]
+    fn determinism_view_drops_the_serve_meta_and_keeps_the_content() {
+        let raw = r#"{"model":"mammoth-1","answers":{"q1":{"type":"choice",
+            "choice":"a","probabilities":{"a":0.6,"b":0.4},"confidence":0.2}},
+            "usage":{"input_tokens":42,"output_tokens":1},
+            "qev":{"prompt_version":"qev-labels-v2","timing":{"forward_s":1.234,
+            "total_s":1.300}}}"#;
+        let v1 = MammothLane::determinism_view(raw).unwrap();
+        let v2 = MammothLane::determinism_view(raw).unwrap();
+        assert_eq!(v1, v2, "the projection is a pure function");
+        assert!(!v1.contains("timing"), "the serve-meta block is gone");
+        assert!(v1.contains("\"answers\""), "the answers stay");
+        assert!(v1.contains("\"usage\""), "the usage stays");
+        // A body WITHOUT the meta block round-trips through the same
+        // projection unchanged (the hosted-posture shape if their prod
+        // strips it).
+        let bare = r#"{"model":"mammoth-1","answers":{}}"#;
+        let vb = MammothLane::determinism_view(bare).unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&vb).unwrap();
+        assert_eq!(parsed["model"], "mammoth-1");
+        // Non-object bodies refuse loud (never a silent pass).
+        assert!(MammothLane::determinism_view("[1,2]").is_err());
+        assert!(MammothLane::determinism_view("not json").is_err());
     }
 }

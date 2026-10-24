@@ -6670,7 +6670,16 @@ fn run_mammoth_lane(
             let raw2 = lane
                 .decide_raw(case)
                 .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
-            if raw1 != raw2 {
+            // The compare projects the envelope minus the serve-meta block:
+            // a qev-backed serve stamps wall-clock timing inside the body
+            // (varies per call BY DESIGN — the answers are the content;
+            // measured 2026-10-24, sst5). The pplx bodies carry no clock —
+            // their lane compares verbatim (the recorded divergence).
+            let view1 = crate::lanes::mammoth::MammothLane::determinism_view(&raw1)
+                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+            let view2 = crate::lanes::mammoth::MammothLane::determinism_view(&raw2)
+                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+            if view1 != view2 {
                 *determinism_ok.get_or_insert(true) = false;
             }
         }
@@ -9806,10 +9815,14 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                  wire functions REUSED from the pplx lane), gold-label scoring; \
                  the handshake is ONE minimal noul probe (the clef law — no \
                  GET /health is assumed on the hosted route); the forwarder hop is \
+                 the forwarder hop is \
                  PART of the row's latency claim (a hosted row is never pooled with \
                  on-card figures — the clef A0 disclosure); spend ceiling \
                  MAMMOTH_SMOKE_MAX_CASES default 50 (free week ≠ unmetered; the \
-                 determinism reruns TRIPLE the first 10 cases' spend, disclosed); \
+                 determinism reruns TRIPLE the first 10 cases' spend, disclosed; \
+                 the compare projects the envelope minus the serve-meta block — \
+                 a qev-backed serve stamps wall-clock timing inside the body, \
+                 varying per call BY DESIGN; the answers are the content); \
                  MEASUREMENT-ONLY: no RIDT arm — API outputs never enter a capture \
                  artifact (the T10.2 law; teacher lineage stays self-hosted, \
                  riir-train 640); RE-FETCH the Baseten ToS + Model-APIs policy \
