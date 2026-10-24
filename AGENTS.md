@@ -170,6 +170,19 @@ cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typ
 # construction). The student-vs-teacher caveat stands (0.6b student of
 # clef-flash); comparison lanes never read as product rows.
 
+# Clef headful confidence-candidate probe (Issue 094 T3, Bench 158: the
+# candidate RECORDED NEGATIVE — fails both floors on 8/9, the banking77
+# letter-PASS disqualified by its inverted AUROC 0.365; lens depth DEFERRED
+# on the ANE posture — one output, a CPU forward port is the unblock).
+# Report-only, macOS + feature `clef-ane`: the local lane's last-position
+# vocabulary entropy (riir-infer `0f876b8`, same-decode — no second ANE
+# forward) against BOTH floors (the Drex split-half conformal shape + the
+# modal census priced both ways via `census_with_pairs`). Case-level signal
+# (one entropy per case); load-invariant accuracy columns, ms =
+# characterization only (quote the preflight line beside any latency).
+cargo run --release --features clef-ane --bin harness -- --clef-conf-probe \
+  --clef-conf-max-cases 100 --out .benchmarks/<N>_clef_conf_probe
+
 # Null/K-stability probe (Issue 090 A1–A3, Bench 147): decoy augmentation
 # (graded K-appended decoys, originals keep positions) through the deployed
 # decide path; A2 = within-regime preference flips (zero beyond exact ties;
