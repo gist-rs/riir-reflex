@@ -12,7 +12,14 @@
 //! 1. load each source capture's RIDT column;
 //! 2. verify the CROSS-CAPTURE JOIN by the per-row gold pins (every row's
 //!    gold must agree across captures — same datasets dir, same survivor
-//!    predicate, same order) and the classes array (exact equality);
+//!    predicate, same order) and the classes array (exact equality under
+//!    the bins' own `classes_spelling` maps — the 623 StudentUniverse
+//!    canonicalization, Bench 160 finding (a): post-fix bins spell classes
+//!    in the student universe, pre-fix bins in the corpus spelling; both
+//!    sides are brought to the CANONICAL sorted-corpus space — names
+//!    inverted through the map, gold/pick/q permuted when the source
+//!    carried the student order), and that shared space is what every
+//!    routed artifact emits;
 //! 3. recompute each column's train-row accuracy from the bins (never
 //!    trust the manifest's number for a gate input);
 //! 4. gate `g = sigmoid((acc_a − acc_b) / T)` with `T = 0.01` (a fixed,
@@ -223,6 +230,119 @@ fn load_source(
     Ok((src, col))
 }
 
+/// The 623 StudentUniverse canonicalizer (Bench 160 finding (a)): a post-fix
+/// capture carries `classes_spelling: {law, map: corpus→student}` with
+/// STUDENT-spelled `classes`; a pre-fix capture carries corpus-spelled
+/// `classes` with the field absent (or the identity string). Returns the
+/// CANONICAL (corpus) spelling: the map is inverted, never the data — the
+/// row indices are shared across the eras, only the names differ. A
+/// malformed map (non-injective, or missing a class) is a loud refusal, a
+/// suite skip — never a silent pass.
+fn canonical_classes(header: &serde_json::Value, label: &str) -> Result<Vec<String>, String> {
+    let classes: Vec<String> = header
+        .get("classes")
+        .and_then(|v| v.as_array())
+        .ok_or_else(|| format!("{label}: header has no classes array"))?
+        .iter()
+        .map(|v| {
+            v.as_str()
+                .map(str::to_string)
+                .ok_or_else(|| format!("{label}: non-string class entry"))
+        })
+        .collect::<Result<_, _>>()?;
+    match header.get("classes_spelling") {
+        None | Some(serde_json::Value::String(_)) => Ok(classes),
+        Some(serde_json::Value::Object(obj)) => {
+            let map = obj
+                .get("map")
+                .and_then(|v| v.as_object())
+                .ok_or_else(|| format!("{label}: classes_spelling object without a map"))?;
+            // Invert corpus→student into student→corpus; injectivity is the
+            // law (the bench-160 gold-verified maps are bijective).
+            let mut inv: BTreeMap<&str, &str> = BTreeMap::new();
+            for (corpus, student) in map {
+                let s = student.as_str().ok_or_else(|| {
+                    format!("{label}: non-string classes_spelling value for {corpus}")
+                })?;
+                if inv.insert(s, corpus.as_str()).is_some() {
+                    return Err(format!(
+                        "{label}: classes_spelling map not injective (duplicate student spelling {s})"
+                    ));
+                }
+            }
+            classes
+                .iter()
+                .map(|c| {
+                    inv.get(c.as_str()).copied().map(str::to_string).ok_or_else(|| {
+                        format!(
+                            "{label}: class {c} missing from the classes_spelling map — refusing the join"
+                        )
+                    })
+                })
+                .collect()
+        }
+        Some(_) => Err(format!("{label}: classes_spelling of unsupported shape")),
+    }
+}
+
+/// Bring a loaded column into the CANONICAL index space: canonical class
+/// names (the inverted `classes_spelling` map where present) in SORTED
+/// order — the distill corpus law (`classes.sort()`), which is exactly the
+/// native space of every pre-623 capture. When the source order differs
+/// (the StudentUniverse permutation), gold/pick/q are permuted into the
+/// canonical space; a source already in canonical order passes through
+/// bit-identical. Returns (canonical names, canonical-space column).
+fn canonicalize_column(
+    col: super::distill::TeacherColumn,
+    label: &str,
+) -> Result<(Vec<String>, super::distill::TeacherColumn), String> {
+    let canon = canonical_classes(&col.header, label)?;
+    let mut sorted: Vec<String> = canon.clone();
+    sorted.sort();
+    if sorted == canon {
+        return Ok((canon, col));
+    }
+    // src_of[i] = the source index carrying canonical class i;
+    // canon_of[s] = the canonical index of source class s.
+    let src_of: Vec<usize> = sorted
+        .iter()
+        .map(|name| {
+            canon
+                .iter()
+                .position(|c| c == name)
+                .ok_or_else(|| format!("{label}: canonical class {name} vanished during ordering"))
+        })
+        .collect::<Result<_, _>>()?;
+    let mut canon_of = vec![0usize; canon.len()];
+    for (ci, &si) in src_of.iter().enumerate() {
+        canon_of[si] = ci;
+    }
+    let q = col
+        .q
+        .iter()
+        .map(|row| src_of.iter().map(|&s| row[s]).collect::<Vec<f32>>())
+        .collect();
+    let gold = col
+        .gold
+        .iter()
+        .map(|&g| canon_of[g as usize] as u32)
+        .collect();
+    let pick = col
+        .pick
+        .iter()
+        .map(|&p| canon_of[p as usize] as u32)
+        .collect();
+    Ok((
+        sorted,
+        super::distill::TeacherColumn {
+            header: col.header,
+            gold,
+            pick,
+            q,
+        },
+    ))
+}
+
 /// Route over the given capture dirs (>= 2 for any routing to happen; a
 /// single dir is a legal passthrough-only invocation, refused by the CLI).
 pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<RouterReport, String> {
@@ -298,20 +418,31 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
         let (src_a, col_a) = load_source(&input_dirs[*i_a], suite, path_a, seal_a.clone())?;
         let (src_b, col_b) = load_source(&input_dirs[*i_b], suite, path_b, seal_b.clone())?;
 
-        // JOIN VERIFICATION — classes equality + per-row gold pins.
-        let classes_a = col_a
-            .header
-            .get("classes")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null);
-        let classes_b = col_b
-            .header
-            .get("classes")
-            .cloned()
-            .unwrap_or(serde_json::Value::Null);
+        // JOIN VERIFICATION — both columns brought to the canonical (sorted
+        // corpus) index space under each bin's own `classes_spelling` map
+        // (the 623 canonicalization: names inverted, gold/pick/q permuted;
+        // a source already canonical passes through untouched) + per-row
+        // gold pins in that shared space.
+        let (classes_a, col_a) =
+            match canonicalize_column(col_a, &format!("{suite} @ {}", path_a.display())) {
+                Ok(x) => x,
+                Err(e) => {
+                    skipped.push(format!("{suite}: {e}"));
+                    continue;
+                }
+            };
+        let (classes_b, col_b) =
+            match canonicalize_column(col_b, &format!("{suite} @ {}", path_b.display())) {
+                Ok(x) => x,
+                Err(e) => {
+                    skipped.push(format!("{suite}: {e}"));
+                    continue;
+                }
+            };
         if classes_a != classes_b {
             skipped.push(format!(
-                "{suite}: classes universes differ across captures — refusing the join"
+                "{suite}: classes universes differ across captures (canonical spelling) — \
+                 refusing the join"
             ));
             continue;
         }
@@ -375,6 +506,14 @@ pub fn run_teacher_router(input_dirs: &[PathBuf], out_dir: &Path) -> Result<Rout
                 "temperature": ROUTER_TEMPERATURE,
                 "law": "g = sigmoid((acc_a - acc_b) / T) per suite; q_route = g*q_a + (1-g)*q_b; \
                         sigmoid, never softmax",
+                "classes_canonical": "the emitted `classes` are the CANONICAL sorted corpus \
+                                     spelling (the 623 StudentUniverse maps applied at join \
+                                     time; gold/pick/q permuted into that space when the \
+                                     source carried the student order)",
+                "classes_spelling_sources": {
+                    "a": col_a.header.get("classes_spelling").cloned().unwrap_or(serde_json::Value::Null),
+                    "b": col_b.header.get("classes_spelling").cloned().unwrap_or(serde_json::Value::Null),
+                },
                 "routed_accuracy_cv": routed_accuracy_cv,
                 "cv_law": "leave-one-row-out (the 640-T4 gate): each row scored under a gate \
                            that never saw it; the artifact keeps the full-data gate",
@@ -501,6 +640,210 @@ mod tests {
             w.push_row(*g, argmax_lowest_pos(q) as u32, q);
         }
         w.into_bytes()
+    }
+
+    /// Writes a raw bin under `<dir>/<suite>_teacher.bin` (run_teacher_router
+    /// discovers by filename, so the fixture must hit the disk).
+    fn write_bin(dir: &Path, suite: &str, bytes: &[u8]) {
+        std::fs::create_dir_all(dir).expect("mkdir");
+        std::fs::write(dir.join(format!("{suite}_teacher.bin")), bytes).expect("write bin");
+    }
+
+    fn spelling_header(classes: &[&str], map: Option<serde_json::Value>) -> serde_json::Value {
+        let mut h = serde_json::json!({
+            "suite": "emo",
+            "teacher": "t",
+            "checkpoint": "t@test",
+            "classes": classes,
+            "n_rows": 2,
+        });
+        if let Some(m) = map {
+            h["classes_spelling"] = serde_json::json!({ "law": "test", "map": m });
+        }
+        h
+    }
+
+    fn write_headered_bin(
+        dir: &Path,
+        suite: &str,
+        header: serde_json::Value,
+        gold: &[u32],
+        q_rows: &[Vec<f32>],
+    ) {
+        let mut w = TeacherBinWriter::new(&header).expect("writer");
+        for (g, q) in gold.iter().zip(q_rows.iter()) {
+            w.push_row(*g, argmax_lowest_pos(q) as u32, q);
+        }
+        write_bin(dir, suite, &w.into_bytes());
+    }
+
+    #[test]
+    fn classes_spelling_remap_joins_and_emits_canonical() {
+        let root =
+            std::env::temp_dir().join(format!("reflex_router_spell_ok_{}", std::process::id()));
+        let dir_a = root.join("a");
+        let dir_b = root.join("b");
+        let out = root.join("out");
+        // Corpus-spelled pre-623 column: no classes_spelling field (corpus
+        // names arrive SORTED — the distill corpus law).
+        write_headered_bin(
+            &dir_a,
+            "emo",
+            spelling_header(&["anger", "joy"], None),
+            &[0, 1],
+            &[vec![0.9, 0.1], vec![0.3, 0.7]],
+        );
+        // Student-spelled post-fix column: classes ["0","1"] + the injective map.
+        write_headered_bin(
+            &dir_b,
+            "emo",
+            spelling_header(
+                &["0", "1"],
+                Some(serde_json::json!({ "anger": "0", "joy": "1" })),
+            ),
+            &[0, 1],
+            &[vec![0.8, 0.2], vec![0.4, 0.6]],
+        );
+        let report = run_teacher_router(&[dir_a.clone(), dir_b.clone()], &out).expect("router run");
+        assert!(
+            report.skipped.is_empty(),
+            "unexpected skips: {:?}",
+            report.skipped
+        );
+        assert_eq!(report.suites.len(), 1);
+        assert!(
+            report.suites[0].gate.is_some(),
+            "remapped join must route, not refuse"
+        );
+        // The routed artifact emits the CANONICAL (corpus) spelling + the
+        // per-source provenance maps.
+        let routed = std::fs::read(out.join("emo_teacher.bin")).expect("routed bin");
+        let col = read_teacher_bin(&routed).expect("read routed");
+        assert_eq!(
+            col.header
+                .get("classes")
+                .and_then(|v| v.as_array())
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["anger", "joy"]
+        );
+        let spell = col
+            .header
+            .pointer("/router/classes_spelling_sources")
+            .expect("spelling provenance");
+        assert!(
+            spell.get("a").unwrap().is_null(),
+            "pre-623 side records null"
+        );
+        assert!(spell.get("b").unwrap().get("map").is_some());
+        assert_eq!(col.gold, vec![0, 1]);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn classes_spelling_malformed_map_refuses_loud() {
+        let root =
+            std::env::temp_dir().join(format!("reflex_router_spell_bad_{}", std::process::id()));
+        let dir_a = root.join("a");
+        let dir_b = root.join("b");
+        let out = root.join("out");
+        write_headered_bin(
+            &dir_a,
+            "emo",
+            spelling_header(&["sad", "joy"], None),
+            &[0, 1],
+            &[vec![0.9, 0.1], vec![0.3, 0.7]],
+        );
+        // The map is missing "joy" — the student class "1" has no corpus name,
+        // so the join cannot be certified; refuse the suite, never guess.
+        write_headered_bin(
+            &dir_b,
+            "emo",
+            spelling_header(&["0", "1"], Some(serde_json::json!({ "sad": "0" }))),
+            &[0, 1],
+            &[vec![0.8, 0.2], vec![0.4, 0.6]],
+        );
+        let report = run_teacher_router(&[dir_a, dir_b], &out).expect("router run");
+        assert!(
+            report.suites.is_empty(),
+            "a lying map must refuse the suite"
+        );
+        assert_eq!(report.skipped.len(), 1);
+        assert!(report.skipped[0].contains("missing from the classes_spelling map"));
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    fn classes_spelling_student_order_is_permuted_into_canonical_space() {
+        // The xnli shape: corpus (sorted) = [contradiction, entailment,
+        // neutral]; student = ["0","1","2"] with entailment=0, neutral=1,
+        // contradiction=2 — a real permutation, so the DATA must move, not
+        // just the names.
+        let root =
+            std::env::temp_dir().join(format!("reflex_router_spell_perm_{}", std::process::id()));
+        let dir_a = root.join("a");
+        let dir_b = root.join("b");
+        let out = root.join("out");
+        // Pre-623 corpus space (already canonical): row0 gold=entailment(1),
+        // row1 gold=contradiction(0).
+        write_headered_bin(
+            &dir_a,
+            "x",
+            spelling_header(&["contradiction", "entailment", "neutral"], None),
+            &[1, 0],
+            &[vec![0.1, 0.8, 0.1], vec![0.7, 0.2, 0.1]],
+        );
+        // Post-fix student space: row0 gold=0 (entailment), row1 gold=2
+        // (contradiction); q strong on the same semantic classes.
+        write_headered_bin(
+            &dir_b,
+            "x",
+            spelling_header(
+                &["0", "1", "2"],
+                Some(
+                    serde_json::json!({ "entailment": "0", "neutral": "1", "contradiction": "2" }),
+                ),
+            ),
+            &[0, 2],
+            &[vec![0.6, 0.2, 0.2], vec![0.2, 0.2, 0.6]],
+        );
+        let report = run_teacher_router(&[dir_a, dir_b], &out).expect("router run");
+        assert!(
+            report.skipped.is_empty(),
+            "unexpected skips: {:?}",
+            report.skipped
+        );
+        assert_eq!(report.suites.len(), 1);
+        let s = &report.suites[0];
+        assert!(s.gate.is_some());
+        // Both columns are perfect after permutation -> routed acc 1.0.
+        assert_eq!(s.routed_accuracy, Some(1.0));
+        let routed = std::fs::read(out.join("x_teacher.bin")).expect("routed bin");
+        let col = read_teacher_bin(&routed).expect("read routed");
+        // Emitted golds are CANONICAL-space: entailment=1, contradiction=0.
+        assert_eq!(col.gold, vec![1, 0]);
+        // Emitted classes are the sorted corpus names.
+        assert_eq!(
+            col.header
+                .get("classes")
+                .and_then(|v| v.as_array())
+                .unwrap()
+                .iter()
+                .map(|v| v.as_str().unwrap())
+                .collect::<Vec<_>>(),
+            vec!["contradiction", "entailment", "neutral"]
+        );
+        // Row 0's routed q sits in canonical space: strong at entailment(1),
+        // the 0.5-blend of a=[0.1,0.8,0.1] and perm(b)=[0.2,0.6,0.2].
+        let q0 = &col.q[0];
+        assert!((q0[1] - 0.7).abs() < 1e-6, "q0 = {q0:?}");
+        assert!(
+            (q0[0] - 0.15).abs() < 1e-6 && (q0[2] - 0.15).abs() < 1e-6,
+            "q0 = {q0:?}"
+        );
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]
