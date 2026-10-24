@@ -6629,13 +6629,13 @@ fn run_mammoth_lane(
         .ok()
         .and_then(|v| v.parse::<usize>().ok())
         .unwrap_or(crate::lanes::mammoth::DEFAULT_MAX_CASES);
-    let uncapped =
-        std::env::var(crate::lanes::mammoth::UNCAPPED_ENV).is_ok_and(|v| v == "1");
+    let uncapped = std::env::var(crate::lanes::mammoth::UNCAPPED_ENV).is_ok_and(|v| v == "1");
     if cases.len() > max_cases && !uncapped {
         return Err(format!(
-            "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — free \
-             week is not unmetered; raise {CAP} or set {UNC}=1 to run uncapped",
+            "refusing: {} cases exceeds the {CAP} spend ceiling (active cap {}, default \
+             {}) — free week is not unmetered; raise {CAP} or set {UNC}=1 to run uncapped",
             cases.len(),
+            max_cases,
             crate::lanes::mammoth::DEFAULT_MAX_CASES,
             CAP = crate::lanes::mammoth::MAX_CASES_ENV,
             UNC = crate::lanes::mammoth::UNCAPPED_ENV,
@@ -9792,7 +9792,10 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .unwrap_or_else(|| crate::lanes::mammoth::DEFAULT_MODEL.into());
             let posture = crate::lanes::mammoth::MammothLane::from_env()
                 .and_then(|l| l.info())
-                .map_or_else(|e| format!("(handshake unreadable: {e})"), |(m, d)| format!("{m} on {d}"));
+                .map_or_else(
+                    |e| format!("(handshake unreadable: {e})"),
+                    |(m, d)| format!("{m} on {d}"),
+                );
             format!(
                 "on — the hosted mammoth/elephant lane (rethink Issue 032 T10; Base \
                  Labs' mammoth-1 / elephant-1, MIT — the FIRST permissively-licensed \
