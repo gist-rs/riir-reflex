@@ -258,7 +258,7 @@ cargo run --release --features twt_profile --bin harness -- --depth-probe \
 cargo run --release --features laya-riir-metal --bin harness -- --distill \
   --datasets-dir .raw/datasets_t20k --distill-out .raw/distill_teacher
 
-# StartLux comparison lane (Issue 095, feeding riir-train 635 T3; the 4090
+# StartLux comparison lane (Issue 095 — closed, HISTORY.md 2026-10-24 — fed riir-train 635 T3; the 4090
 # boot: llama-server b11549 -ngl 99 Q4_K_M on :8081 + STARTLUX_LLAMACPP_BIDIR=server
 # startlux-decide serve --backend llamacpp --port 8090; CC BY-NC 4.0 —
 # DECLARED-NC RESTRICTED, adoption fail-closed):

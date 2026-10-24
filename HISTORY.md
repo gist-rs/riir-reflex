@@ -5,6 +5,18 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-24 — Issue 095 CLOSED: the StartLux-Decision v1.1 comparison lane — T1–T4 all landed; 4/8 incumbent suites beaten; the NC-lineage teacher corpus is sealed
+
+**Status: Resolved. Landing: reflex `3a9e8f5` (T1 lane module + T2 harness wiring — `src/lanes/startlux.rs`, `--startlux`, `--distill-teacher startlux`, 5 stub-listener tests, clippy 3 postures + lib 443 green); T3 board pass = [Bench 155](.benchmarks/155_startlux_board.md); T4 capture sealed in `.raw/startlux_teacher/MANIFEST.md` (six windows 2026-10-21T23:43Z → 2026-10-22, NC-lineage license token verified in every bin header).**
+
+The lane answered riir-train 635 T3's B5 law: measure before any teacher-capture spend. StartLux-Decision v1.1 27B Instant (public_skill 72.88 selection-on-public) over THEIR Apache-2.0 `startlux-decide` engine on the pplx/d3 `/v1/systemone` wire (one wire, many oracles), booted on the 4090 (llama-server b11549 `-ngl 99` Q4_K_M :8081 + the bidir wrapper :8090) — the construction gate checks the POSTURE, not liveness (`kind == "instant"`, `prompt_attention == "bidirectional"`, `engine.bidir_mode == "server"`; the causal/off-bidir misread is the −26 pt class).
+
+Bench 155, one frozen read, 9/9 suites, det ✓ ×9: **4/8 incumbent suites BEATEN** (typed +2.25 / sst5 +1.17 / injections +6.90 / xnli +3.67; loses: massive −2.0 / ag_news −3.25 / emotion −8.75 / banking77 −4.0) → **T5 earned on the four**. Latency not quotable (sibling build load 13.68 at run start — box-state law; accuracy unaffected). typed_decisions ECE 0.1581 = the T2b overconfidence shape, smaller at serve posture.
+
+T4 sealed the teacher corpus for the four winning families' complements: ag_news 20000 rows (acc 0.9061) / emotion 15999 (0.7712) / sst5 8533 (0.5955) / injections 546 (0.9835) / xnli 20000 (0.9073) / massive 11514 (0.9510) / banking77 9993 (0.9207, p50 986 ms — the knockout cost). **NC-lineage law binding every derived artifact:** `NC-lineage: startlux-decision-v1.1 (CC BY-NC 4.0)` — measurement posture, adoption fail-closed (635 T0). Incident disclosed: the backend died silently at ~4h11m/~217k read-outs (no trace; one reboot per multi-hour window is the disclosed envelope); emotion re-sealed in window 2; zero corruption. Stack torn down at close (VRAM 331 MiB baseline).
+
+The remaining `- [ ]` in the issue was a scope-law negation (perm/null probes + JDI adapter + hosted posture are NOT in this lane) — no work was open at close; the claim (zed-635-startlux-t3) expired 2026-10-24T00:00Z with all four tasks landed. Lease discharged, file removed under the noise-reduction rule.
+
 ## 2026-10-23 — Issue 096 CLOSED: fetch_datasets resume truncation at a deduped page — the predicate consults the page's own num_rows_total
 
 **Status: Resolved. Landing: reflex `9f686a8` (fix + two-sided self-test +
