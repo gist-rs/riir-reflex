@@ -5,6 +5,10 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-25 — Bench 161: the 635 T4 router-fold unblock — `classes_spelling` consumer + the t20k emotion/sst5 recapture — the emotion lift CONFIRMED (routed 0.7712, +14.1 pp over pplx)
+
+**Status: Record.** Instrument reflex `22fb1c2` (the router canonicalizes both columns into the sorted-corpus space: names inverted through the in-bin `classes_spelling` maps, gold/pick/q permuted when the source carried the student order; malformed maps refuse loud; 3 new tests, 468 green), recapture `.raw/startlux_teacher_t20k/` (emotion 16000 @ 0.7712 / sst5 8544 @ 0.6000, accs replicating the 10-22 column, blake3-sealed), folds ZERO refusals: **emotion routed 0.7712 (gate 1.0000, CV 0.7712) = +14.1 pp over pplx 0.6301 / +14.7 over d3 — the 160-predicted cell measured; sst5 routed 0.6018 (CV 0.6015); the (a)-only rows (xnli 0.9171, injections 0.9890) show no lift as predicted.** NC-lineage binds every routed artifact (measurement-only, adoption fail-closed); T5 consumption stays owner-gated. Record: [Bench 161](.benchmarks/161_startlux_router_fold_r2.md); riir-train 635 T4 updated same day.
+
 ## 2026-10-24 — Issue 095 CLOSED: the StartLux-Decision v1.1 comparison lane — T1–T4 all landed; 4/8 incumbent suites beaten; the NC-lineage teacher corpus is sealed
 
 **Status: Resolved. Landing: reflex `3a9e8f5` (T1 lane module + T2 harness wiring — `src/lanes/startlux.rs`, `--startlux`, `--distill-teacher startlux`, 5 stub-listener tests, clippy 3 postures + lib 443 green); T3 board pass = [Bench 155](.benchmarks/155_startlux_board.md); T4 capture sealed in `.raw/startlux_teacher/MANIFEST.md` (six windows 2026-10-21T23:43Z → 2026-10-22, NC-lineage license token verified in every bin header).**
