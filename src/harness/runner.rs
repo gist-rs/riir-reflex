@@ -1481,6 +1481,15 @@ pub struct SuiteResult {
     /// Absent (never a fabricated row) when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub startlux: Option<LaneResult>,
+    /// rethink Issue 032 T10 / Research 012: the mammoth/elephant HOSTED
+    /// comparison lane's row — Base Labs' mammoth-1 (the JDI 0.4.1 board-#1
+    /// public print 75.34, MIT) or elephant-1 (72.24) on Baseten Model APIs
+    /// behind the operator-run loopback TLS forwarder (the clef A0 law; the
+    /// hop is part of the row's latency claim), on the SAME `/v1/systemone`
+    /// wire. MEASUREMENT-ONLY: no RIDT arm — API outputs never enter a
+    /// capture artifact (the T10.2 law). Absent when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mammoth: Option<LaneResult>,
     /// Issue 033: the PAW comparison lane's row (ProgramAsWeights, not
     /// affiliated) — free-text answers under the exact-match law, refusals
     /// counted, no probability surface (`src/lanes/paw.rs`). Absent when
@@ -1629,6 +1638,11 @@ pub struct RunMeta {
     /// lossy-surface disclosure; weights CC BY-NC 4.0, the 635-T0
     /// DECLARED-NC RESTRICTED posture).
     pub startlux_lane: String,
+    /// Whether the mammoth/elephant hosted comparison lane ran (rethink
+    /// Issue 032 T10), and its serving posture when it did (Baseten Model
+    /// APIs behind the operator-run loopback TLS forwarder — the hop
+    /// disclosed; MIT, MEASUREMENT-ONLY, no RIDT arm).
+    pub mammoth_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
     /// (hosted anonymous / authenticated) when it did.
     pub paw_lane: String,
@@ -6550,7 +6564,146 @@ fn run_startlux_lane(
     ))
 }
 
-/// The pplx-decider comparison lane (Issue 082): Perplexity's
+/// The mammoth/elephant hosted comparison lane (rethink Issue 032 T10 /
+/// Research 012): Base Labs' mammoth-1 (the JDI 0.4.1 board-#1, MIT) or
+/// elephant-1 on Baseten Model APIs, reached through the operator-run
+/// loopback TLS forwarder (the clef A0 law — the hop is part of the row's
+/// latency claim and is disclosed), the SAME `/v1/systemone` wire (the
+/// wire functions REUSED from the pplx lane; the catalog id rides the
+/// model field from `MAMMOTH_MODEL`). MEASUREMENT-ONLY: no RIDT arm — API
+/// outputs never enter a capture artifact (the T10.2 law). The spend
+/// ceiling (the clef A6 law): free week ≠ unmetered.
+fn run_mammoth_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    use crate::lanes::mammoth::MammothLane;
+
+    let t_start = Instant::now();
+    let lane = MammothLane::from_env()?;
+    let (model, device) = lane.info()?;
+    eprintln!("    [mammoth] service up: {model} on {device}");
+
+    // WARMUP (the clm lane's cold-start law, the clef shape): one FIXED
+    // throwaway request absorbs the hosted route's cold path (a free-week
+    // endpoint scales on demand — the first case must not pay it).
+    {
+        let warm = SuiteCase {
+            id: "warmup".into(),
+            state: Value::String(
+                "warmup: the lane's cold-path probe (discarded; not a measured case)".into(),
+            ),
+            questions: vec![crate::harness::suites::SuiteQuestion {
+                qid: "warm".into(),
+                kind: QKind::Noul,
+                instructions: "Is this the warmup?".into(),
+                criteria: Value::Null,
+            }],
+            gold: vec![],
+        };
+        lane.decide(&warm)
+            .map_err(|e| format!("mammoth warmup: {e}"))?;
+    }
+
+    // The trim law (the gliner lane's law): the SAME question cap as the
+    // laya lanes, so a capped run never compares a full-N mammoth row
+    // against a capped laya row.
+    let mut cases: &[SuiteCase] = &suite.cases;
+    if laya_max_questions > 0 {
+        let mut n = 0usize;
+        let mut cut = suite.cases.len();
+        for (i, c) in suite.cases.iter().enumerate() {
+            n += c.questions.len();
+            if n >= laya_max_questions {
+                cut = i + 1;
+                break;
+            }
+        }
+        cases = &suite.cases[..cut];
+    }
+
+    // The spend ceiling (the clef A6 law): free week ≠ unmetered; a run
+    // above the default smoke cap REFUSES unless explicitly overridden.
+    let max_cases = std::env::var(crate::lanes::mammoth::MAX_CASES_ENV)
+        .ok()
+        .and_then(|v| v.parse::<usize>().ok())
+        .unwrap_or(crate::lanes::mammoth::DEFAULT_MAX_CASES);
+    let uncapped =
+        std::env::var(crate::lanes::mammoth::UNCAPPED_ENV).is_ok_and(|v| v == "1");
+    if cases.len() > max_cases && !uncapped {
+        return Err(format!(
+            "refusing: {} cases exceeds the {CAP} spend ceiling ({}, default) — free \
+             week is not unmetered; raise {CAP} or set {UNC}=1 to run uncapped",
+            cases.len(),
+            crate::lanes::mammoth::DEFAULT_MAX_CASES,
+            CAP = crate::lanes::mammoth::MAX_CASES_ENV,
+            UNC = crate::lanes::mammoth::UNCAPPED_ENV,
+        ));
+    }
+
+    let mut probs: Vec<Vec<Vec<f64>>> = Vec::with_capacity(cases.len());
+    let mut picks: Vec<Vec<usize>> = Vec::with_capacity(cases.len());
+    let mut confs: Vec<Vec<f64>> = Vec::with_capacity(cases.len());
+    let mut durs_ms: Vec<u64> = Vec::with_capacity(cases.len());
+    let mut determinism_ok: Option<bool> = Some(true);
+    let mut determinism_n: usize = 0;
+    let mut input_tokens: u64 = 0;
+
+    for (ci, case) in cases.iter().enumerate() {
+        let t0 = Instant::now();
+        let (answers, _client_ms, tokens) = lane
+            .decide(case)
+            .map_err(|e| format!("mammoth lane (case {ci}): {e}"))?;
+        durs_ms.push(t0.elapsed().as_millis() as u64);
+        input_tokens += tokens;
+
+        // Observed-repeat determinism check, first 10 cases (the hosted
+        // lanes' law — clef does the same): the reruns TRIPLE those cases'
+        // spend (1 measured + 2 raw), disclosed here so the ceiling read
+        // stays honest.
+        if ci < 10 {
+            determinism_n += 1;
+            let raw1 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+            let raw2 = lane
+                .decide_raw(case)
+                .map_err(|e| format!("mammoth determinism rerun: {e}"))?;
+            if raw1 != raw2 {
+                *determinism_ok.get_or_insert(true) = false;
+            }
+        }
+
+        let mut cprobs = Vec::with_capacity(answers.len());
+        let mut cpicks = Vec::with_capacity(answers.len());
+        let mut cconfs = Vec::with_capacity(answers.len());
+        for (p, pick, conf) in answers {
+            cprobs.push(p);
+            cpicks.push(pick);
+            cconfs.push(conf);
+        }
+        probs.push(cprobs);
+        picks.push(cpicks);
+        confs.push(cconfs);
+    }
+    eprintln!("    [mammoth] input tokens summed: {input_tokens}");
+
+    Ok(assemble_laya_lane_result(
+        "mammoth",
+        &model,
+        suite.name,
+        cases,
+        leak_flags.map(|f| &f[..cases.len()]),
+        probs,
+        picks,
+        confs,
+        durs_ms,
+        determinism_ok,
+        Some(determinism_n),
+        t_start.elapsed().as_secs_f64(),
+    ))
+}
 /// `pplx-decider-v1.1-27b` (the JDI 2026-10-07 #1; Apache-2.0, UNGATED —
 /// teacher-eligible, the read decides riir-train 623's pick) served
 /// through THEIR autojev server, measured over HTTP — the agentjev
@@ -7966,6 +8119,18 @@ pub struct RunOptions {
     /// unreachable server is a LOUD error, never a silent skip. Default
     /// off.
     pub startlux: bool,
+    /// Also run the mammoth/elephant hosted comparison lane (rethink Issue
+    /// 032 T10 / Research 012): Base Labs' mammoth-1 (the JDI 0.4.1
+    /// board-#1, MIT) or elephant-1 on Baseten Model APIs — reached ONLY
+    /// through the operator-run loopback TLS forwarder (the clef A0 law) at
+    /// `MAMMOTH_SERVE_URL` (default `http://127.0.0.1:8793`) with
+    /// `MAMMOTH_API_TOKEN` set (or `MAMMOTH_FORWARDER_AUTH=1`). The
+    /// handshake is ONE minimal noul probe; the spend ceiling defaults to
+    /// 50 cases (free week ≠ unmetered); MEASUREMENT-ONLY — no RIDT arm (the
+    /// T10.2 law: API outputs never enter a capture artifact). An
+    /// unreachable/unused-cred lane is a LOUD error, never a silent skip.
+    /// Default off.
+    pub mammoth: bool,
     /// Also run the PAW comparison lane (Issue 033): ProgramAsWeights
     /// compiled per specced suite, answered over their hosted REST via a
     /// `curl` subprocess (`src/lanes/paw.rs`). Default off.
@@ -8199,6 +8364,7 @@ impl RunOptions {
             d3: false,
             jeva: false,
             startlux: false,
+            mammoth: false,
             paw: false,
             paw_local: false,
             clef_local: false,
@@ -8947,6 +9113,32 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // mammoth/elephant hosted comparison lane (rethink Issue 032 T10):
+        // Base Labs' board-#1 through Baseten Model APIs behind the loopback
+        // TLS forwarder (MIT, MEASUREMENT-ONLY — no RIDT arm), same cases,
+        // the same metrics tail.
+        let mammoth_result = if opts.mammoth {
+            eprintln!("    mammoth: running…");
+            match run_mammoth_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    mammoth: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (mammoth): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
         let paw_result = if opts.paw {
@@ -9117,6 +9309,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             d3: d3_result,
             jeva: jeva_result,
             startlux: startlux_result,
+            mammoth: mammoth_result,
             paw: paw_result,
             paw_local: paw_local_result,
             leak: leak_block,
@@ -9590,6 +9783,42 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              http://127.0.0.1:8090 — reflex Issue 095, riir-train 635 T3)"
                 .to_string()
         },
+        mammoth_lane: if opts.mammoth {
+            let url = std::env::var(crate::lanes::mammoth::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::mammoth::DEFAULT_SERVE_URL.into());
+            let model = std::env::var(crate::lanes::mammoth::MODEL_ENV)
+                .ok()
+                .filter(|m| !m.is_empty())
+                .unwrap_or_else(|| crate::lanes::mammoth::DEFAULT_MODEL.into());
+            let posture = crate::lanes::mammoth::MammothLane::from_env()
+                .and_then(|l| l.info())
+                .map_or_else(|e| format!("(handshake unreadable: {e})"), |(m, d)| format!("{m} on {d}"));
+            format!(
+                "on — the hosted mammoth/elephant lane (rethink Issue 032 T10; Base \
+                 Labs' mammoth-1 / elephant-1, MIT — the FIRST permissively-licensed \
+                 board-#1, no NC posture; not affiliated) on Baseten Model APIs \
+                 behind the operator-run loopback TLS forwarder via {url} ({posture}): \
+                 catalog id {model} rides the model field (never hardcoded — the \
+                 gliner law); same cases, the pplx-family /v1/systemone wire (the \
+                 wire functions REUSED from the pplx lane), gold-label scoring; \
+                 the handshake is ONE minimal noul probe (the clef law — no \
+                 GET /health is assumed on the hosted route); the forwarder hop is \
+                 PART of the row's latency claim (a hosted row is never pooled with \
+                 on-card figures — the clef A0 disclosure); spend ceiling \
+                 MAMMOTH_SMOKE_MAX_CASES default 50 (free week ≠ unmetered; the \
+                 determinism reruns TRIPLE the first 10 cases' spend, disclosed); \
+                 MEASUREMENT-ONLY: no RIDT arm — API outputs never enter a capture \
+                 artifact (the T10.2 law; teacher lineage stays self-hosted, \
+                 riir-train 640); RE-FETCH the Baseten ToS + Model-APIs policy \
+                 before the run (the staleness law; free week ends 2026-10-27)"
+            )
+        } else {
+            "off (pass --mammoth to add the hosted comparison lane; run the loopback \
+             TLS forwarder to inference.baseten.co on MAMMOTH_SERVE_URL, default \
+             http://127.0.0.1:8793, with MAMMOTH_API_TOKEN set — rethink Issue 032 \
+             T10; T10.1: the key is an OWNER act; window ends 2026-10-27 23:59 PT)"
+                .to_string()
+        },
         paw_lane: if opts.paw {
             format!(
                 "on — ProgramAsWeights (MIT SDK, not affiliated) over their hosted \
@@ -9741,6 +9970,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- pplx lane: {}\n", out.meta.pplx_lane));
     s.push_str(&format!("- d3 lane: {}\n", out.meta.d3_lane));
     s.push_str(&format!("- startlux lane: {}\n", out.meta.startlux_lane));
+    s.push_str(&format!("- mammoth lane: {}\n", out.meta.mammoth_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(

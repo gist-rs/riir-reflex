@@ -24,7 +24,7 @@
 //!                                       refuses loud naming the rebuild)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--paw] [--paw-local]
+//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--paw] [--paw-local]
 //!                                      [--cascade] [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -139,6 +139,24 @@
 //! `STARTLUX_DEVICE` (the lossy-surface disclosure); `--distill-teacher
 //! startlux` captures RIDT with the license token in the header. An
 //! unreachable server is a loud absence, never a silent skip.
+//! `--mammoth` adds the hosted mammoth/elephant comparison lane (rethink
+//! Issue 032 T10 / Research 012): Base Labs' mammoth-1 — the JDI 0.4.1
+//! board-#1 public print 75.34 (MIT — the FIRST permissively-licensed
+//! board-#1; no NC posture) — or elephant-1 (72.24) on **Baseten Model
+//! APIs**, reached ONLY through the operator-run loopback TLS forwarder
+//! (the clef A0 law; the hop is part of the row's latency claim) at
+//! `MAMMOTH_SERVE_URL` (default `http://127.0.0.1:8793`), with
+//! `MAMMOTH_API_TOKEN` set (or `MAMMOTH_FORWARDER_AUTH=1`; the catalog id
+//! rides `MAMMOTH_MODEL`, default the T10 record's
+//! `decision-models/baseten-mammoth-27b-latest`). The handshake is ONE
+//! minimal noul probe (the clef law); the spend ceiling defaults to 50
+//! cases (free week ≠ unmetered; `MAMMOTH_ALLOW_UNCAPPED=1` overrides);
+//! MEASUREMENT-ONLY — no RIDT arm: API outputs never enter a capture
+//! artifact (the T10.2 law; teacher lineage stays self-hosted, riir-train
+//! 640). RE-FETCH the Baseten ToS + Model-APIs policy before the run (the
+//! staleness law; the free week ends 2026-10-27 23:59 PT; T10.1: the key
+//! is an OWNER act). An unreachable/unused-cred lane is a loud absence,
+//! never a silent skip.
 //! `--paw` adds the PAW comparison lane (Issue 033): ProgramAsWeights
 //! (MIT SDK, not affiliated) — one program compiled per specced suite from
 //! the committed `scripts/paw_specs/<suite>.txt` (cached by
@@ -724,6 +742,7 @@ fn harness_main() {
             "--d3" => opts.d3 = true,
             "--jeva" => opts.jeva = true,
             "--startlux" => opts.startlux = true,
+            "--mammoth" => opts.mammoth = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
             "--corpus-cap" => {
@@ -1708,6 +1727,7 @@ fn harness_main() {
                 &suite.d3,
                 &suite.jeva,
                 &suite.startlux,
+                &suite.mammoth,
             ]
             .into_iter()
             .flatten()

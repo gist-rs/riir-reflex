@@ -314,12 +314,20 @@ impl PplxLane {
 /// are the harness criteria's insertion order — the label order the
 /// answers map back onto.
 pub fn build_body(case: &SuiteCase) -> Result<Value, String> {
+    build_body_for_model(case, MODEL_FIELD_VALUE)
+}
+
+/// [`build_body`] with an EXPLICIT model field — the hosted-lane form: a
+/// hosted catalog id (the mammoth lane's Baseten model id) rides the same
+/// wire grammar verbatim (one wire, many oracles — the d3 law). The bound
+/// checks are identical; only the `model` value differs.
+pub fn build_body_for_model(case: &SuiteCase, model: &str) -> Result<Value, String> {
     let mut questions = Map::new();
     for q in &case.questions {
         questions.insert(q.qid.clone(), build_question(q)?);
     }
     Ok(json!({
-        "model": MODEL_FIELD_VALUE,
+        "model": model,
         "state": case.state,
         "questions": questions,
     }))

@@ -75,3 +75,12 @@ pub mod jeva;
 // owns the endpoint + the bidirectional-posture health gate). Ungated:
 // the same import law.
 pub mod startlux;
+// rethink Issue 032 T10 / Research 012: the mammoth/elephant HOSTED
+// comparison lane — Base Labs' mammoth-1 (the JDI 0.4.1 board-#1, MIT) +
+// elephant-1 on Baseten Model APIs, behind the operator-run loopback TLS
+// forwarder (the clef A0 law) on the SAME `/v1/systemone` wire (the wire
+// functions REUSED from the pplx lane; the catalog id rides the model
+// field from env). MEASUREMENT-ONLY: no RIDT arm — API outputs never
+// enter a capture artifact (the T10.2 law; teacher lineage stays
+// self-hosted, riir-train 640). Ungated: the same import law.
+pub mod mammoth;
