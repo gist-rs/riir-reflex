@@ -95,6 +95,15 @@ published only at a re-measured posture: Bench 078.)
 | `train-010.json` | 100 | `6e58806819a9c7e1bbba6367c52d498756964906dd00885422ec8bbf538652ac` | 439213 |
 | `train-011.json` | 100 | `f5186ace26d830299087895851c86fce2ad4789a57ec960d9a5e6d03fd542118` | 438253 |
 
+Per-split TEST aggregate (derived 2026-10-25, the rethink Issue-038 P0 T2(b)
+dataset-identity prep — computed from the frozen pages ABOVE, every page
+byte-verified against its pin first): = `b3sum test-*.json | sort -k2 | b3sum`
+→ **`01d2480141982619bc2d0d01c918a1271326055ccd630a1a668e7d3b80568b61`**
+(4 pages / 400 rows, no partials). The test pages are untouched by the
+Issue-058 train-page dedupe (dedupe rewrites TRAIN pages in place only), so
+unlike the pre-dedupe train aggregates this pin is LIVE-TREE — re-derivable
+on any box carrying the canonical fetch.
+
 ### 2. ag_news — `fancyzhx/ag_news` (config `default`)
 
 `test` capped at 400 (dataset total 7600); `train` capped at 4000 (dataset
