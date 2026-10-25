@@ -1,7 +1,8 @@
 # Issue 094: Proprioception-derived confidence probes + input-keyed modal-baseline floor
 
 **Status:** OPEN — from `.research/011` (arXiv:2610.17495 distill, 2026-10-21); modelless track, report-only probes, no serving-path change.
-**Claimed:** zed-m3-reflex094, 1792790054, expires 2026-10-25T21:54:00+00:00
+**Claimed:** zed-m3-reflex094, 1792790054, expires 2026-10-25T21:54:00+00:00 — **expired unclaimed; no landing pushed** (fetched 21:58Z: develop still at `9e98c0d`, the T1–T3 records unchanged). T4 (cost law) + T5 (report-only posture) read as STANDING LAWS, not tasks — candidate for closure-with-record unless the read finds a live task.
+**Claimed:** zed-amo-glm5, 1769428620, expires 2026-10-26T22:00:00Z — T4/T5 adjudication: close-with-record or name the live remainder.
 
 ## Motivation
 
