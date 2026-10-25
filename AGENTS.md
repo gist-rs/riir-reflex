@@ -265,16 +265,33 @@ cargo run --release --features laya-riir-metal --bin harness -- --distill \
 cargo run --release --bin harness -- --skip-laya --startlux
 
 # mammoth/elephant comparison lane (rethink Issue 032 T10 / Research 012,
-# `--mammoth`): Base Labs' mammoth-1 — the JDI 0.4.1 board-#1 public print
-# 75.34 (MIT — the first permissively-licensed board-#1; no NC posture) — or
-# elephant-1 (72.24) on Baseten Model APIs, reached ONLY through the
-# operator-run loopback TLS forwarder (the clef A0 law; the hop is part of
-# the row's latency claim). MEASUREMENT-ONLY — no RIDT arm: API outputs
-# never enter a capture artifact (teacher lineage stays self-hosted,
-# riir-train 640). Re-fetch the Baseten ToS + Model-APIs policy before the
-# run (the free week ended 2026-10-27 23:59 PT; the key is an OWNER act):
+# `--mammoth` / `--elephant`): Base Labs' mammoth-1 — the JDI 0.4.1 board-#1
+# public print 75.34 (MIT — the first permissively-licensed board-#1; no NC
+# posture) — or elephant-1 (72.24, MIT, 9B) on Baseten Model APIs, reached
+# ONLY through the operator-run loopback TLS forwarder (the clef A0 law; the
+# hop is part of the row's latency claim). MEASUREMENT-ONLY — no RIDT arm:
+# API outputs never enter a capture artifact (teacher lineage stays
+# self-hosted, riir-train 640). Re-fetch the Baseten ToS + Model-APIs policy
+# before the run (the free week ended 2026-10-27 23:59 PT; the key is an
+# OWNER act):
 MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
   cargo run --release --bin harness -- --mammoth --suites typed_decisions --skip-laya
+
+# The LOCAL postures (032 T10.2, the LOCAL-FIRST law — Research 012): both
+# checkpoints self-host on seal1 (MPS bf16, OneJev@81ce62f + serve.patch,
+# qev venv) through OUR reference servers — mammoth via
+# `.raw/mammoth-local/serve_mammoth.py` (:8793, the 27B), elephant via the
+# COMMITTED `scripts/elephant_server.py` (:8096, the 9B; ELEPHANT_FORK_MODE
+# default sequential — the auto-selected batched fork runs the qwen3_5 GDN
+# reference fallback pathologically slow on MPS, answers byte-identical
+# between postures; MPS hygiene after every decide). Same lane, no creds
+# gate, the spend ceiling stays (a typo'd non-local URL must hit a ceiling):
+# `ELEPHANT_ALLOW_UNCAPPED=1 cargo run --release --bin harness -- --elephant
+# --skip-laya --suites sst5`. A LOCAL row is a DIFFERENT posture from the
+# API row, never pooled. Panel rigs (gitignored operator rigs + watchdog):
+# `.raw/mammoth-local/` + `.raw/elephant-local/` (the mammoth twins);
+# records: reflex Bench 162 (mammoth 12/12), the elephant panel pending the
+# watchdog marker `/tmp/elephant_panel_done.marker`.
 
 # The T2.5 modelless teacher router (riir-train Issue 629 T2.5; offline — no
 # GPU, no test row): sigmoid-gated per-suite blend over CAPTURED RIDT columns
