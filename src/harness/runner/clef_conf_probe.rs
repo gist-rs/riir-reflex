@@ -181,7 +181,10 @@ fn adjudicate(
         );
     };
     let misses = [
-        (cand >= conformal, format!("conformal {cand:.4} ≥ floor {conformal:.4}")),
+        (
+            cand >= conformal,
+            format!("conformal {cand:.4} ≥ floor {conformal:.4}"),
+        ),
         (cand >= modal, format!("modal {cand:.4} ≥ floor {modal:.4}")),
     ];
     let mut failed: Vec<String> = misses
@@ -306,15 +309,12 @@ pub fn run_clef_conf_probe(
         let accuracy = srows.iter().filter(|r| r.correct).count() as f64 / srows.len() as f64;
         // The candidate readouts.
         let auroc = auroc_of(|r| -f64::from(r.entropy), &srows);
-        let entropy_pairs: Vec<(f64, bool)> = srows
-            .iter()
-            .map(|r| (r.entropy_conf, r.correct))
-            .collect();
+        let entropy_pairs: Vec<(f64, bool)> =
+            srows.iter().map(|r| (r.entropy_conf, r.correct)).collect();
         let entropy_ece = crate::harness::metrics::ece_of(&entropy_pairs);
         // The incumbent readout + floor (a): the Drex shape — pooled
         // incumbent-confidence pairs, case-order split-half.
-        let conf_pairs: Vec<(f64, bool)> =
-            srows.iter().map(|r| (r.conf, r.correct)).collect();
+        let conf_pairs: Vec<(f64, bool)> = srows.iter().map(|r| (r.conf, r.correct)).collect();
         let conf_ece = crate::harness::metrics::ece_of(&conf_pairs);
         let (floor_ece, n_cal, n_test) = if conf_pairs.len() >= CLEF_CONF_MIN_FLOOR_PAIRS {
             let cut = conf_pairs.len() / 2;
@@ -328,7 +328,11 @@ pub fn run_clef_conf_probe(
                 .into_iter()
                 .zip(conf_pairs[cut..].iter().map(|&(_, ok)| ok))
                 .collect();
-            (Some(crate::harness::metrics::ece_of(&floor_pairs)), cut, conf_pairs.len() - cut)
+            (
+                Some(crate::harness::metrics::ece_of(&floor_pairs)),
+                cut,
+                conf_pairs.len() - cut,
+            )
         } else {
             (None, 0, 0)
         };
@@ -348,13 +352,7 @@ pub fn run_clef_conf_probe(
             .as_ref()
             .filter(|p| !p.is_empty())
             .map(|p| crate::harness::metrics::ece_of(p));
-        let verdict = adjudicate(
-            Some(entropy_ece),
-            floor_ece,
-            modal_ece,
-            accuracy,
-            modal_acc,
-        );
+        let verdict = adjudicate(Some(entropy_ece), floor_ece, modal_ece, accuracy, modal_acc);
         eprintln!(
             "[clef-conf-probe] {}: acc {:.4} · entropy ece {:.4} · conf ece {:.4} · \
              conformal {} · modal acc {} / conf ece {} — {}",
@@ -380,7 +378,11 @@ pub fn run_clef_conf_probe(
             modal_floor_accuracy: modal_acc,
             modal_conf_ece: modal_ece,
             modal_floor_reference: modal_row.map(|r| r.reference.to_string()),
-            mean_case_ms: if case_n > 0 { case_ms_sum / case_n as f64 } else { 0.0 },
+            mean_case_ms: if case_n > 0 {
+                case_ms_sum / case_n as f64
+            } else {
+                0.0
+            },
             verdict,
         });
     }
@@ -420,20 +422,25 @@ pub fn render_clef_conf_probe_markdown(out: &ClefConfProbeOutput) -> String {
             r.suite,
             r.questions,
             r.accuracy,
-            r.auroc_entropy_correct.map_or("n/a".into(), |v| format!("{v:.4}")),
+            r.auroc_entropy_correct
+                .map_or("n/a".into(), |v| format!("{v:.4}")),
             r.entropy_ece,
             r.conf_ece,
-            r.conformal_floor_ece.map_or("n/a".into(), |v| format!("{v:.4}")),
-            r.modal_floor_accuracy.map_or("n/a".into(), |v| format!("{v:.4}")),
+            r.conformal_floor_ece
+                .map_or("n/a".into(), |v| format!("{v:.4}")),
+            r.modal_floor_accuracy
+                .map_or("n/a".into(), |v| format!("{v:.4}")),
             r.modal_conf_ece.map_or("n/a".into(), |v| format!("{v:.4}")),
             r.verdict,
         ));
     }
-    s.push_str("\nG1: the candidate must beat BOTH floors strictly; \
+    s.push_str(
+        "\nG1: the candidate must beat BOTH floors strictly; \
 `beats conformal but not modal` = mimicry, `beats modal but not conformal` = \
 miscalibration, a lane at/below the modal accuracy carries no input-independent \
 signal. Lens depth is DEFERRED (the ANE artifact ships one output — a CPU \
-forward port is the unblock; recorded in the issue).\n");
+forward port is the unblock; recorded in the issue).\n",
+    );
     if !out.skipped.is_empty() {
         s.push_str("\n## Skipped\n\n");
         for (id, why) in &out.skipped {
@@ -509,14 +516,20 @@ mod clef_conf_probe_tests {
     #[test]
     fn adjudicate_names_the_miss() {
         // Beats both → PASS.
-        assert_eq!(adjudicate(Some(0.10), Some(0.20), Some(0.30), 0.9, Some(0.3)), "PASS");
+        assert_eq!(
+            adjudicate(Some(0.10), Some(0.20), Some(0.30), 0.9, Some(0.3)),
+            "PASS"
+        );
         // Fails conformal only → miscalibration named.
         let v = adjudicate(Some(0.25), Some(0.20), Some(0.30), 0.9, Some(0.3));
         assert!(v.starts_with("NEGATIVE(") && v.contains("conformal"), "{v}");
         // Fails modal only → mimicry named (cand sits below conformal,
         // at the modal floor).
         let v = adjudicate(Some(0.15), Some(0.20), Some(0.15), 0.9, Some(0.3));
-        assert!(v.starts_with("NEGATIVE(") && v.contains("modal 0.1500 ≥ floor 0.1500"), "{v}");
+        assert!(
+            v.starts_with("NEGATIVE(") && v.contains("modal 0.1500 ≥ floor 0.1500"),
+            "{v}"
+        );
         // Lane below the census accuracy → the mimicry bar rides beside.
         let v = adjudicate(Some(0.10), Some(0.20), Some(0.30), 0.2, Some(0.3));
         assert!(v.contains("mimicry"), "{v}");
