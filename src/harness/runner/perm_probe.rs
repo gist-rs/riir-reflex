@@ -93,6 +93,11 @@ pub struct PermProbeOptions {
     /// serving — loud refusal). Their paper's own 0.00% order-flip bar
     /// (mean TV 3.17e-8) is the B2 0-flip floor's target shape.
     pub jeva: bool,
+    /// Probe the OpenDecider-nano lane (rethink Issue 038 T4: their serve
+    /// must be up — loud refusal). The standing law's subject: no
+    /// choice-suite number is quoted before this probe rides. Local
+    /// self-host = zero marginal spend, the clef A6 posture.
+    pub opendecider: bool,
     /// Issue 086 T1 — also run the presentation-subspace certificate
     /// (`--basis-split`): rank-gated presentation basis + per-suite
     /// held-out leakage over the SAME sampled slots' perm pairs, routed
@@ -326,6 +331,29 @@ impl ChoiceOracle for JevaOracle {
                 pick: *pick,
             })
             .ok_or_else(|| format!("jeva ({}): no answers in response", case.id))
+    }
+}
+
+/// The OpenDecider-nano oracle (rethink Issue 038 T4): the same one-choice-
+/// question-per-request contract as every comparison oracle — the lane's
+/// whole-case decide on a single-question case IS the per-question wire
+/// shape (their server batches rows internally; a 1-row batch is the
+/// per-question posture by construction, the 038 posture-invariance
+/// read's exact-agreement result).
+struct OpenDeciderOracle {
+    lane: crate::lanes::opendecider::OpenDeciderLane,
+}
+
+impl ChoiceOracle for OpenDeciderOracle {
+    fn answer(&mut self, case: &SuiteCase) -> Result<OrderingAnswer, String> {
+        let (answers, _client_ms, _tokens) = self.lane.decide(case)?;
+        answers
+            .first()
+            .map(|(probs, pick, _)| OrderingAnswer {
+                probs: probs.clone(),
+                pick: *pick,
+            })
+            .ok_or_else(|| format!("opendecider ({}): no answers in response", case.id))
     }
 }
 
@@ -1544,6 +1572,25 @@ pub fn run_perm_probe(
             name: "jeva",
             model: format!("{model} ({provenance})"),
             oracle: Box::new(JevaOracle { lane }),
+        });
+    }
+    if popts.opendecider {
+        let lane = crate::lanes::opendecider::OpenDeciderLane::from_env()
+            .map_err(|e| format!("--perm-probe --opendecider: {e}"))?;
+        // Provenance from the ONE-probe handshake (the clef law — the same
+        // minimal noul probe the run lane uses); the canary round doubles
+        // as the lane's warm-up. A 1-row decide is the per-question wire
+        // posture (their server batches rows internally).
+        let (model, device) = lane
+            .info()
+            .map_err(|e| format!("--perm-probe --opendecider: {e}"))?;
+        let canary = canary_case();
+        lane.decide(&canary)
+            .map_err(|e| format!("--perm-probe --opendecider warmup: {e}"))?;
+        shared.push(SharedLane {
+            name: "opendecider",
+            model: format!("{model} on {device}"),
+            oracle: Box::new(OpenDeciderOracle { lane }),
         });
     }
     // The clef-local lane (plan 619 T3.3): the seated LOCAL ANE arm only —

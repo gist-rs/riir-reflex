@@ -918,11 +918,12 @@ fn harness_main() {
             d1: opts.d1,
             agentjev: opts.agentjev,
             jeva: opts.jeva,
+            opendecider: opts.opendecider,
             basis_split,
         };
         println!(
             "harness --perm-probe: datasets {} · suites {:?} · K {} orderings · \
-             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}{}{}",
+             ≤{} case(s)/suite · lanes: modelless (control){}{}{}{}{}{}{}",
             opts.datasets_dir.display(),
             opts.suites,
             popts.k,
@@ -931,6 +932,7 @@ fn harness_main() {
             if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
             if popts.jeva { " +jeva" } else { "" },
+            if popts.opendecider { " +opendecider" } else { "" },
             if popts.basis_split {
                 " +basis-cert"
             } else {
