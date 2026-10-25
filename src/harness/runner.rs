@@ -8724,6 +8724,20 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
     let mut errors: Vec<String> = Vec::new();
     let laya_feature = cfg!(feature = "laya-riir");
 
+    // A requested name matching NO registered spec selects nothing and the
+    // run would write a 0-suite results.json over the out-dir's previous
+    // contents (measured twice on the default tables: 09-24's 2-suite
+    // partial, 10-25's 0-suite probe — both restored from HEAD). Refuse
+    // BEFORE any lane machinery or file write.
+    for requested in &opts.suites {
+        if !SUITES.iter().any(|spec| spec.name == *requested) {
+            let known: Vec<&str> = SUITES.iter().map(|s| s.name).collect();
+            return Err(format!(
+                "unknown suite {requested:?} — registered suites: {}",
+                known.join(", ")
+            ));
+        }
+    }
     for spec in SUITES {
         if !opts.suites.is_empty() && !opts.suites.iter().any(|s| s == spec.name) {
             continue;
