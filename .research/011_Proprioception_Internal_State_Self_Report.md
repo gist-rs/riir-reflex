@@ -106,3 +106,15 @@ Internal-first grep: `2610.17495|proprioception` across all 16 workspace `.resea
 - **P1:** riir-infer Issue 1106 stability readout + reflex depth probes (measurement-first; Report-the-Floor governs).
 - **P2:** clef headful entropy/lens candidates (owner-gated hosted-spend posture respected).
 - **P3:** riir-train Issue 639 (conditional, owner-gated, trigger-gated).
+
+## Executed state (2026-10-25 — reflex Issue 094 CLOSED at T4/T5 adjudication)
+
+All three probe lanes LANDED and read out:
+
+- **T1 modal-baseline floor** — LANDED (`b884210` + `ee1c2a4`, Bench 156): `src/harness/modal_floor.rs` (ungated + pure), census side = cal slice, pooled by option IDENTITY; board read caught 3 genuine flags. The floor dominated every challenger that followed.
+- **T2 laya stability-depth probe** — LANDED (`b4b9205` substrate + `d3ceb00` probe, Bench 157): the encoder's residual stream has a stability TROUGH, not a suffix; **RECORDED NEGATIVE** (AUROC ≈ chance or inverted on 6/9, the modal floor dominates the lane on typed). Report-only, arms nothing.
+- **T3 clef headful entropy** — LANDED (substrate `0f876b8` + probe, Bench 158): one-pass entropy via the tied LM head; **RECORDED NEGATIVE** — fails both floors on 6/9; the letter-PASS disqualified by inverted AUROC (0.365). Lens depth DEFERRED on the named unblock (ANE ships one output; a CPU forward port is the lane that would unblock). Report-only, arms nothing.
+
+**T4 (cost law) + T5 (report-only posture) adjudicated as STANDING LAWS, not tasks** — there is no per-layer sweep to monitor (T2/T3 arm nothing), and both shipped probe lanes carry the REPORT-ONLY module contract (no serving-path edit, no exit-code coupling beyond loud refusals, CPU-capped). The laws live on in the module docs (`src/harness/runner/depth_probe.rs`, `clef_conf_probe.rs`) and in this note; the issue file is removed per the noise rule with this section as the record. The paper's measurement discipline transferred exactly as the note hoped: the input-keyed modal floor is the anti-mimicry control that dominated every internal-signal candidate tried — three benches, three negatives, each with the miss named.
+
+The conditional trained-lane trigger (riir-train 639) stays OPEN and owner-gated: its trigger (quality-pass + serve-cost-fail) has not fired — no candidate passed quality.
