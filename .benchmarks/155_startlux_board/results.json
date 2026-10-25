@@ -1,0 +1,2397 @@
+{
+  "meta": {
+    "date_utc": "2026-10-21T16:41:17Z",
+    "git_sha": "3a9e8f5",
+    "host": "shikuwa",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "E:\\git\\riir-reflex\\.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "off (pass --d3 to add the comparison lane; serve their d3_server.py on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)",
+    "jeva_lane": "off (pass --jeva to add the comparison lane; serve OUR reference server scripts/jeva_server.py on JEVA_SERVE_URL, default http://127.0.0.1:8095, under the venv python with their repo installed — reflex Issue 090 B1)",
+    "startlux_lane": "on — StartLux-Decision v1.1 27B Instant (startlux-models; board #1 on the pinned snapshot; Qwen3.8-27B backbone — the pplx/d3 base family; weights CC BY-NC 4.0 → DECLARED-NC RESTRICTED: capture-for-MEASUREMENT + teacher-CAPTURE allowed, any ADOPTION FAIL-CLOSED, riir-train 635 T0; NC-lineage rides every artifact; not affiliated) served through THEIR Apache-2.0 engine startlux-decide v1.1.0 over llama.cpp via http://127.0.0.1:8090 (startlux-decision-v1.1-27b-instant): same cases, the pplx/d3 /v1/systemone wire (the wire functions REUSED from the pplx lane), gold-label scoring; the health handshake GATES the bidirectional Instant posture (kind instant + prompt_attention bidirectional + engine.bidir_mode server — a causal/off serve is a different model than the one trained, the −26 pt class); the quant posture is the STARTLUX_DEVICE stamp (our 635-T2 arm: Q4_K_M, -ngl 99 — the lossy-surface law); determinism = verbatim observed-repeat (their timing_ms rides only with return_details, never set here); answers' none_probability is read by the parser as unknown-and-ignored (the RIDT capture carries the license token); reflex Issue 095 + riir-train 635 T3",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 13.68,
+        "swap_used_mb": 5994.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 4.0,
+        "gpu_mem_mib": 18888.0,
+        "latency_quotable": false,
+        "refusals": [
+          "load 13.68 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": "high",
+        "load_1m": 2.88,
+        "swap_used_mb": 5684.0,
+        "load_source": "cpu_util_pct_x_cores/100",
+        "gpu_util_pct": 1.0,
+        "gpu_mem_mib": 18890.0,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.294,
+          "macro_f1": 0.20381346100350822,
+          "ece": 0.08597900694608687,
+          "brier": 0.6887953868147523,
+          "nll": 1.2268604786604644,
+          "aurc": 0.5613881658769828,
+          "mean_confidence": 0.345885090649128,
+          "acc_at_50_coverage": 0.467,
+          "acc_at_80_coverage": 0.350625
+        },
+        "readout_ece": 0.014013351291418119,
+        "readout_brier": 0.20782644546499313,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "abstain_causes": {
+          "score_gate": 2000,
+          "distance_gate": 0,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.28601398268342015,
+        "readout_ece_calibrated": 0.014013351291418119,
+        "floor_ece": 0.3873323353293416,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.14,
+            "macro_f1": 0.10659569157793983,
+            "ece": 0.10427482724189759,
+            "brier": 0.775437413323873,
+            "nll": 1.479820572848019,
+            "aurc": 0.8533233971432658,
+            "mean_confidence": 0.24427482724189759,
+            "acc_at_50_coverage": 0.19333333333333333,
+            "acc_at_80_coverage": 0.16041666666666668
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.565,
+            "macro_f1": 0.551791545861227,
+            "ece": 0.05682319382826484,
+            "brier": 0.49847883401813664,
+            "nll": 0.6916259033173674,
+            "aurc": 0.4859296412602207,
+            "mean_confidence": 0.5081768061717351,
+            "acc_at_50_coverage": 0.52,
+            "acc_at_80_coverage": 0.5479166666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.20625,
+            "macro_f1": 0.15616734623998546,
+            "ece": 0.09412400156259536,
+            "brier": 0.7665512815304019,
+            "nll": 1.438566339527116,
+            "aurc": 0.6977238936165817,
+            "mean_confidence": 0.30037400156259536,
+            "acc_at_50_coverage": 0.32,
+            "acc_at_80_coverage": 0.25625
+          }
+        },
+        "soft_acc": 0.31722780010521806,
+        "brier_soft": 0.24239426229596503,
+        "score_mae": 0.7147912293728421,
+        "within_1": 0.73625,
+        "latency_p50_ms": 0.816,
+        "latency_p99_ms": 2.63,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.19,
+          "max_ms": 3.922,
+          "argmax_case": 132
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 1.2003390999999999,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.3102674,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.3102674,
+            "status": "fitted",
+            "targetAccuracy": 0.21917808,
+            "support": {
+              "n": 100,
+              "nPass": 73,
+              "nAbstain": 27
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.14285715,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 92,
+            "share_of_errors": 0.07993049522154648
+          },
+          {
+            "gold": "investigate",
+            "pred": "contain",
+            "count": 74,
+            "share_of_errors": 0.06429192006950478
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 58,
+            "share_of_errors": 0.05039096437880104
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 48,
+            "share_of_errors": 0.04170286707211121
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "No sign of dissatisfaction.",
+            "count": 47,
+            "share_of_errors": 0.04083405734144222
+          },
+          {
+            "gold": "approve",
+            "pred": "hold",
+            "count": 45,
+            "share_of_errors": 0.03909643788010426
+          },
+          {
+            "gold": "manual_review",
+            "pred": "hold",
+            "count": 38,
+            "share_of_errors": 0.03301476976542137
+          },
+          {
+            "gold": "High: access to production, secrets or customer data.",
+            "pred": "Negligible: no access to anything sensitive.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "No time pressure; can wait indefinitely.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "None: everything reconciles.",
+            "count": 36,
+            "share_of_errors": 0.03127715030408341
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.0021201413427561857,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.3005141208171844
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.10498618748784067
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.3005141208171844
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.7945,
+          "macro_f1": 0.7903679687071544,
+          "ece": 0.15808516476545542,
+          "brier": 0.33275552524436197,
+          "nll": 0.5800033471070556,
+          "aurc": 0.07684713815690575,
+          "mean_confidence": 0.6379067324129613,
+          "acc_at_50_coverage": 0.935,
+          "acc_at_80_coverage": 0.85
+        },
+        "readout_ece": 0.2145744267674324,
+        "readout_brier": 0.19312682379781115,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.765,
+            "macro_f1": 0.736610405124355,
+            "ece": 0.1365939864710455,
+            "brier": 0.35536325803377894,
+            "nll": 0.6388485314490162,
+            "aurc": 0.08789714164863939,
+            "mean_confidence": 0.6342808287312327,
+            "acc_at_50_coverage": 0.9366666666666666,
+            "acc_at_80_coverage": 0.8291666666666667
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.835,
+            "macro_f1": 0.8349445230202374,
+            "ece": 0.11472681842893549,
+            "brier": 0.255672453185326,
+            "nll": 0.4046052376644859,
+            "aurc": 0.04579775459279651,
+            "mean_confidence": 0.7229087255099035,
+            "acc_at_50_coverage": 0.9866666666666667,
+            "acc_at_80_coverage": 0.89375
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.78625,
+            "macro_f1": 0.785661311845164,
+            "ece": 0.21081338571464958,
+            "brier": 0.3736120296965782,
+            "nll": 0.6674180409325109,
+            "aurc": 0.08961986469167753,
+            "mean_confidence": 0.5768746653515496,
+            "acc_at_50_coverage": 0.9125,
+            "acc_at_80_coverage": 0.8375
+          }
+        },
+        "soft_acc": 0.5215925132681416,
+        "brier_soft": 0.0488395920790221,
+        "score_mae": 0.20237617190179194,
+        "within_1": 1.0,
+        "latency_p50_ms": 988.0,
+        "latency_p99_ms": 1905.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 1905.0,
+          "max_ms": 2815.0,
+          "argmax_case": 200
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 411.1818304,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.7095406360424028
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "ag_news",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-07eff23c06505584",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.405,
+          "macro_f1": 0.3750065995228045,
+          "ece": 0.14648413084447381,
+          "brier": 0.7435743949514259,
+          "nll": 1.3735037691094945,
+          "aurc": 0.5223346365908929,
+          "mean_confidence": 0.25851586915552616,
+          "acc_at_50_coverage": 0.475,
+          "acc_at_80_coverage": 0.421875
+        },
+        "readout_ece": 0.08126678965985774,
+        "readout_brier": 0.24416386548899646,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.3925,
+          "selective_accuracy": 0.3950617283950617,
+          "selective_n": 243
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 157,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.4045773483812809,
+        "readout_ece_calibrated": 0.08126678965985774,
+        "floor_ece": 0.2281965174129353,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.209,
+        "latency_p99_ms": 0.426,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.396,
+          "max_ms": 0.445,
+          "argmax_case": 167
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.3606156,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.43972817,
+        "distance_threshold": 0.41053298,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.43972817,
+            "status": "fitted",
+            "targetAccuracy": 0.485,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.41053298,
+            "status": "fitted",
+            "targetAccuracy": 0.5214286,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "sci_tech",
+            "pred": "world",
+            "count": 59,
+            "share_of_errors": 0.24789915966386555
+          },
+          {
+            "gold": "sports",
+            "pred": "world",
+            "count": 58,
+            "share_of_errors": 0.24369747899159663
+          },
+          {
+            "gold": "business",
+            "pred": "world",
+            "count": 39,
+            "share_of_errors": 0.1638655462184874
+          },
+          {
+            "gold": "sports",
+            "pred": "sci_tech",
+            "count": 16,
+            "share_of_errors": 0.06722689075630252
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "business",
+            "count": 15,
+            "share_of_errors": 0.06302521008403361
+          },
+          {
+            "gold": "world",
+            "pred": "sci_tech",
+            "count": 14,
+            "share_of_errors": 0.058823529411764705
+          },
+          {
+            "gold": "business",
+            "pred": "sci_tech",
+            "count": 11,
+            "share_of_errors": 0.046218487394957986
+          },
+          {
+            "gold": "business",
+            "pred": "sports",
+            "count": 7,
+            "share_of_errors": 0.029411764705882353
+          },
+          {
+            "gold": "sports",
+            "pred": "business",
+            "count": 6,
+            "share_of_errors": 0.025210084033613446
+          },
+          {
+            "gold": "world",
+            "pred": "business",
+            "count": 5,
+            "share_of_errors": 0.02100840336134454
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "sports",
+            "count": 4,
+            "share_of_errors": 0.01680672268907563
+          },
+          {
+            "gold": "world",
+            "pred": "sports",
+            "count": 4,
+            "share_of_errors": 0.01680672268907563
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3075,
+        "jdi_skill": 0.14079422382671483,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.48454473227262496
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.22621368184685706
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.48454473227262496
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-53b4ac1dd09f2472"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.9175,
+          "macro_f1": 0.9077581840152329,
+          "ece": 0.03853598452884716,
+          "brier": 0.14000197735354752,
+          "nll": 0.2852067959548969,
+          "aurc": 0.02757016204338577,
+          "mean_confidence": 0.9168987104302414,
+          "acc_at_50_coverage": 0.965,
+          "acc_at_80_coverage": 0.95625
+        },
+        "readout_ece": 0.05384528069250973,
+        "readout_brier": 0.07358188405494247,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 275.0,
+        "latency_p99_ms": 807.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 465.0,
+          "max_ms": 929.0,
+          "argmax_case": 206
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 126.2484599,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.3075,
+        "jdi_skill": 0.8808664259927798
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-238133933bb8d6fc",
+        "cal_digest": "fnv1a64-96c58e69e7c6048e",
+        "pool_digest": "fnv1a64-996876e41929dc33",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "emotion",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-6feefd1c947dd008",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.275,
+          "macro_f1": 0.13453110563703544,
+          "ece": 0.10534773923456672,
+          "brier": 0.832267850683333,
+          "nll": 1.788558352918849,
+          "aurc": 0.7258681023648036,
+          "mean_confidence": 0.1696522607654333,
+          "acc_at_50_coverage": 0.3,
+          "acc_at_80_coverage": 0.290625
+        },
+        "readout_ece": 0.12973278537392618,
+        "readout_brier": 0.21620792750127282,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.33,
+          "selective_accuracy": 0.291044776119403,
+          "selective_n": 268
+        },
+        "abstain_causes": {
+          "score_gate": 0,
+          "distance_gate": 132,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.27494118794798855,
+        "readout_ece_calibrated": 0.12973278537392618,
+        "floor_ece": 0.2981716417910448,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.1,
+        "latency_p99_ms": 0.162,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.108,
+          "max_ms": 0.35,
+          "argmax_case": 333
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.2960912,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.14525883,
+        "distance_threshold": 0.4265421,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.14525883,
+            "status": "fitted",
+            "targetAccuracy": 0.145,
+            "support": {
+              "n": 200,
+              "nPass": 200,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.4265421,
+            "status": "fitted",
+            "targetAccuracy": 0.15714286,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "sadness",
+            "pred": "joy",
+            "count": 93,
+            "share_of_errors": 0.32068965517241377
+          },
+          {
+            "gold": "anger",
+            "pred": "joy",
+            "count": 48,
+            "share_of_errors": 0.16551724137931034
+          },
+          {
+            "gold": "fear",
+            "pred": "joy",
+            "count": 39,
+            "share_of_errors": 0.13448275862068965
+          },
+          {
+            "gold": "love",
+            "pred": "joy",
+            "count": 28,
+            "share_of_errors": 0.09655172413793103
+          },
+          {
+            "gold": "joy",
+            "pred": "love",
+            "count": 15,
+            "share_of_errors": 0.05172413793103448
+          },
+          {
+            "gold": "sadness",
+            "pred": "fear",
+            "count": 13,
+            "share_of_errors": 0.04482758620689655
+          },
+          {
+            "gold": "sadness",
+            "pred": "love",
+            "count": 10,
+            "share_of_errors": 0.034482758620689655
+          },
+          {
+            "gold": "anger",
+            "pred": "fear",
+            "count": 8,
+            "share_of_errors": 0.027586206896551724
+          },
+          {
+            "gold": "joy",
+            "pred": "fear",
+            "count": 7,
+            "share_of_errors": 0.02413793103448276
+          },
+          {
+            "gold": "anger",
+            "pred": "love",
+            "count": 6,
+            "share_of_errors": 0.020689655172413793
+          },
+          {
+            "gold": "surprise",
+            "pred": "joy",
+            "count": 6,
+            "share_of_errors": 0.020689655172413793
+          },
+          {
+            "gold": "surprise",
+            "pred": "fear",
+            "count": 4,
+            "share_of_errors": 0.013793103448275862
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2975,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.14494621098041532
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.024536297470331203
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.14494621098041532
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-d4127db8eebd778e"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.7975,
+          "macro_f1": 0.7152438629276823,
+          "ece": 0.04162557754370197,
+          "brier": 0.28182851006517834,
+          "nll": 0.5299940491957957,
+          "aurc": 0.05953922747830296,
+          "mean_confidence": 0.7896690542045637,
+          "acc_at_50_coverage": 0.975,
+          "acc_at_80_coverage": 0.865625
+        },
+        "readout_ece": 0.05921202320538408,
+        "readout_brier": 0.12475676234719418,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 230.0,
+        "latency_p99_ms": 661.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 309.0,
+          "max_ms": 1545.0,
+          "argmax_case": 205
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 110.5460311,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2975,
+        "jdi_skill": 0.7117437722419929
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 15799,
+        "test_digest": "fnv1a64-36f3eb1067bed96a",
+        "cal_digest": "fnv1a64-f2ec48ed7070889c",
+        "pool_digest": "fnv1a64-8ef2b2af400721fd",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "sst5",
+      "n_cases": 600,
+      "n_questions": 600,
+      "cases_digest": "fnv1a64-ad64a6cb0039e916",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.20166666666666666,
+          "macro_f1": 0.18904600262677734,
+          "ece": 0.008660208781560264,
+          "brier": 0.7986493075877135,
+          "nll": 1.6059232237797827,
+          "aurc": 0.8159105046398081,
+          "mean_confidence": 0.21032687544822692,
+          "acc_at_50_coverage": 0.18333333333333332,
+          "acc_at_80_coverage": 0.19166666666666668
+        },
+        "readout_ece": 0.06578970318039258,
+        "readout_brier": 0.16676633528051943,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.5816666666666667,
+          "selective_accuracy": 0.20717131474103587,
+          "selective_n": 251
+        },
+        "abstain_causes": {
+          "score_gate": 207,
+          "distance_gate": 142,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.20093427270650863,
+        "readout_ece_calibrated": 0.06578970318039258,
+        "floor_ece": 0.3342868988391377,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": 1.1781307635704676,
+        "within_1": 0.44333333333333336,
+        "latency_p50_ms": 0.086,
+        "latency_p99_ms": 0.126,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 0.085,
+          "max_ms": 0.203,
+          "argmax_case": 157
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.1974413,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": 0.20488091,
+        "distance_threshold": 0.41663086,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.20488091,
+            "status": "fitted",
+            "targetAccuracy": 0.29285714,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41663086,
+            "status": "fitted",
+            "targetAccuracy": 0.20714286,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "negative",
+            "pred": "neutral",
+            "count": 65,
+            "share_of_errors": 0.13569937369519833
+          },
+          {
+            "gold": "very positive",
+            "pred": "neutral",
+            "count": 50,
+            "share_of_errors": 0.10438413361169102
+          },
+          {
+            "gold": "positive",
+            "pred": "neutral",
+            "count": 44,
+            "share_of_errors": 0.0918580375782881
+          },
+          {
+            "gold": "negative",
+            "pred": "positive",
+            "count": 41,
+            "share_of_errors": 0.08559498956158663
+          },
+          {
+            "gold": "very negative",
+            "pred": "neutral",
+            "count": 31,
+            "share_of_errors": 0.06471816283924843
+          },
+          {
+            "gold": "very positive",
+            "pred": "positive",
+            "count": 30,
+            "share_of_errors": 0.06263048016701461
+          },
+          {
+            "gold": "positive",
+            "pred": "very positive",
+            "count": 28,
+            "share_of_errors": 0.05845511482254697
+          },
+          {
+            "gold": "negative",
+            "pred": "very negative",
+            "count": 25,
+            "share_of_errors": 0.05219206680584551
+          },
+          {
+            "gold": "positive",
+            "pred": "very negative",
+            "count": 24,
+            "share_of_errors": 0.05010438413361169
+          },
+          {
+            "gold": "very positive",
+            "pred": "very negative",
+            "count": 21,
+            "share_of_errors": 0.04384133611691023
+          },
+          {
+            "gold": "neutral",
+            "pred": "positive",
+            "count": 19,
+            "share_of_errors": 0.03966597077244259
+          },
+          {
+            "gold": "neutral",
+            "pred": "negative",
+            "count": 16,
+            "share_of_errors": 0.033402922755741124
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2733333333333333,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.24420316398143768
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.034027166366577155
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.24420316398143768
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-0c648062c19b8c01"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 600,
+          "accuracy": 0.615,
+          "macro_f1": 0.5952344825702132,
+          "ece": 0.05562110801993321,
+          "brier": 0.5161635748240087,
+          "nll": 0.8679966417550428,
+          "aurc": 0.31545947378293365,
+          "mean_confidence": 0.586458272483036,
+          "acc_at_50_coverage": 0.6866666666666666,
+          "acc_at_80_coverage": 0.6479166666666667
+        },
+        "readout_ece": 0.0444743729835227,
+        "readout_brier": 0.23051013372739973,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 237.0,
+        "latency_p99_ms": 692.0,
+        "latency_tail_support": 7,
+        "latency_extremes": {
+          "first_ms": 228.0,
+          "max_ms": 764.0,
+          "argmax_case": 175
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 169.6020135,
+        "n_cases": 600,
+        "n_questions": 600,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2733333333333333,
+        "jdi_skill": 0.4701834862385321
+      },
+      "slices": {
+        "n_test": 600,
+        "n_cal": 200,
+        "n_pool": 8333,
+        "test_digest": "fnv1a64-67fe9666fa0c3a6f",
+        "cal_digest": "fnv1a64-d210e7c6707c3d40",
+        "pool_digest": "fnv1a64-b46434b82644c53b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "prompt_injections",
+      "n_cases": 116,
+      "n_questions": 116,
+      "cases_digest": "fnv1a64-5080803ec29f2423",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.4827586206896552,
+          "macro_f1": 0.32558139534883723,
+          "ece": 0.02279288141891872,
+          "brier": 0.500525170702045,
+          "nll": 0.6936723965468061,
+          "aurc": 0.39800187632632034,
+          "mean_confidence": 0.5055515021085739,
+          "acc_at_50_coverage": 0.5689655172413793,
+          "acc_at_80_coverage": 0.5978260869565217
+        },
+        "readout_ece": 0.01724094049683933,
+        "readout_brier": 0.25000261215119507,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "abstain_causes": {
+          "score_gate": 116,
+          "distance_gate": 0,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.4826689280312637,
+        "readout_ece_calibrated": 0.01724094049683933,
+        "floor_ece": 0.2491464663707746,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.07,
+        "latency_p99_ms": 0.115,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.084,
+          "max_ms": 0.192,
+          "argmax_case": 115
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.3371417,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": 0.50998205,
+        "distance_threshold": 0.46189553,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.50998205,
+            "status": "fitted",
+            "targetAccuracy": 0.51,
+            "support": {
+              "n": 100,
+              "nPass": 100,
+              "nAbstain": 0
+            }
+          },
+          "distance": {
+            "threshold": 0.46189553,
+            "status": "fitted",
+            "targetAccuracy": 0.5857143,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [],
+        "pair_head_ab": null,
+        "jdi_chance": 0.5172413793103449,
+        "jdi_skill": 0.0,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.49991039812564847
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.005516927242279035
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.49991039812564847
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-6693f8f5cbe1b3b3"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 116,
+          "accuracy": 0.9224137931034483,
+          "macro_f1": 0.9222693768148313,
+          "ece": 0.052355673890135235,
+          "brier": 0.13449542568722309,
+          "nll": 0.21929465098155848,
+          "aurc": 0.017150927037929958,
+          "mean_confidence": 0.9124145847155359,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.967391304347826
+        },
+        "readout_ece": 0.052355673890135235,
+        "readout_brier": 0.06724771284361157,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 188.0,
+        "latency_p99_ms": 228.0,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 250.0,
+          "max_ms": 250.0,
+          "argmax_case": 0
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 24.6979367,
+        "n_cases": 116,
+        "n_questions": 116,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.5172413793103449,
+        "jdi_skill": 0.8392857142857143
+      },
+      "slices": {
+        "n_test": 116,
+        "n_cal": 100,
+        "n_pool": 446,
+        "test_digest": "fnv1a64-a6a375f0273e0bef",
+        "cal_digest": "fnv1a64-a45e6561b2a98ff1",
+        "pool_digest": "fnv1a64-8b32b961bbd47195",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-b136750e5af1d412",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.34,
+          "macro_f1": 0.20524722352398592,
+          "ece": 0.0055084086457888315,
+          "brier": 0.6676390279773547,
+          "nll": 1.099977760575335,
+          "aurc": 0.6936648678764618,
+          "mean_confidence": 0.34550840864578886,
+          "acc_at_50_coverage": 0.3466666666666667,
+          "acc_at_80_coverage": 0.3333333333333333
+        },
+        "readout_ece": 0.03354973425467806,
+        "readout_brier": 0.22723100418064612,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.5566666666666666,
+          "selective_accuracy": 0.3383458646616541,
+          "selective_n": 133
+        },
+        "abstain_causes": {
+          "score_gate": 88,
+          "distance_gate": 79,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.33946403046449025,
+        "readout_ece_calibrated": 0.03354973425467806,
+        "floor_ece": 0.313665008291874,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.078,
+        "latency_p99_ms": 0.142,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.119,
+          "max_ms": 0.207,
+          "argmax_case": 46
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.3472609,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.29985744,
+        "distance_threshold": 0.51104105,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.29985744,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.51104105,
+            "status": "fitted",
+            "targetAccuracy": 0.32142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 95,
+            "share_of_errors": 0.4797979797979798
+          },
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 93,
+            "share_of_errors": 0.4696969696969697
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.025252525252525252
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.025252525252525252
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3333333333333333,
+        "jdi_skill": 0.010000000000000063,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.319603807926178
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.023821600824594502
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.319603807926178
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-452745661eb64ed0"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.9366666666666666,
+          "macro_f1": 0.9373276162612479,
+          "ece": 0.03198310274055038,
+          "brier": 0.10234785829365979,
+          "nll": 0.19826705608240605,
+          "aurc": 0.01289241390025952,
+          "mean_confidence": 0.9086179325098488,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.9708333333333333
+        },
+        "readout_ece": 0.08080435323429579,
+        "readout_brier": 0.06360713754654865,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 206.0,
+        "latency_p99_ms": 397.0,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 289.0,
+          "max_ms": 521.0,
+          "argmax_case": 117
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 67.6731991,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.3333333333333333,
+        "jdi_skill": 0.9049999999999998
+      },
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-614262484399affa",
+        "cal_digest": "fnv1a64-b8126a40673cc7c6",
+        "pool_digest": "fnv1a64-f3f8f200eba61985",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "massive_intent_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-49390c8b80475849",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.61,
+          "macro_f1": 0.6034990885757014,
+          "ece": 0.5453643404816588,
+          "brier": 0.9258055462811732,
+          "nll": 2.775557959666437,
+          "aurc": 0.22784459897009157,
+          "mean_confidence": 0.06463565951834123,
+          "acc_at_50_coverage": 0.7666666666666667,
+          "acc_at_80_coverage": 0.6708333333333333
+        },
+        "readout_ece": 0.06140099816024304,
+        "readout_brier": 0.20768115776840954,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.3466666666666667,
+          "selective_accuracy": 0.6122448979591837,
+          "selective_n": 196
+        },
+        "abstain_causes": {
+          "score_gate": 16,
+          "distance_gate": 88,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.5453643404816588,
+        "readout_ece_calibrated": 0.06140099816024304,
+        "floor_ece": 0.12494195688225537,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.095,
+        "latency_p99_ms": 0.128,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.099,
+          "max_ms": 0.159,
+          "argmax_case": 148
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.2309553,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.23724583,
+        "distance_threshold": 0.5259382,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.23724583,
+            "status": "fitted",
+            "targetAccuracy": 0.55,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.5259382,
+            "status": "fitted",
+            "targetAccuracy": 0.4,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "iot_hue_lightoff",
+            "pred": "iot_wemo_off",
+            "count": 4,
+            "share_of_errors": 0.03418803418803419
+          },
+          {
+            "gold": "calendar_query",
+            "pred": "qa_maths",
+            "count": 2,
+            "share_of_errors": 0.017094017094017096
+          },
+          {
+            "gold": "datetime_query",
+            "pred": "iot_cleaning",
+            "count": 2,
+            "share_of_errors": 0.017094017094017096
+          },
+          {
+            "gold": "lists_createoradd",
+            "pred": "lists_query",
+            "count": 2,
+            "share_of_errors": 0.017094017094017096
+          },
+          {
+            "gold": "music_dislikeness",
+            "pred": "play_music",
+            "count": 2,
+            "share_of_errors": 0.017094017094017096
+          },
+          {
+            "gold": "transport_traffic",
+            "pred": "qa_factoid",
+            "count": 2,
+            "share_of_errors": 0.017094017094017096
+          },
+          {
+            "gold": "alarm_query",
+            "pred": "alarm_remove",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          },
+          {
+            "gold": "alarm_query",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          },
+          {
+            "gold": "alarm_remove",
+            "pred": "alarm_set",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          },
+          {
+            "gold": "audio_volume_down",
+            "pred": "audio_volume_up",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "audio_volume_other",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          },
+          {
+            "gold": "audio_volume_mute",
+            "pred": "general_quirky",
+            "count": 1,
+            "share_of_errors": 0.008547008547008548
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.08666666666666667,
+        "jdi_skill": 0.572992700729927,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.3684315102361142
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.3684315102361142
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.42701785504817963
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-da4b04bcd9bb6c8b"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.9133333333333333,
+          "macro_f1": 0.906417338720399,
+          "ece": 0.025989210045098913,
+          "brier": 0.11206977543597499,
+          "nll": 0.23942445586936378,
+          "aurc": 0.009185387881690531,
+          "mean_confidence": 0.9393225433784329,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 0.9875
+        },
+        "readout_ece": 0.026462553176672912,
+        "readout_brier": 0.04540127677286912,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 218.0,
+        "latency_p99_ms": 437.0,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 437.0,
+          "max_ms": 589.0,
+          "argmax_case": 2
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 71.1171713,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.08666666666666667,
+        "jdi_skill": 0.9051094890510949
+      },
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 11314,
+        "test_digest": "fnv1a64-328f111f90d7a0c1",
+        "cal_digest": "fnv1a64-74b76416cdd836d5",
+        "pool_digest": "fnv1a64-fb5a4f0d9147dc0d",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "cases_digest": "fnv1a64-dd8ab35333abb82a",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.394,
+          "macro_f1": 0.35256293737855116,
+          "ece": 0.37796421800740065,
+          "brier": 0.9822180594533197,
+          "nll": 4.174181699600196,
+          "aurc": 0.5090083545416316,
+          "mean_confidence": 0.01603578199259937,
+          "acc_at_50_coverage": 0.484,
+          "acc_at_80_coverage": 0.4375
+        },
+        "readout_ece": 0.027789368689060227,
+        "readout_brier": 0.22898814840755816,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.526,
+          "selective_accuracy": 0.5485232067510548,
+          "selective_n": 237
+        },
+        "abstain_causes": {
+          "score_gate": 132,
+          "distance_gate": 131,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.37796421800740065,
+        "readout_ece_calibrated": 0.027789368689060227,
+        "floor_ece": 0.19416915422885572,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.31,
+        "latency_p99_ms": 0.583,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.268,
+          "max_ms": 0.687,
+          "argmax_case": 191
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.7012003,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.3176532,
+        "distance_threshold": 0.55494976,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.3176532,
+            "status": "fitted",
+            "targetAccuracy": 0.47857141,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.55494976,
+            "status": "fitted",
+            "targetAccuracy": 0.4857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "card payment wrong exchange rate",
+            "pred": "exchange rate",
+            "count": 5,
+            "share_of_errors": 0.0165016501650165
+          },
+          {
+            "gold": "top up by cash or cheque",
+            "pred": "top up limits",
+            "count": 5,
+            "share_of_errors": 0.0165016501650165
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card arrival",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "card payment not recognised",
+            "pred": "card linking",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "lost or stolen card",
+            "pred": "card linking",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "pending cash withdrawal",
+            "pred": "pending top up",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "reverted card payment?",
+            "pred": "declined card payment",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "why verify identity",
+            "pred": "verify my identity",
+            "count": 4,
+            "share_of_errors": 0.013201320132013201
+          },
+          {
+            "gold": "card acceptance",
+            "pred": "card arrival",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card not working",
+            "pred": "card arrival",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card not working",
+            "pred": "card linking",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          },
+          {
+            "gold": "card payment fee charged",
+            "pred": "card linking",
+            "count": 3,
+            "share_of_errors": 0.009900990099009901
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.385395537525355,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.37906540132593364
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.37906540132593364
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.39341777086257934
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-a8ba728d1bb79dd2"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.914,
+          "macro_f1": 0.9113099022189927,
+          "ece": 0.03589330435038496,
+          "brier": 0.13864837623300882,
+          "nll": 0.35636994823275125,
+          "aurc": 0.01509340663019412,
+          "mean_confidence": 0.9433911877264659,
+          "acc_at_50_coverage": 0.996,
+          "acc_at_80_coverage": 0.975
+        },
+        "readout_ece": 0.03450532840421791,
+        "readout_brier": 0.06334920428243002,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 1018.0,
+        "latency_p99_ms": 1150.0,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 1271.0,
+          "max_ms": 1432.0,
+          "argmax_case": 11
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 535.1336403,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.9127789046653144
+      },
+      "slices": {
+        "n_test": 500,
+        "n_cal": 200,
+        "n_pool": 9793,
+        "test_digest": "fnv1a64-cb0b5cbcb0cdfcce",
+        "cal_digest": "fnv1a64-8f14f68a2e55799f",
+        "pool_digest": "fnv1a64-14a38d138e218d1b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      }
+    },
+    {
+      "name": "semantic_defects",
+      "n_cases": 102,
+      "n_questions": 102,
+      "cases_digest": "fnv1a64-8032fe33f25653bc",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 102,
+          "accuracy": 0.18627450980392157,
+          "macro_f1": 0.17981060921698963,
+          "ece": 0.028703849835723043,
+          "brier": 0.8338161412602471,
+          "nll": 1.7937330962600424,
+          "aurc": 0.822020626645722,
+          "mean_confidence": 0.18253409088242287,
+          "acc_at_50_coverage": 0.19607843137254902,
+          "acc_at_80_coverage": 0.18518518518518517
+        },
+        "readout_ece": 0.18434360097436345,
+        "readout_brier": 0.1856302045906745,
+        "raw_abstain": {
+          "abstain_rate": 0.6078431372549019,
+          "selective_accuracy": 0.25,
+          "selective_n": 40
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.6078431372549019,
+          "selective_accuracy": 0.25,
+          "selective_n": 40
+        },
+        "abstain_causes": {
+          "score_gate": 43,
+          "distance_gate": 19,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.18434360097436345,
+        "readout_ece_calibrated": 0.18434360097436345,
+        "floor_ece": 0.36171310629514974,
+        "g1_pass": null,
+        "g1_verdict": "no_claim",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.021,
+        "latency_p99_ms": 0.031,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 0.024,
+          "max_ms": 0.057,
+          "argmax_case": 71
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.0092331,
+        "n_cases": 102,
+        "n_questions": 102,
+        "score_threshold": 0.0010168552,
+        "distance_threshold": 0.52091897,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.0010168552,
+            "status": "fitted",
+            "targetAccuracy": 0.30769232,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          },
+          "distance": {
+            "threshold": 0.52091897,
+            "status": "fitted",
+            "targetAccuracy": 0.30769232,
+            "support": {
+              "n": 18,
+              "nPass": 13,
+              "nAbstain": 5
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 18446744073709551615,
+          "source": "registry (selection n/a: self-corpora)",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "off_by_one",
+            "pred": "swapped_lookup",
+            "count": 9,
+            "share_of_errors": 0.10843373493975904
+          },
+          {
+            "gold": "clean",
+            "pred": "inverted_condition",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "inverted_condition",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "swapped_lookup",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "swapped_lookup",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "clean",
+            "count": 7,
+            "share_of_errors": 0.08433734939759036
+          },
+          {
+            "gold": "clean",
+            "pred": "swapped_lookup",
+            "count": 5,
+            "share_of_errors": 0.060240963855421686
+          },
+          {
+            "gold": "swallowed_error",
+            "pred": "clean",
+            "count": 5,
+            "share_of_errors": 0.060240963855421686
+          },
+          {
+            "gold": "inverted_condition",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "inverted_condition",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "unwrapped_none",
+            "pred": "swapped_lookup",
+            "count": 4,
+            "share_of_errors": 0.04819277108433735
+          },
+          {
+            "gold": "off_by_one",
+            "pred": "clean",
+            "count": 3,
+            "share_of_errors": 0.03614457831325301
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.16666666666666666,
+        "jdi_skill": 0.023529411764705896,
+        "corpus_digest": "fnv1a64-195c2ee8889fe60a"
+      },
+      "laya": {},
+      "startlux": {
+        "lane": "startlux",
+        "model": "startlux-decision-v1.1-27b-instant",
+        "hard": {
+          "n": 102,
+          "accuracy": 0.9509803921568627,
+          "macro_f1": 0.9504215083162452,
+          "ece": 0.0386674784002834,
+          "brier": 0.04989086969957385,
+          "nll": 0.07930018262817198,
+          "aurc": 0.00225955938143994,
+          "mean_confidence": 0.9571190093233835,
+          "acc_at_50_coverage": 1.0,
+          "acc_at_80_coverage": 1.0
+        },
+        "readout_ece": 0.03847153216779497,
+        "readout_brier": 0.02327023665506294,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 240.0,
+        "latency_p99_ms": 326.0,
+        "latency_tail_support": 2,
+        "latency_extremes": {
+          "first_ms": 322.0,
+          "max_ms": 360.0,
+          "argmax_case": 75
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 28.004307,
+        "n_cases": 102,
+        "n_questions": 102,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.16666666666666666,
+        "jdi_skill": 0.9411764705882353
+      }
+    }
+  ]
+}
