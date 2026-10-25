@@ -46,7 +46,7 @@
 
 use std::time::{Duration, Instant};
 
-use serde_json::Value;
+use serde_json::{Map, Value};
 
 use crate::harness::suites::SuiteCase;
 use crate::lanes::http_mini;
@@ -76,6 +76,15 @@ pub const DEFAULT_MAX_CASES: usize = 50;
 /// The explicit uncapped override (`=1`) — the P0's 400-case read rides
 /// this (a local serve is zero-marginal-cost; the posture is recorded).
 pub const UNCAPPED_ENV: &str = "OPENDECIDER_ALLOW_UNCAPPED";
+/// The order-canonicalization lever (`=1`): sort CHOICE criteria entries
+/// by option key in the WIRE body, so every presentation of the same
+/// question collapses to one canonical order (the bench-163 rule-(d)
+/// lever — nano's choice answers are option-order-sensitive, 5/6 choice
+/// suites RED; the name-keyed answer mapping needs no inverse remap).
+/// DEFAULT OFF = the incumbent posture byte-identical; the fresh read
+/// rides `=1` and stamps the lever in its record (the render-spec law:
+/// a wire change re-registers).
+pub const OPTION_SORT_ENV: &str = "OPENDECIDER_OPTION_SORT";
 
 /// The lane: a thin plaintext-HTTP/1.1 client to their production serve.
 /// std-only (the shared `crate::lanes::http_mini` micro-client; no new
@@ -87,6 +96,40 @@ pub struct OpenDeciderLane {
     token: Option<String>,
     model: String,
     timeout: Duration,
+}
+
+/// The order-canonicalization applied when [`OPTION_SORT_ENV`]`=1`:
+/// every CHOICE question's criteria object is rebuilt in ascending option-
+/// key order (the wire's presentation order IS the object's insertion
+/// order — serde_json preserve_order; the perm-probe's
+/// [`crate::harness::permutation`] relies on the same fact in the
+/// opposite direction). Score arrays are ORDERED LEVELS — permuting them
+/// changes the question, never the presentation (the permutation law) —
+/// and noul's `[false, true]` is fixed; both pass through untouched. The
+/// response join is NAME-keyed (map_answers reads the response dict per
+/// OUR criteria key), so no inverse remap exists or is needed.
+fn canonicalize_option_order(body: &mut Value) {
+    if !(std::env::var(OPTION_SORT_ENV).is_ok_and(|v| v == "1")) {
+        return;
+    }
+    let Some(questions) = body.get_mut("questions").and_then(Value::as_object_mut) else {
+        return;
+    };
+    for q in questions.values_mut() {
+        if q.get("type").and_then(Value::as_str) != Some("choice") {
+            continue;
+        }
+        let Some(criteria) = q.get_mut("criteria").and_then(Value::as_object_mut) else {
+            continue;
+        };
+        let sorted: Map<String, Value> = criteria
+            .iter()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<std::collections::BTreeMap<_, _>>()
+            .into_iter()
+            .collect();
+        *criteria = sorted;
+    }
 }
 
 impl OpenDeciderLane {
@@ -212,7 +255,9 @@ impl OpenDeciderLane {
     /// cross-lane latency measure and is DISCLOSED as a local-serve row,
     /// never pooled with on-card figures.
     pub fn decide(&self, case: &SuiteCase) -> Result<(Vec<AnswerTriple>, f64, u64), String> {
-        let body = build_body_for_model(case, &self.model)?.to_string();
+        let mut body = build_body_for_model(case, &self.model)?;
+        canonicalize_option_order(&mut body);
+        let body = body.to_string();
         let t0 = Instant::now();
         let (status, _headers, raw) = self
             .post(&body)
@@ -237,7 +282,9 @@ impl OpenDeciderLane {
     /// read (the 038 grammar-not-answers law: no test row enters any
     /// artifact).
     pub fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
-        let body = build_body_for_model(case, &self.model)?.to_string();
+        let mut body = build_body_for_model(case, &self.model)?;
+        canonicalize_option_order(&mut body);
+        let body = body.to_string();
         let (status, _headers, raw) = self.post(&body)?;
         if status != 200 {
             return Err(format!(
@@ -471,6 +518,78 @@ mod tests {
         // round trip, content-equal).
         let view = OpenDeciderLane::determinism_view(&raw).unwrap();
         assert_eq!(view, raw);
+    }
+
+    #[test]
+    fn option_sort_default_off_is_byte_identical() {
+        let _g = ENV_GUARD.lock().unwrap_or_else(|p| p.into_inner());
+        let _patch = EnvPatch::clear(OPTION_SORT_ENV);
+        let mut body = json!({
+            "model": "m",
+            "state": "s",
+            "questions": {
+                "q": {"type": "choice", "instructions": "i",
+                       "criteria": {"zeta": "Z", "alpha": "A", "mid": "M"}}
+            }
+        });
+        let before = body.to_string();
+        canonicalize_option_order(&mut body);
+        assert_eq!(body.to_string(), before, "default-off must be byte-identical");
+    }
+
+    #[test]
+    fn option_sort_canonicalizes_choice_criteria_only() {
+        let _g = ENV_GUARD.lock().unwrap_or_else(|p| p.into_inner());
+        let _patch = EnvPatch::set(OPTION_SORT_ENV, "1");
+        let mut body = json!({
+            "model": "m",
+            "state": "s",
+            "questions": {
+                "c": {"type": "choice", "instructions": "i",
+                      "criteria": {"zeta": "Z", "alpha": "A", "mid": "M"}},
+                "s": {"type": "score", "instructions": "i",
+                      "criteria": ["very negative", "negative", "neutral"]},
+                "n": {"type": "noul", "instructions": "i"}
+            }
+        });
+        canonicalize_option_order(&mut body);
+        let qs = body.get("questions").unwrap();
+        let choice_keys: Vec<&str> = qs["c"]["criteria"]
+            .as_object()
+            .unwrap()
+            .keys()
+            .map(String::as_str)
+            .collect();
+        assert_eq!(choice_keys, vec!["alpha", "mid", "zeta"], "choice sorted by key");
+        let score_levels: Vec<&str> = qs["s"]["criteria"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|v| v.as_str().unwrap())
+            .collect();
+        assert_eq!(
+            score_levels,
+            vec!["very negative", "negative", "neutral"],
+            "score levels are ordered semantics — never permuted"
+        );
+    }
+
+    #[test]
+    fn permuted_presentation_collapses_to_the_same_wire_body() {
+        // The bench-163 lever's actual claim: two presentations of the same
+        // question (original order vs permuted insertion order) produce the
+        // IDENTICAL wire body under the lever.
+        let _g = ENV_GUARD.lock().unwrap_or_else(|p| p.into_inner());
+        let _patch = EnvPatch::set(OPTION_SORT_ENV, "1");
+        let q_orig = json!({"type": "choice", "instructions": "i",
+                            "criteria": {"a": "A", "b": "B", "c": "C"}});
+        let q_perm = json!({"type": "choice", "instructions": "i",
+                            "criteria": {"c": "C", "a": "A", "b": "B"}});
+        let mut b1 = json!({"model": "m", "state": "s", "questions": {"q": q_orig}});
+        let mut b2 = json!({"model": "m", "state": "s", "questions": {"q": q_perm}});
+        canonicalize_option_order(&mut b1);
+        canonicalize_option_order(&mut b2);
+        assert_eq!(b1.to_string(), b2.to_string(), "canonical order collapses presentations");
     }
 
     #[test]
