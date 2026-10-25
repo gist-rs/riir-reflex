@@ -24,7 +24,7 @@
 //!                                       refuses loud naming the rebuild)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
-//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--opendecider] [--paw] [--paw-local]
+//!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--elephant] [--opendecider] [--paw] [--paw-local]
 //!                                      [--cascade] [--cascade-worthiness-lcb F]
 //!                                      [--gate-fit-selection] [--gate-distance-only]
 //!                                      [--no-gate-fit-calibrated] [--no-kn-route]
@@ -157,6 +157,22 @@
 //! staleness law; the free week ends 2026-10-27 23:59 PT; T10.1: the key
 //! is an OWNER act). An unreachable/unused-cred lane is a loud absence,
 //! never a silent skip.
+//! `--elephant` adds the elephant-1 SELF-HOSTED comparison lane (rethink
+//! Issue 032 T10.2 / Research 012 — the LOCAL-FIRST law): the same
+//! elephant-1 (9B, board #4 public print 72.24, MIT) served by OUR
+//! reference `scripts/elephant_server.py` over their qev runtime
+//! @81ce62f + serve.patch (the block-bidirectional mask arms from the
+//! checkpoint; the provenance carries the attention posture — a causal
+//! serve can never hide, the 635 lesson) at `ELEPHANT_SERVE_URL`
+//! (default `http://127.0.0.1:8096`; the 4090 `cuda:0` arm is the same
+//! lane over the LAN). The spend ceiling defaults to 50 cases
+//! (`ELEPHANT_ALLOW_UNCAPPED=1` records the local zero-marginal-cost
+//! posture — the panel and the capture passes ride it). CAPTURE-CAPABLE
+//! (self-hosted weights — `--distill-teacher elephant` is the RIDT arm,
+//! landed with riir-train 640 T2(a)); the comparison row itself is the
+//! test-split measurement. A LOCAL row is a DIFFERENT posture from the
+//! API row, never pooled (the clef disclosure law). An unreachable
+//! server is a loud absence, never a silent skip.
 //! `--opendecider` adds the OpenDecider-nano SELF-HOSTED comparison lane
 //! (rethink Issue 038 / Research 013 — the third encoder-candidate's P0
 //! admission rig): their `opendecider serve` (pip `opendecider[serve]`;
@@ -757,6 +773,7 @@ fn harness_main() {
             "--jeva" => opts.jeva = true,
             "--startlux" => opts.startlux = true,
             "--mammoth" => opts.mammoth = true,
+            "--elephant" => opts.elephant = true,
             "--opendecider" => opts.opendecider = true,
             "--paw" => opts.paw = true,
             "--paw-local" => opts.paw_local = true,
@@ -1745,6 +1762,7 @@ fn harness_main() {
                 &suite.jeva,
                 &suite.startlux,
                 &suite.mammoth,
+                &suite.elephant,
                 &suite.opendecider,
             ]
             .into_iter()

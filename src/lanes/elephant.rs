@@ -61,6 +61,15 @@ riir-train 640; no LICENSE file ships (tag+front-matter assertion)";
 /// default is generous because the capture loop is throughput-bound, not
 /// latency-bound.
 pub const DEFAULT_TIMEOUT_MS: u64 = 600_000;
+/// The spend ceiling (cases per suite), the clef A6 law — the SAME shape as
+/// the hosted lanes even though the default serve is local: a typo'd
+/// `ELEPHANT_SERVE_URL` pointing at someone else's endpoint must hit a
+/// ceiling, not an unmetered run (the opendecider precedent).
+pub const MAX_CASES_ENV: &str = "ELEPHANT_SMOKE_MAX_CASES";
+pub const DEFAULT_MAX_CASES: usize = 50;
+/// The explicit uncapped override (`=1`) — the local zero-marginal-cost
+/// posture (our hardware; the panel and the capture passes ride it).
+pub const UNCAPPED_ENV: &str = "ELEPHANT_ALLOW_UNCAPPED";
 
 /// The lane: a thin loopback HTTP/1.1 client to our reference server.
 /// std-only (the shared `crate::lanes::http_mini` micro-client; no new
@@ -79,6 +88,16 @@ impl Default for ElephantLane {
 }
 
 impl ElephantLane {
+    /// Build from the env contract. NO creds gate — the default posture is
+    /// OUR reference server on OUR hardware (the hosted-mammoth contrast:
+    /// there the loud refusal IS the gate; here there is no third party to
+    /// bill and nothing to acknowledge). Not loopback-restricted: the 4090
+    /// throughput arm (`cuda:0`) is the same lane pointed at the box over
+    /// the LAN.
+    pub fn from_env() -> Result<Self, String> {
+        Ok(Self::default())
+    }
+
     /// Parse an `http://host:port` base URL (loopback-only posture — our
     /// reference server binds 127.0.0.1 beside the harness).
     pub fn from_url(url: &str) -> Self {
@@ -205,6 +224,25 @@ impl ElephantLane {
             ));
         }
         Ok(String::from_utf8_lossy(&raw).into_owned())
+    }
+
+    /// The determinism-compare projection of one raw body: the decision
+    /// content (`model` + `answers` + `usage`) with the clock REMOVED. Our
+    /// reference server stamps top-level `latency_ms` (wall-clock per call,
+    /// BY DESIGN — the mammoth family's qev serve-meta clock, one level
+    /// up): comparing the raw envelope would read it as answer instability
+    /// on every suite (the measured 2026-10-24 sst5 lesson). The answers
+    /// are the content; a qev deterministic one-pass forward repeats
+    /// bit-identically (the probe's repeat). In memory only.
+    pub fn determinism_view(raw: &str) -> Result<String, String> {
+        let parsed: Value =
+            serde_json::from_str(raw).map_err(|e| format!("determinism view parse: {e}"))?;
+        let mut obj = match parsed {
+            Value::Object(m) => m,
+            _ => return Err("determinism view: body is not a JSON object".into()),
+        };
+        obj.shift_remove("latency_ms");
+        Ok(Value::Object(obj).to_string())
     }
 
     fn post(&self, body: &str) -> Result<http_mini::HttpReply, String> {
@@ -338,6 +376,28 @@ mod tests {
         assert!(raw.contains("\"probabilities\""), "{raw}");
 
         serve.join().unwrap();
+    }
+
+    #[test]
+    fn determinism_view_drops_the_clock_and_keeps_the_content() {
+        let raw = r#"{"model":"elephant-1@elephant-1","answers":{"q1":{"type":"choice","choice":"B","probabilities":{"A":0.25,"B":0.5,"C":0.25},"confidence":0.25}},"usage":{"input_tokens":42,"output_tokens":1},"latency_ms":1730.25}"#;
+        let v1 = ElephantLane::determinism_view(raw).unwrap();
+        // The same body with a DIFFERENT wall-clock stamps the same view.
+        let raw2 = raw.replace("1730.25", "2411.75");
+        let v2 = ElephantLane::determinism_view(&raw2).unwrap();
+        assert_eq!(v1, v2, "the clock must not read as answer instability");
+        assert!(!v1.contains("latency_ms"), "{v1}");
+        assert!(v1.contains("probabilities"), "{v1}");
+        assert!(v1.contains("input_tokens"), "{v1}");
+        // A non-object body is a loud error, never a false pass.
+        assert!(ElephantLane::determinism_view("[1,2]").is_err());
+    }
+
+    #[test]
+    fn from_env_never_refuses_the_local_posture() {
+        // The self-hosted contrast with the hosted mammoth gate: no creds
+        // to acknowledge, no third party to bill.
+        assert!(ElephantLane::from_env().is_ok());
     }
 
     #[test]

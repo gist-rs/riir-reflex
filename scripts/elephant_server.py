@@ -42,6 +42,19 @@ Env pins:
   ELEPHANT_DTYPE   default bfloat16 (the qev engine default — OVERRIDES the
                    config's top-level float32; /health reports the RESOLVED
                    engine info dtype — the d1 law)
+  ELEPHANT_FORK_MODE  default sequential (MEASURED 2026-10-25, seal1 M5
+                   Ultra, transformers 5.19.0 + torch 2.14.1 MPS: the
+                   engine's auto-selected `batched` fork runs the qwen3_5
+                   GDN reference fallback pathologically slow — 8-30 s per
+                   1-question decide vs 0.5-0.9 s sequential, while the
+                   27B mammoth-1 at the SAME arch ran its whole panel at
+                   p50 1.9 s/case on this box; answers verified
+                   BYTE-IDENTICAL between postures on the probe case, and
+                   the auto-selector only adopts batched within 5e-2 of
+                   sequential anyway. The mammoth launcher's posture — the
+                   family is consistent for the rethink fold. bench 662's
+                   1.74 s/2q probe read was batched on the M3: treat the
+                   posture as part of the box-state disclosure.)
   ELEPHANT_BIND    default 127.0.0.1
   ELEPHANT_PORT    default 8096 (fresh in the lane family: 8000
                    drex/openthai, 8078 d1, 8090 startlux, 8095 jeva, 8793
@@ -55,6 +68,7 @@ serve.patch applied — riir-train 640 T2(a) records the exact venv):
 
 from __future__ import annotations
 
+import gc
 import json
 import os
 import sys
@@ -78,6 +92,7 @@ MODEL_PATH = os.environ.get(
 )
 DEVICE = os.environ.get("ELEPHANT_DEVICE", "mps")
 DTYPE = os.environ.get("ELEPHANT_DTYPE", "bfloat16")
+FORK_MODE = os.environ.get("ELEPHANT_FORK_MODE", "sequential")
 
 LICENSE_NOTE = (
     "MIT (baselabs/elephant-1; base Qwen3.5 Apache-2.0; runtime OneJev "
@@ -98,7 +113,12 @@ def load_model():
         flush=True,
     )
     t0 = time.perf_counter()
-    ENGINE = DecisionEngine(MODEL_PATH, device=DEVICE, dtype=DTYPE)
+    ENGINE = DecisionEngine(
+        MODEL_PATH,
+        device=DEVICE,
+        dtype=DTYPE,
+        fork_mode=FORK_MODE,
+    )
     info = ENGINE.info
     INFO = {
         "model_type": info.model_type,
@@ -111,7 +131,8 @@ def load_model():
     }
     print(
         f"[elephant-server] up in {time.perf_counter() - t0:.1f}s: "
-        f"{json.dumps(INFO, sort_keys=True)} license={LICENSE_NOTE}",
+        f"{json.dumps(INFO, sort_keys=True)} fork_mode={FORK_MODE} "
+        f"license={LICENSE_NOTE}",
         flush=True,
     )
 
@@ -139,6 +160,25 @@ def handle_decide(body):
         "usage": resp.usage.model_dump(),
         "latency_ms": latency_ms,
     }
+
+
+def mps_cache_hygiene():
+    """MPS CACHE HYGIENE (the mammoth launcher's measured fix, 2026-10-24):
+    the qev engine's empty_cache guard is CUDA-only, and forked branches
+    deep-copy the prefix cache — on MPS the cached allocator never returns
+    memory and RSS ballooned 44 → 70 GB with 23.7 GB of swap inside one
+    600-case suite. gc + torch.mps.empty_cache() after EVERY decide.
+    Answers are byte-identical with and without the hygiene (the mammoth
+    determinism probes predate it); only the allocator's footprint moves.
+    """
+    gc.collect()
+    try:
+        import torch
+
+        if torch.backends.mps.is_available():
+            torch.mps.empty_cache()
+    except ImportError:  # non-torch posture (e.g. a CPU stub build)
+        pass
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -177,6 +217,10 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", "0"))
             body = json.loads(self.rfile.read(length).decode("utf-8"))
             payload = handle_decide(body)
+            # After handle_decide returns — its locals (the pydantic resp
+            # tree) are gone, so the gc pass can actually reclaim the
+            # transient activation tensors before the next request lands.
+            mps_cache_hygiene()
             self._send(200, payload)
         except ValueError as exc:
             self._send(400, {"error": str(exc)})

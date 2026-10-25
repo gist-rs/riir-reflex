@@ -1490,6 +1490,15 @@ pub struct SuiteResult {
     /// capture artifact (the T10.2 law). Absent when the lane did not run.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mammoth: Option<LaneResult>,
+    /// rethink Issue 032 T10.2 / Research 012: the elephant-1 SELF-HOSTED
+    /// comparison lane's row — the LOCAL-FIRST law's measurement posture
+    /// (our reference `scripts/elephant_server.py` over their qev runtime;
+    /// bf16, the block-bidirectional mask armed from the checkpoint).
+    /// Capture-CAPABLE (self-hosted weights — the `--distill-teacher
+    /// elephant` RIDT arm is the same serve), but this row is the test-split
+    /// measurement. Absent when the lane did not run.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub elephant: Option<LaneResult>,
     /// rethink Issue 038 / Research 013: the OpenDecider-nano SELF-HOSTED
     /// comparison lane's row — the third encoder-candidate's P0 admission
     /// rig (Apache-2.0, ~400M Ettin-encoder-400m + MLP decision head) via
@@ -1652,6 +1661,12 @@ pub struct RunMeta {
     /// APIs behind the operator-run loopback TLS forwarder — the hop
     /// disclosed; MIT, MEASUREMENT-ONLY, no RIDT arm).
     pub mammoth_lane: String,
+    /// Whether the elephant-1 self-hosted comparison lane ran (rethink
+    /// Issue 032 T10.2 — the LOCAL-FIRST law), and its serving posture when
+    /// it did (our reference server over their qev runtime; the resolved
+    /// engine dtype/attention/fork_mode ride the /health provenance — a
+    /// causal serve can never hide, the 635 lesson).
+    pub elephant_lane: String,
     /// The opendecider lane's posture disclosure (rethink Issue 038).
     pub opendecider_lane: String,
     /// Whether the PAW comparison lane ran (Issue 033), and its posture
@@ -6646,7 +6661,7 @@ fn run_teacher_wire_lane<L: TeacherWireLane>(
             gold: vec![],
         };
         lane.decide(&warm)
-            .map_err(|e| format!("mammoth warmup: {e}"))?;
+            .map_err(|e| format!("{lane_name} warmup: {e}"))?;
     }
 
     // The trim law (the gliner lane's law): the SAME question cap as the
@@ -6789,6 +6804,54 @@ impl TeacherWireLane for crate::lanes::mammoth::MammothLane {
     fn max_cases_default(&self) -> usize {
         crate::lanes::mammoth::DEFAULT_MAX_CASES
     }
+}
+
+impl TeacherWireLane for crate::lanes::elephant::ElephantLane {
+    fn label(&self) -> &'static str {
+        "elephant"
+    }
+    fn info(&self) -> Result<(String, String), String> {
+        self.info()
+    }
+    fn decide(
+        &self,
+        case: &SuiteCase,
+    ) -> Result<(Vec<crate::lanes::pplx::AnswerTriple>, f64, u64), String> {
+        self.decide(case)
+    }
+    fn decide_raw(&self, case: &SuiteCase) -> Result<String, String> {
+        self.decide_raw(case)
+    }
+    fn determinism_view(raw: &str) -> Result<String, String> {
+        // The inherent associated fn (the reference server's top-level
+        // `latency_ms` clock strip — the mammoth serve-meta class, one
+        // level up).
+        crate::lanes::elephant::ElephantLane::determinism_view(raw)
+    }
+    fn spend_env(&self) -> &'static str {
+        crate::lanes::elephant::MAX_CASES_ENV
+    }
+    fn uncapped_env(&self) -> &'static str {
+        crate::lanes::elephant::UNCAPPED_ENV
+    }
+    fn max_cases_default(&self) -> usize {
+        crate::lanes::elephant::DEFAULT_MAX_CASES
+    }
+}
+
+/// The elephant lane's thin construction + delegation (the shared core is
+/// [`run_teacher_wire_lane`]). The SELF-HOSTED twin of
+/// [`run_mammoth_lane`]: same loop, our reference server, no creds gate —
+/// and it is ALSO the capture path (`--distill-teacher elephant`, landed
+/// with riir-train 640 T2(a)); the comparison lane itself stays
+/// measurement over the test splits (the no-cheat law).
+fn run_elephant_lane(
+    suite: &Suite,
+    laya_max_questions: usize,
+    leak_flags: Option<&[bool]>,
+) -> Result<LaneResult, String> {
+    let lane = crate::lanes::elephant::ElephantLane::from_env()?;
+    run_teacher_wire_lane(lane, suite, laya_max_questions, leak_flags)
 }
 
 /// The mammoth lane's thin construction + delegation (the shared core is
@@ -8272,6 +8335,16 @@ pub struct RunOptions {
     /// unreachable/unused-cred lane is a LOUD error, never a silent skip.
     /// Default off.
     pub mammoth: bool,
+    /// Also run the elephant-1 SELF-HOSTED comparison lane (rethink Issue
+    /// 032 T10.2 / Research 012 — the LOCAL-FIRST law): Base Labs'
+    /// elephant-1 (9B, JDI 0.4.1 board #4 public print 72.24, MIT) served
+    /// by OUR reference `scripts/elephant_server.py` over their qev runtime
+    /// at `ELEPHANT_SERVE_URL` (default `http://127.0.0.1:8096`). The
+    /// spend ceiling defaults to 50 cases (`ELEPHANT_ALLOW_UNCAPPED=1`
+    /// records the local zero-marginal-cost posture — the panel and the
+    /// capture passes ride it). An unreachable server is a LOUD error,
+    /// never a silent skip. Default off.
+    pub elephant: bool,
     /// Also run the OpenDecider-nano self-hosted comparison lane (rethink
     /// Issue 038 / Research 013 — the third encoder-candidate's P0
     /// admission rig): their `opendecider serve` (pip
@@ -8517,6 +8590,7 @@ impl RunOptions {
             jeva: false,
             startlux: false,
             mammoth: false,
+            elephant: false,
             opendecider: false,
             paw: false,
             paw_local: false,
@@ -9292,6 +9366,33 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             None
         };
 
+        // elephant-1 self-hosted comparison lane (rethink Issue 032 T10.2 /
+        // Research 012 — the LOCAL-FIRST law): Base Labs' 9B via OUR
+        // reference server over their qev runtime, the same cases, the
+        // same metrics tail. The measurement row feeds the same JDI
+        // aggregate as the hosted mammoth row.
+        let elephant_result = if opts.elephant {
+            eprintln!("    elephant: running…");
+            match run_elephant_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
+                Ok(r) => {
+                    eprintln!(
+                        "    elephant: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    Some(r)
+                }
+                Err(e) => {
+                    errors.push(format!("{} (elephant): {e}", spec.name));
+                    None
+                }
+            }
+        } else {
+            None
+        };
+
         // opendecider self-hosted comparison lane (rethink Issue 038 /
         // Research 013): OpenDecider-nano via their `opendecider serve`,
         // the same cases, the same metrics tail. The P0 gate (bar, one
@@ -9491,6 +9592,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             jeva: jeva_result,
             startlux: startlux_result,
             mammoth: mammoth_result,
+            elephant: elephant_result,
             opendecider: opendecider_result,
             paw: paw_result,
             paw_local: paw_local_result,
@@ -10008,6 +10110,39 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              T10; T10.1: the key is an OWNER act; window ends 2026-10-27 23:59 PT)"
                 .to_string()
         },
+        elephant_lane: if opts.elephant {
+            let url = std::env::var(crate::lanes::elephant::SERVE_URL_ENV)
+                .unwrap_or_else(|_| crate::lanes::elephant::DEFAULT_SERVE_URL.into());
+            let posture = crate::lanes::elephant::ElephantLane::from_env()
+                .and_then(|l| l.info())
+                .map_or_else(
+                    |e| format!("(handshake unreadable: {e})"),
+                    |(m, d)| format!("{m} on {d}"),
+                );
+            format!(
+                "on — the elephant-1 SELF-HOSTED lane (rethink Issue 032 T10.2; the \
+                 LOCAL-FIRST law — our reference scripts/elephant_server.py over \
+                 their qev runtime @81ce62f + serve.patch, weights MIT, board #4 \
+                 public print 72.24; not affiliated) via {url} ({posture}): the \
+                 block-bidirectional mask arms from the checkpoint (a causal serve \
+                 can never hide — the provenance carries the attention posture, \
+                 the 635 lesson); same cases, the pplx-family SystemOne wire (the \
+                 wire functions REUSED from the pplx lane); the determinism compare \
+                 projects the envelope minus the top-level latency_ms clock (the \
+                 mammoth serve-meta class — the answers are the content); the local \
+                 row is a DIFFERENT posture from the API row, never pooled (the \
+                 clef disclosure law); spend ceiling ELEPHANT_SMOKE_MAX_CASES \
+                 default 50 (ELEPHANT_ALLOW_UNCAPPED=1 records the local \
+                 zero-marginal-cost posture); latency columns on a loaded MPS box \
+                 are characterization, never a claim (the bench-162 quarantine law)"
+            )
+        } else {
+            "off (pass --elephant to add the self-hosted comparison lane; serve our \
+             scripts/elephant_server.py under the qev venv on ELEPHANT_SERVE_URL, \
+             default http://127.0.0.1:8096 — rethink Issue 032 T10.2, riir-train \
+             640 T2(a) records the exact venv + weight pin)"
+                .to_string()
+        },
         opendecider_lane: if opts.opendecider {
             let url = std::env::var(crate::lanes::opendecider::SERVE_URL_ENV)
                 .unwrap_or_else(|_| crate::lanes::opendecider::DEFAULT_SERVE_URL.into());
@@ -10194,6 +10329,7 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
     s.push_str(&format!("- d3 lane: {}\n", out.meta.d3_lane));
     s.push_str(&format!("- startlux lane: {}\n", out.meta.startlux_lane));
     s.push_str(&format!("- mammoth lane: {}\n", out.meta.mammoth_lane));
+    s.push_str(&format!("- elephant lane: {}\n", out.meta.elephant_lane));
     s.push_str(&format!("- paw lane: {}\n", out.meta.paw_lane));
     s.push_str(&format!("- paw-local lane: {}\n", out.meta.paw_local_lane));
     s.push_str(&format!(
