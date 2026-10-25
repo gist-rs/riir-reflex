@@ -278,7 +278,7 @@ MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
   cargo run --release --bin harness -- --mammoth --suites typed_decisions --skip-laya
 
 # The LOCAL postures (032 T10.2, the LOCAL-FIRST law — Research 012): both
-# checkpoints self-host on seal1 (MPS bf16, OneJev@81ce62f + serve.patch,
+# checkpoints self-host on amo (MPS bf16, OneJev@81ce62f + serve.patch,
 # qev venv) through OUR reference servers — mammoth via
 # `.raw/mammoth-local/serve_mammoth.py` (:8793, the 27B), elephant via the
 # COMMITTED `scripts/elephant_server.py` (:8096, the 9B; ELEPHANT_FORK_MODE

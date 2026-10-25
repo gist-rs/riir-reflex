@@ -1,6 +1,6 @@
 # Phase-1 harness tables (CI-regenerated — Plan 603 T1.5)
 
-- run: `1e6d4db` on `seal1` (2026-10-25T06:19:04Z) · profile release · laya feature false
+- run: `1e6d4db` on `amo` (2026-10-25T06:19:04Z) · profile release · laya feature false
 - box state (Issue 021): start power=AC Power mode=? load=16.89 swap=11202M · end power=AC Power mode=? load=13.79 swap=11202M — ⛔ latency NOT QUOTABLE — load 16.89 > 6 — a sibling job is on the box; load 13.79 > 6 — a sibling job is on the box
 - laya device posture: n/a (compiled without laya-riir)
 - laya-python lane: off (pass --laya-python to add the reference lane)

@@ -1,10 +1,10 @@
-# Bench 162 — the T10.2 LOCAL mammoth panel: all 12 suites landed on the seal1 self-host (mammoth-1 bf16 onejev81ce62f, MPS), determinism_ok 12/12, parity vs the board's own prints holds on every comparable column — banking77 0.9290 (board skill 0.9383), winogrande 0.9204 (0.9226), mmlupro 0.7411 (0.7183), anli 0.7554 (0.7443), hellaswag 0.9680 (0.9797)
+# Bench 162 — the T10.2 LOCAL mammoth panel: all 12 suites landed on the amo self-host (mammoth-1 bf16 onejev81ce62f, MPS), determinism_ok 12/12, parity vs the board's own prints holds on every comparable column — banking77 0.9290 (board skill 0.9383), winogrande 0.9204 (0.9226), mmlupro 0.7411 (0.7183), anli 0.7554 (0.7443), hellaswag 0.9680 (0.9797)
 
 **Status:** RECORD — panel executed 2026-10-24T18:07Z → 2026-10-25 ~12:35+07 (watchdog `55972` → marker `/tmp/mammoth_panel_done.marker` at ~12:20+07); fold executed same day (rethink side: rethink bench 073). Rethink Issue 032 T10.2's LOCAL-FIRST arm is DONE — the hosted (Baseten-direct) half still waits on T10.1's owner key (window ends 2026-10-27 23:59 PT); this record is the parity reference that hosted run will be checked against.
 
 ## 1. The panel
 
-`riir-reflex/.raw/mammoth-local/run_panel.sh` — 12 sequential `harness --mammoth --skip-laya --suites <s>` runs over the canonical `.raw/datasets` (no `--datasets-dir` workaround), `--out .benchmarks/mammoth_local_panel/<s>/` (results.json + TABLES.md each). Serve: `.raw/mammoth-local/serve_mammoth.py` — the LOCAL self-host of **mammoth-1**, bf16 onejev81ce62f weights (~55 GB RSS), MPS, `MAMMOTH_DEVICE=local-seal1-mps-bf16-onejev81ce62f`, loopback :8793 (no forwarder — the local serve binds directly). Every suite prints `harness: PASSED — 1 suite(s), no absences`.
+`riir-reflex/.raw/mammoth-local/run_panel.sh` — 12 sequential `harness --mammoth --skip-laya --suites <s>` runs over the canonical `.raw/datasets` (no `--datasets-dir` workaround), `--out .benchmarks/mammoth_local_panel/<s>/` (results.json + TABLES.md each). Serve: `.raw/mammoth-local/serve_mammoth.py` — the LOCAL self-host of **mammoth-1**, bf16 onejev81ce62f weights (~55 GB RSS), MPS, `MAMMOTH_DEVICE=local-amo-mps-bf16-onejev81ce62f`, loopback :8793 (no forwarder — the local serve binds directly). Every suite prints `harness: PASSED — 1 suite(s), no absences`.
 
 The boot path is the quiet-box watchdog (`watchdog.sh`, the 2026-10-24 stand-down law): two consecutive quiet polls (swap < 8 GB, free > 55%, no sibling bench, load < 4.0) before serve boot — it found its window 2026-10-24T18:06Z and launched the panel at 18:07Z.
 
@@ -59,4 +59,4 @@ Five comparable columns, every one inside ±0.023. The systematic uncertainty of
 - Serve: `.raw/mammoth-local/serve_mammoth.py` (gitignored operator rig), bf16 onejev81ce62f weights, MPS, 55 GB-class RSS, loopback :8793, `MAMMOTH_FORWARDER_AUTH=1` bearer enforced.
 - Watchdog: `/tmp/mammoth_watchdog.log` (boot 18:06:46Z, healthy 18:07:16Z, **panel finished rc=0 05:39:26Z — demised the serve by design ("free the 44 GB for siblings"), marker 05:39:31Z**); panel marker `/tmp/mammoth_panel_done.marker`; per-suite logs `/tmp/mammoth_panel_<s>.log`; serve log `/tmp/mammoth_serve.log` (11,000+ 200-OK POSTs, zero non-200s in the panel window). The hosted-parity arm re-boots the serve through the same watchdog when T10.1's key arrives — the boot is scripted, nothing is lost by the demise.
 - Fold: `rethink scripts/jdi_aggregate.py` over the pinned corrected command (032 T10.2; the two archived banking77 rows included) → rethink bench 073.
-- Session: zed seal1 2026-10-25 (fold-readiness → fold session), epoch ~1792950000.
+- Session: zed amo 2026-10-25 (fold-readiness → fold session), epoch ~1792950000.

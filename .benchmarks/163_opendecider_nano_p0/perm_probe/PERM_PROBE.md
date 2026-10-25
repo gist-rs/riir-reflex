@@ -1,7 +1,7 @@
 # Perm probe — option-permutation spread (issue 077)
 
-- date 2026-10-25T06:28:48Z · sha 1e6d4db · host seal1
-- datasets /Users/seal1/git/riir-reflex/.raw/datasets
+- date 2026-10-25T06:28:48Z · sha 1e6d4db · host amo
+- datasets /Users/amo/git/riir-reflex/.raw/datasets
 - K 5 orderings × ≤ 40 case(s)/suite · seed 125239297
 - laya device: not probed
 - gate: per lane x suite: MEDIAN top-pick swing across orderings <= 2 pt; max + flip rate disclosed beside. The modelless control holds a stricter contract: flips allowed ONLY on an exact top-2 tie (the deterministic first-position tie-break) and median swing within the L1 normalizer's measured fp envelope (0.01 pt) — strict byte-identity stays a disclosed column (the L1 sum reorders with the presentation and moves ULPs by design). A control red refuses the run verdict.
