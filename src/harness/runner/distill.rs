@@ -317,6 +317,22 @@ pub(crate) enum TeacherForward {
         lane: crate::lanes::elephant::ElephantLane,
         provenance: String,
     },
+    /// The OpenDecider-nano SELF-HOSTED service (rethink Issue 038's P0
+    /// ADMITTED candidate, feeding riir-train 640 T4's router column):
+    /// their `opendecider serve` (pip `opendecider[serve]`, Jev-compatible
+    /// `/v1/systemone`) — ~400M Ettin-encoder-400m + MLP decision head.
+    /// Weights Apache-2.0 with LICENSE FILE PRESENT (the pin in 038). THE
+    /// BENCH-163 DISCLOSURE RIDES THE HEADER (rule (c)): nano's choice
+    /// answers are OPTION-ORDER-SENSITIVE (permuting options moves the
+    /// probabilities — the [MASK]-per-option rows carry positional
+    /// embeddings), so this column must never be pooled with
+    /// order-invariant lanes without that disclosure; captures are taken
+    /// at the shipped dataset option order (the same fixed order every
+    /// lane and every board entrant reads).
+    Opendecider {
+        lane: crate::lanes::opendecider::OpenDeciderLane,
+        provenance: String,
+    },
 }
 
 impl TeacherForward {
@@ -333,6 +349,7 @@ impl TeacherForward {
             Self::Jeva { .. } => "jeva",
             Self::Startlux { .. } => "startlux",
             Self::Elephant { .. } => "elephant",
+            Self::Opendecider { .. } => "opendecider",
         }
     }
 
@@ -348,6 +365,7 @@ impl TeacherForward {
             Self::D3 { provenance, .. } | Self::Jeva { provenance, .. } => provenance,
             Self::Startlux { provenance, .. } => provenance,
             Self::Elephant { provenance, .. } => provenance,
+            Self::Opendecider { provenance, .. } => provenance,
         }
     }
 
@@ -368,6 +386,13 @@ impl TeacherForward {
             ),
             Self::Startlux { .. } => Some(crate::lanes::startlux::LICENSE_LINE),
             Self::Elephant { .. } => Some(crate::lanes::elephant::LICENSE_LINE),
+            Self::Opendecider { .. } => Some(
+                "Apache-2.0 (OpenDecider-nano; LICENSE file present, pin in \
+                      rethink 038) — OPTION-ORDER-SENSITIVE choice answers \
+                      (bench 163 rule (c)): captured at the shipped dataset \
+                      option order; never pool with order-invariant lanes \
+                      without this disclosure",
+            ),
             _ => None,
         }
     }
@@ -450,6 +475,14 @@ impl TeacherForward {
                 .decide(case)
                 .map(|_| ())
                 .map_err(|e| format!("elephant warmup: {e}")),
+            // The opendecider law: the ONE-probe handshake ran at construct
+            // (the clef law; it fills the provenance); warmup is the loud
+            // proof + the cold-path absorb (their first encode pages the
+            // Ettin backbone).
+            Self::Opendecider { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("opendecider warmup: {e}")),
         }
     }
 
@@ -563,6 +596,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("elephant forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &answers, "elephant")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Opendecider { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("opendecider forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "opendecider")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -751,6 +792,16 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let lane = crate::lanes::elephant::ElephantLane::default();
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::Elephant { lane, provenance })
+        }
+        "opendecider" => {
+            // The clef law: the ONE-probe handshake (info) at construct
+            // fills the provenance off their health; the capture runs at
+            // the shipped dataset option order — the bench-163
+            // order-sensitivity disclosure rides the RIDT header (the
+            // license() token above).
+            let lane = crate::lanes::opendecider::OpenDeciderLane::from_env()?;
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Opendecider { lane, provenance })
         }
         "laya" => {
             #[cfg(feature = "laya-riir")]
