@@ -1,0 +1,422 @@
+{
+  "meta": {
+    "date_utc": "2026-10-25T22:44:47Z",
+    "git_sha": "441f67a",
+    "host": "amo",
+    "profile": "release",
+    "laya_feature": false,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/seal1/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "modal_floor_definition": "input-keyed modal-answer floor = the cal-split (reference) modal gold over questions sharing the input key, pooled by option identity and mapped through each case's own option order (first-4 normalized input tokens × qid × option-count; ties → global prior → case order; arXiv:2610.17495's anti-mimicry census; LOO over eval only when no cal slice exists) — a lane at/below it carries no input-independent signal (issue 094)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "n/a (compiled without laya-riir)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "off (pass --d3 to add the comparison lane; serve their d3_server.py on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)",
+    "jeva_lane": "off (pass --jeva to add the comparison lane; serve OUR reference server scripts/jeva_server.py on JEVA_SERVE_URL, default http://127.0.0.1:8095, under the venv python with their repo installed — reflex Issue 090 B1)",
+    "startlux_lane": "off (pass --startlux to add the comparison lane; serve their startlux-decide engine on STARTLUX_SERVE_URL, default http://127.0.0.1:8090 — reflex Issue 095, riir-train 635 T3)",
+    "mammoth_lane": "off (pass --mammoth to add the hosted comparison lane; run the loopback TLS forwarder to inference.baseten.co on MAMMOTH_SERVE_URL, default http://127.0.0.1:8793, with MAMMOTH_API_TOKEN set — rethink Issue 032 T10; T10.1: the key is an OWNER act; window ends 2026-10-27 23:59 PT)",
+    "elephant_lane": "on — the elephant-1 SELF-HOSTED lane (rethink Issue 032 T10.2; the LOCAL-FIRST law — our reference scripts/elephant_server.py over their qev runtime @81ce62f + serve.patch, weights MIT, board #4 public print 72.24; not affiliated) via http://127.0.0.1:8096 (baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential on mps): the block-bidirectional mask arms from the checkpoint (a causal serve can never hide — the provenance carries the attention posture, the 635 lesson); same cases, the pplx-family SystemOne wire (the wire functions REUSED from the pplx lane); the determinism compare projects the envelope minus the top-level latency_ms clock (the mammoth serve-meta class — the answers are the content); the local row is a DIFFERENT posture from the API row, never pooled (the clef disclosure law); spend ceiling ELEPHANT_SMOKE_MAX_CASES default 50 (ELEPHANT_ALLOW_UNCAPPED=1 records the local zero-marginal-cost posture); latency columns on a loaded MPS box are characterization, never a claim (the bench-162 quarantine law)",
+    "opendecider_lane": "off (pass --opendecider to add the self-hosted comparison lane; pip install \"opendecider[serve]\" then `opendecider serve --model manjunathshiva/opendecider-nano` on OPENDECIDER_SERVE_URL, default http://127.0.0.1:8000 — rethink Issue 038 / Research 013)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": null,
+        "load_1m": 1.42,
+        "swap_used_mb": 6045.94,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": null,
+        "load_1m": 0.32,
+        "swap_used_mb": 6045.94,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": true,
+        "refusals": []
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "OFF (nb_scale 0 — the published baseline posture)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "typed_decisions",
+      "n_cases": 400,
+      "n_questions": 2000,
+      "cases_digest": "fnv1a64-6e37760ee2a5b6c9",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.294,
+          "macro_f1": 0.20381346100350822,
+          "ece": 0.08597900694608687,
+          "brier": 0.6887953868147523,
+          "nll": 1.2268604786604644,
+          "aurc": 0.5613881658769828,
+          "mean_confidence": 0.345885090649128,
+          "acc_at_50_coverage": 0.467,
+          "acc_at_80_coverage": 0.350625
+        },
+        "readout_ece": 0.014013351291418119,
+        "readout_brier": 0.20782644546499313,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "abstain_causes": {
+          "score_gate": 2000,
+          "distance_gate": 0,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.28601398268342015,
+        "readout_ece_calibrated": 0.014013351291418119,
+        "floor_ece": 0.3873323353293416,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.14,
+            "macro_f1": 0.10659569157793983,
+            "ece": 0.10427482724189759,
+            "brier": 0.775437413323873,
+            "nll": 1.479820572848019,
+            "aurc": 0.8533233971432658,
+            "mean_confidence": 0.24427482724189759,
+            "acc_at_50_coverage": 0.19333333333333333,
+            "acc_at_80_coverage": 0.16041666666666668
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.565,
+            "macro_f1": 0.551791545861227,
+            "ece": 0.05682319382826484,
+            "brier": 0.49847883401813664,
+            "nll": 0.6916259033173674,
+            "aurc": 0.4859296412602207,
+            "mean_confidence": 0.5081768061717351,
+            "acc_at_50_coverage": 0.52,
+            "acc_at_80_coverage": 0.5479166666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.20625,
+            "macro_f1": 0.15616734623998546,
+            "ece": 0.09412400156259536,
+            "brier": 0.7665512815304019,
+            "nll": 1.438566339527116,
+            "aurc": 0.6977238936165817,
+            "mean_confidence": 0.30037400156259536,
+            "acc_at_50_coverage": 0.32,
+            "acc_at_80_coverage": 0.25625
+          }
+        },
+        "soft_acc": 0.31722780010521806,
+        "brier_soft": 0.24239426229596503,
+        "score_mae": 0.7147912293728421,
+        "within_1": 0.73625,
+        "latency_p50_ms": 0.599,
+        "latency_p99_ms": 1.307,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.152,
+          "max_ms": 1.316,
+          "argmax_case": 158
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 0.711495708,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": 0.3102674,
+        "distance_threshold": 0.91222644,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.3102674,
+            "status": "fitted",
+            "targetAccuracy": 0.21917808,
+            "support": {
+              "n": 100,
+              "nPass": 73,
+              "nAbstain": 27
+            }
+          },
+          "distance": {
+            "threshold": 0.91222644,
+            "status": "fitted",
+            "targetAccuracy": 0.14285715,
+            "support": {
+              "n": 100,
+              "nPass": 70,
+              "nAbstain": 30
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 48,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": [
+          {
+            "gold": "Elevated; should be handled within the same week.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 92,
+            "share_of_errors": 0.07993049522154648
+          },
+          {
+            "gold": "investigate",
+            "pred": "contain",
+            "count": 74,
+            "share_of_errors": 0.06429192006950478
+          },
+          {
+            "gold": "Critical; requires action within the same day.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 58,
+            "share_of_errors": 0.05039096437880104
+          },
+          {
+            "gold": "escalate_to_human",
+            "pred": "answer_directly",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "success",
+            "pred": "failure",
+            "count": 50,
+            "share_of_errors": 0.043440486533449174
+          },
+          {
+            "gold": "Routine; handle within the normal queue.",
+            "pred": "No time pressure; can wait indefinitely.",
+            "count": 48,
+            "share_of_errors": 0.04170286707211121
+          },
+          {
+            "gold": "Clearly unhappy; repeat problems or explicit complaints.",
+            "pred": "No sign of dissatisfaction.",
+            "count": 47,
+            "share_of_errors": 0.04083405734144222
+          },
+          {
+            "gold": "approve",
+            "pred": "hold",
+            "count": 45,
+            "share_of_errors": 0.03909643788010426
+          },
+          {
+            "gold": "manual_review",
+            "pred": "hold",
+            "count": 38,
+            "share_of_errors": 0.03301476976542137
+          },
+          {
+            "gold": "High: access to production, secrets or customer data.",
+            "pred": "Negligible: no access to anything sensitive.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "No time pressure; can wait indefinitely.",
+            "pred": "Routine; handle within the normal queue.",
+            "count": 37,
+            "share_of_errors": 0.03214596003475239
+          },
+          {
+            "gold": "Material: a large or unexplained difference.",
+            "pred": "None: everything reconciles.",
+            "count": 36,
+            "share_of_errors": 0.03127715030408341
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.0021201413427561857,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.3005141208171844
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.10498618748784067
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.3005141208171844
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-2fe9ec3132dbc924"
+      },
+      "laya": {},
+      "elephant": {
+        "lane": "elephant",
+        "model": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+        "hard": {
+          "n": 2000,
+          "accuracy": 0.7345,
+          "macro_f1": 0.724319459439846,
+          "ece": 0.095296433,
+          "brier": 0.37652181940719254,
+          "nll": 0.6616268992821663,
+          "aurc": 0.12376878371869485,
+          "mean_confidence": 0.6420872230000014,
+          "acc_at_50_coverage": 0.887,
+          "acc_at_80_coverage": 0.79875
+        },
+        "readout_ece": 0.15536113199999999,
+        "readout_brier": 0.1969941685644032,
+        "raw_abstain": null,
+        "calibrated_abstain": null,
+        "abstain_causes": null,
+        "readout_ece_raw": null,
+        "readout_ece_calibrated": null,
+        "floor_ece": null,
+        "g1_pass": null,
+        "g1_verdict": null,
+        "by_question_type": {
+          "choice": {
+            "n": 600,
+            "accuracy": 0.7166666666666667,
+            "macro_f1": 0.7134890187517408,
+            "ece": 0.10116923000000003,
+            "brier": 0.3964141150069455,
+            "nll": 0.7212560616332369,
+            "aurc": 0.1335743080996328,
+            "mean_confidence": 0.6290719233333328,
+            "acc_at_50_coverage": 0.88,
+            "acc_at_80_coverage": 0.7854166666666667
+          },
+          "noul": {
+            "n": 600,
+            "accuracy": 0.84,
+            "macro_f1": 0.8396989903262794,
+            "ece": 0.08578431166666678,
+            "brier": 0.24342710682517701,
+            "nll": 0.39012728396043866,
+            "aurc": 0.054763957557642545,
+            "mean_confidence": 0.7676581316666664,
+            "acc_at_50_coverage": 0.9666666666666667,
+            "acc_at_80_coverage": 0.8916666666666667
+          },
+          "score": {
+            "n": 800,
+            "accuracy": 0.66875,
+            "macro_f1": 0.6675268200912112,
+            "ece": 0.1146571737499999,
+            "brier": 0.46142363214388943,
+            "nll": 0.8205297390101584,
+            "aurc": 0.19176568707358682,
+            "mean_confidence": 0.5576705162499994,
+            "acc_at_50_coverage": 0.7825,
+            "acc_at_80_coverage": 0.7140625
+          }
+        },
+        "soft_acc": 0.5066395224858159,
+        "brier_soft": 0.07704326611566147,
+        "score_mae": 0.2730116287500005,
+        "within_1": 0.96625,
+        "latency_p50_ms": 2297.0,
+        "latency_p99_ms": 3157.0,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 1894.0,
+          "max_ms": 3316.0,
+          "argmax_case": 127
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 980.230023333,
+        "n_cases": 400,
+        "n_questions": 2000,
+        "score_threshold": null,
+        "distance_threshold": null,
+        "threshold_recommendation": null,
+        "corpus_cap": null,
+        "head_selection": null,
+        "nb_selection": null,
+        "oc_selection": null,
+        "ridge_selection": null,
+        "genome_selection": null,
+        "transductive": null,
+        "confusion": null,
+        "pair_head_ab": null,
+        "jdi_chance": 0.2925,
+        "jdi_skill": 0.6247349823321555
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 100,
+        "n_pool": 1100,
+        "test_digest": "fnv1a64-287d5f73a11932cd",
+        "cal_digest": "fnv1a64-0b6e8426558b0d1e",
+        "pool_digest": "fnv1a64-a1679de56e9278b1",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      },
+      "modal_floor": {
+        "acc": 0.464,
+        "n_questions": 2000,
+        "n_keys": 80,
+        "n_fallback": 40,
+        "global_modal_share": 0.228,
+        "reference": "cal-split census (test∩cal disjoint)",
+        "key_rule": "modal census pooled by option identity; key = first-4 normalized input tokens × qid × option-count; ties → global prior → the case's own option order"
+      }
+    }
+  ]
+}
