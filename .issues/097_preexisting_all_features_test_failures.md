@@ -1,5 +1,6 @@
 # 097 — pre-existing `cargo test --all-features` failures (stack overflows + three parity/oracle targets)
 **Status:** OPEN — observed 2026-10-26, unadjudicated (no root cause read yet)
+**Claimed:** zed-glm-m3-agent, 1792986189, expires 2026-10-28T04:00:00Z
 
 Found while verifying the `src/engine.rs` test-module move (`062ec1e`). Every
 failure below reproduces **identically with the pre-move `engine.rs` restored**
