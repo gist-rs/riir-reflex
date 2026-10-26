@@ -36,14 +36,18 @@ Facts (measured at filing, `develop` `0eb4c3f`):
 
 ## Tasks
 
-- [ ] **T1 — carve the comparison-lane bodies (mechanical, do first).** Move the
-  ~4122–7279 lane functions into `runner/lanes_wire.rs` (split a second file
-  `runner/lanes_hosted.rs` if the first passes ~2500 lines): the laya block, the clm
-  twins, `run_jsonl_oracle_lane`, and the `TeacherWireLane` family (the trait STAYS
-  next to its impls; `run_teacher_wire_lane` is the extracted core from `cb221da` —
-  move it with them). `mod` wiring only; zero signature changes. Gate per moved
-  chunk: `cargo test --lib` (472) + `cargo clippy --all-targets -- -D warnings` at
-  default, all-features, and no-default postures.
+- [x] **T1 — carve the comparison-lane bodies (mechanical, do first).** DONE 2026-10-26
+  (zed-amo-idle): `runner/lanes_wire.rs` (1,688 lines — the laya block + CLM twins +
+  jsonl-oracle + GLiNER/Bekko/AgentJev/clef) and `runner/lanes_hosted.rs` (1,446 —
+  OpenThai/Drex/D1/Jeva/StartLux/PPLX/D3 + the TeacherWireLane family + the Drex
+  per-kind confidence readout); runner.rs 12,098 → 8,974. Bodies moved verbatim
+  (column-0 items `pub(super)`); bare-name call sites kept via the glob re-imports +
+  two explicit re-exports (`parse_python_answer` — the external `tests/harness_units.rs`
+  path — and `JsonlOracle` for distill's `super::` paths); three `super::{cascade,
+  item_dump, suites}` references (harness-level modules, not runner-level) re-pointed
+  `crate::harness::`. Gates: `cargo test --lib` 480/0 (floor 472) + `--all-features`
+  551/0 + clippy `--all-targets -D warnings` at default/all-features/no-default — all
+  green; rustfmt clean.
 - [ ] **T2 — carve the report tail.** `fmt4`/`fmt_opt`/`fmt_gate_fit` and any
   output-assembly helpers behind `run()` → `runner/report.rs`.
 - [ ] **T3 — split `run()` into phase fns (highest risk, last).** The ~1.6k-line loop
