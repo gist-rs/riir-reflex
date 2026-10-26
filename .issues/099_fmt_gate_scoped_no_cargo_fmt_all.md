@@ -63,12 +63,25 @@ self-test were executed, and `bash -n` syntax-checked the guard edit).
 `scripts/fmt_pending_expected.txt` lands with 6 rows — the measured drift at `ca2eb39`
 (src/bin/harness.rs, src/harness/modal_floor.rs, src/harness/slice_leak.rs, src/lanes/elephant.rs,
 src/lanes/mammoth.rs, src/lanes/opendecider.rs). The one-time format commit is **staged, not yet
-pushed**: worktree commit `49458fb` (detached worktree /tmp/reflex-fmt) carries the format PLUS
-the deletion of these 6 rows in the same commit, and lands on origin only after the elephant
-window-3 recapture + the r1_after_window3 chain end — a src/ change landing mid-window would
-force the next per-suite harness rebuild under live Metal forwards (the Issue-1124 poison class;
-any sibling Protocol H pull would carry it). The gate lands FIRST (scripts/ only — no rebuild
-surface), green under the pins; `49458fb` lands second, draining the list to empty.
+pushed**: anchored as branch `fmt-drain-staged` @ `a2389e6` (the /tmp/reflex-fmt worktree commit
+`49458fb` re-anchored after the worktree removal; same tree), and lands on origin only after the
+elephant window-3 recapture + the r1_after_window3 chain end — a src/ change landing mid-window
+would force the next per-suite harness rebuild under live Metal forwards (the Issue-1124 poison
+class; any sibling Protocol H pull would carry it). The gate lands FIRST (scripts/ only — no
+rebuild surface), green under the pins; the drain lands second, emptying the list.
+
+⛔ **LANDING RECIPE v3** (2026-10-27 ~23:4x UTC, supersedes recipe v2's blanket
+`cherry-pick --no-commit fmt-drain-staged`): `a2389e6` is the PRE-SPLIT worktree snapshot (base
+`ca2eb39`, staged 11 s before `3934747`) — its diff carries the gate files (`scripts/fmt_gate.py`,
+`scripts/ci_feature_guard.sh`, `scripts/fmt_pending_expected.txt`, `AGENTS.md`, `.issues/099`,
+`.issues/.highwater`) in their PRE-RENUMBER/PRE-DOCS state; the landed `3934747` + `be50372`
+(layer-echo renumber) + `72e1e88` (AGENTS.md deny-gate row) superseded those copies. A blanket
+cherry-pick applies CLEANLY (merge-tree reports no textual conflict) and SILENTLY REGRESSES
+`be50372` + `72e1e88`. The safe landing is FILE-SCOPED: (1) sync `git pull --ff-only`; (2)
+`git checkout fmt-drain-staged -- src/bin/harness.rs src/harness/modal_floor.rs
+src/harness/slice_leak.rs src/lanes/elephant.rs src/lanes/mammoth.rs src/lanes/opendecider.rs`;
+(3) delete the 6 rows from HEAD's `scripts/fmt_pending_expected.txt`; (4) stage those 7 named
+files, ONE commit; (5) `python3 scripts/fmt_gate.py` → PASS with 0 pinned; (6) push.
 
 ## Acceptance
 
