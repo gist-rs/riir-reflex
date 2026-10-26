@@ -5507,11 +5507,11 @@ impl RunOptions {
     }
 }
 
-/// Run the harness. Suite-level failures (missing datasets, engine build
-/// errors) are REPORTED in the returned output as errors — never silently
-/// dropped — and the run continues with the remaining suites.
-pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
-    let box_start = super::box_state::capture();
+/// The run's input validation (issue 098 T3 phase fn): the
+/// mutual-exclusion and feature-gate refusals, then the unknown-suite
+/// refusal — the same check order as before the split, so the first
+/// failing option still names itself.
+fn validate_run_options(opts: &RunOptions) -> Result<(), String> {
     if opts.corpus_cap_override != 0 && !opts.cal_select_caps.is_empty() {
         return Err(
             "--corpus-cap and --cal-select-cap are mutually exclusive: one pins the cap, \
@@ -5582,27 +5582,6 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
                 .to_string(),
         );
     }
-    // Issue 055 / Plan 008 T5: the `--mc-ab` arm's tuning, built once per
-    // run. A pinned knob is a single-row grid (the selection table then
-    // carries the pinned row only — the test read stays one).
-    #[cfg(feature = "mc_ensemble")]
-    let mc_cfg = super::mc_ab::McAbConfig {
-        n_samples: if opts.mc_samples == 0 {
-            super::mc_ab::DEFAULT_MC_SAMPLES
-        } else {
-            opts.mc_samples
-        },
-        p_grid: opts
-            .mc_p_drop
-            .map_or_else(|| super::mc_ab::DEFAULT_P_GRID.to_vec(), |p| vec![p]),
-        lambda_grid: opts
-            .mc_lambda
-            .map_or_else(|| super::mc_ab::DEFAULT_LAMBDA_GRID.to_vec(), |l| vec![l]),
-    };
-    let mut results: Vec<SuiteResult> = Vec::new();
-    let mut errors: Vec<String> = Vec::new();
-    let laya_feature = cfg!(feature = "laya-riir");
-
     // A requested name matching NO registered spec selects nothing and the
     // run would write a 0-suite results.json over the out-dir's previous
     // contents (measured twice on the default tables: 09-24's 2-suite
@@ -5617,6 +5596,118 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             ));
         }
     }
+    Ok(())
+}
+
+/// Issue 055 / Plan 008 T5: the `--mc-ab` arm's tuning. A pinned knob is a
+/// single-row grid (the selection table then carries the pinned row only —
+/// the test read stays one). Pure construction from the options — built per
+/// modelless-armed suite since the T3 phase split (was once per run; the
+/// values are identical and the cost is three knob reads + two tiny grids).
+#[cfg(feature = "mc_ensemble")]
+fn build_mc_cfg(opts: &RunOptions) -> super::mc_ab::McAbConfig {
+    super::mc_ab::McAbConfig {
+        n_samples: if opts.mc_samples == 0 {
+            super::mc_ab::DEFAULT_MC_SAMPLES
+        } else {
+            opts.mc_samples
+        },
+        p_grid: opts
+            .mc_p_drop
+            .map_or_else(|| super::mc_ab::DEFAULT_P_GRID.to_vec(), |p| vec![p]),
+        lambda_grid: opts
+            .mc_lambda
+            .map_or_else(|| super::mc_ab::DEFAULT_LAMBDA_GRID.to_vec(), |l| vec![l]),
+    }
+}
+
+/// The modelless lane's per-suite outcome (issue 098 T3). `Failed` means
+/// the error is already recorded and the SUITE is aborted — the run loop's
+/// `continue` before the split yielded no suite row at all on a modelless
+/// failure, and that contract is preserved by construction.
+enum ModellessOutcome {
+    /// The suite has no modelless lane (the declared-inability skip — dead
+    /// over the current registry since Issue 045, kept for any future
+    /// `modelless_lane: false` suite).
+    NotApplicable,
+    Ran {
+        result: Box<LaneResult>,
+        questions: super::cascade::ModellessQuestions,
+    },
+    Failed,
+}
+
+/// One suite's laya-lane records (issue 098 T3 phase struct): `results`
+/// keyed by checkpoint (`py/` prefix = the python oracle), `questions` the
+/// cascade lane's escalation half, `cal_questions` the worthiness probe's
+/// escalator half (Issue 042 lever 3, only served when the lever is armed).
+struct LayaLanes {
+    results: BTreeMap<String, LaneResult>,
+    questions: BTreeMap<String, super::cascade::LayaQuestions>,
+    cal_questions: BTreeMap<String, super::cascade::LayaQuestions>,
+}
+
+/// One suite's comparison-lane rows (issue 098 T3 phase struct) — every
+/// field `None` = the lane did not run (flag off / server unreachable), an
+/// honest absence recorded in the errors list, never a fabricated row.
+struct ComparisonLanes {
+    clm: Option<LaneResult>,
+    gliner: Option<LaneResult>,
+    bekko: Option<LaneResult>,
+    agentjev: Option<LaneResult>,
+    clef: Option<LaneResult>,
+    openthai: Option<LaneResult>,
+    drex: Option<LaneResult>,
+    d1: Option<LaneResult>,
+    pplx: Option<LaneResult>,
+    d3: Option<LaneResult>,
+    jeva: Option<LaneResult>,
+    startlux: Option<LaneResult>,
+    mammoth: Option<LaneResult>,
+    elephant: Option<LaneResult>,
+    opendecider: Option<LaneResult>,
+    paw: Option<crate::lanes::paw::PawLaneResult>,
+    paw_local: Option<crate::lanes::paw::PawLaneResult>,
+}
+
+/// One standard-shape comparison lane (issue 098 T3): the `running…`
+/// banner, the shared 4-metric success line, and the loud-absence error
+/// push. The lanes with nonstandard readouts (clm's token count, paw's
+/// refusal accounting, the laya checkpoints) keep their bespoke blocks.
+fn run_comparison_lane(
+    label: &str,
+    suite_name: &str,
+    errors: &mut Vec<String>,
+    run: impl FnOnce() -> Result<LaneResult, String>,
+) -> Option<LaneResult> {
+    eprintln!("    {label}: running…");
+    match run() {
+        Ok(r) => {
+            eprintln!(
+                "    {label}: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                r.hard.accuracy,
+                r.hard.ece,
+                r.latency_p50_ms,
+                (r.seconds * 10.0).round() / 10.0
+            );
+            Some(r)
+        }
+        Err(e) => {
+            errors.push(format!("{suite_name} ({label}): {e}"));
+            None
+        }
+    }
+}
+
+/// Run the harness. Suite-level failures (missing datasets, engine build
+/// errors) are REPORTED in the returned output as errors — never silently
+/// dropped — and the run continues with the remaining suites.
+pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
+    let box_start = super::box_state::capture();
+    validate_run_options(opts)?;
+
+    let mut results: Vec<SuiteResult> = Vec::new();
+    let mut errors: Vec<String> = Vec::new();
     for spec in SUITES {
         if !opts.suites.is_empty() && !opts.suites.iter().any(|s| s == spec.name) {
             continue;
@@ -5624,309 +5715,424 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
         if opts.suites.is_empty() && spec.named_only {
             continue; // named-only suites never tax a default run
         }
-        eprintln!("═══ suite {} ═══", spec.name);
-        let prepared = match prepare(spec, &opts.datasets_dir) {
-            Ok(p) => p,
-            Err(e) => {
-                errors.push(format!("{}: {e}", spec.name));
-                continue;
-            }
-        };
-        let n_questions: usize = prepared.suite.cases.iter().map(|c| c.questions.len()).sum();
-        eprintln!(
-            "    {} cases / {} questions · {} domains",
-            prepared.suite.cases.len(),
-            n_questions,
-            prepared.labels.len()
-        );
-        // Issue 058: the slice-integrity line rides the run log AND the
-        // tables — a silently moved pool (the Bench-076 class) is visible
-        // at run time as a digest/count change, not as an accuracy move.
-        if let Some(s) = &prepared.slices {
-            eprintln!("    {}", s.summary_line());
+        if let Some(result) = run_suite(spec, opts, &mut errors) {
+            results.push(result);
         }
+    }
 
-        // Issue 024 T3: the corpus∪cal → eval near-duplicate scan over the
-        // slices THIS run serves (feature `slice_leak`). Reference side =
-        // the train split (the corpora draw from train[cal_cap..], the
-        // calibration slice IS train[..cal_cap] — the union is the whole
-        // split, the probe's exact reference); query side = the built eval
-        // cases, whose raw dataset text is recovered by the same rule the
-        // corpus side uses. Everything stays None when the feature is off
-        // or the suite is out of scope — G3 keeps results.json identical.
-        #[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
-        let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = {
-            let in_scope = spec.synthetic.is_none() && spec.name != "typed_decisions";
-            if !in_scope {
-                (None, None)
-            } else {
-                let queries: Option<Vec<String>> = prepared
-                    .suite
-                    .cases
-                    .iter()
-                    .map(|c| super::slice_leak::eval_case_text(spec.name, c))
-                    .collect();
-                match queries {
-                    Some(queries) => {
-                        let refs: Vec<&str> =
-                            prepared.train.iter().map(|d| d.text.as_str()).collect();
-                        match super::slice_leak::scan_eval(
-                            &refs,
-                            &queries,
-                            super::slice_leak::LeakParams::default(),
-                        ) {
-                            Some(scan) => {
-                                eprintln!(
-                                    "    leak: exact {} / near {} over {} eval rows \
-                                     ({} reference rows, J >= {:.2})",
-                                    scan.exact,
-                                    scan.near,
-                                    scan.n_eval,
-                                    scan.n_reference,
-                                    super::slice_leak::LeakParams::default().near_j
-                                );
-                                (
-                                    Some(SuiteLeak {
-                                        threshold: super::slice_leak::LeakParams::default().near_j,
-                                        n_reference: scan.n_reference,
-                                        n_eval: scan.n_eval,
-                                        exact: scan.exact,
-                                        near: scan.near,
-                                    }),
-                                    Some(scan.flags),
-                                )
-                            }
-                            None => (None, None),
-                        }
-                    }
-                    None => {
-                        // A builder key drifted: the scan would silently
-                        // compare against a shorter query set — surfaced,
-                        // never read as clean.
-                        errors.push(format!(
-                            "{}: leak report SKIPPED — an eval case's dataset text was \
-                             not recoverable from its built state (state-shape drift)",
-                            spec.name
-                        ));
-                        (None, None)
-                    }
-                }
-            }
+    let meta = build_meta(opts, box_start);
+    Ok((
+        RunOutput {
+            meta,
+            suites: results,
+        },
+        errors,
+    ))
+}
+
+/// The run loop's per-suite body (issue 098 T3 phase fn). `None` = the
+/// suite was skipped (prepare failure / no engine instantiation / modelless
+/// failure) — the reason is already recorded in `errors`.
+fn run_suite(spec: &SuiteSpec, opts: &RunOptions, errors: &mut Vec<String>) -> Option<SuiteResult> {
+    eprintln!("═══ suite {} ═══", spec.name);
+    let prepared = match prepare(spec, &opts.datasets_dir) {
+        Ok(p) => p,
+        Err(e) => {
+            errors.push(format!("{}: {e}", spec.name));
+            return None;
+        }
+    };
+    let n_questions: usize = prepared.suite.cases.iter().map(|c| c.questions.len()).sum();
+    eprintln!(
+        "    {} cases / {} questions · {} domains",
+        prepared.suite.cases.len(),
+        n_questions,
+        prepared.labels.len()
+    );
+    // Issue 058: the slice-integrity line rides the run log AND the
+    // tables — a silently moved pool (the Bench-076 class) is visible
+    // at run time as a digest/count change, not as an accuracy move.
+    if let Some(s) = &prepared.slices {
+        eprintln!("    {}", s.summary_line());
+    }
+
+    let (leak_block, leak_flags) = scan_slice_leaks(spec, &prepared, errors);
+    let leak_flags_ref: Option<&[bool]> = leak_flags.as_deref();
+
+    // Modelless lane (const-generic dispatch over the domain count) — the
+    // phase fn returns the outcome; `Failed` aborts the whole suite (the
+    // run loop's `continue` before the split yielded no suite row at all).
+    let (modelless, modelless_questions) =
+        match run_modelless_suite(spec, &prepared, opts, leak_flags_ref, errors) {
+            ModellessOutcome::NotApplicable => (None, None),
+            ModellessOutcome::Ran { result, questions } => (Some(result), Some(questions)),
+            ModellessOutcome::Failed => return None,
         };
-        #[cfg(any(not(feature = "slice_leak"), target_arch = "wasm32"))]
-        let (leak_block, leak_flags): (Option<SuiteLeak>, Option<Vec<bool>>) = (None, None);
-        let leak_flags_ref: Option<&[bool]> = leak_flags.as_deref();
 
-        // Modelless lane (const-generic dispatch over the domain count).
-        // The `else` arm below is the declared-inability skip — dead over
-        // the current registry since Issue 045, kept for any future
-        // `modelless_lane: false` suite.
-        let mut modelless_questions: Option<super::cascade::ModellessQuestions> = None;
-        let modelless = if spec.modelless_lane {
-            let inp = ModellessInput {
-                spec,
-                suite: &prepared.suite,
-                train: &prepared.train,
-                state_strs: &prepared.state_strs,
-                cal_cases: &prepared.cal_cases,
-                cal_state_strs: &prepared.cal_state_strs,
-                labels: &prepared.labels,
-                want_by_type: spec.name == "typed_decisions",
-                corpus_cap_per_label: if opts.corpus_cap_override != 0 {
-                    opts.corpus_cap_override
-                } else {
-                    spec.corpus_cap_per_label
-                },
-                cap_source_base: if opts.corpus_cap_override != 0 {
-                    "--corpus-cap override"
-                } else {
-                    "registry"
-                },
-                cal_select_caps: &opts.cal_select_caps,
-                pool_rows: &prepared.pool_rows,
-                pair_head_ab: opts.pair_head_ab,
-                nli_feature_ab: opts.nli_feature_ab,
-                nli_m1: opts.nli_m1,
-                #[cfg(feature = "mc_ensemble")]
-                mc_ab: opts.mc_ab.then_some(&mc_cfg),
-                density_gate: opts.density_gate,
-                head_scale: opts.head_scale,
-                head_select: opts.head_select,
-                nb_select: opts.nb_select,
-                oc_select: opts.oc_select,
-                ridge_select: opts.ridge_select,
-                genome_select: opts.genome_select,
-                genome_accept_margin: opts.genome_accept_margin,
-                leak_flags: leak_flags_ref,
-                cascade_worthiness: opts.cascade_worthiness,
-                gate_fit_selection: opts.gate_fit_selection,
-                gate_distance_only: opts.gate_distance_only,
-                gate_fit_calibrated: opts.gate_fit_calibrated,
-                kn_route: opts.kn_route,
-                drafter_fix: opts.drafter_fix,
-                set_refine: {
-                    #[cfg(feature = "set_refine")]
-                    {
-                        opts.set_refine_ab.then_some((
-                            if opts.set_refine_gamma > 0.0 {
-                                opts.set_refine_gamma
-                            } else {
-                                1.0
-                            },
-                            if opts.set_refine_tau > 0.0 {
-                                opts.set_refine_tau
-                            } else {
-                                0.5
-                            },
-                        ))
-                    }
-                    #[cfg(not(feature = "set_refine"))]
-                    {
-                        None
-                    }
-                },
-            };
-            macro_rules! dispatch {
-                ($n:literal) => {
-                    run_modelless::<$n>(&inp)
-                };
-            }
-            let modelless = match prepared.labels.len() {
-                2 => dispatch!(2),
-                3 => dispatch!(3),
-                4 => dispatch!(4),
-                5 => dispatch!(5),
-                6 => dispatch!(6),
-                7 => dispatch!(7), // Plan 003: thai_sib200 (the first 7-domain suite)
-                8 => dispatch!(8),
-                10 => dispatch!(10), // Plan 010: s1mb_score (the presented level-key union)
-                15 => dispatch!(15), // Plan 010: s1mb_score headroom (a wider pull widens the union)
-                59 => dispatch!(59),
-                77 => dispatch!(77),
-                842 => dispatch!(842), // Plan 010: s1mb_choice (the option-key union — the massive by-name posture at breadth)
-                n => {
-                    errors.push(format!(
-                        "{}: no engine instantiation for {} domains — extend the \
-                         dispatch table in runner.rs",
-                        spec.name, n
-                    ));
-                    continue;
-                }
-            };
-            match modelless {
-                Ok((r, questions)) => {
+    let laya_lanes = run_laya_lanes(spec, &prepared, opts, leak_flags_ref, errors);
+
+    let comparison = run_comparison_lanes(spec, &prepared, opts, leak_flags_ref, errors);
+
+    let cascade = compose_cascade(
+        spec,
+        &prepared,
+        opts,
+        modelless_questions.as_ref(),
+        &laya_lanes,
+        errors,
+    );
+
+    Some(SuiteResult {
+        name: spec.name.to_string(),
+        n_cases: prepared.suite.cases.len(),
+        n_questions,
+        cases_digest: cases_digest(spec.name, &prepared.suite.cases),
+        modal_floor: super::modal_floor::census(
+            &prepared.suite.cases,
+            Some(prepared.cal_cases.as_slice()),
+        ),
+        modelless: modelless.map(|boxed| *boxed),
+        laya: laya_lanes.results,
+        cascade,
+        clm: comparison.clm,
+        gliner: comparison.gliner,
+        bekko: comparison.bekko,
+        agentjev: comparison.agentjev,
+        clef: comparison.clef,
+        openthai: comparison.openthai,
+        drex: comparison.drex,
+        d1: comparison.d1,
+        pplx: comparison.pplx,
+        d3: comparison.d3,
+        jeva: comparison.jeva,
+        startlux: comparison.startlux,
+        mammoth: comparison.mammoth,
+        elephant: comparison.elephant,
+        opendecider: comparison.opendecider,
+        paw: comparison.paw,
+        paw_local: comparison.paw_local,
+        leak: leak_block,
+        slices: prepared.slices,
+    })
+}
+
+/// The corpus∪cal → eval near-duplicate scan over the slices THIS run
+/// serves (issue 098 T3 phase fn; feature `slice_leak`). Reference side =
+/// the train split (the corpora draw from train[cal_cap..], the calibration
+/// slice IS train[..cal_cap] — the union is the whole split, the probe's
+/// exact reference); query side = the built eval cases, whose raw dataset
+/// text is recovered by the same rule the corpus side uses. Everything
+/// stays None when the feature is off or the suite is out of scope — G3
+/// keeps results.json identical.
+#[cfg(all(feature = "slice_leak", not(target_arch = "wasm32")))]
+fn scan_slice_leaks(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    errors: &mut Vec<String>,
+) -> (Option<SuiteLeak>, Option<Vec<bool>>) {
+    let in_scope = spec.synthetic.is_none() && spec.name != "typed_decisions";
+    if !in_scope {
+        return (None, None);
+    }
+    let queries: Option<Vec<String>> = prepared
+        .suite
+        .cases
+        .iter()
+        .map(|c| super::slice_leak::eval_case_text(spec.name, c))
+        .collect();
+    match queries {
+        Some(queries) => {
+            let refs: Vec<&str> = prepared.train.iter().map(|d| d.text.as_str()).collect();
+            match super::slice_leak::scan_eval(
+                &refs,
+                &queries,
+                super::slice_leak::LeakParams::default(),
+            ) {
+                Some(scan) => {
                     eprintln!(
-                        "    modelless: acc {:.4} · ece(maxp) {:.4} · p50 {:.3} ms · {} s",
+                        "    leak: exact {} / near {} over {} eval rows \
+                         ({} reference rows, J >= {:.2})",
+                        scan.exact,
+                        scan.near,
+                        scan.n_eval,
+                        scan.n_reference,
+                        super::slice_leak::LeakParams::default().near_j
+                    );
+                    (
+                        Some(SuiteLeak {
+                            threshold: super::slice_leak::LeakParams::default().near_j,
+                            n_reference: scan.n_reference,
+                            n_eval: scan.n_eval,
+                            exact: scan.exact,
+                            near: scan.near,
+                        }),
+                        Some(scan.flags),
+                    )
+                }
+                None => (None, None),
+            }
+        }
+        None => {
+            // A builder key drifted: the scan would silently
+            // compare against a shorter query set — surfaced,
+            // never read as clean.
+            errors.push(format!(
+                "{}: leak report SKIPPED — an eval case's dataset text was \
+                 not recoverable from its built state (state-shape drift)",
+                spec.name
+            ));
+            (None, None)
+        }
+    }
+}
+
+#[cfg(any(not(feature = "slice_leak"), target_arch = "wasm32"))]
+fn scan_slice_leaks(
+    _spec: &SuiteSpec,
+    _prepared: &Prepared,
+    _errors: &mut Vec<String>,
+) -> (Option<SuiteLeak>, Option<Vec<bool>>) {
+    (None, None)
+}
+
+/// The modelless lane for one suite (issue 098 T3 phase fn): const-generic
+/// dispatch over the domain count. `Failed` = the error is already recorded
+/// and the SUITE is aborted (the run loop's `continue` before the split
+/// yielded no suite row at all on a modelless failure).
+fn run_modelless_suite(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    opts: &RunOptions,
+    leak_flags: Option<&[bool]>,
+    errors: &mut Vec<String>,
+) -> ModellessOutcome {
+    if !spec.modelless_lane {
+        eprintln!(
+            "    modelless: SKIPPED — LLM-lane only (Issue 004 T3: no KV \
+             cache in the modelless lane)"
+        );
+        return ModellessOutcome::NotApplicable;
+    }
+    #[cfg(feature = "mc_ensemble")]
+    let mc_cfg = build_mc_cfg(opts);
+    let inp = ModellessInput {
+        spec,
+        suite: &prepared.suite,
+        train: &prepared.train,
+        state_strs: &prepared.state_strs,
+        cal_cases: &prepared.cal_cases,
+        cal_state_strs: &prepared.cal_state_strs,
+        labels: &prepared.labels,
+        want_by_type: spec.name == "typed_decisions",
+        corpus_cap_per_label: if opts.corpus_cap_override != 0 {
+            opts.corpus_cap_override
+        } else {
+            spec.corpus_cap_per_label
+        },
+        cap_source_base: if opts.corpus_cap_override != 0 {
+            "--corpus-cap override"
+        } else {
+            "registry"
+        },
+        cal_select_caps: &opts.cal_select_caps,
+        pool_rows: &prepared.pool_rows,
+        pair_head_ab: opts.pair_head_ab,
+        nli_feature_ab: opts.nli_feature_ab,
+        nli_m1: opts.nli_m1,
+        #[cfg(feature = "mc_ensemble")]
+        mc_ab: opts.mc_ab.then_some(&mc_cfg),
+        density_gate: opts.density_gate,
+        head_scale: opts.head_scale,
+        head_select: opts.head_select,
+        nb_select: opts.nb_select,
+        oc_select: opts.oc_select,
+        ridge_select: opts.ridge_select,
+        genome_select: opts.genome_select,
+        genome_accept_margin: opts.genome_accept_margin,
+        leak_flags,
+        cascade_worthiness: opts.cascade_worthiness,
+        gate_fit_selection: opts.gate_fit_selection,
+        gate_distance_only: opts.gate_distance_only,
+        gate_fit_calibrated: opts.gate_fit_calibrated,
+        kn_route: opts.kn_route,
+        drafter_fix: opts.drafter_fix,
+        set_refine: {
+            #[cfg(feature = "set_refine")]
+            {
+                opts.set_refine_ab.then_some((
+                    if opts.set_refine_gamma > 0.0 {
+                        opts.set_refine_gamma
+                    } else {
+                        1.0
+                    },
+                    if opts.set_refine_tau > 0.0 {
+                        opts.set_refine_tau
+                    } else {
+                        0.5
+                    },
+                ))
+            }
+            #[cfg(not(feature = "set_refine"))]
+            {
+                None
+            }
+        },
+    };
+    macro_rules! dispatch {
+        ($n:literal) => {
+            run_modelless::<$n>(&inp)
+        };
+    }
+    let modelless = match prepared.labels.len() {
+        2 => dispatch!(2),
+        3 => dispatch!(3),
+        4 => dispatch!(4),
+        5 => dispatch!(5),
+        6 => dispatch!(6),
+        7 => dispatch!(7), // Plan 003: thai_sib200 (the first 7-domain suite)
+        8 => dispatch!(8),
+        10 => dispatch!(10), // Plan 010: s1mb_score (the presented level-key union)
+        15 => dispatch!(15), // Plan 010: s1mb_score headroom (a wider pull widens the union)
+        59 => dispatch!(59),
+        77 => dispatch!(77),
+        842 => dispatch!(842), // Plan 010: s1mb_choice (the option-key union — the massive by-name posture at breadth)
+        n => {
+            errors.push(format!(
+                "{}: no engine instantiation for {} domains — extend the \
+                 dispatch table in runner.rs",
+                spec.name, n
+            ));
+            return ModellessOutcome::Failed;
+        }
+    };
+    match modelless {
+        Ok((r, questions)) => {
+            eprintln!(
+                "    modelless: acc {:.4} · ece(maxp) {:.4} · p50 {:.3} ms · {} s",
+                r.hard.accuracy,
+                r.hard.ece,
+                r.latency_p50_ms,
+                (r.seconds * 10.0).round() / 10.0
+            );
+            ModellessOutcome::Ran {
+                result: Box::new(r),
+                questions,
+            }
+        }
+        Err(e) => {
+            errors.push(format!("{} (modelless): {e}", spec.name));
+            ModellessOutcome::Failed
+        }
+    }
+}
+
+/// The riir-laya checkpoints + the laya-python oracle for one suite (issue
+/// 098 T3 phase fn).
+fn run_laya_lanes(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    opts: &RunOptions,
+    leak_flags: Option<&[bool]>,
+    errors: &mut Vec<String>,
+) -> LayaLanes {
+    let mut laya = LayaLanes {
+        results: BTreeMap::new(),
+        questions: BTreeMap::new(),
+        cal_questions: BTreeMap::new(),
+    };
+    if !opts.skip_laya {
+        for ck in laya_checkpoints_for(spec.name) {
+            eprintln!("    laya[{ck}]: running…");
+            let cal_for_probe = if opts.cascade_worthiness {
+                Some(prepared.cal_cases.as_slice())
+            } else {
+                None
+            };
+            match run_laya_checkpoint(
+                &prepared.suite,
+                ck,
+                opts.laya_max_questions,
+                leak_flags,
+                cal_for_probe,
+            ) {
+                Ok((r, notes, lq, cal_lq)) => {
+                    eprintln!(
+                        "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
                         r.hard.accuracy,
                         r.hard.ece,
                         r.latency_p50_ms,
                         (r.seconds * 10.0).round() / 10.0
                     );
-                    modelless_questions = Some(questions);
-                    Some(r)
+                    // The ANE bucket-skip disclosure — named cases,
+                    // never a silently smaller served set.
+                    errors.extend(notes);
+                    laya.results.insert((*ck).to_string(), r);
+                    laya.questions.insert((*ck).to_string(), lq);
+                    if let Some(cal_lq) = cal_lq {
+                        laya.cal_questions.insert((*ck).to_string(), cal_lq);
+                    }
                 }
                 Err(e) => {
-                    errors.push(format!("{} (modelless): {e}", spec.name));
-                    continue;
-                }
-            }
-        } else {
-            eprintln!(
-                "    modelless: SKIPPED — LLM-lane only (Issue 004 T3: no KV \
-                 cache in the modelless lane)"
-            );
-            None
-        };
-
-        // Laya lane.
-        let mut laya_results = BTreeMap::new();
-        // Issue 038 T4′: per-checkpoint escalator records — the cascade
-        // lane's escalation half (the riir PRODUCT lane only; the python
-        // reference lane never escalates — it is a latency oracle).
-        let mut laya_questions = BTreeMap::new();
-        // Issue 042 lever 3: per-checkpoint CAL-slice escalator records —
-        // the worthiness probe's escalator half (only served when the
-        // lever is armed; the cal slice is pool-region selection data).
-        let mut laya_cal_questions = BTreeMap::new();
-        if !opts.skip_laya {
-            for ck in laya_checkpoints_for(spec.name) {
-                eprintln!("    laya[{ck}]: running…");
-                let cal_for_probe = if opts.cascade_worthiness {
-                    Some(prepared.cal_cases.as_slice())
-                } else {
-                    None
-                };
-                match run_laya_checkpoint(
-                    &prepared.suite,
-                    ck,
-                    opts.laya_max_questions,
-                    leak_flags_ref,
-                    cal_for_probe,
-                ) {
-                    Ok((r, notes, lq, cal_lq)) => {
-                        eprintln!(
-                            "    laya[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                            r.hard.accuracy,
-                            r.hard.ece,
-                            r.latency_p50_ms,
-                            (r.seconds * 10.0).round() / 10.0
-                        );
-                        // The ANE bucket-skip disclosure — named cases,
-                        // never a silently smaller served set.
-                        errors.extend(notes);
-                        laya_results.insert((*ck).to_string(), r);
-                        laya_questions.insert((*ck).to_string(), lq);
-                        if let Some(cal_lq) = cal_lq {
-                            laya_cal_questions.insert((*ck).to_string(), cal_lq);
-                        }
-                    }
-                    Err(e) => {
-                        // Honest absence: weights missing / feature off —
-                        // recorded, never silently skipped.
-                        errors.push(format!("{} (laya/{ck}): {e}", spec.name));
-                    }
+                    // Honest absence: weights missing / feature off —
+                    // recorded, never silently skipped.
+                    errors.push(format!("{} (laya/{ck}): {e}", spec.name));
                 }
             }
         }
+    }
 
-        // Laya-python lane (opt-in measurement oracle): the ORIGINAL torch
-        // reference answering the SAME cases as a subprocess. Keyed `py/`
-        // so both backends can appear side by side in the tables.
-        if opts.laya_python {
-            for ck in laya_checkpoints_for(spec.name) {
-                eprintln!("    laya-python[{ck}]: running…");
-                match run_laya_python_checkpoint(
-                    &prepared.suite,
-                    ck,
-                    opts.laya_max_questions,
-                    leak_flags_ref,
-                ) {
-                    Ok(r) => {
-                        eprintln!(
-                            "    laya-python[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                            r.hard.accuracy,
-                            r.hard.ece,
-                            r.latency_p50_ms,
-                            (r.seconds * 10.0).round() / 10.0
-                        );
-                        laya_results.insert(format!("py/{ck}"), r);
-                    }
-                    Err(e) => {
-                        // Loud absence, never a silent skip (the same law
-                        // as the riir lane's errors).
-                        errors.push(format!("{} (laya-python/{ck}): {e}", spec.name));
-                    }
+    // Laya-python lane (opt-in measurement oracle): the ORIGINAL torch
+    // reference answering the SAME cases as a subprocess. Keyed `py/`
+    // so both backends can appear side by side in the tables.
+    if opts.laya_python {
+        for ck in laya_checkpoints_for(spec.name) {
+            eprintln!("    laya-python[{ck}]: running…");
+            match run_laya_python_checkpoint(
+                &prepared.suite,
+                ck,
+                opts.laya_max_questions,
+                leak_flags,
+            ) {
+                Ok(r) => {
+                    eprintln!(
+                        "    laya-python[{ck}]: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
+                        r.hard.accuracy,
+                        r.hard.ece,
+                        r.latency_p50_ms,
+                        (r.seconds * 10.0).round() / 10.0
+                    );
+                    laya.results.insert(format!("py/{ck}"), r);
+                }
+                Err(e) => {
+                    // Loud absence, never a silent skip (the same law
+                    // as the riir lane's errors).
+                    errors.push(format!("{} (laya-python/{ck}): {e}", spec.name));
                 }
             }
         }
+    }
+    laya
+}
 
+/// The comparison lanes for one suite (issue 098 T3 phase fn): clm,
+/// gliner, bekko, agentjev, clef, openthai, drex, d1, pplx, d3, jeva,
+/// startlux, mammoth, elephant, opendecider, paw, paw-local. Every lane is
+/// loud-absent (the errors list), never silently skipped.
+fn run_comparison_lanes(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    opts: &RunOptions,
+    leak_flags: Option<&[bool]>,
+    errors: &mut Vec<String>,
+) -> ComparisonLanes {
+    ComparisonLanes {
         // CLM comparison lane (Issue 019 T3 / `.issues/027`): the external
         // Contrastive-LM reference over `/v1/systemone` — their stack
         // serves, our Rust measures. Same cases, their rendering law, the
         // same metrics tail.
-        let clm_result = if opts.clm {
+        clm: if opts.clm {
             eprintln!("    clm: running…");
-            match run_clm_lane(&prepared.suite, leak_flags_ref) {
+            match run_clm_lane(&prepared.suite, leak_flags) {
                 Ok((r, input_tokens)) => {
                     eprintln!(
                         "    clm: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s · {} input tokens",
@@ -5947,375 +6153,150 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         } else {
             None
-        };
-
+        },
         // GLiNER comparison lane (Issue 029): fastino/GLiNER2.5-Decide as a
-        // JSONL subprocess oracle over their gliner2 package — same cases,
-        // the lane's own probability readout, the same metrics tail.
-        let gliner_result = if opts.gliner {
-            eprintln!("    gliner: running…");
-            match run_gliner_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    gliner: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (gliner): {e}", spec.name));
-                    None
-                }
-            }
+        // JSONL subprocess oracle over their gliner2 package.
+        gliner: if opts.gliner {
+            run_comparison_lane("gliner", spec.name, errors, || {
+                run_gliner_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // Bekko comparison lane (Bench 103): hotchpotch/bekko-system-one-v0
-        // as a JSONL subprocess oracle over their shared-prefix runtime —
-        // same cases, the lane's own softmax readout, the same metrics tail.
-        let bekko_result = if opts.bekko {
-            eprintln!("    bekko: running…");
-            match run_bekko_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    bekko: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (bekko): {e}", spec.name));
-                    None
-                }
-            }
+        // as a JSONL subprocess oracle over their shared-prefix runtime.
+        bekko: if opts.bekko {
+            run_comparison_lane("bekko", spec.name, errors, || {
+                run_bekko_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // AgentJev comparison lane (Issue 025 amendment 4 / `.issues/027`):
-        // their jev_service served on loopback, measured over HTTP — same
-        // cases, their contract, the same metrics tail.
-        let agentjev_result = if opts.agentjev {
-            eprintln!("    agentjev: running…");
-            match run_agentjev_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    agentjev: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (agentjev): {e}", spec.name));
-                    None
-                }
-            }
+        // their jev_service served on loopback, measured over HTTP.
+        agentjev: if opts.agentjev {
+            run_comparison_lane("agentjev", spec.name, errors, || {
+                run_agentjev_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // Clef comparison lane (plan 011 Phase A): Cloudflare's hosted
-        // decision models behind the operator-run loopback forwarder —
-        // same cases, the Jev-shaped wire, the same metrics tail. The
+        // decision models behind the operator-run loopback forwarder. The
         // no-creds refusal and the spend ceiling are the lane's own gates.
-        let clef_result = if opts.clef {
-            eprintln!("    clef: running…");
-            match run_clef_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    clef: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (clef): {e}", spec.name));
-                    None
-                }
-            }
+        clef: if opts.clef {
+            run_comparison_lane("clef", spec.name, errors, || {
+                run_clef_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // OpenThai comparison lane (Plan 003 Phase 2): their
-        // openthai_systemone served on loopback, measured over HTTP —
-        // same cases, their contract, the same metrics tail.
-        let openthai_result = if opts.openthai {
-            eprintln!("    openthai: running…");
-            match run_openthai_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    openthai: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (openthai): {e}", spec.name));
-                    None
-                }
-            }
+        // openthai_systemone served on loopback, measured over HTTP.
+        openthai: if opts.openthai {
+            run_comparison_lane("openthai", spec.name, errors, || {
+                run_openthai_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // Drex DLM comparison lane (Issue 073): their diffusion-LM server
-        // on loopback, measured over HTTP — same cases, the same
-        // TypeSafe wire family, the same metrics tail. CC BY-NC weights:
-        // measurement only.
-        let drex_result = if opts.drex {
-            eprintln!("    drex: running…");
-            match run_drex_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    drex: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (drex): {e}", spec.name));
-                    None
-                }
-            }
-        } else {
-            None
-        };
-
-        // LiquidAI d1 comparison lane (Issue 078): our reference server
-        // over their in-repo D1Model on loopback, measured over HTTP —
-        // same cases, the same metrics tail. lfm1.0 license: measurement
+        // on loopback, measured over HTTP. CC BY-NC weights: measurement
         // only.
-        let d1_result = if opts.d1 {
-            eprintln!("    d1: running…");
-            match run_d1_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    d1: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (d1): {e}", spec.name));
-                    None
-                }
-            }
+        drex: if opts.drex {
+            run_comparison_lane("drex", spec.name, errors, || {
+                run_drex_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
+        // LiquidAI d1 comparison lane (Issue 078): our reference server
+        // over their in-repo D1Model on loopback. lfm1.0 license:
+        // measurement only.
+        d1: if opts.d1 {
+            run_comparison_lane("d1", spec.name, errors, || {
+                run_d1_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
+        } else {
+            None
+        },
         // pplx-decider comparison lane (Issue 082): Perplexity's
         // pplx-decider-v1.1-27b through their autojev server (Apache-2.0,
         // UNGATED — teacher-eligible, the read decides; never a product
-        // lane), measured over HTTP — same cases, the same metrics tail.
-        let pplx_result = if opts.pplx {
-            eprintln!("    pplx: running…");
-            match run_pplx_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    pplx: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (pplx): {e}", spec.name));
-                    None
-                }
-            }
+        // lane).
+        pplx: if opts.pplx {
+            run_comparison_lane("pplx", spec.name, errors, || {
+                run_pplx_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // vLLM-SR d3 comparison lane (riir-train 629 T2): the JDI board's
         // d3 entrant through their d3_server.py (Apache-2.0, UNGATED —
-        // teacher-eligible; tag v3.1.0), measured over HTTP — same cases,
-        // the same metrics tail. The JDI-panel scoring half of 629 T2
-        // (the per-family spot check vs the board's published numbers).
-        let d3_result = if opts.d3 {
-            eprintln!("    d3: running…");
-            match run_d3_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    d3: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (d3): {e}", spec.name));
-                    None
-                }
-            }
+        // teacher-eligible; tag v3.1.0).
+        d3: if opts.d3 {
+            run_comparison_lane("d3", spec.name, errors, || {
+                run_d3_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // Jeva comparison lane (Issue 090 B1, feeding riir-train 632):
-        // LIQIIIII/Jeva-4B (arXiv:2610.18773; weights license UNDECLARED
-        // — measurement + teacher-capture posture, adoption fail-closed)
-        // through OUR reference server, measured over HTTP — same cases,
-        // the same metrics tail.
-        let jeva_result = if opts.jeva {
-            eprintln!("    jeva: running…");
-            match run_jeva_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    jeva: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (jeva): {e}", spec.name));
-                    None
-                }
-            }
+        // LIQIIIII/Jeva-4B through OUR reference server, measured over
+        // HTTP. Weights license UNDECLARED — measurement + teacher-capture
+        // posture, adoption fail-closed.
+        jeva: if opts.jeva {
+            run_comparison_lane("jeva", spec.name, errors, || {
+                run_jeva_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // StartLux comparison lane (Issue 095, feeding riir-train 635 T3):
         // board #1 through THEIR startlux-decide engine (weights CC BY-NC
-        // 4.0 — DECLARED-NC RESTRICTED posture, adoption fail-closed),
-        // measured over HTTP — same cases, the same metrics tail.
-        let startlux_result = if opts.startlux {
-            eprintln!("    startlux: running…");
-            match run_startlux_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    startlux: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (startlux): {e}", spec.name));
-                    None
-                }
-            }
+        // 4.0 — DECLARED-NC RESTRICTED posture, adoption fail-closed).
+        startlux: if opts.startlux {
+            run_comparison_lane("startlux", spec.name, errors, || {
+                run_startlux_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // mammoth/elephant hosted comparison lane (rethink Issue 032 T10):
         // Base Labs' board-#1 through Baseten Model APIs behind the loopback
-        // TLS forwarder (MIT, MEASUREMENT-ONLY — no RIDT arm), same cases,
-        // the same metrics tail.
-        let mammoth_result = if opts.mammoth {
-            eprintln!("    mammoth: running…");
-            match run_mammoth_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    mammoth: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (mammoth): {e}", spec.name));
-                    None
-                }
-            }
+        // TLS forwarder (MIT, MEASUREMENT-ONLY — no RIDT arm).
+        mammoth: if opts.mammoth {
+            run_comparison_lane("mammoth", spec.name, errors, || {
+                run_mammoth_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // elephant-1 self-hosted comparison lane (rethink Issue 032 T10.2 /
         // Research 012 — the LOCAL-FIRST law): Base Labs' 9B via OUR
-        // reference server over their qev runtime, the same cases, the
-        // same metrics tail. The measurement row feeds the same JDI
-        // aggregate as the hosted mammoth row.
-        let elephant_result = if opts.elephant {
-            eprintln!("    elephant: running…");
-            match run_elephant_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    elephant: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (elephant): {e}", spec.name));
-                    None
-                }
-            }
+        // reference server over their qev runtime.
+        elephant: if opts.elephant {
+            run_comparison_lane("elephant", spec.name, errors, || {
+                run_elephant_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // opendecider self-hosted comparison lane (rethink Issue 038 /
-        // Research 013): OpenDecider-nano via their `opendecider serve`,
-        // the same cases, the same metrics tail. The P0 gate (bar, one
-        // frozen read, fail classification) is pre-registered in 038 — this
-        // block is the rig that produces the read.
-        let opendecider_result = if opts.opendecider {
-            eprintln!("    opendecider: running…");
-            match run_opendecider_lane(&prepared.suite, opts.laya_max_questions, leak_flags_ref) {
-                Ok(r) => {
-                    eprintln!(
-                        "    opendecider: acc {:.4} · ece(maxp) {:.4} · p50 {:.1} ms · {} s",
-                        r.hard.accuracy,
-                        r.hard.ece,
-                        r.latency_p50_ms,
-                        (r.seconds * 10.0).round() / 10.0
-                    );
-                    Some(r)
-                }
-                Err(e) => {
-                    errors.push(format!("{} (opendecider): {e}", spec.name));
-                    None
-                }
-            }
+        // Research 013): OpenDecider-nano via their `opendecider serve`.
+        // The P0 gate (bar, one frozen read, fail classification) is
+        // pre-registered in 038 — this block is the rig that produces the
+        // read.
+        opendecider: if opts.opendecider {
+            run_comparison_lane("opendecider", spec.name, errors, || {
+                run_opendecider_lane(&prepared.suite, opts.laya_max_questions, leak_flags)
+            })
         } else {
             None
-        };
-
+        },
         // PAW comparison lane (Issue 033): one program per specced suite
         // (cached), free-text answers under the exact-match law.
-        let paw_result = if opts.paw {
+        paw: if opts.paw {
             eprintln!("    paw: running…");
             let run = crate::lanes::paw::PawClient::new(crate::lanes::paw::PawConfig::from_env())
                 .and_then(|c| {
@@ -6347,12 +6328,11 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         } else {
             None
-        };
-
+        },
         // PAW Posture B lane (Issue 033): the same compiled programs
         // through their LOCAL llama.cpp runtime — the runtime-posture twin
         // of the hosted row above, so the delta isolates the posture.
-        let paw_local_result = if opts.paw_local {
+        paw_local: if opts.paw_local {
             eprintln!("    paw-local: running…");
             let (python, script) = crate::lanes::paw_local::resolve_invocation();
             let cfg = crate::lanes::paw::PawConfig::from_env();
@@ -6397,107 +6377,82 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
             }
         } else {
             None
-        };
-
-        // Issue 038 T4′ — the cascade lane: the modelless answers stand
-        // everywhere except the calibrated fused gate's abstains, which
-        // escalate to each served riir-laya checkpoint. Composed per
-        // checkpoint; a compose refusal is a named absence (the errors
-        // list), never a fabricated row.
-        let cascade = if opts.cascade {
-            let mut composed = BTreeMap::new();
-            if let Some(mq) = &modelless_questions {
-                for (ck, lq) in &laya_questions {
-                    // Issue 042 lever 3: when armed, the worthiness probe
-                    // gates THIS checkpoint's escalation on the cal-slice
-                    // delta. Any missing half reads unprobed (armed + named
-                    // reason) — never a silent fallthrough.
-                    let worthiness =
-                        opts.cascade_worthiness
-                            .then(|| super::cascade::WorthinessInput {
-                                gate: mq.cal_gate.as_ref(),
-                                escalator: laya_cal_questions.get(ck),
-                                cal_cases: prepared.cal_cases.as_slice(),
-                                min_delta: opts.cascade_worthiness_margin,
-                                min_probe_lcb: opts.cascade_worthiness_lcb,
-                            });
-                    match super::cascade::compose(
-                        &prepared.suite.cases,
-                        mq,
-                        lq,
-                        worthiness.as_ref(),
-                    ) {
-                        Ok(rep) => {
-                            let disarm_note = rep
-                                .worthiness
-                                .as_ref()
-                                .filter(|w| w.disarmed)
-                                .map(|w| {
-                                    format!(
-                                        " · DISARMED (cal Δ {:+.3} < min {:+.3}, n {})",
-                                        w.delta, w.min_delta, w.probe_n
-                                    )
-                                })
-                                .unwrap_or_default();
-                            eprintln!(
-                                "    cascade[{ck}]: acc {:.4} · esc {:.1}% · {} escalated / \
-                                 {} un-escalated{}",
-                                rep.accuracy,
-                                rep.escalation_rate * 100.0,
-                                rep.n_escalated,
-                                rep.n_un_escalated,
-                                disarm_note
-                            );
-                            composed.insert(ck.clone(), rep);
-                        }
-                        Err(e) => errors.push(format!("{} (cascade/{ck}): {e}", spec.name)),
-                    }
-                }
-            }
-            composed
-        } else {
-            BTreeMap::new()
-        };
-
-        results.push(SuiteResult {
-            name: spec.name.to_string(),
-            n_cases: prepared.suite.cases.len(),
-            n_questions,
-            cases_digest: cases_digest(spec.name, &prepared.suite.cases),
-            modal_floor: super::modal_floor::census(
-                &prepared.suite.cases,
-                Some(prepared.cal_cases.as_slice()),
-            ),
-            modelless,
-            laya: laya_results,
-            cascade,
-            clm: clm_result,
-            gliner: gliner_result,
-            bekko: bekko_result,
-            agentjev: agentjev_result,
-            clef: clef_result,
-            openthai: openthai_result,
-            drex: drex_result,
-            d1: d1_result,
-            pplx: pplx_result,
-            d3: d3_result,
-            jeva: jeva_result,
-            startlux: startlux_result,
-            mammoth: mammoth_result,
-            elephant: elephant_result,
-            opendecider: opendecider_result,
-            paw: paw_result,
-            paw_local: paw_local_result,
-            leak: leak_block,
-            slices: prepared.slices,
-        });
+        },
     }
+}
 
+/// Issue 038 T4′ — the cascade lane (issue 098 T3 phase fn): the modelless
+/// answers stand everywhere except the calibrated fused gate's abstains,
+/// which escalate to each served riir-laya checkpoint. Composed per
+/// checkpoint; a compose refusal is a named absence (the errors list),
+/// never a fabricated row.
+fn compose_cascade(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    opts: &RunOptions,
+    modelless_questions: Option<&super::cascade::ModellessQuestions>,
+    laya_lanes: &LayaLanes,
+    errors: &mut Vec<String>,
+) -> BTreeMap<String, super::cascade::CascadeReport> {
+    let mut composed = BTreeMap::new();
+    if !opts.cascade {
+        return composed;
+    }
+    if let Some(mq) = modelless_questions {
+        for (ck, lq) in &laya_lanes.questions {
+            // Issue 042 lever 3: when armed, the worthiness probe
+            // gates THIS checkpoint's escalation on the cal-slice
+            // delta. Any missing half reads unprobed (armed + named
+            // reason) — never a silent fallthrough.
+            let worthiness = opts
+                .cascade_worthiness
+                .then(|| super::cascade::WorthinessInput {
+                    gate: mq.cal_gate.as_ref(),
+                    escalator: laya_lanes.cal_questions.get(ck),
+                    cal_cases: prepared.cal_cases.as_slice(),
+                    min_delta: opts.cascade_worthiness_margin,
+                    min_probe_lcb: opts.cascade_worthiness_lcb,
+                });
+            match super::cascade::compose(&prepared.suite.cases, mq, lq, worthiness.as_ref()) {
+                Ok(rep) => {
+                    let disarm_note = rep
+                        .worthiness
+                        .as_ref()
+                        .filter(|w| w.disarmed)
+                        .map(|w| {
+                            format!(
+                                " · DISARMED (cal Δ {:+.3} < min {:+.3}, n {})",
+                                w.delta, w.min_delta, w.probe_n
+                            )
+                        })
+                        .unwrap_or_default();
+                    eprintln!(
+                        "    cascade[{ck}]: acc {:.4} · esc {:.1}% · {} escalated / \
+                         {} un-escalated{}",
+                        rep.accuracy,
+                        rep.escalation_rate * 100.0,
+                        rep.n_escalated,
+                        rep.n_un_escalated,
+                        disarm_note
+                    );
+                    composed.insert(ck.clone(), rep);
+                }
+                Err(e) => errors.push(format!("{} (cascade/{ck}): {e}", spec.name)),
+            }
+        }
+    }
+    composed
+}
+
+/// The run's meta block (issue 098 T3 phase fn): posture prose +
+/// provenance — a pure function of the options and the captured box state.
+fn build_meta(opts: &RunOptions, box_start: super::box_state::BoxState) -> RunMeta {
+    let laya_feature = cfg!(feature = "laya-riir");
     let box_state = super::box_state::BoxStateSpan {
         start: box_start,
         end: super::box_state::capture(),
     };
-    let meta = RunMeta {
+    RunMeta {
         box_state,
         date_utc: iso8601_utc(),
         git_sha: git_sha().unwrap_or_else(|| "unknown".to_string()),
@@ -7126,15 +7081,7 @@ pub fn run(opts: &RunOptions) -> Result<(RunOutput, Vec<String>), String> {
              that reads above chance"
                 .to_string(),
         ],
-    };
-
-    Ok((
-        RunOutput {
-            meta,
-            suites: results,
-        },
-        errors,
-    ))
+    }
 }
 
 // ── misc ────────────────────────────────────────────────────────────────
