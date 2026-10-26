@@ -17,7 +17,7 @@
 # the path-dep siblings, incl. katgpt-rs's INTENTIONAL pinned drift;
 # cheap — always runs).
 #
-# Steps 6-7 run in full mode only; in quick mode the [n/10] numbering IS
+# Steps 6-7 run in full mode only; in quick mode the [n/11] numbering IS
 # the partial signal (cargo steps stop at [5/10]; the three cheap layers
 # 8-10 still run).
 set -euo pipefail
@@ -25,25 +25,25 @@ set -euo pipefail
 LAYER="${1:-full}"
 SKIPPED=""
 
-echo "== [1/9] clippy default (all targets, -D warnings)"
+echo "== [1/11] clippy default (all targets, -D warnings)"
 cargo clippy --all-targets -- -D warnings
 
-echo "== [2/9] clippy --all-features"
+echo "== [2/11] clippy --all-features"
 cargo clippy --all-targets --all-features -- -D warnings
 
-echo "== [3/9] clippy --no-default-features (flag-OFF posture)"
+echo "== [3/11] clippy --no-default-features (flag-OFF posture)"
 cargo clippy --all-targets --no-default-features -- -D warnings
 
-echo "== [4/9] cargo test (default features)"
+echo "== [4/11] cargo test (default features)"
 cargo test
 
-echo "== [5/9] clippy at each lane's own feature set (laya-riir, laya-riir-metal, clef-ane)"
+echo "== [5/11] clippy at each lane's own feature set (laya-riir, laya-riir-metal, clef-ane)"
 cargo clippy --all-targets --features laya-riir -- -D warnings
 cargo clippy --all-targets --features laya-riir-metal -- -D warnings
 cargo clippy --all-targets --features clef-ane -- -D warnings
 
 if [ "$LAYER" = "full" ]; then
-  echo "== [6/9] decision_set_goat bench (G2 latency + G4 alloc, release)"
+  echo "== [6/11] decision_set_goat bench (G2 latency + G4 alloc, release)"
   cargo bench --bench decision_set_goat
 else
   SKIPPED="decision_set_goat bench"
@@ -56,7 +56,7 @@ fi
 # PARTIAL lesson).
 if [ "$LAYER" = "full" ]; then
   if [ -n "${LAYA_WEIGHTS_DIR:-}" ] || [ -n "${LAYA_HOME:-}" ] || [ -d "${HOME}/.cache/huggingface/hub/models--convaiinnovations--laya" ] || [ -d "${HOME}/.cache/riir-reflex/laya" ]; then
-    echo "== [7/9] G5 laya parity (the riir lane — candle removed, .issues/006) + the laya-gated lib suite (release)"
+    echo "== [7/11] G5 laya parity (the riir lane — candle removed, .issues/006) + the laya-gated lib suite (release)"
     # --lib AND the parity target: the router/lang unit suite (27 tests,
     # incl. the occurrence-counting regression) is laya-riir-gated too — a
     # --test-only run would compile it and never execute it. The lane
@@ -79,13 +79,13 @@ fi
 # skip and a deferral, never a green (the required_features_touched.sh
 # precedent).
 
-echo "== [8/10] fetch_datasets resume self-test (Issue 096 — hermetic loopback)"
+echo "== [8/11] fetch_datasets resume self-test (Issue 096 — hermetic loopback)"
 sh scripts/fetch_datasets.sh --self-test
 
-echo "== [9/10] .docs numbered-book shape (scripts/docs_shape_gate.py)"
+echo "== [9/11] .docs numbered-book shape (scripts/docs_shape_gate.py)"
 python3 scripts/docs_shape_gate.py
 
-echo "== [10/10] site-mirror parity (.docs/ ↔ ../reflex-site, sync_mirror.py --check)"
+echo "== [10/11] site-mirror parity (.docs/ ↔ ../reflex-site, sync_mirror.py --check)"
 if [ ! -f "../reflex-site/scripts/sync_mirror.py" ]; then
   echo "⚠ SKIPPED — ../reflex-site not checked out (or sync_mirror.py not landed there yet), so this layer verified NOTHING."
   echo "  (the site mirror at reflex.gist.rs serves .docs/03_decision_flow/decision_flow.svg + .docs/04_agent_skill/SKILL.md;"
