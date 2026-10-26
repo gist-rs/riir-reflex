@@ -205,8 +205,18 @@ pub struct DomainExpert<const D: usize> {
     /// negative shared across domains (the pooled projected rows —
     /// distribution WIDTH, not identity). `None` when the knob is off
     /// (the byte-identical posture) or on raw-expert builds.
+    ///
+    /// Heap-boxed (issue 097 T1): the gate's GMM state is ~16.7 KiB of
+    /// inline `[[f32; E]; K]` arrays per expert; unboxed, every engine
+    /// VALUE materializes it — `DecisionEngine<842>` grew ~13.6 MiB, and
+    /// the dispatch lanes that hold engines by value (the 12-arm
+    /// `build_b0_judge` table, the seat/posture lanes' nested locals —
+    /// moves are not elided in debug builds) overflowed a 64 MiB thread
+    /// (b0) and the 2 MiB test thread (seat gates) at `--features
+    /// density_gate`. The box restores the pre-066 engine size at every
+    /// site; the read paths pay one deref per armed decision.
     #[cfg(feature = "density_gate")]
-    density: Option<SupportGate<DENSITY_E, DENSITY_K>>,
+    density: Option<Box<SupportGate<DENSITY_E, DENSITY_K>>>,
 }
 
 impl<const D: usize> DomainExpert<D> {
@@ -1284,7 +1294,7 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
             fit_density_gates::<D>(&rows_all, cfg.density_gate, cfg.density_tau)?;
         #[cfg(feature = "density_gate")]
         for (e, g) in experts.iter_mut().zip(density_gates) {
-            e.density = Some(g);
+            e.density = Some(Box::new(g));
         }
         #[allow(unused_mut)]
         let mut engine = Self::build_with_heads(experts, cfg, heads)?;

@@ -138,7 +138,10 @@ fn row_text(row: &Value) -> String {
     }
     if let Some(p) = row.get("premise").and_then(Value::as_str) {
         let h = row.get("hypothesis").and_then(Value::as_str).unwrap_or("");
-        return format!("{p} || {h}");
+        // Issue 097: the probe's join (the " || " → double-space-after-strip
+        // class is fixed there; this copy must match it AND the engine's
+        // corpus rule).
+        return format!("{p}\n{h}");
     }
     // serde_json's `preserve_order` keeps file order, as Python dicts do.
     row.as_object()
@@ -414,6 +417,12 @@ fn build_suite(name: &str, rows: &Value, max_rows: usize) -> Option<Vec<suites::
         // Issue 080: the ESC re-source NLI lane — same pair shape as xnli.
         "wanli_en" => build_wanli_en(rows, max_rows).cases,
         "xnli_en" => build_xnli_en(rows, max_rows).cases,
+        // Plan 010 S1MB: the converter's three suites — the probe
+        // auto-discovers the dataset dirs (issue 097 T2: a new dataset dir
+        // without a builder arm is a t3 failure, by construction).
+        "s1mb_choice" => build_s1mb_choice(rows, max_rows).cases,
+        "s1mb_noul" => build_s1mb_noul(rows, max_rows).cases,
+        "s1mb_score" => build_s1mb_score(rows, max_rows).cases,
         _ => return None,
     };
     Some(cases)

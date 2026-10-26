@@ -484,6 +484,12 @@ pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> 
             s.get("hypothesis")?.as_str()?
         )),
         "mmlupro_jdi" => s.get("question")?.as_str().map(str::to_string),
+        // Plan 010 S1MB: the state IS the raw state_json string (the
+        // builder stores `Value::String(state)`; `train_docs` reads the
+        // same field) — the case text is that string verbatim.
+        "s1mb_choice" | "s1mb_noul" | "s1mb_score" => {
+            s.as_str().map(str::to_string)
+        }
         _ => None,
     }
 }

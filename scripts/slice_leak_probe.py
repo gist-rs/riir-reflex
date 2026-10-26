@@ -41,8 +41,15 @@ def row_text(row):
         return row["text"]
     if "state" in row:  # typed_decisions: the raw state is the routed text
         return json.dumps(row["state"], sort_keys=True)
-    if "premise" in row:  # xnli: the pair is the unit
-        return row["premise"] + " || " + row.get("hypothesis", "")
+    if "premise" in row:  # xnli/wanli: the pair is the unit
+        # Issue 097: join with the SAME newline the engine's corpus rule
+        # uses (suites::train_docs / eval_case_text) — the oracle's contract
+        # is that the probe measures the texts the engine sees. The old
+        # " || " join normalized to a DOUBLE space (the stripped pipes leave
+        # both adjacent spaces), so boundary-adjacent NEAR hits could
+        # disagree with the wiring (wanli rows 364/1674: j 0.70/0.77 probe
+        # vs 0.85/0.80 wiring).
+        return row["premise"] + "\n" + row.get("hypothesis", "")
     return next((v for v in row.values() if isinstance(v, str)), "")
 
 
