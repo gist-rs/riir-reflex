@@ -10,9 +10,12 @@
 # never a green zero, and the final line NAMES what was skipped),
 # (8) the fetch_datasets resume self-test (Issue 096 — cheap, hermetic
 # loopback, always runs), (9) the .docs numbered-book shape gate (cheap
-# — always runs), and (10) the site-mirror parity check against
+# — always runs), (10) the site-mirror parity check against
 # ../reflex-site (cheap — always runs; SKIP-LOUD when the sibling
-# checkout is absent).
+# checkout is absent), and (11) the fmt gate (Issue 099 — bare rustfmt
+# per file with skip_children, NEVER `cargo fmt --all`: it would format
+# the path-dep siblings, incl. katgpt-rs's INTENTIONAL pinned drift;
+# cheap — always runs).
 #
 # Steps 6-7 run in full mode only; in quick mode the [n/10] numbering IS
 # the partial signal (cargo steps stop at [5/10]; the three cheap layers
@@ -103,6 +106,9 @@ else
     echo "   mirror parity holds (.docs/ is the source of truth)"
   fi
 fi
+
+echo "== [11/11] fmt gate (Issue 099 — scripts/fmt_gate.py; drain list scripts/fmt_pending_expected.txt)"
+python3 scripts/fmt_gate.py
 
 if [ -n "$SKIPPED" ]; then
   echo "== guard PASSED (PARTIAL — skipped: $SKIPPED)"

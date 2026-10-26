@@ -1,0 +1,23 @@
+# fmt_gate.py — the Issue-099 DRAIN LIST: reflex's own tracked .rs still diverging
+# from rustfmt defaults at the gate's landing (ca2eb39).
+#
+# Ported from katgpt-rs Issue 946 (the canonical drain list); reflex-scoped —
+# the walker is bare rustfmt per file with skip_children, NEVER `cargo fmt --all`
+# (it would format the path-dep siblings, incl. katgpt-rs's INTENTIONAL pinned
+# drift).
+#
+# Format:  <relpath> # reason        (a reasonless row is REFUSED)
+#
+# Reds in BOTH directions: a drifted file with no row (UNPINNED), and a row
+# whose file is now clean (STALE). Drain a row by formatting the file —
+# `rustfmt --edition 2024 <file>` — and deleting the row in the SAME commit.
+# NEVER add a row for new drift: format the file instead. This list only shrinks.
+#
+# The 6 rows below are drained by worktree commit 49458fb (the format + these
+# deletions land together, post-capture — see .issues/099).
+src/bin/harness.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
+src/harness/modal_floor.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
+src/harness/slice_leak.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
+src/lanes/elephant.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
+src/lanes/mammoth.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
+src/lanes/opendecider.rs # Issue-099 landing drift (ca2eb39); drained by staged 49458fb
