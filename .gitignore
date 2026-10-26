@@ -51,3 +51,6 @@ x/
 
 # python bytecode — never tracked
 __pycache__/
+
+# macOS Finder metadata
+.DS_Store
