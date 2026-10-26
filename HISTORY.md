@@ -7,7 +7,7 @@ file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 
 ## 2026-10-26 — Issue 097 CLOSED: the `--all-features` suite failures — density's inline GMM state was a stack bomb; the slice-leak oracle carried three drifted text-rule copies
 
-**Status: Resolved. Landing: reflex `d696538` (claim `764964d`). All failures reproduced at `--features density_gate` ALONE — a 16-feature bisect (15 controls green); full `cargo test --all-features` now exits 0 (23 binaries, lib 551 passed where the harness previously aborted mid-run); clippy `-D warnings` clean at default / all / none.**
+**Status: Resolved. Landing: reflex `7f8f645` (claim `764964d`; the fix commit rehashed `d696538` → `7f8f645` on the fb57678 rebase — this file's hash is the corrected one). All failures reproduced at `--features density_gate` ALONE — a 16-feature bisect (15 controls green); full `cargo test --all-features` now exits 0 (23 binaries, lib 551 passed where the harness previously aborted mid-run); clippy `-D warnings` clean at default / all / none.**
 
 Found by the `062ec1e` engine-split attribution control (predates it). Three verdicts:
 
