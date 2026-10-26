@@ -48,8 +48,14 @@ Facts (measured at filing, `develop` `0eb4c3f`):
   `crate::harness::`. Gates: `cargo test --lib` 480/0 (floor 472) + `--all-features`
   551/0 + clippy `--all-targets -D warnings` at default/all-features/no-default — all
   green; rustfmt clean.
-- [ ] **T2 — carve the report tail.** `fmt4`/`fmt_opt`/`fmt_gate_fit` and any
-  output-assembly helpers behind `run()` → `runner/report.rs`.
+- [x] **T2 — carve the report tail.** DONE 2026-10-26 (zed-amo-idle): the `// ── table
+  rendering` block (fmt4 / fmt_opt / fmt_gate_fit / jdi_crosswalk_applies /
+  render_markdown, 1,177 lines) → `runner/report.rs`; runner.rs 8,973 → 7,799.
+  `render_markdown` re-exported (`pub use self::report::render_markdown;`) so the
+  `harness` bin's `runner::render_markdown` path is unchanged; two harness-level
+  `super::{box_state, modal_floor}` references re-pointed `crate::harness::`. Same
+  gates green: lib tests 480/0 + all-features 551/0; clippy ×3 postures 0 errors;
+  rustfmt clean.
 - [ ] **T3 — split `run()` into phase fns (highest risk, last).** The ~1.6k-line loop
   decomposes along its own seams: per-suite preparation call, lane orchestration,
   leak/echo gate wiring, summary assembly. Split in-place first (private fns in
