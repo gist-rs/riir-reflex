@@ -1,9 +1,13 @@
 # Issue 098 — harness runner.rs carve: the 12,097-line monolith vs the repo's own 20-module convention
 
-**Status:** Open — filed 2026-10-26 (doc-sync unit #46 idle window, 4090 box) from a
-code-smell hunt; zero behavior change intended, pure structure. No plan opens until a
-session can run the build battery (this box was mid-bout at filing time; the work is
-mechanical and consumer-free).
+**Status:** T1+T2 LANDED 2026-10-26 (`6e4737a` + `0687e6c`, zed-amo-idle) — T3 open.
+Independently verified 2026-10-26 (second session, shikuwa-4090 — the Issue-825
+cross-run protocol: a duplicate carve was implemented concurrently, discarded on
+fetch, and re-run as the verification oracle instead): `cargo test --lib` 479/0,
+`cargo clippy --all-targets` ZERO findings at default, `--all-features`, and
+`--no-default-features`; runner.rs 12,098 → 7,830; runner/* files all under the
+2,500 threshold. Filed 2026-10-26 (doc-sync unit #46 idle window, 4090 box) from a
+code-smell hunt; zero behavior change intended, pure structure.
 **Claimed:** zed-amo-idle (riir-refine cycle), 2026-10-26T12:10Z, expires 2026-10-28T12:10Z
 
 Facts (measured at filing, `develop` `0eb4c3f`):
