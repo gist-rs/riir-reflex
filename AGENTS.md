@@ -100,6 +100,7 @@ cargo clippy --all-targets --no-default-features -- -D warnings   # flag-OFF pos
 cargo test                                      # semantics gates
 cargo bench --bench decision_set_goat           # G2 latency + G4 alloc (release by construction)
 ./scripts/ci_feature_guard.sh                   # the whole local gate
+./scripts/deny_gate.sh                          # cargo-deny advisories gate (riir-refine plan 298 T2.4 fan-out): vulnerable CRATES at lockfile level, advisories-only scope — the deny.toml ignore list is a membership pin (reason + tracking ref per row); --scan is a workspace report-only sweep; a missing cargo-deny is a LOUD SKIP; standalone (not a guard layer — CI wiring is plan-298 T2.7, owner-gated)
 
 # The laya lane (weights resolve from LAYA_WEIGHTS_DIR, else LAYA_HOME, else
 # HF download with SHA-256 verification):
