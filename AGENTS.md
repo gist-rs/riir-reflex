@@ -290,8 +290,9 @@ MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
 # --skip-laya --suites sst5`. A LOCAL row is a DIFFERENT posture from the
 # API row, never pooled. Panel rigs (gitignored operator rigs + watchdog):
 # `.raw/mammoth-local/` + `.raw/elephant-local/` (the mammoth twins);
-# records: reflex Bench 162 (mammoth 12/12), the elephant panel pending the
-# watchdog marker `/tmp/elephant_panel_done.marker`.
+# records: reflex Benches 162 (mammoth 12/12) + 164 (elephant 12/12 — adds
+# ZERO routed lift, rethink bench 074; the panel outputs committed `de24d2c`;
+# the capture leg's Metal crash is 164 §6, re-running as the 640-T3 recapture).
 
 # The T2.5 modelless teacher router (riir-train Issue 629 T2.5; offline — no
 # GPU, no test row): sigmoid-gated per-suite blend over CAPTURED RIDT columns
