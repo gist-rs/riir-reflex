@@ -2,8 +2,8 @@
   "meta": {
     "date_utc": "2026-10-25T06:28:48Z",
     "git_sha": "1e6d4db",
-    "host": "seal1",
-    "datasets_dir": "/Users/seal1/git/riir-reflex/.raw/datasets",
+    "host": "amo",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
     "k": 5,
     "max_cases": 40,
     "seed": 125239297,

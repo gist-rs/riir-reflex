@@ -42,7 +42,7 @@ Env pins:
   ELEPHANT_DTYPE   default bfloat16 (the qev engine default — OVERRIDES the
                    config's top-level float32; /health reports the RESOLVED
                    engine info dtype — the d1 law)
-  ELEPHANT_FORK_MODE  default sequential (MEASURED 2026-10-25, seal1 M5
+  ELEPHANT_FORK_MODE  default sequential (MEASURED 2026-10-25, amo M5
                    Ultra, transformers 5.19.0 + torch 2.14.1 MPS: the
                    engine's auto-selected `batched` fork runs the qwen3_5
                    GDN reference fallback pathologically slow — 8-30 s per
