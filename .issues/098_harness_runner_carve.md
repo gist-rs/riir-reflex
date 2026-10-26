@@ -4,6 +4,7 @@
 code-smell hunt; zero behavior change intended, pure structure. No plan opens until a
 session can run the build battery (this box was mid-bout at filing time; the work is
 mechanical and consumer-free).
+**Claimed:** zed-amo-idle (riir-refine cycle), 2026-10-26T12:10Z, expires 2026-10-28T12:10Z
 
 Facts (measured at filing, `develop` `0eb4c3f`):
 
