@@ -205,6 +205,8 @@ pub use self::report::render_markdown;
 // orchestration → meta) carved out of this file; the re-export keeps
 // the public `runner::run` path unchanged.
 mod run_phases;
+// Issue 100: the inductive-bias lane-seating diagnostics (report-only).
+mod robust_ab;
 pub use self::run_phases::run;
 
 use self::lanes_wire::*;
@@ -1561,6 +1563,10 @@ pub struct SuiteResult {
     /// suite — an honest absence, never a fabricated row).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub modal_floor: Option<super::modal_floor::ModalFloorRow>,
+    /// Issue 100 — the inductive-bias probes (`--robust-ab` /
+    /// `--label-smooth-ab`). `None` (skipped) unless a flag arms them.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inductive_bias: Option<robust_ab::InductiveBiasBlock>,
 }
 
 /// Issue 024 T3 — the per-suite leak block (results.json, additive).
@@ -5409,6 +5415,15 @@ pub struct RunOptions {
     /// = no file written (the records are still built — the same walk the
     /// metrics read — and dropped).
     pub dump_items: bool,
+    /// Issue 100 T1 (`--robust-ab`): re-read every armed lane on the echo
+    /// gates' word-dropout ladder and report per-lane degradation + the
+    /// encoder-vs-modelless delta-of-deltas. Report-only; default off =
+    /// `results.json` byte-identical.
+    pub robust_ab: bool,
+    /// Issue 100 T2 (`--label-smooth-ab`): the label-irregularity axis —
+    /// graph-smooth the modelless working-set labels (sigmoid-weighted
+    /// kNN consensus) and re-read the modelless lane. Report-only.
+    pub label_smooth_ab: bool,
 }
 
 impl RunOptions {
@@ -5429,6 +5444,8 @@ impl RunOptions {
             laya_max_questions: 0,
             skip_laya: false,
             dump_items: false,
+            robust_ab: false,
+            label_smooth_ab: false,
             cascade: false,
             cascade_worthiness: false,
             // Issue 042 T3 (a), promoted per the issue's own trigger (a second

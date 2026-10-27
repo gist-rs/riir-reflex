@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # riir-reflex local CI guard — the same lanes every sibling repo runs.
-# Layers (10): (1) clippy default -D warnings, (2) clippy --all-features,
+# Layers (11): (1) clippy default -D warnings, (2) clippy --all-features,
 # (3) clippy --no-default-features (the flag-OFF posture must compile),
 # (4) cargo test (semantics gates, default features), (5) clippy at the
 # laya feature set, (6) the G2+G4 decision-set bench (full mode — cargo
@@ -18,8 +18,8 @@
 # cheap — always runs).
 #
 # Steps 6-7 run in full mode only; in quick mode the [n/11] numbering IS
-# the partial signal (cargo steps stop at [5/10]; the three cheap layers
-# 8-10 still run).
+# the partial signal (cargo steps stop at [5/11]; the four cheap layers
+# 8-11 still run).
 set -euo pipefail
 
 LAYER="${1:-full}"

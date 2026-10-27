@@ -4,6 +4,7 @@
 //! ```text
 //! cargo run --release --bin harness -- [--suites a,b] [--laya-max-questions N]
 //!                                      [--skip-laya] [--dump-items] [--laya-python] [--out DIR]
+//!                                      [--robust-ab] [--label-smooth-ab]
 //!                                      [--corpus-cap N] [--cal-select-cap [LIST]]
 //!                                      [--head-scale F] [--head-select]
 //!                                      [--nb-select] [--oc-select]
@@ -400,6 +401,8 @@ fn harness_main() {
             }
             "--skip-laya" => opts.skip_laya = true,
             "--dump-items" => opts.dump_items = true,
+            "--robust-ab" => opts.robust_ab = true,
+            "--label-smooth-ab" => opts.label_smooth_ab = true,
             "--cascade" => opts.cascade = true,
             "--cascade-worthiness" => opts.cascade_worthiness = true,
             "--gate-fit-selection" => opts.gate_fit_selection = true,

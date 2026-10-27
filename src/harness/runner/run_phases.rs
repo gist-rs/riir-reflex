@@ -284,6 +284,16 @@ fn run_suite(spec: &SuiteSpec, opts: &RunOptions, errors: &mut Vec<String>) -> O
         errors,
     );
 
+    let inductive_bias = run_inductive_bias_probes(
+        spec,
+        &prepared,
+        opts,
+        modelless.as_deref(),
+        &laya_lanes,
+        &comparison,
+        errors,
+    );
+
     Some(SuiteResult {
         name: spec.name.to_string(),
         n_cases: prepared.suite.cases.len(),
@@ -315,6 +325,179 @@ fn run_suite(spec: &SuiteSpec, opts: &RunOptions, errors: &mut Vec<String>) -> O
         paw_local: comparison.paw_local,
         leak: leak_block,
         slices: prepared.slices,
+        inductive_bias,
+    })
+}
+
+impl ComparisonLanes {
+    /// The standard-shape rows by display name (paw's bespoke row type is
+    /// not a `LaneResult` and is excluded — Issue 100's pairing reads
+    /// `LaneResult.items`).
+    fn standard_rows(&self) -> [(&'static str, Option<&LaneResult>); 15] {
+        [
+            ("clm", self.clm.as_ref()),
+            ("gliner", self.gliner.as_ref()),
+            ("bekko", self.bekko.as_ref()),
+            ("agentjev", self.agentjev.as_ref()),
+            ("clef", self.clef.as_ref()),
+            ("openthai", self.openthai.as_ref()),
+            ("drex", self.drex.as_ref()),
+            ("d1", self.d1.as_ref()),
+            ("pplx", self.pplx.as_ref()),
+            ("d3", self.d3.as_ref()),
+            ("jeva", self.jeva.as_ref()),
+            ("startlux", self.startlux.as_ref()),
+            ("mammoth", self.mammoth.as_ref()),
+            ("elephant", self.elephant.as_ref()),
+            ("opendecider", self.opendecider.as_ref()),
+        ]
+    }
+}
+
+/// Issue 100 (phase fn): the report-only inductive-bias probes. Re-reads
+/// the SAME armed lanes on probe copies of the prepared suite — T1 on the
+/// word-dropout ladder, T2 (modelless only) on the label-smoothed corpus.
+/// `None` when neither flag is armed or the suite has no modelless row (the
+/// floor every delta is paired against).
+fn run_inductive_bias_probes(
+    spec: &SuiteSpec,
+    prepared: &Prepared,
+    opts: &RunOptions,
+    modelless: Option<&LaneResult>,
+    laya_lanes: &LayaLanes,
+    comparison: &ComparisonLanes,
+    errors: &mut Vec<String>,
+) -> Option<robust_ab::InductiveBiasBlock> {
+    if !opts.robust_ab && !opts.label_smooth_ab {
+        return None;
+    }
+    let Some(ml_clean) = modelless else {
+        errors.push(format!(
+            "{} (inductive-bias): no modelless row — the probes pair every lane against it",
+            spec.name
+        ));
+        return None;
+    };
+    let clean_enc = robust_ab::encoder_rows(&laya_lanes.results, comparison.standard_rows());
+
+    let robust = opts.robust_ab.then(|| {
+        let mut rungs = Vec::with_capacity(echo_gates::OOD_RUNGS.len());
+        for &p in echo_gates::OOD_RUNGS.iter() {
+            eprintln!("    robust-ab: dropout p={p:.2} — re-reading every armed lane…");
+            let cp = prepared.with_eval_suite(robust_ab::corrupt_suite(&prepared.suite, p));
+            let ml_corr = match run_modelless_suite(spec, &cp, opts, None, errors) {
+                ModellessOutcome::Ran { result, .. } => result,
+                _ => {
+                    errors.push(format!(
+                        "{} (robust-ab p={p:.2}): modelless re-read failed",
+                        spec.name
+                    ));
+                    continue;
+                }
+            };
+            let laya_c = run_laya_lanes(spec, &cp, opts, None, errors);
+            let comp_c = run_comparison_lanes(spec, &cp, opts, None, errors);
+            let corr_enc = robust_ab::encoder_rows(&laya_c.results, comp_c.standard_rows());
+            let mut lanes = vec![robust_ab::lane_degradation(
+                "modelless",
+                &ml_clean.items,
+                &ml_corr.items,
+            )];
+            let mut cross = Vec::new();
+            for (name, clean) in &clean_enc {
+                let Some((_, corr)) = corr_enc.iter().find(|(n, _)| n == name) else {
+                    continue;
+                };
+                lanes.push(robust_ab::lane_degradation(name, &clean.items, &corr.items));
+                cross.push(robust_ab::cross_lane_delta(
+                    name,
+                    &ml_clean.items,
+                    &ml_corr.items,
+                    &clean.items,
+                    &corr.items,
+                ));
+            }
+            for l in &lanes {
+                eprintln!(
+                    "    robust-ab p={p:.2} {}: {:.4} → {:.4} (Δ {:+.4} [{:+.4}, {:+.4}], n={})",
+                    l.lane, l.acc_clean, l.acc_corrupted, l.delta, l.delta_lb95, l.delta_ub95, l.n
+                );
+            }
+            for c in &cross {
+                eprintln!(
+                    "    robust-ab p={p:.2} {} − modelless: ΔΔ {:+.4} [{:+.4}, {:+.4}] (n={})",
+                    c.encoder, c.delta_of_deltas, c.dod_lb95, c.dod_ub95, c.n_paired
+                );
+            }
+            rungs.push(robust_ab::RobustRung {
+                dropout_p: p,
+                lanes,
+                cross,
+            });
+        }
+        rungs
+    });
+
+    let label_smooth = if opts.label_smooth_ab {
+        match ml_clean.corpus_cap.as_ref().map(|c| c.effective) {
+            None => {
+                errors.push(format!(
+                    "{} (label-smooth-ab): the modelless row carries no effective corpus cap",
+                    spec.name
+                ));
+                None
+            }
+            Some(cap) => {
+                let mut rungs = Vec::with_capacity(robust_ab::SMOOTH_ALPHAS.len());
+                for &alpha in robust_ab::SMOOTH_ALPHAS.iter() {
+                    let (train, moved, n) = robust_ab::smoothed_corpus(&prepared.train, cap, alpha);
+                    eprintln!(
+                        "    label-smooth-ab α={alpha:.2}: {moved}/{n} working-set docs relabelled — re-reading modelless…"
+                    );
+                    let sp = prepared.with_train(train);
+                    match run_modelless_suite(spec, &sp, opts, None, errors) {
+                        ModellessOutcome::Ran { result, .. } => {
+                            let d = robust_ab::lane_degradation(
+                                "modelless",
+                                &ml_clean.items,
+                                &result.items,
+                            );
+                            eprintln!(
+                                "    label-smooth-ab α={alpha:.2} modelless: {:.4} → {:.4} (Δ {:+.4} [{:+.4}, {:+.4}])",
+                                d.acc_clean, d.acc_corrupted, d.delta, d.delta_lb95, d.delta_ub95
+                            );
+                            rungs.push(robust_ab::SmoothRung {
+                                alpha,
+                                working_set: n,
+                                relabelled: moved,
+                                relabel_rate: moved as f64 / n.max(1) as f64,
+                                modelless: d,
+                            });
+                        }
+                        _ => errors.push(format!(
+                            "{} (label-smooth-ab α={alpha:.2}): modelless re-read failed",
+                            spec.name
+                        )),
+                    }
+                }
+                Some(robust_ab::LabelSmoothBlock {
+                    effective_cap: cap,
+                    k: robust_ab::SMOOTH_K,
+                    beta: robust_ab::SMOOTH_BETA,
+                    tau: robust_ab::SMOOTH_TAU,
+                    encoder_half: "structurally null — every frozen encoder lane reads no \
+                                   train rows, so its smoothed read IS its clean read",
+                    rungs,
+                })
+            }
+        }
+    } else {
+        None
+    };
+
+    Some(robust_ab::InductiveBiasBlock {
+        robust,
+        label_smooth,
     })
 }
 
