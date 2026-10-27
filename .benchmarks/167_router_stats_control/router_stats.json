@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "date_utc": "2026-10-27T17:50:08Z",
+    "git_sha": "3025434",
+    "host": "amo",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "max_cases": 100,
+    "control_change_wall": 0.05,
+    "measurement_posture": "deployed engine build (fit_posture_inner + build_engine_with, selection levers pinned off, cal-slice observe calibration); shuffled-domain counterfactual through the Scratch::forced_domain seam; whole-assignment permutation, marginals preserved"
+  },
+  "red_suites": 1,
+  "control_live": true,
+  "structural_zero_suites": [
+    "sst5"
+  ],
+  "suites": [
+    {
+      "suite": "ag_news",
+      "n_cases": 100,
+      "n_slots": 100,
+      "n_domains": 4,
+      "effective_choices": 0.8360060436475214,
+      "max_load_frac": 0.39,
+      "mi_bits": 0.13992913288805706,
+      "baseline_acc": 0.38181818181818183,
+      "baseline_abstain_rate": 0.45,
+      "shuffle_change_rate": 0.59,
+      "shuffle_acc": 0.23076923076923078,
+      "shuffle_abstain_rate": 0.48,
+      "acc_drop": 0.15104895104895105,
+      "verdict": "Live",
+      "structural_zero": false
+    },
+    {
+      "suite": "emotion",
+      "n_cases": 100,
+      "n_slots": 100,
+      "n_domains": 6,
+      "effective_choices": 0.37470032859312924,
+      "max_load_frac": 0.79,
+      "mi_bits": 0.28083609170955365,
+      "baseline_acc": 0.38461538461538464,
+      "baseline_abstain_rate": 0.35,
+      "shuffle_change_rate": 0.3,
+      "shuffle_acc": 0.3548387096774194,
+      "shuffle_abstain_rate": 0.38,
+      "acc_drop": 0.029776674937965264,
+      "verdict": "Live",
+      "structural_zero": false
+    },
+    {
+      "suite": "sst5",
+      "n_cases": 100,
+      "n_slots": 100,
+      "n_domains": 5,
+      "effective_choices": 0.593991133797221,
+      "max_load_frac": 0.65,
+      "mi_bits": 0.17611887136296533,
+      "baseline_acc": 0.125,
+      "baseline_abstain_rate": 0.36,
+      "shuffle_change_rate": 0.0,
+      "shuffle_acc": 0.16393442622950818,
+      "shuffle_abstain_rate": 0.39,
+      "acc_drop": -0.038934426229508184,
+      "verdict": "Red",
+      "structural_zero": true
+    },
+    {
+      "suite": "banking77",
+      "n_cases": 100,
+      "n_slots": 100,
+      "n_domains": 77,
+      "effective_choices": 0.7291196680322446,
+      "max_load_frac": 0.04,
+      "mi_bits": 5.591014064623284,
+      "baseline_acc": 0.5510204081632653,
+      "baseline_abstain_rate": 0.51,
+      "shuffle_change_rate": 0.98,
+      "shuffle_acc": 0.0,
+      "shuffle_abstain_rate": 0.98,
+      "acc_drop": 0.5510204081632653,
+      "verdict": "Live",
+      "structural_zero": false
+    }
+  ]
+}

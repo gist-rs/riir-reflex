@@ -341,6 +341,10 @@ fn harness_main() {
     // (exclusive early-exit mode; modelless control only).
     let mut rubric_probe = false;
     let mut rubric_max_cases = 0usize;
+    // Issue 969 T3 — the pick_domain router-statistics liveness control
+    // (exclusive early-exit mode; RED refuses the run).
+    let mut router_stats = false;
+    let mut router_stats_max_cases = 0usize;
     // Issue 093 — the CorpusDistanceGate drift diagnostic (exclusive
     // early-exit mode; REPORT-ONLY — the issue's own no-lever-without-a-
     // measured-curve law).
@@ -594,6 +598,15 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--rubric-max-cases needs a number"));
+            }
+            // Issue 969 T3 — the router-statistics liveness control.
+            "--router-stats" => router_stats = true,
+            "--router-stats-max-cases" => {
+                i += 1;
+                router_stats_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--router-stats-max-cases needs a number"));
             }
             // Issue 093 — the gate-drift diagnostic (exclusive early-exit
             // mode; report-only: no control reds, no exit-code coupling).
@@ -1260,6 +1273,58 @@ fn harness_main() {
         }
         println!(
             "harness --rubric-probe: DONE — {} suite(s), 0 RED; wrote {} + {}",
+            out.suites.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    // Issue 969 T3 — the pick_domain router-statistics liveness CONTROL:
+    // exclusive early-exit mode, REPORT + GATE (a RED control refuses the
+    // run — the instrument-blind class, never a quiet pass).
+    if router_stats {
+        let rsopts = runner::RouterStatsOptions {
+            max_cases: if router_stats_max_cases == 0 {
+                runner::DEFAULT_ROUTER_STATS_MAX_CASES
+            } else {
+                router_stats_max_cases
+            },
+        };
+        println!(
+            "harness --router-stats: datasets {} · suites {:?} · ≤{} case(s)/suite · \
+             lane: modelless (the liveness CONTROL for katgpt-rs Issue 969)",
+            opts.datasets_dir.display(),
+            opts.suites,
+            rsopts.max_cases,
+        );
+        let out = match runner::run_router_stats_probe(&opts, &rsopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("router_stats.json");
+        let md_path = out_dir.join("ROUTER_STATS.md");
+        let json = serde_json::to_string_pretty(&out).expect("router stats serialize");
+        let md = runner::render_router_stats_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        if !out.control_live {
+            die(
+                "--router-stats: the liveness CONTROL red — NO suite's shuffled-domain \
+                 change rate cleared the wall. Either the forced-domain seam \
+                 does not engage or routing is not load-bearing anywhere; both \
+                 refuse the run. The record is on disk.",
+            );
+        }
+        println!(
+            "harness --router-stats: DONE — {} suite(s), 0 RED; wrote {} + {}",
             out.suites.len(),
             json_path.display(),
             md_path.display()

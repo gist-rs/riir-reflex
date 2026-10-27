@@ -174,6 +174,15 @@ pub use rubric_probe::{
     RubricSuiteReport, RubricVerdict, render_rubric_markdown, run_rubric_probe,
 };
 
+// Issue 969 T3 — the pick_domain router-statistics liveness CONTROL (the
+// K3 arm's paired control; the engine seam is `Scratch::forced_domain`).
+mod router_stats_probe;
+pub use router_stats_probe::{
+    CONTROL_CHANGE_WALL, DEFAULT_ROUTER_STATS_MAX_CASES, DEFAULT_ROUTER_STATS_SUITES,
+    RouterStatsOptions, RouterStatsOutput, RouterStatsSuite, RouterStatsVerdict,
+    render_router_stats_markdown, run_router_stats_probe,
+};
+
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{

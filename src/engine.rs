@@ -911,6 +911,13 @@ pub struct Scratch<const D: usize> {
     /// Hashed state tokens for the count tables (issue 038).
     #[cfg(feature = "nb_scope")]
     nb_tok: Vec<u32>,
+    /// Diagnostic forced routing (Issue 969 T3 control): per-question
+    /// domain override — `Some(d)` scores the question against domain `d`,
+    /// `None` keeps `pick_domain`'s own choice. Armed per decide by the
+    /// router-statistics instrument; every production path leaves it
+    /// `None` (one predictable branch at the routing site, byte-identical
+    /// decisions).
+    pub forced_domain: Option<Vec<Option<usize>>>,
     /// Option-conditioned per-option in-scores + terms (issue 038 T7b).
     #[cfg(feature = "option_cond")]
     oc_in: Vec<Option<f32>>,
@@ -939,6 +946,7 @@ impl<const D: usize> Default for Scratch<D> {
             scores: Vec::new(),
             #[cfg(feature = "nb_scope")]
             nb_tok: Vec::new(),
+            forced_domain: None,
             #[cfg(feature = "option_cond")]
             oc_in: Vec::new(),
             #[cfg(feature = "option_cond")]
@@ -1485,8 +1493,16 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
                 sc.q = tmp;
             }
 
-            // Route to the corpus expert.
-            let di = pick_domain::<N, D>(&sc.q, &dirs);
+            // Route to the corpus expert. The diagnostic override (Issue
+            // 969 T3 control) replaces the routed domain per question when
+            // armed; `None` entries and a disarmed scratch fall through to
+            // the same `pick_domain` call — byte-identical on every
+            // production path (one predictable branch).
+            let di = sc
+                .forced_domain
+                .as_ref()
+                .and_then(|f| f.get(qi).and_then(|d| *d))
+                .unwrap_or_else(|| pick_domain::<N, D>(&sc.q, &dirs));
 
             // Score every candidate against the corpus.
             let k = match q.kind {
