@@ -272,7 +272,13 @@ cargo run --release --bin harness -- --skip-laya --startlux
 # ONLY through the operator-run loopback TLS forwarder (the clef A0 law; the
 # hop is part of the row's latency claim). MEASUREMENT-ONLY — no RIDT arm:
 # API outputs never enter a capture artifact (teacher lineage stays
-# self-hosted, riir-train 640). Re-fetch the Baseten ToS + Model-APIs policy
+# self-hosted, riir-train 640). **THE STANDING TEACHER POINTER** (owner
+# GOAT-or-defer law, rethink decision-index-beat law 9): mammoth-1 is the
+# board's #1 AND highest OPEN-weights entrant (still #1 at the 2026-10-26
+# read, 75.34 of 229) — the default Step-4 teacher candidate for every
+# decision-index lane until a newer board displaces it; licence (MIT) and
+# the contamination read (grammar-not-answers) still gate, board rank alone
+# never qualifies. Re-fetch the Baseten ToS + Model-APIs policy
 # before the run (the free week ended 2026-10-27 23:59 PT; the key is an
 # OWNER act):
 MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
@@ -370,6 +376,17 @@ OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
 # discloses which). Serve: .raw/drex-env (torch cu124 + transformers 5.19)
 # + .raw/drex-model; the owned cells: gold-label accuracy per primitive +
 # the ECE/Brier of their confidence fields (T4 readout_brier).
+# ⛔ FAMILY DEFERRED (owner GOAT-or-defer law, rethink decision-index-beat
+# law 9, 2026-10-27): the existing `--drex` lane stays for re-runs of its
+# owned cells, but NO new Drex work — no `--drex-max` hosted lane, no v2.0
+# inference lane, no capture. Two independent grounds: (1) the license gate
+# (Issue 085: v1.5/v2.0 RAIL-M §2(c) competitor clause, written permission
+# reopens; Drex Max is CLOSED-weights — hosted only); (2) the board rank —
+# NOT GOAT at the 2026-10-26 read (229 entrants): Max v1 67.52 (~rank 16),
+# v2.0 61.25 (~rank 46), v1.5 58.08, with 12+ OPEN-weights entrants above
+# Max. The teacher pointer stays on the board's highest open entrant (the
+# mammoth/elephant lane above). Re-read the live board before ever
+# revisiting — editions move.
 DREX_SERVE_URL=http://127.0.0.1:8000 \
   cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
 
