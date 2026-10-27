@@ -77,8 +77,15 @@ impl<const N: usize, const D: usize> LabelHeads<N, D> {
                         for (wv, &xv) in row.iter().zip(x.iter()) {
                             z += wv * xv;
                         }
-                        // One-vs-rest sigmoid gradient (never softmax).
-                        let g = exact_sigmoid(z) - if d == label { 1.0 } else { 0.0 };
+                        // One-vs-rest sigmoid gradient (never softmax). The
+                        // positive slot is −σ(−z), never σ(z) − 1: the latter
+                        // rounds to exactly 0.0 past z ≈ 16.6 in f32 (the
+                        // arXiv:2610.31642 collapse cliff; riir-train Issue 651).
+                        let g = if d == label {
+                            -exact_sigmoid(-z)
+                        } else {
+                            exact_sigmoid(z)
+                        };
                         let step = lr * g;
                         for (i, wv) in row.iter_mut().enumerate() {
                             *wv = *wv * decay - step * x[i];
