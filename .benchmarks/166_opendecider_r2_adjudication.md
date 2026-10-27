@@ -1,6 +1,6 @@
 # Bench 166 — Plan 012 R2 adjudication: the OPTION_SORT fresh read is NEUTRAL on banking77 (FLAT, H-A refuted for banking77), emotion sorted read NEGATIVE-WEAK — B0+B4 fire (record + the calibration lever, doc-only); B1/B2/B3/B5/B6 do not
 
-**Status:** RECORD — executed 2026-10-27 (amo, M5 Ultra), commit `<this-commit>`. Consumes ONLY the R1 artifacts (`.benchmarks/opendecider_r1_optionsort/`, run sha `8297345`, 2026-10-27T04:50–04:52Z); zero new reads, zero GPU. Adjudication of [rethink Plan 012](../../riir-rethink/.plans/012_r2_inverted_family_split.md) — pre-registered 2026-10-26 BEFORE the read landed (gates-fixed-before-data).
+**Status:** RECORD — executed 2026-10-27 (amo, M5 Ultra), commit `8671409` (the record + highwater in one commit). Consumes ONLY the R1 artifacts (`.benchmarks/opendecider_r1_optionsort/`, run sha `8297345`, 2026-10-27T04:50–04:52Z); zero new reads, zero GPU. Adjudication of [rethink Plan 012](../../riir-rethink/.plans/012_r2_inverted_family_split.md) — pre-registered 2026-10-26 BEFORE the read landed (gates-fixed-before-data).
 
 ## Provenance
 
