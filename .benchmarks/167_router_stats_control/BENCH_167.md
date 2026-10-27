@@ -1,7 +1,7 @@
 # Bench 167 — Issue 969 T3: reflex `pick_domain` router-statistics liveness CONTROL — CONTROL LIVE
 
 **Date:** 2026-10-27
-**Issue:** katgpt-rs [`Issue 969`](../../katgpt-rs/.issues/969_kimi_k3_router_statistics_diagnostic.md) (Research 639 / arXiv:2610.31818 Nestor App C.6) — this is the control half (T3); the K3 subject arm is katgpt-rs [Bench 969](../../katgpt-rs/.benchmarks/969_issue969_router_stats.md).
+**Issue:** katgpt-rs `Issue 969` (Research 639 / arXiv:2610.31818 Nestor App C.6) — this is the control half (T3); the K3 subject arm is katgpt-rs [Bench 969](../../../katgpt-rs/.benchmarks/969_issue969_router_stats.md).
 **Instrument:** `harness --router-stats` (`src/harness/runner/router_stats_probe.rs` + the `Scratch::forced_domain` diagnostic seam in `src/engine.rs`); report + GATE (a lane-level RED refuses the run).
 
 ## Verdict
