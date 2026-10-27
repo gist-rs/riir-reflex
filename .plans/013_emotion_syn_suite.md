@@ -2,6 +2,7 @@
 
 **Status:** IN EXECUTION — filed 2026-10-27. T1–T3 landed; **T4 DONE 2026-10-28** (generation completed 10-27 13:18–13:24; verified before T5: all 60 page digests match the manifest, 4800/1200 rows at exactly 800/200 per label, 0 within-split dupes, 0 cross-split overlap, 0 rows outside 5–45 words, no partial pages); **T5 DONE 2026-10-28** ([Bench 168](../.benchmarks/168_emotion_syn_baseline/RESULTS.md): A0 0.3125 @ 1.88× chance, G1 PASS, determinism ✓ — the specialist floor); T6 (riir-train re-fit hand-off, its own lane) + T7 (release-lane commit, gated on T5 ✓) remain.
 **Lease closed:** zed-amo-013-t5a0 (claimed 1793147800, expires 2026-10-29T21:00:00Z) — T4 verification + T5 landed 2026-10-28 (`ed0ffd6` claim; the bench record is the landing); session zed-amo-013-t5a0
+**Claimed:** zed-amo-013-sst5syn, 1793151000, expires 2026-10-29T22:00:00Z
 
 Upstream decision: riir-rethink Research 002 §Execution (owner call 2026-10-27: **synthetic emotion FIRST**, ahead of the elephant panel + the 640-T3 capture). The dair-ai/emotion suite stays ⛔ benchmark-only (licence ledger); this suite is the licence-clean re-entry for the niche. Precedent: typed_decisions ("latent factors + our teacher labels, no scraped content").
 
