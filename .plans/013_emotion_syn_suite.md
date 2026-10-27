@@ -1,6 +1,7 @@
 # Plan 013 — `emotion_syn`: the first-party synthetic emotion suite (the ESC re-source, step 1)
 
-**Status:** IN EXECUTION — filed 2026-10-27. T1–T3 landed; T4 (generation) running on amo (M5 Ultra, MLX/Metal); T5–T7 follow the generated rows.
+**Status:** IN EXECUTION — filed 2026-10-27. T1–T3 landed; T4 generation COMPLETE on disk 2026-10-27 13:18–13:24 (verified 2026-10-28: all 60 page digests match the manifest, 4800/1200 rows at exactly 800/200 per label, 0 within-split dupes, 0 cross-split overlap, 0 rows outside 5–45 words, no partial pages); T5 next; T6–T7 follow.
+**Claimed:** zed-amo-013-t5a0, 1793147800, expires 2026-10-29T21:00:00Z
 
 Upstream decision: riir-rethink Research 002 §Execution (owner call 2026-10-27: **synthetic emotion FIRST**, ahead of the elephant panel + the 640-T3 capture). The dair-ai/emotion suite stays ⛔ benchmark-only (licence ledger); this suite is the licence-clean re-entry for the niche. Precedent: typed_decisions ("latent factors + our teacher labels, no scraped content").
 
