@@ -43,8 +43,10 @@ use crate::harness::suites::{Suite, SuiteCase, TrainDoc};
 use crate::pyjson::serialize_state;
 
 /// T2 mixing strengths α (the neighbourhood weight; 1 − α stays on the
-/// doc's own label).
-pub(crate) const SMOOTH_ALPHAS: [f64; 3] = [0.25, 0.50, 0.75];
+/// doc's own label). Every rung sits ABOVE 0.5: at α ≤ 0.5 the own-label
+/// term (1 − α) ≥ α·m(l) for every l, so no doc can move (measured — the
+/// first run relabelled 0/256 at α 0.25 and 0.50).
+pub(crate) const SMOOTH_ALPHAS: [f64; 3] = [0.60, 0.75, 0.90];
 /// T2 neighbourhood size.
 pub(crate) const SMOOTH_K: usize = 10;
 /// T2 sigmoid sharpness over cosine.
@@ -371,9 +373,11 @@ pub(crate) fn smooth_labels(docs: &[TrainDoc], alpha: f64, k: usize) -> (Vec<Tra
     (out, moved)
 }
 
-/// The smoothed corpus: the working set relabelled, in pool order; docs
-/// outside the working set are dropped (the engine never reads them at
-/// this cap).
+/// The smoothed corpus: the FULL pool with only the working-set docs
+/// relabelled in place (pool order kept). Docs outside the working set are
+/// untouched, so the uncapped count-table views (nb/oc/ridge) still read
+/// the whole pool — the label is the ONE changed variable. Returns
+/// (pool, relabelled, working-set size).
 pub(crate) fn smoothed_corpus(
     train: &[TrainDoc],
     cap: usize,
@@ -381,9 +385,12 @@ pub(crate) fn smoothed_corpus(
 ) -> (Vec<TrainDoc>, usize, usize) {
     let ws = working_set(train, cap);
     let docs: Vec<TrainDoc> = ws.iter().map(|&i| train[i].clone()).collect();
-    let n = docs.len();
     let (sm, moved) = smooth_labels(&docs, alpha, SMOOTH_K);
-    (sm, moved, n)
+    let mut pool = train.to_vec();
+    for (&i, d) in ws.iter().zip(sm) {
+        pool[i] = d;
+    }
+    (pool, moved, ws.len())
 }
 
 /// One α of T2.
@@ -551,5 +558,29 @@ mod tests {
             doc("b", "5"),
         ];
         assert_eq!(working_set(&docs, 2), vec![0, 1, 2, 4]);
+    }
+
+    #[test]
+    fn smoothed_corpus_keeps_the_pool_and_alpha_half_is_inert() {
+        let docs = vec![
+            doc("a", "x y"),
+            doc("b", "x y"),
+            doc("a", "x y"),
+            doc("a", "z w"),
+        ];
+        let (pool, moved, n) = smoothed_corpus(&docs, 1, 0.9);
+        assert_eq!(pool.len(), docs.len(), "out-of-working-set docs are kept");
+        assert_eq!(n, 2);
+        assert_eq!(&pool[2..], &docs[2..], "only working-set rows may change");
+        assert!(moved <= n);
+        let mut big: Vec<TrainDoc> = (0..6)
+            .map(|i| doc("fruit", &format!("red apple {i}")))
+            .collect();
+        big[1].label = "x".into();
+        assert_eq!(
+            smooth_labels(&big, 0.5, 4).1,
+            0,
+            "α = 0.5: the own term never loses"
+        );
     }
 }
