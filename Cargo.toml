@@ -512,6 +512,11 @@ strip = true
 [patch.crates-io]
 cubecl-runtime = { path = "../riir-infer/vendor/cubecl-runtime-0.11.0-pre.2" }
 wgpu-hal = { path = "../riir-infer/vendor/wgpu-hal-30.0.0" }
+# riir-infer Issue 1141 / riir-ai issue 1132: the cubecl-wgpu fork (raw Metal
+# handles, bind-group cache, DEFAULT-ON uniform-content cache — composed with
+# params_handle_cache it is +38-82% Metal decode on M5 Ultra). Canonical home
+# riir-infer/vendor; without this row this workspace built upstream cubecl-wgpu.
+cubecl-wgpu = { path = "../riir-infer/vendor/cubecl-wgpu-0.11.0-pre.2" }
 # block 0.1.6 uninhabited-static future-incompat fork (katgpt-rs issue 968
 # residue; same healed copy as katgpt-rs 5e216a761 / riir-refine e07980c4 /
 # riir-instinct dc1002b). metal (via riir-infer-laya's macOS-scoped dep, under

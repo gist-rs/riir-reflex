@@ -916,10 +916,9 @@ dependencies = [
 [[package]]
 name = "cubecl-wgpu"
 version = "0.11.0-pre.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "aa87054aea892561fb0645491c5b156286d6d25c47e6f33fec7d2eeab002be5a"
 dependencies = [
  "ash",
+ "blake3",
  "bytemuck",
  "cfg-if",
  "cfg_aliases",
