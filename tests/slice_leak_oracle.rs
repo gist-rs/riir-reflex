@@ -407,6 +407,7 @@ fn build_suite(name: &str, rows: &Value, max_rows: usize) -> Option<Vec<suites::
         "ag_news" => build_ag_news(rows, max_rows).cases,
         "banking77" => build_banking77_mteb(rows, max_rows).cases,
         "emotion" => build_emotion(rows, max_rows).cases,
+        "emotion_syn" => build_emotion_syn(rows, max_rows).cases,
         "massive_intent_en" => build_massive_intent_en(rows, max_rows, 0).cases,
         "prompt_injections" => build_prompt_injections(rows, max_rows).cases,
         "sst5" => build_sst5(rows, max_rows).cases,

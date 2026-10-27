@@ -59,11 +59,11 @@ use crate::harness::pair_heads::{
 use crate::harness::suites::typed_gold_events;
 use crate::harness::suites::{
     QKind, Suite, SuiteCase, SuiteQuestion, TrainDoc, build_ag_news, build_anli_jdi,
-    build_banking77_mteb, build_emotion, build_hellaswag_jdi, build_massive_intent_en,
-    build_mmlupro_jdi, build_prompt_injections, build_s1mb_choice, build_s1mb_noul,
-    build_s1mb_score, build_sst5, build_thai_sib200, build_thai_wisesight, build_typed_decisions,
-    build_wanli_en, build_winogrande_jdi, build_xnli_en, stratified_selection_slices,
-    stratified_split, train_docs, train_row_label,
+    build_banking77_mteb, build_emotion, build_emotion_syn, build_hellaswag_jdi,
+    build_massive_intent_en, build_mmlupro_jdi, build_prompt_injections, build_s1mb_choice,
+    build_s1mb_noul, build_s1mb_score, build_sst5, build_thai_sib200, build_thai_wisesight,
+    build_typed_decisions, build_wanli_en, build_winogrande_jdi, build_xnli_en,
+    stratified_selection_slices, stratified_split, train_docs, train_row_label,
 };
 use crate::pyjson::serialize_state;
 use crate::readout::ReadoutMode;
@@ -402,6 +402,24 @@ const SUITES: &[SuiteSpec] = &[
         named_only: true,
         coverage_audit: true,
         build: build_wanli_en,
+        synthetic: None,
+        modelless_lane: true,
+    },
+    // rethink Research 002 §Execution step 1 — the first-party synthetic
+    // emotion suite (the licence-clean re-entry for the barred dair-ai
+    // niche; `scripts/synth_emotion_suite.py`). `named_only` (an opt-in via
+    // `--suites`); test = the generator-B / prompt-family-B holdout (1,200
+    // rows), the eval cap a 400-case stratified slice like emotion's.
+    SuiteSpec {
+        name: "emotion_syn",
+        dataset_dir: "emotion_syn",
+        test_cap: 400,
+        cal_cap: 200,
+        corpus_cap_per_label: 64,
+        eval_split: "test",
+        named_only: true,
+        coverage_audit: true,
+        build: build_emotion_syn,
         synthetic: None,
         modelless_lane: true,
     },
@@ -4286,8 +4304,8 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
         // stratification, and the slice audit all read one spelling. The
         // count guards below pin the fetch (the old int-label vectors
         // hardcoded these counts; the union now carries them).
-        "ag_news" | "emotion" | "sst5" | "xnli_en" | "xnli_en_val" | "thai_wisesight"
-        | "wanli_en" => option_key_union.clone(),
+        "ag_news" | "emotion" | "emotion_syn" | "sst5" | "xnli_en" | "xnli_en_val"
+        | "thai_wisesight" | "wanli_en" => option_key_union.clone(),
         // Noul-only: no option keys — the classes ride the train-doc
         // integer labels (the exemption the slice audit documents).
         "prompt_injections" => vec!["0".to_string(), "1".to_string()],
@@ -4315,7 +4333,7 @@ fn prepare(spec: &SuiteSpec, dir: &Path) -> Result<Prepared, String> {
     {
         let expected: Option<Vec<&str>> = match spec.name {
             "ag_news" => Some(crate::harness::suites::AG_NEWS_KEYS.to_vec()),
-            "emotion" => Some(crate::harness::suites::EMOTION_KEYS.to_vec()),
+            "emotion" | "emotion_syn" => Some(crate::harness::suites::EMOTION_KEYS.to_vec()),
             "sst5" => Some(vec!["0", "1", "2", "3", "4"]),
             "xnli_en" | "xnli_en_val" => Some(crate::harness::suites::XNLI_KEYS.to_vec()),
             // Issue 080: wanli_en shares the xnli key consts — the gold

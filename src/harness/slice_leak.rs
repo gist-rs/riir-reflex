@@ -457,9 +457,8 @@ pub fn eval_case_text(suite: &str, case: &crate::harness::suites::SuiteCase) -> 
     let s = &case.state;
     match suite {
         "ag_news" => s.get("article")?.as_str().map(str::to_string),
-        "emotion" | "sst5" | "prompt_injections" | "thai_wisesight" | "thai_sib200" => {
-            s.get("text")?.as_str().map(str::to_string)
-        }
+        "emotion" | "emotion_syn" | "sst5" | "prompt_injections" | "thai_wisesight"
+        | "thai_sib200" => s.get("text")?.as_str().map(str::to_string),
         "banking77" => s.get("message")?.as_str().map(str::to_string),
         "massive_intent_en" => s.get("utterance")?.as_str().map(str::to_string),
         "xnli_en" => Some(format!(
@@ -704,9 +703,9 @@ mod tests {
     #[test]
     fn eval_case_text_reads_each_builder_key() {
         use crate::harness::suites::{
-            SuiteCase, build_ag_news, build_banking77_mteb, build_emotion, build_massive_intent_en,
-            build_prompt_injections, build_sst5, build_typed_decisions, build_wanli_en,
-            build_xnli_en,
+            SuiteCase, build_ag_news, build_banking77_mteb, build_emotion, build_emotion_syn,
+            build_massive_intent_en, build_prompt_injections, build_sst5, build_typed_decisions,
+            build_wanli_en, build_xnli_en,
         };
         let text_of = |suite: &str, case: &SuiteCase| eval_case_text(suite, case);
 
@@ -725,6 +724,14 @@ mod tests {
         let suite = build_emotion(&rows, 0);
         assert_eq!(
             text_of("emotion", &suite.cases[0]).as_deref(),
+            Some("i am happy today")
+        );
+        // emotion_syn: the same builder under its own suite name + case ids.
+        let suite = build_emotion_syn(&rows, 0);
+        assert_eq!(suite.name, "emotion_syn");
+        assert_eq!(suite.cases[0].id, "emotion_syn:0");
+        assert_eq!(
+            text_of("emotion_syn", &suite.cases[0]).as_deref(),
             Some("i am happy today")
         );
 
