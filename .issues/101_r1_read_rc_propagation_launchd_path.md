@@ -41,9 +41,12 @@ mid-`ag_news` (serve dead, no orphan). Consequences + disposition:
 
 - `.benchmarks/opendecider_r1_optionsort/typed_decisions/` was OVERWRITTEN by
   a same-posture re-run (rc=0, 4000 items, 2 lanes, no absences — complete);
-  `ag_news/` was PARTIAL and has been REMOVED. The other suites keep the
-  04:47Z recovery-read vintage (the Bench 166 adjudication's numbers live in
-  the bench record, which is the citation of record).
+  `ag_news/` was PARTIAL and has been REMOVED. **Follow-up verification (next
+  cycle): the fresh typed_decisions output is QUALITY-IDENTICAL to the
+  adjudicated vintage** (deep-diff of results.json: soft_acc / ECE / Brier /
+  determinism / n_cases / n_questions / cases_digest all equal; only
+  latency + box_state fields differ — different wall-clock, quieter box,
+  warm serve). The overwrite is measurement-harmless.
 - The dir is MIXED-VINTAGE until the real R1 read re-runs; do NOT adjudicate
   from it before that.
 - The real R1 read's precondition is NOT met yet: `/tmp/elephant_panel_done.marker`
