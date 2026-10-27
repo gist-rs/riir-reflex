@@ -5,6 +5,12 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-27 — Issue 100 CLOSED (recorded negative): inductive-bias lane-seating diagnostics — no separable screen
+
+**Status: Resolved-negative. Landings: probes `936b014` (`--robust-ab` T1 + `--label-smooth-ab` T2, `runner/robust_ab.rs` + one `run_phases` phase fn; `SuiteResult.inductive_bias` skipped when unset → results.json byte-identical), T2 fix `bb39c3f` (α ladder above 0.5; in-place working-set smoothing). Record: [Bench 165](.benchmarks/165_inductive_bias_probes.md).**
+
+T1 at the site posture (modelless reproduces Bench 131 exactly) vs laya `english` on banking77/emotion (DEAD) + ag_news/xnli_en (seated): raw ΔΔ signs follow clean-accuracy HEADROOM (circular); above-modal-floor retention favours the modelless floor in 12/12 suite×rung cells — the finding-2 analog holds, UNIFORMLY, so it does not order the winners. T2 flat everywhere (≤ 1 pt at up to 60% relabelled — the uncapped nb/oc/ridge tables carry the decision, not the drafter labels; encoder half structurally null). T3 not written per its own rule; T4 hygiene held (provenance line in the bench, flags on `RunOptions`, clippy -D warnings default + laya-riir-metal, lib tests 480 → 486). No lane demoted (serving law). Lesson for the next probe: report a headroom-normalised delta, never a raw paired delta across lanes of unequal clean accuracy.
+
 ## 2026-10-27 — Issue 099 CLOSED: the reflex fmt gate (katgpt-rs Issue 946 port), scoped — never `cargo fmt --all`
 
 **Status: Resolved. Landings: gate `3934747` (scripts/fmt_gate.py + guard layer 11 + 6-row drain list), layer-echo renumber `be50372`, recipe v3 `c6b9757`, drain `747c8ea` (the 6 files formatted + the list emptied in one commit), guard-header prose `936b014`. Full 11-layer `ci_feature_guard.sh` PASSED at `747c8ea` (isolated `CARGO_TARGET_DIR`).**

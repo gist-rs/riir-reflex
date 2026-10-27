@@ -1,0 +1,2356 @@
+{
+  "meta": {
+    "date_utc": "2026-10-27T04:33:19Z",
+    "git_sha": "53e5dc0",
+    "host": "amo",
+    "profile": "release",
+    "laya_feature": true,
+    "laya_max_questions": 0,
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "corpus_cap_mode": "registry defaults",
+    "corpus_protocol": "one engine domain per label; corpus = train-split docs of that label, capped per label (registry), self-doc fallback for labels absent from the fetched train rows",
+    "calibration_protocol": "sigmoid-gate fit on a train-tail calibration slice (same builder over the train rows); fused-gate thresholds fitted per suite at the cal-slice 30th percentile (the T1.6 arena posture rho=30%; the birth constants do not transfer — measured: 100% abstain on several suites at defaults); raw-vs-calibrated readout ECE compared per the G1 gate; no calibration claim when the calibrator never moved; --drafter-fix per_byte: the drafter-only correction mode armed (issue 079 tuning axis; EngineConfig::drafter_fix, issue 036 T2)",
+    "sampling_protocol": "test sample = label-STRATIFIED round-robin over the whole test split (budget = the registry test cap; first-appearance label order, dataset order within each label, deterministic, no RNG); cal slice = the same law over the train rows; corpus pool = the train rows MINUS the cal front (excluded by construction, not position); budget-0 suites unchanged (identity split) — Issue 039 T2",
+    "readout_posture": "shipped Dispatch law everywhere (Issue 039 T4 DEMOTED: the cal-side arming lever overfit the narrow suites' cal slice — emotion's test G1 regressed — and coincided with Dispatch on the wide suites it targeted; the wide-label G1 gap was closed by T2's stratified cal slice). The candidate table is recorded per suite (report-only); EngineConfig::readout stays the opt-in knob",
+    "floor_definition": "conformal-naive floor = split-conformal recalibration of the raw readout confidence, c'(s) = (1 + #{cal s_i <= s}) / (n_cal + 1) — the exchangeability-valid baseline (G1 fails unless the calibrated ECE beats it)",
+    "modal_floor_definition": "input-keyed modal-answer floor = the cal-split (reference) modal gold over questions sharing the input key, pooled by option identity and mapped through each case's own option order (first-4 normalized input tokens × qid × option-count; ties → global prior → case order; arXiv:2610.17495's anti-mimicry census; LOO over eval only when no cal slice exists) — a lane at/below it carries no input-independent signal (issue 094)",
+    "determinism_scoping": "the bit-identity claim is the MODELLESS lane's (plan caveat 3); the laya lane gets the same observed repeat check and it is reported, not claimed",
+    "laya_device": "metal (LAYA_DEVICE or the build's macOS default)",
+    "laya_python_lane": "off (pass --laya-python to add the reference lane)",
+    "clm_lane": "off (pass --clm to add the comparison lane; .issues/027)",
+    "gliner_lane": "off (pass --gliner to add the comparison lane; needs the gliner2 venv — .issues/029)",
+    "bekko_lane": "off (pass --bekko to add the comparison lane; needs the bekko venv — Bench 103)",
+    "agentjev_lane": "off (pass --agentjev to add the comparison lane; needs their jev_service on AGENTJEV_SERVE_URL — .issues/025)",
+    "clef_lane": "off (pass --clef to add the comparison lane; the hosted posture needs the owner's Workers AI creds behind the loopback forwarder, or serve the open weights locally — plan 011 Phase A + .research/007)",
+    "openthai_lane": "off (pass --openthai to add the comparison lane; needs their openthai service on OPENTHAI_SERVE_URL — plan 003)",
+    "drex_lane": "off (pass --drex to add the comparison lane; needs their service on DREX_SERVE_URL, default http://127.0.0.1:8000 — Issue 073)",
+    "d1_lane": "off (pass --d1 to add the comparison lane; needs the reference server on D1_SERVE_URL, default http://127.0.0.1:8078 — Issue 078)",
+    "pplx_lane": "off (pass --pplx to add the comparison lane; serve their autojev server on PPLX_SERVE_URL, default http://127.0.0.1:8793 — Issue 082)",
+    "d3_lane": "off (pass --d3 to add the comparison lane; serve their d3_server.py on D3_SERVE_URL, default http://127.0.0.1:8794 — riir-train 629 T2)",
+    "jeva_lane": "off (pass --jeva to add the comparison lane; serve OUR reference server scripts/jeva_server.py on JEVA_SERVE_URL, default http://127.0.0.1:8095, under the venv python with their repo installed — reflex Issue 090 B1)",
+    "startlux_lane": "off (pass --startlux to add the comparison lane; serve their startlux-decide engine on STARTLUX_SERVE_URL, default http://127.0.0.1:8090 — reflex Issue 095, riir-train 635 T3)",
+    "mammoth_lane": "off (pass --mammoth to add the hosted comparison lane; run the loopback TLS forwarder to inference.baseten.co on MAMMOTH_SERVE_URL, default http://127.0.0.1:8793, with MAMMOTH_API_TOKEN set — rethink Issue 032 T10; T10.1: the key is an OWNER act; window ends 2026-10-27 23:59 PT)",
+    "elephant_lane": "off (pass --elephant to add the self-hosted comparison lane; serve our scripts/elephant_server.py under the qev venv on ELEPHANT_SERVE_URL, default http://127.0.0.1:8096 — rethink Issue 032 T10.2, riir-train 640 T2(a) records the exact venv + weight pin)",
+    "opendecider_lane": "off (pass --opendecider to add the self-hosted comparison lane; pip install \"opendecider[serve]\" then `opendecider serve --model manjunathshiva/opendecider-nano` on OPENDECIDER_SERVE_URL, default http://127.0.0.1:8000 — rethink Issue 038 / Research 013)",
+    "paw_lane": "off (pass --paw to add the comparison lane; PAW_API_KEY optional — .issues/033)",
+    "paw_local_lane": "off (pass --paw-local to add the local-runtime twin; needs the programasweights venv + a hosted-lane cache — .issues/033)",
+    "box_state": {
+      "start": {
+        "power": "AC Power",
+        "power_mode": null,
+        "load_1m": 9.79,
+        "swap_used_mb": 4985.94,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 9.79 > 6 — a sibling job is on the box"
+        ]
+      },
+      "end": {
+        "power": "AC Power",
+        "power_mode": null,
+        "load_1m": 6.74,
+        "swap_used_mb": 4985.94,
+        "load_source": "loadavg1m",
+        "gpu_util_pct": null,
+        "gpu_mem_mib": null,
+        "latency_quotable": false,
+        "refusals": [
+          "load 6.74 > 6 — a sibling job is on the box"
+        ]
+      }
+    },
+    "head_posture": "OFF (head_scale 0 — the published baseline posture)",
+    "nb_posture": "ON — cal-selected per suite (scale 0/1/4/16/32/64 × α observed-laplace/fixed-1, promotion bar +5 pt over off on the stratified slice; + noul polarity per domain on noul suites; + bag/pair view on multi-field states; count tables from TRAIN rows only, uncapped). Transductive column: TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc",
+    "oc_posture": "ON — cal-selected per suite (scale 0/0.25/0.5/1/2/4/8, promotion bar +5 pt over off on the stratified slice; one contrastive table per (question id, gold option) from the TRAIN rows, events filtered to the corpus pool; every question kind armed — typed_decisions is the target suite)",
+    "ridge_posture": "ON — cal-selected per suite (scale 0/0.5/1/2/4/8 × λ 10 fixed, promotion bar +5 pt over off on the stratified slice; NBSVM closed-form ridge, k=2048, per-class NB log-count ratios, fit-time self-calibrated margin temperature)",
+    "divergences": [
+      "massive option sampling: SplitMix64 (fixed seed), not CPython MT19937 — both lanes see byte-identical questions, which is the integrity that matters",
+      "banking77: mteb/banking77 mirror (the reference's own bench_apps variant); PolyAI/banking77 is script-based and unservable",
+      "engine context = state + prompt (wire criteria None) — the modelless serving path",
+      "synthetic fixtures (semantic_defects): in-process fixtures with programmatic gold; the six Issue-004 harness families (2026-10-02) and code_fixtures (2026-10-11) were retired — owner calls — so the modelless lane no longer answers any self-authored suite but the one that reads above chance"
+    ]
+  },
+  "suites": [
+    {
+      "name": "ag_news",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-07eff23c06505584",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.8825,
+          "macro_f1": 0.8741933646432797,
+          "ece": 0.47827894262969495,
+          "brier": 0.5053158266072506,
+          "nll": 0.9629571322547602,
+          "aurc": 0.04689348589556988,
+          "mean_confidence": 0.40422105737030506,
+          "acc_at_50_coverage": 0.94,
+          "acc_at_80_coverage": 0.9375
+        },
+        "readout_ece": 0.04585413459688425,
+        "readout_brier": 0.09073375505306376,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.49,
+          "selective_accuracy": 0.9509803921568627,
+          "selective_n": 204
+        },
+        "abstain_causes": {
+          "score_gate": 60,
+          "distance_gate": 136,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8304792892932893,
+        "readout_ece_calibrated": 0.04585413459688425,
+        "floor_ece": 0.24822139303482577,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.148,
+        "latency_p99_ms": 0.301,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.301,
+          "max_ms": 0.34,
+          "argmax_case": 71
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 4.490241375,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.8358875,
+        "distance_threshold": 0.41053298,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.8358875,
+            "status": "fitted",
+            "targetAccuracy": 0.9357143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.41053298,
+            "status": "fitted",
+            "targetAccuracy": 0.8857143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.39
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.7
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.745
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.745
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.74
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.74
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.8825,
+          "honest_accuracy": 0.8825,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "business",
+            "pred": "sci_tech",
+            "count": 10,
+            "share_of_errors": 0.2127659574468085
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "business",
+            "count": 8,
+            "share_of_errors": 0.1702127659574468
+          },
+          {
+            "gold": "world",
+            "pred": "business",
+            "count": 7,
+            "share_of_errors": 0.14893617021276595
+          },
+          {
+            "gold": "world",
+            "pred": "sports",
+            "count": 6,
+            "share_of_errors": 0.1276595744680851
+          },
+          {
+            "gold": "sports",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "sports",
+            "pred": "world",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "world",
+            "pred": "sci_tech",
+            "count": 3,
+            "share_of_errors": 0.06382978723404255
+          },
+          {
+            "gold": "business",
+            "pred": "world",
+            "count": 2,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "sports",
+            "count": 2,
+            "share_of_errors": 0.0425531914893617
+          },
+          {
+            "gold": "business",
+            "pred": "sports",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          },
+          {
+            "gold": "sci_tech",
+            "pred": "world",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          },
+          {
+            "gold": "sports",
+            "pred": "business",
+            "count": 1,
+            "share_of_errors": 0.02127659574468085
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3075,
+        "jdi_skill": 0.8303249097472923,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.8204048293828965
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.48570768773555756
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.8204048293828965
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-58e669a512102140"
+      },
+      "laya": {
+        "english": {
+          "lane": "laya-riir",
+          "model": "english",
+          "hard": {
+            "n": 400,
+            "accuracy": 0.95,
+            "macro_f1": 0.9439373207318056,
+            "ece": 0.03155950000000057,
+            "brier": 0.08078989162499997,
+            "nll": 0.16374224530654963,
+            "aurc": 0.006681571222221135,
+            "mean_confidence": 0.9220469999999991,
+            "acc_at_50_coverage": 1.0,
+            "acc_at_80_coverage": 0.990625
+          },
+          "readout_ece": 0.14119374999999995,
+          "readout_brier": 0.068163076475,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "abstain_causes": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 10.0,
+          "latency_p99_ms": 16.0,
+          "latency_tail_support": 5,
+          "latency_extremes": {
+            "first_ms": 17.0,
+            "max_ms": 17.0,
+            "argmax_case": 0
+          },
+          "determinism_ok": true,
+          "determinism_n": 10,
+          "seconds": 7.857189792,
+          "n_cases": 400,
+          "n_questions": 400,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "nb_selection": null,
+          "oc_selection": null,
+          "ridge_selection": null,
+          "genome_selection": null,
+          "transductive": null,
+          "confusion": null,
+          "pair_head_ab": null,
+          "jdi_chance": 0.3075,
+          "jdi_skill": 0.927797833935018
+        }
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-238133933bb8d6fc",
+        "cal_digest": "fnv1a64-96c58e69e7c6048e",
+        "pool_digest": "fnv1a64-996876e41929dc33",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      },
+      "modal_floor": {
+        "acc": 0.2625,
+        "n_questions": 400,
+        "n_keys": 195,
+        "n_fallback": 398,
+        "global_modal_share": 0.25,
+        "reference": "cal-split census (test∩cal disjoint)",
+        "key_rule": "modal census pooled by option identity; key = first-4 normalized input tokens × qid × option-count; ties → global prior → the case's own option order"
+      },
+      "inductive_bias": {
+        "robust": [
+          {
+            "dropout_p": 0.1,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.885,
+                "delta": 0.0025,
+                "delta_lb95": -0.008467711782974022,
+                "delta_ub95": 0.013467711782974023
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.95,
+                "acc_corrupted": 0.945,
+                "delta": -0.005,
+                "delta_lb95": -0.028006589445085963,
+                "delta_ub95": 0.01800658944508596
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": 0.0025,
+                "encoder_delta": -0.005,
+                "delta_of_deltas": -0.0075,
+                "dod_lb95": -0.03298240879302304,
+                "dod_ub95": 0.017982408793023038
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.2,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.895,
+                "delta": 0.0125,
+                "delta_lb95": -0.0037255213740467544,
+                "delta_ub95": 0.028725521374046756
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.95,
+                "acc_corrupted": 0.94,
+                "delta": -0.01,
+                "delta_lb95": -0.02833083874575317,
+                "delta_ub95": 0.008330838745753173
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": 0.0125,
+                "encoder_delta": -0.01,
+                "delta_of_deltas": -0.0225,
+                "dod_lb95": -0.046931131276275365,
+                "dod_ub95": 0.0019311312762753698
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.3,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.865,
+                "delta": -0.0175,
+                "delta_lb95": -0.03765550510319478,
+                "delta_ub95": 0.0026555051031947746
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.95,
+                "acc_corrupted": 0.915,
+                "delta": -0.035,
+                "delta_lb95": -0.05775410894067742,
+                "delta_ub95": -0.01224589105932258
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": -0.0175,
+                "encoder_delta": -0.035,
+                "delta_of_deltas": -0.0175,
+                "dod_lb95": -0.04886763613170803,
+                "dod_ub95": 0.013867636131708029
+              }
+            ]
+          }
+        ],
+        "label_smooth": {
+          "effective_cap": 64,
+          "k": 10,
+          "beta": 20.0,
+          "tau": 0.3,
+          "encoder_half": "structurally null — every frozen encoder lane reads no train rows, so its smoothed read IS its clean read",
+          "rungs": [
+            {
+              "alpha": 0.6,
+              "working_set": 256,
+              "relabelled": 3,
+              "relabel_rate": 0.01171875,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.8825,
+                "delta": 0.0,
+                "delta_lb95": 0.0,
+                "delta_ub95": 0.0
+              }
+            },
+            {
+              "alpha": 0.75,
+              "working_set": 256,
+              "relabelled": 27,
+              "relabel_rate": 0.10546875,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.88,
+                "delta": -0.0025,
+                "delta_lb95": -0.007399999999999992,
+                "delta_ub95": 0.002399999999999991
+              }
+            },
+            {
+              "alpha": 0.9,
+              "working_set": 256,
+              "relabelled": 89,
+              "relabel_rate": 0.34765625,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.8825,
+                "acc_corrupted": 0.8825,
+                "delta": 0.0,
+                "delta_lb95": -0.006938324788966929,
+                "delta_ub95": 0.006938324788966929
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "emotion",
+      "n_cases": 400,
+      "n_questions": 400,
+      "cases_digest": "fnv1a64-6feefd1c947dd008",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 400,
+          "accuracy": 0.885,
+          "macro_f1": 0.8014284327939634,
+          "ece": 0.6182363981008531,
+          "brier": 0.6593071434500918,
+          "nll": 1.3642793452306783,
+          "aurc": 0.035998860173968965,
+          "mean_confidence": 0.26676360189914705,
+          "acc_at_50_coverage": 0.975,
+          "acc_at_80_coverage": 0.940625
+        },
+        "readout_ece": 0.04880640662275256,
+        "readout_brier": 0.09032840869404729,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.4625,
+          "selective_accuracy": 0.9348837209302325,
+          "selective_n": 215
+        },
+        "abstain_causes": {
+          "score_gate": 80,
+          "distance_gate": 105,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8621306203305722,
+        "readout_ece_calibrated": 0.04880640662275256,
+        "floor_ece": 0.27810945273631843,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.093,
+        "latency_p99_ms": 0.111,
+        "latency_tail_support": 5,
+        "latency_extremes": {
+          "first_ms": 0.105,
+          "max_ms": 0.152,
+          "argmax_case": 301
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 10.125889166,
+        "n_cases": 400,
+        "n_questions": 400,
+        "score_threshold": 0.7631245,
+        "distance_threshold": 0.4265421,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.7631245,
+            "status": "fitted",
+            "targetAccuracy": 0.89285713,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.4265421,
+            "status": "fitted",
+            "targetAccuracy": 0.73571426,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.195
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.535
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.465
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.485
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 8.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.64
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.69
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.735
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.76
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.8875,
+          "honest_accuracy": 0.885,
+          "n_pseudo": 400,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "love",
+            "pred": "joy",
+            "count": 15,
+            "share_of_errors": 0.32608695652173914
+          },
+          {
+            "gold": "anger",
+            "pred": "sadness",
+            "count": 5,
+            "share_of_errors": 0.10869565217391304
+          },
+          {
+            "gold": "fear",
+            "pred": "joy",
+            "count": 5,
+            "share_of_errors": 0.10869565217391304
+          },
+          {
+            "gold": "fear",
+            "pred": "sadness",
+            "count": 4,
+            "share_of_errors": 0.08695652173913043
+          },
+          {
+            "gold": "surprise",
+            "pred": "joy",
+            "count": 4,
+            "share_of_errors": 0.08695652173913043
+          },
+          {
+            "gold": "fear",
+            "pred": "anger",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "joy",
+            "pred": "sadness",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "joy",
+            "pred": "surprise",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "sadness",
+            "pred": "joy",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "surprise",
+            "pred": "fear",
+            "count": 2,
+            "share_of_errors": 0.043478260869565216
+          },
+          {
+            "gold": "anger",
+            "pred": "joy",
+            "count": 1,
+            "share_of_errors": 0.021739130434782608
+          },
+          {
+            "gold": "anger",
+            "pred": "surprise",
+            "count": 1,
+            "share_of_errors": 0.021739130434782608
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.2975,
+        "jdi_skill": 0.8362989323843416,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.7589061281085013
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.527420337125659
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.7589061281085013
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-dfde0f5a6091008c"
+      },
+      "laya": {
+        "english": {
+          "lane": "laya-riir",
+          "model": "english",
+          "hard": {
+            "n": 400,
+            "accuracy": 0.5925,
+            "macro_f1": 0.47086603548842415,
+            "ece": 0.308786,
+            "brier": 0.6962648099500026,
+            "nll": 2.184045176210792,
+            "aurc": 0.2657102861338114,
+            "mean_confidence": 0.9012859999999996,
+            "acc_at_50_coverage": 0.715,
+            "acc_at_80_coverage": 0.6375
+          },
+          "readout_ece": 0.2570897499999998,
+          "readout_brier": 0.2910166185750001,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "abstain_causes": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 9.0,
+          "latency_p99_ms": 11.0,
+          "latency_tail_support": 5,
+          "latency_extremes": {
+            "first_ms": 9.0,
+            "max_ms": 11.0,
+            "argmax_case": 22
+          },
+          "determinism_ok": true,
+          "determinism_n": 10,
+          "seconds": 7.072209833,
+          "n_cases": 400,
+          "n_questions": 400,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "nb_selection": null,
+          "oc_selection": null,
+          "ridge_selection": null,
+          "genome_selection": null,
+          "transductive": null,
+          "confusion": null,
+          "pair_head_ab": null,
+          "jdi_chance": 0.2975,
+          "jdi_skill": 0.41992882562277584
+        }
+      },
+      "slices": {
+        "n_test": 400,
+        "n_cal": 200,
+        "n_pool": 15799,
+        "test_digest": "fnv1a64-36f3eb1067bed96a",
+        "cal_digest": "fnv1a64-f2ec48ed7070889c",
+        "pool_digest": "fnv1a64-8ef2b2af400721fd",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      },
+      "modal_floor": {
+        "acc": 0.3125,
+        "n_questions": 400,
+        "n_keys": 162,
+        "n_fallback": 267,
+        "global_modal_share": 0.17,
+        "reference": "cal-split census (test∩cal disjoint)",
+        "key_rule": "modal census pooled by option identity; key = first-4 normalized input tokens × qid × option-count; ties → global prior → the case's own option order"
+      },
+      "inductive_bias": {
+        "robust": [
+          {
+            "dropout_p": 0.1,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.8375,
+                "delta": -0.0475,
+                "delta_lb95": -0.07350599458559433,
+                "delta_ub95": -0.021494005414405673
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.595,
+                "acc_corrupted": 0.5675,
+                "delta": -0.0275,
+                "delta_lb95": -0.05955832677775734,
+                "delta_ub95": 0.004558326777757336
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": -0.0475,
+                "encoder_delta": -0.0275,
+                "delta_of_deltas": 0.02,
+                "dod_lb95": -0.014636072870053338,
+                "dod_ub95": 0.05463607287005334
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.2,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.795,
+                "delta": -0.09,
+                "delta_lb95": -0.12563625199344544,
+                "delta_ub95": -0.054363748006554545
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.595,
+                "acc_corrupted": 0.5475,
+                "delta": -0.0475,
+                "delta_lb95": -0.08489541439192597,
+                "delta_ub95": -0.010104585608074042
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": -0.09,
+                "encoder_delta": -0.0475,
+                "delta_of_deltas": 0.0425,
+                "dod_lb95": -0.003596148562333354,
+                "dod_ub95": 0.08859614856233336
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.3,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.74,
+                "delta": -0.145,
+                "delta_lb95": -0.18533488760235664,
+                "delta_ub95": -0.10466511239764334
+              },
+              {
+                "lane": "laya/english",
+                "n": 400,
+                "acc_clean": 0.595,
+                "acc_corrupted": 0.5175,
+                "delta": -0.0775,
+                "delta_lb95": -0.12099546659176194,
+                "delta_ub95": -0.034004533408238065
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 400,
+                "modelless_delta": -0.145,
+                "encoder_delta": -0.0775,
+                "delta_of_deltas": 0.0675,
+                "dod_lb95": 0.016708453182934464,
+                "dod_ub95": 0.11829154681706555
+              }
+            ]
+          }
+        ],
+        "label_smooth": {
+          "effective_cap": 64,
+          "k": 10,
+          "beta": 20.0,
+          "tau": 0.3,
+          "encoder_half": "structurally null — every frozen encoder lane reads no train rows, so its smoothed read IS its clean read",
+          "rungs": [
+            {
+              "alpha": 0.6,
+              "working_set": 384,
+              "relabelled": 0,
+              "relabel_rate": 0.0,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.885,
+                "delta": 0.0,
+                "delta_lb95": 0.0,
+                "delta_ub95": 0.0
+              }
+            },
+            {
+              "alpha": 0.75,
+              "working_set": 384,
+              "relabelled": 52,
+              "relabel_rate": 0.13541666666666666,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.8825,
+                "delta": -0.0025,
+                "delta_lb95": -0.013467711782974023,
+                "delta_ub95": 0.008467711782974022
+              }
+            },
+            {
+              "alpha": 0.9,
+              "working_set": 384,
+              "relabelled": 230,
+              "relabel_rate": 0.5989583333333334,
+              "modelless": {
+                "lane": "modelless",
+                "n": 400,
+                "acc_clean": 0.885,
+                "acc_corrupted": 0.88,
+                "delta": -0.005,
+                "delta_lb95": -0.017007512268458987,
+                "delta_ub95": 0.007007512268458987
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "xnli_en",
+      "n_cases": 300,
+      "n_questions": 300,
+      "cases_digest": "fnv1a64-b136750e5af1d412",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 300,
+          "accuracy": 0.5233333333333333,
+          "macro_f1": 0.5061129338341462,
+          "ece": 0.13834670235713323,
+          "brier": 0.6178344532049044,
+          "nll": 1.0286514608348634,
+          "aurc": 0.3119835082997881,
+          "mean_confidence": 0.3849866309762001,
+          "acc_at_50_coverage": 0.64,
+          "acc_at_80_coverage": 0.5791666666666667
+        },
+        "readout_ece": 0.11191444128751758,
+        "readout_brier": 0.23493533027637814,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.54,
+          "selective_accuracy": 0.6086956521739131,
+          "selective_n": 138
+        },
+        "abstain_causes": {
+          "score_gate": 90,
+          "distance_gate": 72,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.5133298230171204,
+        "readout_ece_calibrated": 0.11191444128751758,
+        "floor_ece": 0.14800995024875624,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.067,
+        "latency_p99_ms": 0.082,
+        "latency_tail_support": 4,
+        "latency_extremes": {
+          "first_ms": 0.081,
+          "max_ms": 0.094,
+          "argmax_case": 97
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 3.1504335,
+        "n_cases": 300,
+        "n_questions": 300,
+        "score_threshold": 0.55691224,
+        "distance_threshold": 0.51104105,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.55691224,
+            "status": "fitted",
+            "targetAccuracy": 0.6357143,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.51104105,
+            "status": "fitted",
+            "targetAccuracy": 0.62142855,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 64,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 4.0,
+          "selected_alpha": "fixed-1",
+          "selected_noul_domain": null,
+          "selected_view": "pair",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.365
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.31
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.34
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.32
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.31
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.325
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.33
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.55
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.56
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.57
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.565
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "pair",
+              "cal_acc": 0.555
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.58
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.555
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.54
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.505
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.455
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.44
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.5033333333333333,
+          "honest_accuracy": 0.5233333333333333,
+          "n_pseudo": 300,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "entailment",
+            "pred": "neutral",
+            "count": 46,
+            "share_of_errors": 0.32167832167832167
+          },
+          {
+            "gold": "neutral",
+            "pred": "contradiction",
+            "count": 27,
+            "share_of_errors": 0.1888111888111888
+          },
+          {
+            "gold": "entailment",
+            "pred": "contradiction",
+            "count": 26,
+            "share_of_errors": 0.18181818181818182
+          },
+          {
+            "gold": "contradiction",
+            "pred": "neutral",
+            "count": 21,
+            "share_of_errors": 0.14685314685314685
+          },
+          {
+            "gold": "neutral",
+            "pred": "entailment",
+            "count": 18,
+            "share_of_errors": 0.1258741258741259
+          },
+          {
+            "gold": "contradiction",
+            "pred": "entailment",
+            "count": 5,
+            "share_of_errors": 0.03496503496503497
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.3333333333333333,
+        "jdi_skill": 0.285,
+        "readout_report": {
+          "best_on_cal": "max_prob",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.5868099159002303
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.21351082310080524
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.5868099159002303
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-ec79d4c41953d288"
+      },
+      "laya": {
+        "english": {
+          "lane": "laya-riir",
+          "model": "english",
+          "hard": {
+            "n": 300,
+            "accuracy": 0.86,
+            "macro_f1": 0.8611876188602533,
+            "ece": 0.06853533333333349,
+            "brier": 0.22044518360000007,
+            "nll": 0.39874945916910204,
+            "aurc": 0.0380700868516878,
+            "mean_confidence": 0.920768666666667,
+            "acc_at_50_coverage": 0.98,
+            "acc_at_80_coverage": 0.9208333333333333
+          },
+          "readout_ece": 0.10435199999999993,
+          "readout_brier": 0.1072243406666667,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "abstain_causes": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 10.0,
+          "latency_p99_ms": 12.0,
+          "latency_tail_support": 4,
+          "latency_extremes": {
+            "first_ms": 12.0,
+            "max_ms": 12.0,
+            "argmax_case": 0
+          },
+          "determinism_ok": true,
+          "determinism_n": 10,
+          "seconds": 6.42610475,
+          "n_cases": 300,
+          "n_questions": 300,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "nb_selection": null,
+          "oc_selection": null,
+          "ridge_selection": null,
+          "genome_selection": null,
+          "transductive": null,
+          "confusion": null,
+          "pair_head_ab": null,
+          "jdi_chance": 0.3333333333333333,
+          "jdi_skill": 0.7899999999999998
+        }
+      },
+      "slices": {
+        "n_test": 300,
+        "n_cal": 200,
+        "n_pool": 19800,
+        "test_digest": "fnv1a64-614262484399affa",
+        "cal_digest": "fnv1a64-b8126a40673cc7c6",
+        "pool_digest": "fnv1a64-f3f8f200eba61985",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      },
+      "modal_floor": {
+        "acc": 0.3333333333333333,
+        "n_questions": 300,
+        "n_keys": 198,
+        "n_fallback": 288,
+        "global_modal_share": 0.335,
+        "reference": "cal-split census (test∩cal disjoint)",
+        "key_rule": "modal census pooled by option identity; key = first-4 normalized input tokens × qid × option-count; ties → global prior → the case's own option order"
+      },
+      "inductive_bias": {
+        "robust": [
+          {
+            "dropout_p": 0.1,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.53,
+                "delta": 0.006666666666666667,
+                "delta_lb95": -0.027954000868595327,
+                "delta_ub95": 0.04128733420192866
+              },
+              {
+                "lane": "laya/english",
+                "n": 300,
+                "acc_clean": 0.86,
+                "acc_corrupted": 0.79,
+                "delta": -0.07,
+                "delta_lb95": -0.11217361367108622,
+                "delta_ub95": -0.027826386328913787
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 300,
+                "modelless_delta": 0.006666666666666667,
+                "encoder_delta": -0.07,
+                "delta_of_deltas": -0.07666666666666666,
+                "dod_lb95": -0.13032818258448514,
+                "dod_ub95": -0.02300515074884818
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.2,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.49,
+                "delta": -0.03333333333333333,
+                "delta_lb95": -0.0785155195541307,
+                "delta_ub95": 0.01184885288746404
+              },
+              {
+                "lane": "laya/english",
+                "n": 300,
+                "acc_clean": 0.86,
+                "acc_corrupted": 0.7266666666666667,
+                "delta": -0.13333333333333333,
+                "delta_lb95": -0.1825966540470686,
+                "delta_ub95": -0.08407001261959805
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 300,
+                "modelless_delta": -0.03333333333333333,
+                "encoder_delta": -0.13333333333333333,
+                "delta_of_deltas": -0.1,
+                "dod_lb95": -0.16378545421531265,
+                "dod_ub95": -0.03621454578468737
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.3,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.47,
+                "delta": -0.05333333333333334,
+                "delta_lb95": -0.10280485872522427,
+                "delta_ub95": -0.003861807941442398
+              },
+              {
+                "lane": "laya/english",
+                "n": 300,
+                "acc_clean": 0.86,
+                "acc_corrupted": 0.5766666666666667,
+                "delta": -0.2833333333333333,
+                "delta_lb95": -0.34573290407574214,
+                "delta_ub95": -0.2209337625909245
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 300,
+                "modelless_delta": -0.05333333333333334,
+                "encoder_delta": -0.2833333333333333,
+                "delta_of_deltas": -0.23,
+                "dod_lb95": -0.30436582929230466,
+                "dod_ub95": -0.15563417070769536
+              }
+            ]
+          }
+        ],
+        "label_smooth": {
+          "effective_cap": 64,
+          "k": 10,
+          "beta": 20.0,
+          "tau": 0.3,
+          "encoder_half": "structurally null — every frozen encoder lane reads no train rows, so its smoothed read IS its clean read",
+          "rungs": [
+            {
+              "alpha": 0.6,
+              "working_set": 192,
+              "relabelled": 4,
+              "relabel_rate": 0.020833333333333332,
+              "modelless": {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.5233333333333333,
+                "delta": 0.0,
+                "delta_lb95": -0.009254966427137757,
+                "delta_ub95": 0.009254966427137757
+              }
+            },
+            {
+              "alpha": 0.75,
+              "working_set": 192,
+              "relabelled": 37,
+              "relabel_rate": 0.19270833333333334,
+              "modelless": {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.52,
+                "delta": -0.0033333333333333335,
+                "delta_lb95": -0.017961841513573013,
+                "delta_ub95": 0.011295174846906347
+              }
+            },
+            {
+              "alpha": 0.9,
+              "working_set": 192,
+              "relabelled": 91,
+              "relabel_rate": 0.4739583333333333,
+              "modelless": {
+                "lane": "modelless",
+                "n": 300,
+                "acc_clean": 0.5233333333333333,
+                "acc_corrupted": 0.52,
+                "delta": -0.0033333333333333335,
+                "delta_lb95": -0.0229624458633035,
+                "delta_ub95": 0.01629577919663683
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "banking77",
+      "n_cases": 500,
+      "n_questions": 500,
+      "cases_digest": "fnv1a64-dd8ab35333abb82a",
+      "modelless": {
+        "lane": "modelless",
+        "model": "modelless",
+        "hard": {
+          "n": 500,
+          "accuracy": 0.842,
+          "macro_f1": 0.8362254543690752,
+          "ece": 0.8193658229298889,
+          "brier": 0.9687678887240521,
+          "nll": 3.821497518480265,
+          "aurc": 0.05987299049258608,
+          "mean_confidence": 0.022634177070111037,
+          "acc_at_50_coverage": 0.972,
+          "acc_at_80_coverage": 0.9075
+        },
+        "readout_ece": 0.051719533622264856,
+        "readout_brier": 0.11249431446039657,
+        "raw_abstain": {
+          "abstain_rate": 1.0,
+          "selective_accuracy": 0.0,
+          "selective_n": 0
+        },
+        "calibrated_abstain": {
+          "abstain_rate": 0.478,
+          "selective_accuracy": 0.9348659003831418,
+          "selective_n": 261
+        },
+        "abstain_causes": {
+          "score_gate": 130,
+          "distance_gate": 109,
+          "grammar_invalid": 0
+        },
+        "readout_ece_raw": 0.8193658229298889,
+        "readout_ece_calibrated": 0.051719533622264856,
+        "floor_ece": 0.29331343283582084,
+        "g1_pass": true,
+        "g1_verdict": "pass",
+        "by_question_type": null,
+        "soft_acc": null,
+        "brier_soft": null,
+        "score_mae": null,
+        "within_1": null,
+        "latency_p50_ms": 0.298,
+        "latency_p99_ms": 0.566,
+        "latency_tail_support": 6,
+        "latency_extremes": {
+          "first_ms": 0.244,
+          "max_ms": 0.635,
+          "argmax_case": 252
+        },
+        "determinism_ok": true,
+        "determinism_n": 10,
+        "seconds": 47.565272542,
+        "n_cases": 500,
+        "n_questions": 500,
+        "score_threshold": 0.74778104,
+        "distance_threshold": 0.55494976,
+        "threshold_recommendation": {
+          "posture": {
+            "posture": "percentile",
+            "rho": 0.3
+          },
+          "score": {
+            "threshold": 0.74778104,
+            "status": "fitted",
+            "targetAccuracy": 0.9,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          },
+          "distance": {
+            "threshold": 0.55494976,
+            "status": "fitted",
+            "targetAccuracy": 0.8142857,
+            "support": {
+              "n": 200,
+              "nPass": 140,
+              "nAbstain": 60
+            }
+          }
+        },
+        "corpus_cap": {
+          "effective": 40,
+          "source": "registry",
+          "selection": null
+        },
+        "head_selection": null,
+        "nb_selection": {
+          "selected_scale": 1.0,
+          "selected_alpha": "observed-laplace",
+          "selected_noul_domain": null,
+          "selected_view": "bag",
+          "candidates": [
+            {
+              "scale": 0.0,
+              "alpha": "off",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.465
+            },
+            {
+              "scale": 1.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.81
+            },
+            {
+              "scale": 4.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 16.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 32.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.805
+            },
+            {
+              "scale": 64.0,
+              "alpha": "observed-laplace",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.8
+            },
+            {
+              "scale": 1.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.795
+            },
+            {
+              "scale": 4.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.775
+            },
+            {
+              "scale": 16.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.77
+            },
+            {
+              "scale": 32.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.76
+            },
+            {
+              "scale": 64.0,
+              "alpha": "fixed-1",
+              "noul_domain": null,
+              "view": "bag",
+              "cal_acc": 0.76
+            }
+          ]
+        },
+        "oc_selection": null,
+        "ridge_selection": {
+          "selected_scale": 0.0,
+          "selected_lambda": 10.0,
+          "candidates": [
+            {
+              "scale": 0.0,
+              "lambda": 10.0,
+              "cal_acc": 0.81
+            },
+            {
+              "scale": 0.5,
+              "lambda": 10.0,
+              "cal_acc": 0.845
+            },
+            {
+              "scale": 1.0,
+              "lambda": 10.0,
+              "cal_acc": 0.855
+            },
+            {
+              "scale": 2.0,
+              "lambda": 10.0,
+              "cal_acc": 0.855
+            },
+            {
+              "scale": 4.0,
+              "lambda": 10.0,
+              "cal_acc": 0.845
+            },
+            {
+              "scale": 8.0,
+              "lambda": 10.0,
+              "cal_acc": 0.825
+            }
+          ]
+        },
+        "genome_selection": null,
+        "transductive": {
+          "accuracy": 0.836,
+          "honest_accuracy": 0.842,
+          "n_pseudo": 500,
+          "protocol": "TRANSDUCTIVE — unlabeled TEST text joins the count tables, labelled by the honest engine's own forced picks (gold never read); 2-fold cross-fit (half A's pseudo-docs re-score half B and vice versa, so no case scores against its own text); drafter corpora, route, heads and posture unchanged. Not comparable to the headline acc"
+        },
+        "confusion": [
+          {
+            "gold": "exchange charge",
+            "pred": "exchange rate",
+            "count": 3,
+            "share_of_errors": 0.0379746835443038
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "activate my card",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "card arrival",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "card delivery estimate",
+            "pred": "transfer timing",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "contactless not working",
+            "pred": "declined transfer",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "fiat currency support",
+            "pred": "supported cards and currencies",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "pending top up",
+            "pred": "top up reverted",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "top up reverted",
+            "pred": "Refund not showing up",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "wrong exchange rate for cash withdrawal",
+            "pred": "wrong amount of cash received",
+            "count": 2,
+            "share_of_errors": 0.02531645569620253
+          },
+          {
+            "gold": "balance not updated after bank transfer",
+            "pred": "transfer timing",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "beneficiary not allowed",
+            "pred": "declined transfer",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          },
+          {
+            "gold": "card acceptance",
+            "pred": "atm support",
+            "count": 1,
+            "share_of_errors": 0.012658227848101266
+          }
+        ],
+        "pair_head_ab": null,
+        "jdi_chance": 0.014,
+        "jdi_skill": 0.8397565922920892,
+        "readout_report": {
+          "best_on_cal": "dispatch",
+          "candidates": [
+            {
+              "mode": "dispatch",
+              "cal_ece": 0.7729256937466562
+            },
+            {
+              "mode": "max_prob",
+              "cal_ece": 0.7729256937466562
+            },
+            {
+              "mode": "inv_entropy",
+              "cal_ece": 0.7924418762326241
+            }
+          ]
+        },
+        "corpus_digest": "fnv1a64-07e3c974b5ae1bda"
+      },
+      "laya": {
+        "english": {
+          "lane": "laya-riir",
+          "model": "english",
+          "hard": {
+            "n": 500,
+            "accuracy": 0.422,
+            "macro_f1": 0.37652146392023184,
+            "ece": 0.38134340000000017,
+            "brier": 0.9326880786800371,
+            "nll": 6.121876279293705,
+            "aurc": 0.4066392903778559,
+            "mean_confidence": 0.7951093999999999,
+            "acc_at_50_coverage": 0.6,
+            "acc_at_80_coverage": 0.475
+          },
+          "readout_ece": 0.3940097999999995,
+          "readout_brier": 0.38357401278,
+          "raw_abstain": null,
+          "calibrated_abstain": null,
+          "abstain_causes": null,
+          "readout_ece_raw": null,
+          "readout_ece_calibrated": null,
+          "floor_ece": null,
+          "g1_pass": null,
+          "g1_verdict": null,
+          "by_question_type": null,
+          "soft_acc": null,
+          "brier_soft": null,
+          "score_mae": null,
+          "within_1": null,
+          "latency_p50_ms": 20.0,
+          "latency_p99_ms": 21.0,
+          "latency_tail_support": 6,
+          "latency_extremes": {
+            "first_ms": 20.0,
+            "max_ms": 44.0,
+            "argmax_case": 4
+          },
+          "determinism_ok": true,
+          "determinism_n": 10,
+          "seconds": 13.706302916,
+          "n_cases": 500,
+          "n_questions": 500,
+          "score_threshold": null,
+          "distance_threshold": null,
+          "threshold_recommendation": null,
+          "corpus_cap": null,
+          "head_selection": null,
+          "nb_selection": null,
+          "oc_selection": null,
+          "ridge_selection": null,
+          "genome_selection": null,
+          "transductive": null,
+          "confusion": null,
+          "pair_head_ab": null,
+          "jdi_chance": 0.014,
+          "jdi_skill": 0.41379310344827586
+        }
+      },
+      "slices": {
+        "n_test": 500,
+        "n_cal": 200,
+        "n_pool": 9793,
+        "test_digest": "fnv1a64-cb0b5cbcb0cdfcce",
+        "cal_digest": "fnv1a64-8f14f68a2e55799f",
+        "pool_digest": "fnv1a64-14a38d138e218d1b",
+        "missing_test_labels": [],
+        "missing_cal_labels": [],
+        "missing_pool_labels": [],
+        "violations": []
+      },
+      "modal_floor": {
+        "acc": 0.046,
+        "n_questions": 500,
+        "n_keys": 148,
+        "n_fallback": 311,
+        "global_modal_share": 0.015,
+        "reference": "cal-split census (test∩cal disjoint)",
+        "key_rule": "modal census pooled by option identity; key = first-4 normalized input tokens × qid × option-count; ties → global prior → the case's own option order"
+      },
+      "inductive_bias": {
+        "robust": [
+          {
+            "dropout_p": 0.1,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.79,
+                "delta": -0.052,
+                "delta_lb95": -0.07575450230924495,
+                "delta_ub95": -0.028245497690755045
+              },
+              {
+                "lane": "laya/english",
+                "n": 500,
+                "acc_clean": 0.422,
+                "acc_corrupted": 0.388,
+                "delta": -0.034,
+                "delta_lb95": -0.05955738211086434,
+                "delta_ub95": -0.00844261788913567
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 500,
+                "modelless_delta": -0.052,
+                "encoder_delta": -0.034,
+                "delta_of_deltas": 0.018,
+                "dod_lb95": -0.015025845274757494,
+                "dod_ub95": 0.051025845274757495
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.2,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.726,
+                "delta": -0.116,
+                "delta_lb95": -0.15137457819345318,
+                "delta_ub95": -0.08062542180654683
+              },
+              {
+                "lane": "laya/english",
+                "n": 500,
+                "acc_clean": 0.422,
+                "acc_corrupted": 0.36,
+                "delta": -0.062,
+                "delta_lb95": -0.09599986118090259,
+                "delta_ub95": -0.028000138819097416
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 500,
+                "modelless_delta": -0.116,
+                "encoder_delta": -0.062,
+                "delta_of_deltas": 0.054,
+                "dod_lb95": 0.008654965728691677,
+                "dod_ub95": 0.09934503427130832
+              }
+            ]
+          },
+          {
+            "dropout_p": 0.3,
+            "lanes": [
+              {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.66,
+                "delta": -0.182,
+                "delta_lb95": -0.21972646093804482,
+                "delta_ub95": -0.14427353906195517
+              },
+              {
+                "lane": "laya/english",
+                "n": 500,
+                "acc_clean": 0.422,
+                "acc_corrupted": 0.27,
+                "delta": -0.152,
+                "delta_lb95": -0.18890326610611313,
+                "delta_ub95": -0.11509673389388686
+              }
+            ],
+            "cross": [
+              {
+                "encoder": "laya/english",
+                "n_paired": 500,
+                "modelless_delta": -0.182,
+                "encoder_delta": -0.152,
+                "delta_of_deltas": 0.03,
+                "dod_lb95": -0.01717694827877067,
+                "dod_ub95": 0.07717694827877067
+              }
+            ]
+          }
+        ],
+        "label_smooth": {
+          "effective_cap": 40,
+          "k": 10,
+          "beta": 20.0,
+          "tau": 0.3,
+          "encoder_half": "structurally null — every frozen encoder lane reads no train rows, so its smoothed read IS its clean read",
+          "rungs": [
+            {
+              "alpha": 0.6,
+              "working_set": 3071,
+              "relabelled": 9,
+              "relabel_rate": 0.002930641484858352,
+              "modelless": {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.842,
+                "delta": 0.0,
+                "delta_lb95": 0.0,
+                "delta_ub95": 0.0
+              }
+            },
+            {
+              "alpha": 0.75,
+              "working_set": 3071,
+              "relabelled": 137,
+              "relabel_rate": 0.044610875936177144,
+              "modelless": {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.832,
+                "delta": -0.01,
+                "delta_lb95": -0.024120682254574952,
+                "delta_ub95": 0.004120682254574952
+              }
+            },
+            {
+              "alpha": 0.9,
+              "working_set": 3071,
+              "relabelled": 668,
+              "relabel_rate": 0.21751872354281993,
+              "modelless": {
+                "lane": "modelless",
+                "n": 500,
+                "acc_clean": 0.842,
+                "acc_corrupted": 0.842,
+                "delta": 0.0,
+                "delta_lb95": -0.02661336021406856,
+                "delta_ub95": 0.02661336021406856
+              }
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

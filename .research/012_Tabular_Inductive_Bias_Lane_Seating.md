@@ -2,7 +2,7 @@
 
 > **Source:** Grinsztajn, Oyallon, Varoquaux — ["Why do tree-based models still outperform deep learning on tabular data?"](https://arxiv.org/abs/2207.08815) (NeurIPS 2022 Datasets & Benchmarks). 45 OpenML datasets, ~20k compute-hours of random-search records shared raw.
 > **Date:** 2026-10-27
-> **Status:** DISTILLED — actionable halves filed (`riir-reflex/.issues/100_inductive_bias_lane_seating_diagnostics.md`)
+> **Status:** DISTILLED — actionable halves filed as Issue 100, CLOSED 2026-10-27 with a recorded negative ([Bench 165](../.benchmarks/165_inductive_bias_probes.md): normalised robustness favours the modelless floor on 4/4 suites but uniformly — no winner separation; the label-smoothing axis is flat). Probes: `--robust-ab` / `--label-smooth-ab` (`936b014`, `bb39c3f`).
 > **Verdict: GAIN** — the paper does not ship a primitive we lack; it ships the first mechanism-level WHY for a pattern our serving board has been recording as data since birth, plus two cheap harness diagnostics (issue 100).
 
 ## TL;DR
