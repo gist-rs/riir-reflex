@@ -40,6 +40,7 @@ digit 1..5 because the level NAMES share first tokens ("very ...").
 import argparse
 import hashlib
 import json
+import os
 import random
 import re
 import sys
@@ -419,6 +420,75 @@ def load_existing_norms(out_dir, split):
     return seen
 
 
+# -- checkpoint -------------------------------------------------------------
+
+class Checkpoint(object):
+    """Append-only per-prompt journal: `<out>/.partial-<split>.jsonl`.
+
+    A run killed from outside (the measured 2026-10-27 loss: 4,000/4,800 rows,
+    50 min, no traceback) resumes from the journal instead of from zero. Line 1
+    is the run identity; a resume under a different identity REFUSES (mixing
+    two generators' rows would silently corrupt the A3 holdout). Each later
+    line is one prompt: [label, [[norm_key, outcome, text_or_null], ...]],
+    outcome in "dupe" | "veto" | "kept" | "surplus". Flushed + fsynced per
+    prompt (~1/s), removed only after the pages are written.
+    """
+
+    def __init__(self, path, identity):
+        self.path, self.identity = Path(path), identity
+        self.fh = None
+
+    def replay(self, labels):
+        kept = {lab: [] for lab in labels}
+        stats = {lab: {"generated": 0, "agreed": 0, "dupes": 0} for lab in labels}
+        seen, prompts = set(), 0
+        if not self.path.exists():
+            return kept, stats, seen, prompts
+        lines = self.path.read_text(encoding="utf-8").splitlines()
+        if not lines:
+            return kept, stats, seen, prompts
+        head = json.loads(lines[0])
+        if head != self.identity:
+            raise SystemExit("REFUSE resume: journal %s identity %r != this run %r "
+                             "(delete it to start fresh)" % (self.path, head, self.identity))
+        for raw in lines[1:]:
+            try:
+                lab, outcomes = json.loads(raw)
+            except ValueError:
+                break  # a torn final line from the kill; everything before it is whole
+            prompts += 1
+            for key, outcome, text in outcomes:
+                stats[lab]["generated"] += 1
+                if outcome == "dupe":
+                    stats[lab]["dupes"] += 1
+                    continue
+                seen.add(key)
+                if outcome in ("kept", "surplus"):
+                    stats[lab]["agreed"] += 1
+                if outcome == "kept":
+                    kept[lab].append(text)
+        return kept, stats, seen, prompts
+
+    def open(self):
+        fresh = not self.path.exists() or self.path.stat().st_size == 0
+        self.fh = open(self.path, "a", encoding="utf-8")
+        if fresh:
+            self._write(self.identity)
+
+    def record(self, lab, outcomes):
+        self._write([lab, outcomes])
+
+    def _write(self, obj):
+        self.fh.write(json.dumps(obj, ensure_ascii=False) + "\n")
+        self.fh.flush()
+        os.fsync(self.fh.fileno())
+
+    def finish(self):
+        if self.fh:
+            self.fh.close()
+        self.path.unlink()
+
+
 # -- main -------------------------------------------------------------------
 
 def self_test():
@@ -431,7 +501,31 @@ def self_test():
     assert clean_lines("1. Here are lines\n- I can't stop smiling at the letter she sent me\nok") == \
         ["I can't stop smiling at the letter she sent me"]
     assert norm("Hi, THERE!") == "hi there"
+    _self_test_checkpoint()
     print("self-test OK")
+
+
+def _self_test_checkpoint():
+    import tempfile
+    with tempfile.TemporaryDirectory() as d:
+        path = Path(d) / ".partial-train.jsonl"
+        ident = {"suite": "t", "split": "train", "n": 4}
+        ck = Checkpoint(path, ident)
+        ck.open()
+        ck.record("a", [["x", "kept", "X"], ["y", "veto", None], ["x", "dupe", None]])
+        ck.record("b", [["z", "kept", "Z"], ["w", "surplus", None]])
+        ck.fh.write('["a", [["q", "ke')  # the torn tail a kill leaves
+        ck.fh.close()
+        kept, stats, seen, prompts = Checkpoint(path, ident).replay(["a", "b"])
+        assert kept == {"a": ["X"], "b": ["Z"]}, kept
+        assert prompts == 2 and seen == {"x", "y", "z", "w"}, (prompts, seen)
+        assert stats["a"] == {"generated": 3, "agreed": 1, "dupes": 1}, stats["a"]
+        assert stats["b"]["agreed"] == 2, stats["b"]
+        try:
+            Checkpoint(path, dict(ident, n=5)).replay(["a", "b"])
+            raise AssertionError("identity mismatch must refuse")
+        except SystemExit:
+            pass
 
 
 def main():
@@ -470,11 +564,22 @@ def main():
     gen = make_backend(a.gen)
     judge = Judge(make_backend(a.judge), spec)
     quota = a.n // len(labels)
-    kept = {lab: [] for lab in labels}
-    stats = {lab: {"generated": 0, "agreed": 0, "dupes": 0} for lab in labels}
-    seen = set(blocked)
+    identity = {"suite": a.suite, "split": a.split, "n": a.n, "seed": a.seed, "k": a.k,
+                "temp": a.temp, "gen": gen.name, "gen_digest": gen.digest,
+                "judge": judge.b.name, "judge_digest": judge.b.digest}
+    ck = Checkpoint(out_dir / (".partial-%s.jsonl" % a.split), identity)
+    kept, stats, seen, prompts = ck.replay(labels)
+    resumed_prompts = prompts
+    if prompts:
+        # A fresh stream per resume point: re-running seed's prefix would
+        # re-ask the prompts already journaled (all dupes).
+        random.seed(a.seed * 1000003 + prompts)
+        mx.random.seed(a.seed * 1000003 + prompts)
+        print("[%s %s] RESUME prompts=%d kept=%d" % (
+            a.suite, a.split, prompts, sum(len(v) for v in kept.values())), flush=True)
+    seen |= blocked
+    ck.open()
     t0 = time.time()
-    prompts = 0
     while any(len(kept[lab]) < quota for lab in labels):
         lab = min(labels, key=lambda x: len(kept[x]))
         prompt = tmpl.format(
@@ -483,18 +588,25 @@ def main():
             gloss=spec["gloss"][lab], lexical=random.choice(spec["lexical"]))
         lines = clean_lines(gen.generate(prompt, max_tokens=60 * a.k, temp=a.temp))
         prompts += 1
+        outcomes = []
         for line in lines:
             stats[lab]["generated"] += 1
             key = norm(line)
             if key in seen:
                 stats[lab]["dupes"] += 1
+                outcomes.append([key, "dupe", None])
                 continue
             seen.add(key)
             if judge.read(line) != lab:
+                outcomes.append([key, "veto", None])
                 continue
             stats[lab]["agreed"] += 1
             if len(kept[lab]) < quota:
                 kept[lab].append(line)
+                outcomes.append([key, "kept", line])
+            else:
+                outcomes.append([key, "surplus", None])
+        ck.record(lab, outcomes)
         if prompts % 10 == 0:
             done = sum(len(v) for v in kept.values())
             print("[%s %s] prompts=%d kept=%d/%d %.0fs" % (
@@ -520,10 +632,12 @@ def main():
             stats[lab]["agreed"] / max(1, stats[lab]["generated"] - stats[lab]["dupes"]), 4))
             for lab in labels},
         "cross_split_blocked": len(blocked),
+        "resumed_at_prompt": resumed_prompts,
         "pages": digests,
         "seconds": round(time.time() - t0, 1),
     }
     man_path.write_text(json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    ck.finish()
     print("[%s %s] DONE rows=%d prompts=%d %.0fs -> %s" % (
         a.suite, a.split, len(rows), prompts, time.time() - t0, out_dir))
 
