@@ -407,7 +407,7 @@ const SUITES: &[SuiteSpec] = &[
     },
     // rethink Research 002 §Execution step 1 — the first-party synthetic
     // emotion suite (the licence-clean re-entry for the barred dair-ai
-    // niche; `scripts/synth_emotion_suite.py`). `named_only` (an opt-in via
+    // niche; `scripts/synth_suite.py`). `named_only` (an opt-in via
     // `--suites`); test = the generator-B / prompt-family-B holdout (1,200
     // rows), the eval cap a 400-case stratified slice like emotion's.
     SuiteSpec {

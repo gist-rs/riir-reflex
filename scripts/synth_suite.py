@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""synth_emotion_suite.py -- the first-party synthetic `emotion_syn` suite.
+"""synth_suite.py -- first-party synthetic classification suites (`emotion_syn`, `sst5_syn`).
 
 riir-rethink Research 002 §Execution step 1 (owner call 2026-10-27: synthetic
 emotion FIRST). Replaces the licence-barred dair-ai/emotion niche with rows we
@@ -27,10 +27,14 @@ Design (pinned before any fit -- amendment A3 of the ESC re-source GOAT):
     blake3 of every page when the `blake3` module is importable, else sha256).
 
 Run with an MLX venv (Apple Silicon), e.g.:
-  .venv/bin/python scripts/synth_emotion_suite.py --split train --n 4000 \\
+  .venv/bin/python scripts/synth_suite.py --suite emotion_syn --split train --n 4800 \\
       --gen bonsai:<pack_dir> --judge mlxlm:<qwen_dir> --seed 1
-  .venv/bin/python scripts/synth_emotion_suite.py --split test --n 1000 \\
+  .venv/bin/python scripts/synth_suite.py --suite emotion_syn --split test --n 1200 \\
       --gen mlxlm:<qwen_dir> --judge bonsai:<pack_dir> --seed 2
+
+`sst5_syn` (Research 002 step 2) is the same lane over the five SST-5 levels
+(label = the 0..4 score index, `build_sst5`'s wire); its judge answers with a
+digit 1..5 because the level NAMES share first tokens ("very ...").
 """
 
 import argparse
@@ -108,6 +112,73 @@ JUDGE_PROMPT = (
     "Options: sadness, joy, love, anger, fear, surprise.\n\n"
     "Text: {text}\n\nAnswer with exactly one word from the options."
 )
+
+SST5_LABELS = ["very negative", "negative", "neutral", "positive", "very positive"]
+SST5_GLOSS = {
+    "very negative": "very negative (scathing, furious, thoroughly let down)",
+    "negative": "negative (disappointed, unimpressed, mildly annoyed)",
+    "neutral": "neutral (balanced, factual, neither pleased nor displeased)",
+    "positive": "positive (pleased, satisfied, would recommend)",
+    "very positive": "very positive (delighted, enthusiastic, the best of its kind)",
+}
+SST5_FAMILY = {
+    "A": {
+        "topics": [
+            "a film", "a novel", "a restaurant meal", "a TV series", "a music album",
+            "a stage play", "a video game", "a cafe", "a documentary", "a comic book",
+            "a bakery", "a podcast",
+        ],
+        "registers": ["one-sentence review snippets", "short critic blurbs", "forum review lines"],
+        "persons": ["first person", "third person"],
+    },
+    "B": {
+        "topics": [
+            "a hotel stay", "a phone app", "a pair of headphones", "a gym", "a museum exhibit",
+            "a car rental", "a theme park", "a hair salon", "a delivery service",
+            "a laptop", "a yoga class", "a furniture store",
+        ],
+        "registers": ["spoken opinions to a friend", "replies in a comment thread",
+                      "quick survey answers"],
+        "persons": ["first person"],
+    },
+}
+SST5_PROMPT_A = (
+    "Write {k} different {register} in {person} about {topic}. Each expresses a "
+    "{gloss} overall opinion, at {intensity} strength. {lexical} Vary structure, "
+    "vocabulary and length (6 to 35 words). Output exactly {k} lines, one per line, "
+    "with no numbering, no quotes, no star ratings and no commentary."
+)
+SST5_PROMPT_B = (
+    "Imagine many different customers giving {register} about {topic}. Give {k} of "
+    "them (each 6 to 35 words, first person) whose overall opinion is {gloss}, at "
+    "{intensity} strength. {lexical} Every line a different person and detail. One "
+    "per line, no numbering, no ratings, nothing else."
+)
+SST5_LEXICAL = [
+    "Do not state a rating or score; let the opinion come through the details.",
+    "They may say plainly how they feel about it.",
+]
+SST5_JUDGE_PROMPT = (
+    "Rate the overall sentiment of the text on a 5-point scale: 1 = very negative, "
+    "2 = negative, 3 = neutral, 4 = positive, 5 = very positive.\n\n"
+    "Text: {text}\n\nAnswer with a single digit from 1 to 5."
+)
+
+# One spec per suite. emotion_syn's values are the module constants above
+# UNCHANGED (its first run pinned them); new suites add rows, never edit one.
+SPECS = {
+    "emotion_syn": {
+        "labels": LABELS, "gloss": LABEL_GLOSS, "family": FAMILY,
+        "prompt": {"A": PROMPT_A, "B": PROMPT_B}, "lexical": LEXICAL,
+        "intensity": INTENSITY, "judge_prompt": JUDGE_PROMPT, "judge_answers": LABELS,
+    },
+    "sst5_syn": {
+        "labels": SST5_LABELS, "gloss": SST5_GLOSS, "family": SST5_FAMILY,
+        "prompt": {"A": SST5_PROMPT_A, "B": SST5_PROMPT_B}, "lexical": SST5_LEXICAL,
+        "intensity": INTENSITY, "judge_prompt": SST5_JUDGE_PROMPT,
+        "judge_answers": ["1", "2", "3", "4", "5"],
+    },
+}
 
 META_RE = re.compile(r"^(here (are|is)|sure|okay|certainly|note:|\*\*)", re.I)
 LEAD_RE = re.compile(r"^\s*(?:[-*•]|\d+[.)]|\(?\d+\))\s*")
@@ -257,13 +328,16 @@ def make_backend(spec):
 # -- judge ------------------------------------------------------------------
 
 class Judge(object):
-    """First-token logprob argmax over the six label words. Refuses (raises)
-    when two labels share a first token -- the read would be ambiguous."""
+    """First-token logprob argmax over the spec's judge answers (index-aligned
+    with its labels). Refuses (raises) when two answers share a first token --
+    the read would be ambiguous."""
 
-    def __init__(self, backend):
+    def __init__(self, backend, spec):
         self.b = backend
+        self.labels = spec["labels"]
+        self.prompt = spec["judge_prompt"]
         firsts = []
-        for lab in LABELS:
+        for lab in spec["judge_answers"]:
             ids = backend.encode(lab)
             if not ids:
                 raise SystemExit("judge: empty encoding for " + lab)
@@ -274,11 +348,11 @@ class Judge(object):
 
     def read(self, text):
         import mlx.core as mx
-        logits = self.b.first_logits(JUDGE_PROMPT.format(text=text))
+        logits = self.b.first_logits(self.prompt.format(text=text))
         sel = mx.take(logits, mx.array(self.firsts))
         mx.eval(sel)
         vals = sel.tolist()
-        return LABELS[max(range(len(vals)), key=lambda i: vals[i])]
+        return self.labels[max(range(len(vals)), key=lambda i: vals[i])]
 
 
 # -- text hygiene -----------------------------------------------------------
@@ -302,10 +376,11 @@ def clean_lines(raw):
 
 # -- pages ------------------------------------------------------------------
 
-FEATURES = [
-    {"feature_idx": 0, "name": "text", "type": {"dtype": "string", "_type": "Value"}},
-    {"feature_idx": 1, "name": "label", "type": {"names": LABELS, "_type": "ClassLabel"}},
-]
+def features(labels):
+    return [
+        {"feature_idx": 0, "name": "text", "type": {"dtype": "string", "_type": "Value"}},
+        {"feature_idx": 1, "name": "label", "type": {"names": labels, "_type": "ClassLabel"}},
+    ]
 
 
 def page_digest(b):
@@ -316,12 +391,12 @@ def page_digest(b):
         return "sha256:" + hashlib.sha256(b).hexdigest()
 
 
-def write_pages(out_dir, split, rows):
+def write_pages(out_dir, split, rows, labels):
     digests = {}
     for p in range(0, len(rows), 100):
         chunk = rows[p:p + 100]
         body = {
-            "features": FEATURES,
+            "features": features(labels),
             "rows": [{"row_idx": p + i, "row": r, "truncated_cells": []}
                      for i, r in enumerate(chunk)],
             "num_rows_total": len(rows),
@@ -347,9 +422,12 @@ def load_existing_norms(out_dir, split):
 # -- main -------------------------------------------------------------------
 
 def self_test():
-    a, b = FAMILY["A"], FAMILY["B"]
-    assert not set(a["topics"]) & set(b["topics"]), "topic families overlap"
-    assert not set(a["registers"]) & set(b["registers"]), "register families overlap"
+    for name, spec in sorted(SPECS.items()):
+        a, b = spec["family"]["A"], spec["family"]["B"]
+        assert not set(a["topics"]) & set(b["topics"]), name + ": topic families overlap"
+        assert not set(a["registers"]) & set(b["registers"]), name + ": register families overlap"
+        assert len(spec["judge_answers"]) == len(spec["labels"]), name + ": judge/label arity"
+        assert set(spec["gloss"]) == set(spec["labels"]), name + ": gloss keys"
     assert clean_lines("1. Here are lines\n- I can't stop smiling at the letter she sent me\nok") == \
         ["I can't stop smiling at the letter she sent me"]
     assert norm("Hi, THERE!") == "hi there"
@@ -358,6 +436,7 @@ def self_test():
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--suite", choices=sorted(SPECS), default="emotion_syn")
     ap.add_argument("--split", choices=["train", "test"])
     ap.add_argument("--n", type=int, default=0, help="target kept rows (balanced over labels)")
     ap.add_argument("--gen", help="bonsai:<pack_dir> | mlxlm:<model_dir>")
@@ -365,7 +444,7 @@ def main():
     ap.add_argument("--seed", type=int, default=1)
     ap.add_argument("--k", type=int, default=8, help="texts asked per prompt")
     ap.add_argument("--temp", type=float, default=0.9)
-    ap.add_argument("--out", default=".raw/datasets/emotion_syn")
+    ap.add_argument("--out", default="", help="default .raw/datasets/<suite>")
     ap.add_argument("--self-test", action="store_true")
     a = ap.parse_args()
     if a.self_test:
@@ -376,30 +455,32 @@ def main():
         ap.error("--split --n --gen --judge are required")
 
     import mlx.core as mx
+    spec = SPECS[a.suite]
+    labels = spec["labels"]
     random.seed(a.seed)
     mx.random.seed(a.seed)
     fam_id = "A" if a.split == "train" else "B"
-    fam = FAMILY[fam_id]
-    tmpl = PROMPT_A if fam_id == "A" else PROMPT_B
-    out_dir = Path(a.out)
+    fam = spec["family"][fam_id]
+    tmpl = spec["prompt"][fam_id]
+    out_dir = Path(a.out or (".raw/datasets/" + a.suite))
     out_dir.mkdir(parents=True, exist_ok=True)
     # Cross-split dedupe: test never repeats a train text.
     blocked = load_existing_norms(out_dir, "train") if a.split == "test" else set()
 
     gen = make_backend(a.gen)
-    judge = Judge(make_backend(a.judge))
-    quota = a.n // len(LABELS)
-    kept = {lab: [] for lab in LABELS}
-    stats = {lab: {"generated": 0, "agreed": 0, "dupes": 0} for lab in LABELS}
+    judge = Judge(make_backend(a.judge), spec)
+    quota = a.n // len(labels)
+    kept = {lab: [] for lab in labels}
+    stats = {lab: {"generated": 0, "agreed": 0, "dupes": 0} for lab in labels}
     seen = set(blocked)
     t0 = time.time()
     prompts = 0
-    while any(len(kept[lab]) < quota for lab in LABELS):
-        lab = min(LABELS, key=lambda x: len(kept[x]))
+    while any(len(kept[lab]) < quota for lab in labels):
+        lab = min(labels, key=lambda x: len(kept[x]))
         prompt = tmpl.format(
             k=a.k, register=random.choice(fam["registers"]), person=random.choice(fam["persons"]),
-            topic=random.choice(fam["topics"]), intensity=random.choice(INTENSITY),
-            gloss=LABEL_GLOSS[lab], lexical=random.choice(LEXICAL))
+            topic=random.choice(fam["topics"]), intensity=random.choice(spec["intensity"]),
+            gloss=spec["gloss"][lab], lexical=random.choice(spec["lexical"]))
         lines = clean_lines(gen.generate(prompt, max_tokens=60 * a.k, temp=a.temp))
         prompts += 1
         for line in lines:
@@ -416,19 +497,19 @@ def main():
                 kept[lab].append(line)
         if prompts % 10 == 0:
             done = sum(len(v) for v in kept.values())
-            print("[%s] prompts=%d kept=%d/%d %.0fs" % (a.split, prompts, done, quota * 6,
-                                                       time.time() - t0), flush=True)
+            print("[%s %s] prompts=%d kept=%d/%d %.0fs" % (
+                a.suite, a.split, prompts, done, quota * len(labels), time.time() - t0), flush=True)
 
-    rows = [{"text": t, "label": LABELS.index(lab)} for lab in LABELS for t in kept[lab]]
+    rows = [{"text": t, "label": labels.index(lab)} for lab in labels for t in kept[lab]]
     random.Random(a.seed ^ 0x5EED).shuffle(rows)
     for old in out_dir.glob(a.split + "-*.json"):
         old.unlink()
-    digests = write_pages(out_dir, a.split, rows)
+    digests = write_pages(out_dir, a.split, rows, labels)
 
     man_path = out_dir / "manifest.json"
     man = json.loads(man_path.read_text(encoding="utf-8")) if man_path.exists() else {}
-    man["suite"] = "emotion_syn"
-    man["labels"] = LABELS
+    man["suite"] = a.suite
+    man["labels"] = labels
     man["licence"] = "Apache-2.0 (first-party synthetic; generators Apache-2.0)"
     man[a.split] = {
         "rows": len(rows), "per_label": quota, "seed": a.seed, "family": fam_id,
@@ -437,14 +518,14 @@ def main():
         "prompts": prompts, "temp": a.temp, "k": a.k,
         "veto": {lab: dict(stats[lab], agree_rate=round(
             stats[lab]["agreed"] / max(1, stats[lab]["generated"] - stats[lab]["dupes"]), 4))
-            for lab in LABELS},
+            for lab in labels},
         "cross_split_blocked": len(blocked),
         "pages": digests,
         "seconds": round(time.time() - t0, 1),
     }
     man_path.write_text(json.dumps(man, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print("[%s] DONE rows=%d prompts=%d %.0fs -> %s" % (a.split, len(rows), prompts,
-                                                       time.time() - t0, out_dir))
+    print("[%s %s] DONE rows=%d prompts=%d %.0fs -> %s" % (
+        a.suite, a.split, len(rows), prompts, time.time() - t0, out_dir))
 
 
 if __name__ == "__main__":
