@@ -45,6 +45,7 @@ the mint surface (riir-rethink Issue 024 v1 — the Plan 007 P0 hosted lane;
 | xnli_en | `facebook/xnli` | **CC BY-NC 4.0** (facebookresearch/XNLI LICENSE) | Conneau et al., 2018 | ⛔ benchmark-only |
 | wanli_en | `alisawuffles/WANLI` (AI2) | **CC BY 4.0** (AI2's own page states "License: CC BY" — [allenai.org/data/wanli](https://allenai.org/data/wanli); HF tag `cc-by-4.0` — both read 2026-10-08). Open derivative question carried for the owner (verbatim from rethink Research 002): the corpus is GPT-3-generated with MultiNLI examples used as in-context SEEDS (never copied); MNLI's own terms are not stated at its primary page, so whether seed-influence reaches the generated text is an open derivative question carried on this row for the owner | Liu et al., 2022 (WANLI: Worker-and-AI Collaboration for Natural Language Inference Dataset Creation) | ✓ |
 | emotion_syn | first-party synthetic — `scripts/synth_suite.py` (plan 013) | **Apache-2.0 (ours)** — generated rows, no scraped or third-party text; the generators' outputs are unencumbered under their own Apache-2.0 grants (verified on the hub 2026-10-27: `prism-ml/Ternary-Bonsai-2-27B-mlx-2bit` apache-2.0, base `Qwen/Qwen3.8-27B` apache-2.0; `Qwen/Qwen3.5-4B` apache-2.0 — the `mlx-community` 4-bit conversion carries no separate tag, the upstream grant governs). Labels = intended latent label CONFIRMED by the other model's zero-shot read (dual-model agreement) | none required (ours) | ✓ |
+| sst5_syn | first-party synthetic — `scripts/synth_suite.py --suite sst5_syn` (plan 013 T1b) | **Apache-2.0 (ours)** — same posture as emotion_syn (generated rows, no scraped or third-party text; the same two Apache-2.0 generator grants verified 2026-10-27 govern). The five-level scale follows SST-5's label VOCABULARY only — no SST review text is copied (the sst5 row above stays ⛔ benchmark-only for the real corpus; this suite is the licence-clean re-entry) | none required (ours) | ✓ |
 | emotion | `dair-ai/emotion` | **research/educational only** (card §Licensing — not the hub's `license:other` tag alone) | Saravia et al., 2018 | ⛔ benchmark-only |
 | winogrande_jdi | `allenai/winogrande` | **none on the hub** (no licence tag, no `cardData.license` — probe 2026-10-13; the manifest law applies: resolved by the card/repo, never guessed — resolve before any paid lane) | Sakaguchi et al., 2021 (WinoGrande) | ⚠ resolve before any paid lane |
 | hellaswag_jdi | `Rowan/hellaswag` | **none on the hub** (no licence tag, no `cardData.license` — probe 2026-10-13; content is ADaM-derived source sentences + adversarially filtered machine generations, so upstream terms ride along — resolve before any paid lane) | Zellers et al., 2019 (HellaSwag) | ⚠ resolve before any paid lane |
@@ -859,6 +860,56 @@ The per-page blake3 digests are re-derivable per the manifest header
 not the per-file table (the digests live in the files themselves until a
 board publish pins them).
 
+### 16. emotion_syn — first-party synthetic (plan 013; `scripts/synth_suite.py --suite emotion_syn`)
+
+The ESC re-source emotion lane (rethink Research 002 step 1; the dair-ai
+`emotion` row above stays ⛔ benchmark-only). Generated 2026-10-27 on amo
+(MLX/Metal): train = generator A `prism-ml/Ternary-Bonsai-2-27B-mlx-2bit`
+(digest `1742e986293730e3`) over prompt family A, judge =
+`mlx-community/Qwen3.5-4B-4bit` (`c9aa5006cdfbcc47`), seed 1; test = the
+A3 holdout — generator B Qwen3.5-4B over DISJOINT family B, judge =
+Bonsai, seed 2. Labels = intended latent label KEPT only on the other
+model's zero-shot first-token agreement; per-label veto rates live in the
+raw manifest. Page digests (sha256, 60 pages) are pinned in
+`.raw/datasets/emotion_syn/manifest.json` and were re-verified against the
+files 2026-10-28 pre-bench (all 60 exact; counts 4,800/1,200 at exactly
+800/200 per label; 0 within-split dupes; 0 cross-split overlap —
+`cross_split_blocked: 4800`; 0 rows outside 5–45 words; no partial pages).
+The floor + veto record: [Bench 168](../../.benchmarks/168_emotion_syn_baseline/RESULTS.md).
+
+| split | rows | files |
+|---|---|---|
+| `train` | 4,800 (800/label) | 48 (`train-000..047`) |
+| `test` | 1,200 (200/label) | 12 (`test-000..011`) |
+
+Harness slice digests at the bench posture: test 400
+`fnv1a64-f7bbe4d97652f51b` · cal 200 `fnv1a64-b3ac6e5adbbfac0d` · pool
+4,600 `fnv1a64-5f1546c854d4b0d3`.
+
+### 17. sst5_syn — first-party synthetic (plan 013 T1b; `scripts/synth_suite.py --suite sst5_syn`)
+
+The sentiment sibling of §16: the same two generators in the same
+orientation (train Bonsai→Qwen seed 1 family A; test Qwen→Bonsai seed 2
+family B), five levels judged as digits 1..5 (the level names share first
+tokens — the judge reads digits). No SST text is copied; the licence row
+above carries the vocabulary-only distinction. Generated on the same wave,
+verified the same day (all 50 page digests exact; 4,000/1,000 rows at
+exactly 800/200 per level; 0 dupes; 0 cross-split overlap). Notable veto
+shape: the very-negative TRAIN agree rate is 0.0711 (the Qwen judge
+rejects nearly all Bonsai very-negative generations — the 800 landed rows
+are the survivor set of ~11k generated), while family-B test agree rates
+run high (very negative 0.9854). The floor: [Bench
+169](../../.benchmarks/169_sst5_syn_baseline/RESULTS.md).
+
+| split | rows | files |
+|---|---|---|
+| `train` | 4,000 (800/level) | 40 (`train-000..039`) |
+| `test` | 1,000 (200/level) | 10 (`test-000..009`) |
+
+Harness slice digests at the bench posture: test 600
+`fnv1a64-2586b1ddf640f1ba` · cal 200 `fnv1a64-9e74e758cf98831d` · pool
+3,800 `fnv1a64-e500251313a4357d`.
+
 ## ClassLabel orders (verified)
 
 Quote the exact `features` names arrays from the fetched JSON (first page
@@ -866,6 +917,8 @@ file, `.features[] | select(.type._type == "ClassLabel")`):
 
 - **ag_news** `label`: `["World", "Sports", "Business", "Sci/Tech"]`
 - **emotion** `label`: `["sadness", "joy", "love", "anger", "fear", "surprise"]`
+- **emotion_syn** `label`: `["sadness", "joy", "love", "anger", "fear", "surprise"]` (plan 013 — verified IDENTICAL to emotion's wire: `build_emotion_syn` is `build_emotion` under its own suite name, so every downstream head shape carries over)
+- **sst5_syn** `label`: `["very negative", "negative", "neutral", "positive", "very positive"]` (plan 013 T1b — the synthetic pages DO carry the names array the real sst5 lacks)
 - **xnli_en** `label`: `["entailment", "neutral", "contradiction"]`
 - **anli_jdi** `label`: `["entailment", "neutral", "contradiction"]`
   (Plan 012 — verified identical to xnli_en on the fetched features; the
