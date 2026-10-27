@@ -1,6 +1,7 @@
 # Issue 101 — run_r1_read.sh lies success on dead legs (rc=127 class) + the launchd PATH gap that caused it
 
 **Status:** OPEN — unclaimed, filed 2026-10-27 ~12:2x +07 by the fmt-hold lane after the sub-lane's collision-guard report; incident already recorded in Bench 166 (`8671409`) and `HISTORY.md`; this issue owns the FIX.
+**Claimed:** amo-rig-fix-lane, 20261027052600, expires 2026-10-29T05:26:00Z
 
 ## The defect chain (measured 2026-10-27 ~04:23Z, /tmp/r1_after_window3.log)
 
