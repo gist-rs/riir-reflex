@@ -512,3 +512,8 @@ strip = true
 [patch.crates-io]
 cubecl-runtime = { path = "../riir-infer/vendor/cubecl-runtime-0.11.0-pre.2" }
 wgpu-hal = { path = "../riir-infer/vendor/wgpu-hal-30.0.0" }
+# block 0.1.6 uninhabited-static future-incompat fork (katgpt-rs issue 968
+# residue; same healed copy as katgpt-rs 5e216a761 / riir-refine e07980c4 /
+# riir-instinct dc1002b). metal (via riir-infer-laya's macOS-scoped dep, under
+# laya-riir-metal) pulls it; inert at the default posture.
+block = { path = "vendor/block" }
