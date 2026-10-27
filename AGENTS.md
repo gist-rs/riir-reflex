@@ -580,6 +580,18 @@ G5-gated):
   condvar-parked pool — quiet-box e2e −9.6% median row p50; numerics never
   move with worker count (the gate's own assertion).
 
+## Formatting — rustfmt defaults, gated (Issue 099, closed 2026-10-27)
+
+Format touched `.rs` with `rustfmt --edition 2024 <file>` before committing.
+⛔ **Never `cargo fmt --all` here** — it formats the path-dep siblings too
+(`../katgpt-rs`, `../riir-infer`, `../riir-reflexer`), including katgpt-rs's
+INTENTIONAL pinned drift, as uncommitted cross-repo edits. Verdict:
+`scripts/fmt_gate.py` (guard layer 11; bare rustfmt per tracked file with
+`--config skip_children=true` — the `--skip-children` FLAG does not exist on
+stable and its rejection exits 1, which the gate refuses as NO VERDICT).
+Drift is pinned by MEMBERSHIP on `scripts/fmt_pending_expected.txt` — EMPTY
+since `747c8ea`; format new drift, never add a row.
+
 ## Lint healing — `cargo refine` before manual fixes
 
 Mechanical clippy findings are fixed by the riir-refine healer FIRST, manual

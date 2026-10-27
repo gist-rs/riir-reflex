@@ -5,6 +5,12 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-27 — Issue 099 CLOSED: the reflex fmt gate (katgpt-rs Issue 946 port), scoped — never `cargo fmt --all`
+
+**Status: Resolved. Landings: gate `3934747` (scripts/fmt_gate.py + guard layer 11 + 6-row drain list), layer-echo renumber `be50372`, recipe v3 `c6b9757`, drain `747c8ea` (the 6 files formatted + the list emptied in one commit), guard-header prose `936b014`. Full 11-layer `ci_feature_guard.sh` PASSED at `747c8ea` (isolated `CARGO_TARGET_DIR`).**
+
+The reflex-specific hazard is why this is not a verbatim port: `cargo fmt --all` reaches path-dep siblings (katgpt-rs carries intentional pinned drift), so the gate walks reflex's own tracked `.rs` with bare `rustfmt --edition 2024 --check --config skip_children=true`, classifying exit 0/1 strictly and refusing anything else (incl. the rc=1 `Unrecognized option` shape — the founding run read 109 phantom divergences off one rejected `--skip-children` flag). Drain decision: the staged anchor `fmt-drain-staged@a2389e6` was NOT cherry-picked (pre-split snapshot — it would silently revert `be50372`/`72e1e88`); a fresh rustfmt at HEAD was verified byte-identical to its 6 src files and landed file-scoped. Timing: landed while window-3's LAST suite ran on an already-built binary and BEFORE `r1_after_window3_v3.sh`'s first `cargo run`, so the R1 read rebuilds once on one tree. The staged branch was deleted after landing (recoverable by its SHA).
+
 ## 2026-10-26 — Issue 098 CLOSED: the harness runner.rs carve — the 12,097-line monolith decomposed along the 20-module convention
 
 **Status: Resolved. Landings: T1 `6e4737a` (comparison-lane bodies → `runner/lanes_wire.rs` + `runner/lanes_hosted.rs`), T2 `0687e6c` (report tail → `runner/report.rs`), T3 `77db63f` + `9c80a93` (`run()` split into phase fns in-place, then moved to `runner/run_phases.rs` — the issue's move condition held: runner.rs 7,799 > 3,200 after T1+T2); claim `2f55ade`. T1+T2 independently verified cross-run (second session, shikuwa-4090 — the Issue-825 protocol: their concurrent duplicate carve was discarded on fetch and re-run as the verification oracle). Zero behavior change.**
