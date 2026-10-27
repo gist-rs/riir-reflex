@@ -47,6 +47,15 @@ import sys
 import time
 from pathlib import Path
 
+# A non-UTF-8 console (cp874) would kill this script on its first
+# non-ASCII glyph; degrade the glyph, never the verdict (katgpt-rs
+# Issue 804). A captured stream without reconfigure is left alone.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
+
 LABELS = ["sadness", "joy", "love", "anger", "fear", "surprise"]
 LABEL_GLOSS = {
     "sadness": "sadness (grief, loss, loneliness, disappointment, feeling down)",

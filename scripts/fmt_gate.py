@@ -42,6 +42,15 @@ import subprocess
 import sys
 from pathlib import Path
 
+# A non-UTF-8 console (cp874) would kill this script on its first
+# non-ASCII glyph; degrade the glyph, never the verdict (katgpt-rs
+# Issue 804). A captured stream without reconfigure is left alone.
+for _stream in (sys.stdout, sys.stderr):
+    try:
+        _stream.reconfigure(errors="backslashreplace")
+    except (AttributeError, ValueError):
+        pass
+
 ROOT = Path(__file__).resolve().parent.parent
 PINS = ROOT / "scripts" / "fmt_pending_expected.txt"
 EXCLUDE_PREFIX = ".benchmarks/"
@@ -149,7 +158,7 @@ def selftest() -> list[str]:
     # load_pins refusals are exercised against a temp file, not a fixture path.
     import tempfile
 
-    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False) as tf:
+    with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as tf:
         tf.write("ok.rs # a reason\nbad.rs\n")
         tmp = Path(tf.name)
     pins, errors = load_pins(tmp)
