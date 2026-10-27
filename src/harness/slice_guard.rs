@@ -73,6 +73,9 @@ pub const MIN_POOL_ROWS: &[(&str, usize)] = &[
     // is 4,800 rows (800/label) — pool after the 200-row cal front maxes at
     // 4,600, floor = ~80%.
     ("emotion_syn", 3_680),
+    // sst5_syn (Research 002 step 2): train 4,000 rows (800/level) — pool
+    // after the 200-row cal front maxes at 3,800, floor = ~80%.
+    ("sst5_syn", 3_040),
     ("typed_decisions", 960),
     ("prompt_injections", 430),
     ("thai_wisesight", 3_200),

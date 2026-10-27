@@ -102,16 +102,15 @@ impl KeyMap {
     #[must_use]
     pub fn for_suite(suite: &str) -> Option<Self> {
         match suite {
-            "massive_intent_en" | "banking77" | "ag_news" | "emotion" | "xnli_en" => {
-                Some(Self::Name)
-            }
+            "massive_intent_en" | "banking77" | "ag_news" | "emotion" | "emotion_syn"
+            | "xnli_en" => Some(Self::Name),
             // Issue 623 (2026-10-10 owner extension): the pplx capture slot
             // rides the same FixedInt law — noul 2-class, int labels, the
             // full 2-class universe presented (the gold pin verifies it).
             // sst5: train_row_label's catch-all arm keeps the int-string
             // spelling, so FixedInt is correct here (proven by the
             // 8544-row clef capture, 2026-10-11).
-            "prompt_injections" | "sst5" => Some(Self::FixedInt),
+            "prompt_injections" | "sst5" | "sst5_syn" => Some(Self::FixedInt),
             _ => None,
         }
     }
@@ -152,7 +151,7 @@ impl StudentUniverse {
     /// ClassLabel order); only the PositionalInt arm reads it.
     pub(crate) fn derive(suite: &str, presented_keys: &[String]) -> Result<Self, String> {
         match suite {
-            "ag_news" | "emotion" | "xnli_en" => {
+            "ag_news" | "emotion" | "emotion_syn" | "xnli_en" => {
                 if presented_keys.is_empty() || presented_keys.len() > 4096 {
                     return Err(format!(
                         "{suite}: implausible presented-key count {} for the positional bijection",
@@ -862,8 +861,14 @@ fn t3_skip_reason(suite: &str) -> &'static str {
 /// join, and its students need the synthetic-suite rig first (T2 scope,
 /// riir-train Issue 623).
 fn is_distill_suite(name: &str) -> bool {
-    T3_SUITES.contains(&name) || name == "prompt_injections"
+    T3_SUITES.contains(&name) || EXTENSION_SUITES.contains(&name)
 }
+
+/// The row-backed suites beyond the Arm-A six: `prompt_injections` (Issue
+/// 623) and the first-party synthetic pair (rethink Research 002 — the ESC
+/// re-source; reflex Plan 013 T6 hands their teacher captures to the
+/// riir-train re-fit). Each rides its parent's keymap law.
+const EXTENSION_SUITES: [&str; 3] = ["prompt_injections", "emotion_syn", "sst5_syn"];
 
 #[derive(Debug, serde::Serialize)]
 pub struct DistillSuite {
@@ -1447,10 +1452,15 @@ mod tests {
             StudentUniverse::PositionalInt(xnli_keys.to_vec())
         );
         assert_eq!(
+            StudentUniverse::derive("emotion_syn", &xnli_keys).unwrap(),
+            StudentUniverse::PositionalInt(xnli_keys.to_vec()),
+            "emotion_syn rides emotion's positional law"
+        );
+        assert_eq!(
             StudentUniverse::derive("prompt_injections", &[]).unwrap(),
             StudentUniverse::NoulPair
         );
-        for s in ["massive_intent_en", "banking77", "sst5"] {
+        for s in ["massive_intent_en", "banking77", "sst5", "sst5_syn"] {
             assert_eq!(
                 StudentUniverse::derive(s, &[]).unwrap(),
                 StudentUniverse::Identity,
@@ -1538,15 +1548,22 @@ mod tests {
         // train_row_label produces names, so Name is the only join that
         // survives the per-row gold pin (the first pplx capture proved
         // FixedInt REDs on row 0 for these).
-        for s in ["ag_news", "emotion", "xnli_en"] {
+        for s in ["ag_news", "emotion", "emotion_syn", "xnli_en"] {
             assert_eq!(KeyMap::for_suite(s), Some(KeyMap::Name), "{s}");
         }
         // The catch-all-arm int-string suites.
-        for s in ["sst5", "prompt_injections"] {
+        for s in ["sst5", "sst5_syn", "prompt_injections"] {
             assert_eq!(KeyMap::for_suite(s), Some(KeyMap::FixedInt), "{s}");
         }
         assert_eq!(KeyMap::for_suite("typed_decisions"), None);
         assert_eq!(T3_SUITES.len(), 6);
+        for s in EXTENSION_SUITES {
+            assert!(is_distill_suite(s), "{s}");
+            assert!(
+                KeyMap::for_suite(s).is_some(),
+                "{s}: a capture suite needs a keymap"
+            );
+        }
     }
 
     #[test]

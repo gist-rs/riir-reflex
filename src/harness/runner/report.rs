@@ -1074,11 +1074,12 @@ pub fn render_markdown(out: &RunOutput, errors: &[String]) -> String {
                 }
             }
         }
-        if suite.name == "sst5"
+        if matches!(suite.name.as_str(), "sst5" | "sst5_syn")
             && let Some(m) = suite.modelless.as_ref()
         {
             s.push_str(&format!(
-                "\n**sst5 score metrics (modelless):** MAE {} · within_1 {}\n",
+                "\n**{} score metrics (modelless):** MAE {} · within_1 {}\n",
+                suite.name,
                 fmt_opt(m.score_mae),
                 fmt_opt(m.within_1)
             ));
