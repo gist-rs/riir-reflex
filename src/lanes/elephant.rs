@@ -164,7 +164,10 @@ impl ElephantLane {
         if !parsed.get("ok").and_then(Value::as_bool).unwrap_or(false) {
             return Err("elephant /health carries ok=false".to_string());
         }
-        let dtype = parsed.get("dtype").and_then(Value::as_str).unwrap_or("unknown");
+        let dtype = parsed
+            .get("dtype")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown");
         let attention = parsed
             .get("attention")
             .and_then(Value::as_str)

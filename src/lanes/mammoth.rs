@@ -112,8 +112,7 @@ impl MammothLane {
     pub fn from_env() -> Result<Self, String> {
         let url = std::env::var(SERVE_URL_ENV).unwrap_or_else(|_| DEFAULT_SERVE_URL.into());
         let token = std::env::var(TOKEN_ENV).ok().filter(|t| !t.is_empty());
-        let forwarder_auth =
-            std::env::var(FORWARDER_AUTH_ENV).is_ok_and(|v| v == "1");
+        let forwarder_auth = std::env::var(FORWARDER_AUTH_ENV).is_ok_and(|v| v == "1");
         if token.is_none() && !forwarder_auth {
             return Err(format!(
                 "refusing: neither {TOKEN_ENV} nor {FORWARDER_AUTH_ENV}=1 is set — the \
@@ -161,11 +160,7 @@ impl MammothLane {
     /// constants + the creds-gate test; the wire tests never touch process
     /// env).
     #[cfg(test)]
-    pub(crate) fn for_test(
-        addr: std::net::SocketAddr,
-        token: Option<&str>,
-        model: &str,
-    ) -> Self {
+    pub(crate) fn for_test(addr: std::net::SocketAddr, token: Option<&str>, model: &str) -> Self {
         Self {
             host: addr.ip().to_string(),
             port: addr.port(),
@@ -209,15 +204,20 @@ impl MammothLane {
                 TOKEN_ENV
             ));
         }
-        let parsed: Value = serde_json::from_slice(&raw)
-            .map_err(|e| format!("mammoth handshake parse: {e} — the reply is not the \
-                 SystemOne shape; check the forwarder route"))?;
+        let parsed: Value = serde_json::from_slice(&raw).map_err(|e| {
+            format!(
+                "mammoth handshake parse: {e} — the reply is not the \
+                 SystemOne shape; check the forwarder route"
+            )
+        })?;
         // STRICT: the answers object must exist and carry the probe's qid —
         // the wire proof, never a half-check (the clef A2 law).
         let answers = parsed
             .get("answers")
             .and_then(Value::as_object)
-            .ok_or_else(|| "mammoth handshake: no answers object — not the SystemOne wire".to_string())?;
+            .ok_or_else(|| {
+                "mammoth handshake: no answers object — not the SystemOne wire".to_string()
+            })?;
         if !answers.contains_key("probe") {
             return Err(
                 "mammoth handshake: answers carries no qid for the probe — not the \
@@ -290,8 +290,8 @@ impl MammothLane {
     /// the timing artifact alone). The projection stays in memory —
     /// nothing persisted (the MEASUREMENT-ONLY law).
     pub fn determinism_view(raw: &str) -> Result<String, String> {
-        let parsed: Value = serde_json::from_str(raw)
-            .map_err(|e| format!("determinism view parse: {e}"))?;
+        let parsed: Value =
+            serde_json::from_str(raw).map_err(|e| format!("determinism view parse: {e}"))?;
         let mut obj = match parsed {
             Value::Object(m) => m,
             _ => return Err("determinism view: body is not a JSON object".into()),
@@ -368,14 +368,17 @@ mod tests {
         SuiteCase {
             id: "c0".into(),
             state,
-            questions: questions.into_iter().map(
-                |(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
-                    qid: qid.into(),
-                    kind,
-                    instructions: instructions.into(),
-                    criteria,
-                },
-            ).collect(),
+            questions: questions
+                .into_iter()
+                .map(
+                    |(qid, kind, instructions, criteria)| crate::harness::suites::SuiteQuestion {
+                        qid: qid.into(),
+                        kind,
+                        instructions: instructions.into(),
+                        criteria,
+                    },
+                )
+                .collect(),
             gold: vec![],
         }
     }
@@ -385,50 +388,52 @@ mod tests {
     fn serve_with(status: u16, canned: String) -> std::net::SocketAddr {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
-        std::thread::spawn(move || loop {
-            let (stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let mut writer = match stream.try_clone() {
-                Ok(w) => w,
-                Err(_) => continue,
-            };
-            let mut reader = BufReader::new(stream);
-            let mut request_line = String::new();
-            if reader.read_line(&mut request_line).is_err() {
-                continue;
-            }
-            let mut content_length = 0usize;
-            let mut line = String::new();
+        std::thread::spawn(move || {
             loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim_end();
-                        if trimmed.is_empty() {
-                            break;
-                        }
-                        if let Some((k, v)) = trimmed.split_once(':')
-                            && k.eq_ignore_ascii_case("content-length")
-                        {
-                            content_length = v.trim().parse().unwrap_or(0);
+                let (stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
                         }
                     }
                 }
+                let mut body = vec![0u8; content_length];
+                if reader.read_exact(&mut body).is_err() {
+                    continue;
+                }
+                let resp = format!(
+                    "HTTP/1.1 {status} ST\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
             }
-            let mut body = vec![0u8; content_length];
-            if reader.read_exact(&mut body).is_err() {
-                continue;
-            }
-            let resp = format!(
-                "HTTP/1.1 {status} ST\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                canned.len(),
-                canned
-            );
-            let _ = writer.write_all(resp.as_bytes());
-            let _ = writer.flush();
         });
         addr
     }
@@ -500,8 +505,7 @@ mod tests {
         // 200 with an answers object missing the probe qid: refused —
         // the wire proof, never a half-check (the clef A2 law).
         let addr = serve(
-            json!({"model": "m", "answers": {"other": {"type": "noul", "noul": 0.5}}})
-                .to_string(),
+            json!({"model": "m", "answers": {"other": {"type": "noul", "noul": 0.5}}}).to_string(),
         );
         let err = MammothLane::for_test(addr, Some("k"), DEFAULT_MODEL)
             .info()
@@ -515,57 +519,59 @@ mod tests {
         let addr = listener.local_addr().expect("addr");
         let canned = answers_body(DEFAULT_MODEL);
         let (tx, rx) = std::sync::mpsc::channel();
-        std::thread::spawn(move || loop {
-            let (stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let mut writer = match stream.try_clone() {
-                Ok(w) => w,
-                Err(_) => continue,
-            };
-            let mut reader = BufReader::new(stream);
-            let mut request_line = String::new();
-            if reader.read_line(&mut request_line).is_err() {
-                continue;
-            }
-            let mut saw_auth = false;
-            let mut content_length = 0usize;
-            let mut line = String::new();
+        std::thread::spawn(move || {
             loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim_end();
-                        if trimmed.is_empty() {
-                            break;
-                        }
-                        if let Some((k, v)) = trimmed.split_once(':') {
-                            if k.eq_ignore_ascii_case("content-length") {
-                                content_length = v.trim().parse().unwrap_or(0);
+                let (stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                let mut saw_auth = false;
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
                             }
-                            if k.eq_ignore_ascii_case("authorization")
-                                && v.trim() == "Bearer k-live-test"
-                            {
-                                saw_auth = true;
+                            if let Some((k, v)) = trimmed.split_once(':') {
+                                if k.eq_ignore_ascii_case("content-length") {
+                                    content_length = v.trim().parse().unwrap_or(0);
+                                }
+                                if k.eq_ignore_ascii_case("authorization")
+                                    && v.trim() == "Bearer k-live-test"
+                                {
+                                    saw_auth = true;
+                                }
                             }
                         }
                     }
                 }
+                let mut body = vec![0u8; content_length];
+                if reader.read_exact(&mut body).is_err() {
+                    continue;
+                }
+                let _ = tx.send((request_line.clone(), saw_auth, body));
+                let resp = format!(
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
             }
-            let mut body = vec![0u8; content_length];
-            if reader.read_exact(&mut body).is_err() {
-                continue;
-            }
-            let _ = tx.send((request_line.clone(), saw_auth, body));
-            let resp = format!(
-                "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                canned.len(),
-                canned
-            );
-            let _ = writer.write_all(resp.as_bytes());
-            let _ = writer.flush();
         });
         let lane = MammothLane::for_test(addr, Some("k-live-test"), DEFAULT_MODEL);
         let c = case(
@@ -593,7 +599,10 @@ mod tests {
 
         let (request_line, saw_auth, body) =
             rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap();
-        assert!(request_line.starts_with("POST /v1/systemone"), "{request_line}");
+        assert!(
+            request_line.starts_with("POST /v1/systemone"),
+            "{request_line}"
+        );
         assert!(saw_auth, "the bearer must ride the request");
         let sent: Value = serde_json::from_slice(&body).unwrap();
         // The catalog id — never a hardcoded alias — rides the model field.

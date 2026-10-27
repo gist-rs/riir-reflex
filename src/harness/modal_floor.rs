@@ -283,7 +283,11 @@ pub fn census_with_pairs(
         }
         // The confidence of the modal pick: the pick ranked on adjusted
         // (pool, global) counts — the denominator is the same family.
-        let picked: &str = e.options.get(pick_idx).map(String::as_str).unwrap_or_default();
+        let picked: &str = e
+            .options
+            .get(pick_idx)
+            .map(String::as_str)
+            .unwrap_or_default();
         let adj = |counts: &IdentityCounts<'_>, id: &str| -> u32 {
             let c = counts.get(id).copied().unwrap_or(0);
             if loo && Some(id) == e.own.as_deref() {
@@ -446,11 +450,19 @@ mod tests {
         assert_eq!(f.n_questions, 2);
         // a: pool {pos:2} over own options [pos, neg, neu] → total 2,
         // pick pos share 2/2 = 1.0, correct.
-        assert!((pairs[0].0 - 1.0).abs() < 1e-12, "pool share: {:?}", pairs[0]);
+        assert!(
+            (pairs[0].0 - 1.0).abs() < 1e-12,
+            "pool share: {:?}",
+            pairs[0]
+        );
         assert!(pairs[0].1);
         // c: unseen key → fallback; pick = global modal pos; share =
         // global count(pos)=2 over census n=3 → 2/3, correct.
-        assert!((pairs[1].0 - 2.0 / 3.0).abs() < 1e-12, "fallback share: {:?}", pairs[1]);
+        assert!(
+            (pairs[1].0 - 2.0 / 3.0).abs() < 1e-12,
+            "fallback share: {:?}",
+            pairs[1]
+        );
         assert!(pairs[1].1);
         // The census row must be unchanged from the pairs-free call.
         let f2 = census(&eval, Some(&reference)).expect("row");

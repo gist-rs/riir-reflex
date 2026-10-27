@@ -949,7 +949,11 @@ fn harness_main() {
             if popts.d1 { " +d1" } else { "" },
             if popts.agentjev { " +agentjev" } else { "" },
             if popts.jeva { " +jeva" } else { "" },
-            if popts.opendecider { " +opendecider" } else { "" },
+            if popts.opendecider {
+                " +opendecider"
+            } else {
+                ""
+            },
             if popts.basis_split {
                 " +basis-cert"
             } else {

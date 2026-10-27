@@ -398,50 +398,52 @@ mod tests {
     fn serve_with(status: u16, canned: String) -> std::net::SocketAddr {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("bind");
         let addr = listener.local_addr().expect("addr");
-        std::thread::spawn(move || loop {
-            let (stream, _) = match listener.accept() {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
-            let mut writer = match stream.try_clone() {
-                Ok(w) => w,
-                Err(_) => continue,
-            };
-            let mut reader = BufReader::new(stream);
-            let mut request_line = String::new();
-            if reader.read_line(&mut request_line).is_err() {
-                continue;
-            }
-            let mut content_length = 0usize;
-            let mut line = String::new();
+        std::thread::spawn(move || {
             loop {
-                line.clear();
-                match reader.read_line(&mut line) {
-                    Ok(0) | Err(_) => break,
-                    Ok(_) => {
-                        let trimmed = line.trim_end();
-                        if trimmed.is_empty() {
-                            break;
-                        }
-                        if let Some((k, v)) = trimmed.split_once(':')
-                            && k.eq_ignore_ascii_case("content-length")
-                        {
-                            content_length = v.trim().parse().unwrap_or(0);
+                let (stream, _) = match listener.accept() {
+                    Ok(s) => s,
+                    Err(_) => continue,
+                };
+                let mut writer = match stream.try_clone() {
+                    Ok(w) => w,
+                    Err(_) => continue,
+                };
+                let mut reader = BufReader::new(stream);
+                let mut request_line = String::new();
+                if reader.read_line(&mut request_line).is_err() {
+                    continue;
+                }
+                let mut content_length = 0usize;
+                let mut line = String::new();
+                loop {
+                    line.clear();
+                    match reader.read_line(&mut line) {
+                        Ok(0) | Err(_) => break,
+                        Ok(_) => {
+                            let trimmed = line.trim_end();
+                            if trimmed.is_empty() {
+                                break;
+                            }
+                            if let Some((k, v)) = trimmed.split_once(':')
+                                && k.eq_ignore_ascii_case("content-length")
+                            {
+                                content_length = v.trim().parse().unwrap_or(0);
+                            }
                         }
                     }
                 }
+                let mut body = vec![0u8; content_length];
+                if reader.read_exact(&mut body).is_err() {
+                    continue;
+                }
+                let resp = format!(
+                    "HTTP/1.1 {status} ST\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
+                    canned.len(),
+                    canned
+                );
+                let _ = writer.write_all(resp.as_bytes());
+                let _ = writer.flush();
             }
-            let mut body = vec![0u8; content_length];
-            if reader.read_exact(&mut body).is_err() {
-                continue;
-            }
-            let resp = format!(
-                "HTTP/1.1 {status} ST\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",
-                canned.len(),
-                canned
-            );
-            let _ = writer.write_all(resp.as_bytes());
-            let _ = writer.flush();
         });
         addr
     }
@@ -534,7 +536,11 @@ mod tests {
         });
         let before = body.to_string();
         canonicalize_option_order(&mut body);
-        assert_eq!(body.to_string(), before, "default-off must be byte-identical");
+        assert_eq!(
+            body.to_string(),
+            before,
+            "default-off must be byte-identical"
+        );
     }
 
     #[test]
@@ -560,7 +566,11 @@ mod tests {
             .keys()
             .map(String::as_str)
             .collect();
-        assert_eq!(choice_keys, vec!["alpha", "mid", "zeta"], "choice sorted by key");
+        assert_eq!(
+            choice_keys,
+            vec!["alpha", "mid", "zeta"],
+            "choice sorted by key"
+        );
         let score_levels: Vec<&str> = qs["s"]["criteria"]
             .as_array()
             .unwrap()
@@ -589,7 +599,11 @@ mod tests {
         let mut b2 = json!({"model": "m", "state": "s", "questions": {"q": q_perm}});
         canonicalize_option_order(&mut b1);
         canonicalize_option_order(&mut b2);
-        assert_eq!(b1.to_string(), b2.to_string(), "canonical order collapses presentations");
+        assert_eq!(
+            b1.to_string(),
+            b2.to_string(),
+            "canonical order collapses presentations"
+        );
     }
 
     #[test]
