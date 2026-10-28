@@ -68,7 +68,7 @@ pub const SCALE: f64 = 10.0;
 
 /// The golden-ratio constant for the scattered value family (irrational
 /// multiples exercise non-uniform spacing without semantic meaning).
-const PHI: f64 = 1.618_033_988_749_895;
+const PHI: f64 = std::f64::consts::GOLDEN_RATIO;
 
 /// Value family A: the unit ramp `v_i = (i+1)` — the natural rubric of a
 /// score question read as 1-based levels.

@@ -4,5 +4,5 @@
 # toolchain bare and every CI clippy lane dies with "'cargo-clippy' is
 # not installed" (the riir-infer sibling's pin is the working shape).
 [toolchain]
-channel = "1.98.1"
+channel = "1.99.0"
 components = ["clippy", "rustfmt"]
