@@ -60,6 +60,19 @@
 //! * `MAMMOTH_SMOKE_MAX_CASES` — spend ceiling, default 50 cases (free
 //!   week ≠ unmetered); a larger run refuses unless
 //!   `MAMMOTH_ALLOW_UNCAPPED=1` (the clef A6 law).
+//!
+//! The lane is ALSO the self-hosted capture path (`--distill-teacher
+//! mammoth`, riir-train 640 T3b — the elephant arm's mechanical twin over
+//! the same qev runtime): point `MAMMOTH_SERVE_URL` at the operator rig's
+//! local OneJev serve (`.raw/mammoth-local/serve_mammoth.py`, loopback
+//! 8793), set `MAMMOTH_MODEL=mammoth-1` (qev's model_name = the dir
+//! basename), `MAMMOTH_FORWARDER_AUTH=1` (the explicit no-credential ack),
+//! and `MAMMOTH_DEVICE=local-mps-bf16` (the honest posture stamp). Weights
+//! MIT (640 T0, capture-time re-verified); the block-bidirectional mask
+//! arms from the checkpoint's own modeling_overrides — the window's
+//! bootcheck reads the `attention` field off the serve log (qev logs it at
+//! engine construction; a causal serve reads as the wrong model, the 635
+//! −26 pts class).
 
 use std::time::{Duration, Instant};
 

@@ -270,9 +270,11 @@ cargo run --release --bin harness -- --skip-laya --startlux
 # public print 75.34 (MIT — the first permissively-licensed board-#1; no NC
 # posture) — or elephant-1 (72.24, MIT, 9B) on Baseten Model APIs, reached
 # ONLY through the operator-run loopback TLS forwarder (the clef A0 law; the
-# hop is part of the row's latency claim). MEASUREMENT-ONLY — no RIDT arm:
-# API outputs never enter a capture artifact (teacher lineage stays
-# self-hosted, riir-train 640). **THE STANDING TEACHER POINTER** (owner
+# hop is part of the row's latency claim). The HOSTED `--mammoth` lane stays
+# MEASUREMENT-ONLY — API outputs never enter a capture artifact (teacher
+# lineage stays self-hosted, riir-train 640); the SELF-HOSTED capture arm is
+# `--distill-teacher mammoth` over the operator rig's local OneJev serve
+# (riir-train 640 T3b, the elephant arm's twin). **THE STANDING TEACHER POINTER** (owner
 # GOAT-or-defer law, rethink decision-index-beat law 9): mammoth-1 is the
 # board's #1 AND highest OPEN-weights entrant (still #1 at the 2026-10-26
 # read, 75.34 of 229) — the default Step-4 teacher candidate for every

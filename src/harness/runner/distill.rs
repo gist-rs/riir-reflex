@@ -332,6 +332,23 @@ pub(crate) enum TeacherForward {
         lane: crate::lanes::opendecider::OpenDeciderLane,
         provenance: String,
     },
+    /// The mammoth-1 SELF-HOSTED service (riir-train Issue 640 T3b — the
+    /// capture twin of the elephant arm over the SAME OneJev qev runtime
+    /// @81ce62f + serve.patch, OUR operator serve on loopback): MPS bf16
+    /// 27B (≈ 54 GB weights, ~44 GB resident with the serve's MPS cache
+    /// hygiene). Weights MIT (640 T0, capture-time re-verified — the
+    /// SECOND permissive board-top teacher), runtime Apache-2.0, so the
+    /// teacher lineage stays purely self-hosted AND the capture arm is
+    /// lawful here (the NC-lineage contrast). The block-bidirectional
+    /// mask arms from the checkpoint's own modeling_overrides via
+    /// qev.readout (the window's bootcheck reads the `attention` field
+    /// off the serve log — a causal serve reads as the wrong model, the
+    /// 635 −26 pts class). Same keyed-probs tail as the elephant arm (the
+    /// pplx parser verbatim — qev is the dialect's origin).
+    Mammoth {
+        lane: crate::lanes::mammoth::MammothLane,
+        provenance: String,
+    },
 }
 
 impl TeacherForward {
@@ -349,6 +366,7 @@ impl TeacherForward {
             Self::Startlux { .. } => "startlux",
             Self::Elephant { .. } => "elephant",
             Self::Opendecider { .. } => "opendecider",
+            Self::Mammoth { .. } => "mammoth",
         }
     }
 
@@ -365,6 +383,7 @@ impl TeacherForward {
             Self::Startlux { provenance, .. } => provenance,
             Self::Elephant { provenance, .. } => provenance,
             Self::Opendecider { provenance, .. } => provenance,
+            Self::Mammoth { provenance, .. } => provenance,
         }
     }
 
@@ -391,6 +410,13 @@ impl TeacherForward {
                       (bench 163 rule (c)): captured at the shipped dataset \
                       option order; never pool with order-invariant lanes \
                       without this disclosure",
+            ),
+            Self::Mammoth { .. } => Some(
+                "MIT (baselabs/mammoth-1; base Qwen3.5 Apache-2.0; runtime \
+                      OneJev Apache-2.0) — T0-verified 2026-10-24 + \
+                      capture-time re-verified 2026-10-28 (sha 61cec44c \
+                      unchanged) per riir-train 640; no LICENSE file ships \
+                      (tag+front-matter assertion)",
             ),
             _ => None,
         }
@@ -474,6 +500,13 @@ impl TeacherForward {
                 .decide(case)
                 .map(|_| ())
                 .map_err(|e| format!("elephant warmup: {e}")),
+            // The elephant law verbatim: the loud proof + the cold-path
+            // absorb (the 27B's first prefix fork page-ins the KV scratch
+            // on mps — a bigger absorb than the 9B, same shape).
+            Self::Mammoth { lane, .. } => lane
+                .decide(case)
+                .map(|_| ())
+                .map_err(|e| format!("mammoth warmup: {e}")),
             // The opendecider law: the ONE-probe handshake ran at construct
             // (the clef law; it fills the provenance); warmup is the loud
             // proof + the cold-path absorb (their first encode pages the
@@ -595,6 +628,14 @@ impl TeacherForward {
                     .decide(case)
                     .map_err(|e| format!("elephant forward ({}): {e}", case.id))?;
                 let keyed = keyed_first_answer(case, &answers, "elephant")?;
+                let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
+                Ok((keyed, ms))
+            }
+            Self::Mammoth { lane, .. } => {
+                let (answers, client_ms, _tokens) = lane
+                    .decide(case)
+                    .map_err(|e| format!("mammoth forward ({}): {e}", case.id))?;
+                let keyed = keyed_first_answer(case, &answers, "mammoth")?;
                 let ms = u64::try_from(client_ms.round() as u128).unwrap_or(u64::MAX);
                 Ok((keyed, ms))
             }
@@ -792,6 +833,21 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
             let (provenance, _device) = lane.info()?;
             Ok(TeacherForward::Elephant { lane, provenance })
         }
+        "mammoth" => {
+            // The elephant law verbatim (riir-train 640 T3b), with the
+            // lane's no-creds gate: from_env() refuses LOUD without the
+            // token or the explicit MAMMOTH_FORWARDER_AUTH=1 ack (the
+            // local rig posture — loopback serve, no credential). The
+            // handshake probe at construct proves the wire; the window's
+            // bootcheck reads the attention posture off the serve log
+            // (qev logs `attention` at engine construction —
+            // block_bidirectional is the checkpoint's trained shape; a
+            // causal serve reads as the wrong model, the 635 −26 pts
+            // class) and records it beside every artifact.
+            let lane = crate::lanes::mammoth::MammothLane::from_env()?;
+            let (provenance, _device) = lane.info()?;
+            Ok(TeacherForward::Mammoth { lane, provenance })
+        }
         "opendecider" => {
             // The clef law: the ONE-probe handshake (info) at construct
             // fills the provenance off their health; the capture runs at
@@ -834,7 +890,8 @@ pub(crate) fn construct_teacher(name: &str, spec: &SuiteSpec) -> Result<TeacherF
         }
         other => Err(format!(
             "unknown --distill-teacher {other:?} (the seam knows 'laya', 'openthai', \
-             'bekko', 'clef', 'pplx', 'd3', 'jeva', 'startlux' and 'elephant')"
+             'bekko', 'clef', 'pplx', 'd3', 'jeva', 'startlux', 'elephant', \
+             'opendecider' and 'mammoth')"
         )),
     }
 }
