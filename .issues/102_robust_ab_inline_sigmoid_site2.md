@@ -2,6 +2,8 @@
 
 **Status:** OPEN — detection-only filing (substrate-first Mode 2 delta audit 2026-10-28; fix deferred to a quiet window — the league gate2 driver + the riir-train 650-T5 release build held the box, zero cargo this session).
 
+**Claimed:** amo-idle-refine-g, 1793155785, expires 2026-10-30T03:00:00Z
+
 `src/harness/runner/robust_ab.rs:278` (the T2 label-smoothing section):
 
 ```rust
