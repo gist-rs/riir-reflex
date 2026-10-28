@@ -1,0 +1,162 @@
+{
+  "inputs": [
+    ".raw/distill_router_elephant",
+    ".raw/distill_teacher_elephant"
+  ],
+  "temperature": 0.01,
+  "suites": [
+    {
+      "name": "ag_news",
+      "sources": [
+        {
+          "dir": ".raw/distill_teacher_elephant",
+          "bin_path": ".raw/distill_teacher_elephant/ag_news_teacher.bin",
+          "teacher": "elephant",
+          "checkpoint": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+          "blake3": "e49f76ea601c84cf",
+          "n_rows": 20000,
+          "accuracy": 0.8616,
+          "mean_max_prob": 0.9282170783445239,
+          "mean_margin": 0.8648694582894444
+        }
+      ],
+      "gate": null,
+      "routed_accuracy": null,
+      "routed_accuracy_cv": null,
+      "routed_blake3": "e49f76ea601c84cf",
+      "n_classes": 4
+    },
+    {
+      "name": "banking77",
+      "sources": [
+        {
+          "dir": ".raw/distill_router_elephant",
+          "bin_path": ".raw/distill_router_elephant/banking77_teacher.bin",
+          "teacher": "router",
+          "checkpoint": "g=0.0178;a=d3@d3-v3.1.0-nf4;b=clef@clef:?",
+          "blake3": "8cfefb4159038f29",
+          "n_rows": 9993,
+          "accuracy": 0.9491644150905634,
+          "mean_max_prob": 0.9228691588030388,
+          "mean_margin": 0.8945196829691497
+        },
+        {
+          "dir": ".raw/distill_teacher_elephant",
+          "bin_path": ".raw/distill_teacher_elephant/banking77_teacher.bin",
+          "teacher": "elephant",
+          "checkpoint": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+          "blake3": "524e530e3337d484",
+          "n_rows": 9993,
+          "accuracy": 0.9415590913639548,
+          "mean_max_prob": 0.9397034697144415,
+          "mean_margin": 0.901074696579376
+        }
+      ],
+      "gate": 0.6814693064946792,
+      "routed_accuracy": 0.9525667967577304,
+      "routed_accuracy_cv": 0.952466726708696,
+      "routed_blake3": "ec47b155d39fa90d",
+      "n_classes": 77
+    },
+    {
+      "name": "massive_intent_en",
+      "sources": [
+        {
+          "dir": ".raw/distill_router_elephant",
+          "bin_path": ".raw/distill_router_elephant/massive_intent_en_teacher.bin",
+          "teacher": "router",
+          "checkpoint": "g=0.0431;a=d3@d3-v3.1.0-nf4;b=clef@clef:?",
+          "blake3": "45f14782a807221c",
+          "n_rows": 11514,
+          "accuracy": 0.9681257599444155,
+          "mean_max_prob": 0.9594790729289152,
+          "mean_margin": 0.9410551714621754
+        },
+        {
+          "dir": ".raw/distill_teacher_elephant",
+          "bin_path": ".raw/distill_teacher_elephant/massive_intent_en_teacher.bin",
+          "teacher": "elephant",
+          "checkpoint": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+          "blake3": "9d47e6602bf68c3b",
+          "n_rows": 11514,
+          "accuracy": 0.953013722424874,
+          "mean_max_prob": 0.9568277228670866,
+          "mean_margin": 0.9282755969470473
+        }
+      ],
+      "gate": 0.8192395343109427,
+      "routed_accuracy": 0.9687337154768109,
+      "routed_accuracy_cv": 0.9687337154768109,
+      "routed_blake3": "6fdbd1f9077c81c9",
+      "n_classes": 60
+    },
+    {
+      "name": "prompt_injections",
+      "sources": [
+        {
+          "dir": ".raw/distill_router_elephant",
+          "bin_path": ".raw/distill_router_elephant/prompt_injections_teacher.bin",
+          "teacher": "router",
+          "checkpoint": "g=0.6754;a=d3@d3-v3.1.0-nf4;b=pplx@autojev-qwen3.8-27b@pplx-decider-v1.1-27b",
+          "blake3": "90f6783814f46293",
+          "n_rows": 546,
+          "accuracy": 0.989010989010989,
+          "mean_max_prob": 0.9816316604177594,
+          "mean_margin": 0.9632633215996809
+        },
+        {
+          "dir": ".raw/distill_teacher_elephant",
+          "bin_path": ".raw/distill_teacher_elephant/prompt_injections_teacher.bin",
+          "teacher": "elephant",
+          "checkpoint": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+          "blake3": "bddaaadee2885054",
+          "n_rows": 546,
+          "accuracy": 0.8186813186813187,
+          "mean_max_prob": 0.9128894806999863,
+          "mean_margin": 0.8257789615091387
+        }
+      ],
+      "gate": 0.9999999599431872,
+      "routed_accuracy": 0.989010989010989,
+      "routed_accuracy_cv": 0.989010989010989,
+      "routed_blake3": "4f46079dc2eb4677",
+      "n_classes": 2
+    },
+    {
+      "name": "xnli_en",
+      "sources": [
+        {
+          "dir": ".raw/distill_router_elephant",
+          "bin_path": ".raw/distill_router_elephant/xnli_en_teacher.bin",
+          "teacher": "router",
+          "checkpoint": "g=0.3977;a=d3@d3-v3.1.0-nf4;b=pplx@autojev-qwen3.8-27b@pplx-decider-v1.1-27b",
+          "blake3": "110924d871a7ff38",
+          "n_rows": 20000,
+          "accuracy": 0.9199,
+          "mean_max_prob": 0.9092397855952382,
+          "mean_margin": 0.8288923141852022
+        },
+        {
+          "dir": ".raw/distill_teacher_elephant",
+          "bin_path": ".raw/distill_teacher_elephant/xnli_en_teacher.bin",
+          "teacher": "elephant",
+          "checkpoint": "baselabs/elephant-1 dtype=bfloat16 attention=noncausal fork=sequential",
+          "blake3": "d754710259d2c4e1",
+          "n_rows": 20000,
+          "accuracy": 0.88535,
+          "mean_max_prob": 0.8933293276920915,
+          "mean_margin": 0.8015324166297912
+        }
+      ],
+      "gate": 0.969379901998884,
+      "routed_accuracy": 0.91975,
+      "routed_accuracy_cv": 0.91975,
+      "routed_blake3": "311cf6691134046c",
+      "n_classes": 3
+    }
+  ],
+  "skipped": [
+    "emotion: row counts differ (16000 vs 15999) — different datasets posture or survivor predicate; refusing the join",
+    "sst5: row counts differ (8544 vs 8533) — different datasets posture or survivor predicate; refusing the join"
+  ]
+}
