@@ -35,6 +35,8 @@ use std::collections::BTreeMap;
 use serde::Serialize;
 use serde_json::Value;
 
+use katgpt_core::exact_sigmoid_f64;
+
 use super::echo_gates::{corrupt_state, state_seed};
 use super::{LaneResult, Prepared};
 use crate::embed::{EMBED_DIM, Embedder};
@@ -273,10 +275,18 @@ pub struct RobustRung {
 }
 
 // ── label smoothing (T2) ────────────────────────────────────────────────
+// ── label smoothing (T2) ────────────────────────────────────────────────────────────────
 
-#[inline]
+/// Substrate delegation (the router.rs site-1 discharge pattern; found by
+/// the 2026-10-15 substrate-first drift audit, filed as issue 102). The
+/// two-branch libm reference in katgpt-core replaces the local
+/// single-branch body: bit-identical for args >= 0 (identical expression),
+/// bounded ULPs below (algebraically identical forms, different fp
+/// roundings — pinned by the frozen-legacy test). Report-only probe
+/// (T2 `--label-smooth-ab`), no golden pins on its outputs; the pin makes
+/// any residual movement explicit and bounded, never silent.
 fn sigmoid(x: f64) -> f64 {
-    1.0 / (1.0 + (-x).exp())
+    exact_sigmoid_f64(x)
 }
 
 /// The engine's per-label working set: the first `cap` docs of each label
@@ -581,6 +591,61 @@ mod tests {
             smooth_labels(&big, 0.5, 4).1,
             0,
             "α = 0.5: the own term never loses"
+        );
+    }
+
+    #[test]
+    fn sigmoid_delegation_matches_frozen_legacy_body() {
+        // Issue 102 (the router.rs site-1 pattern): robust_ab.rs carried a
+        // local single-branch f64 sigmoid (`1.0 / (1.0 + (-x).exp())`). The
+        // delegation to `exact_sigmoid_f64` must not move T2 label-smoothing
+        // outputs beyond the documented rounding bound — the reachable arg
+        // is `SMOOTH_BETA · (s − SMOOTH_TAU)` = 20·(s − 0.3), which spans
+        // [−26, +14] for a true cosine s ∈ [−1, 1]; the sweep covers a much
+        // wider band (bag dot products are not norm-clamped in principle)
+        // plus the saturation edges, where both forms are bit-identical.
+        // The legacy body is frozen HERE so any future substrate form drift
+        // reds this pin.
+        let legacy = |x: f64| 1.0 / (1.0 + (-x).exp());
+        let mut max_ulps = 0i64;
+        let mut max_ulps_at = 0.0f64;
+        for i in 0..=40_000i32 {
+            let x = -200.0f64 + (i as f64) * 0.01;
+            let got = exact_sigmoid_f64(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
+            } else {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            }
+        }
+        // Edge anchors: the reachable-domain bounds (s = ±1 cosine), the
+        // centre, and the in-band saturation cliff (arg ≥ ~36.8 rounds both
+        // forms to exactly 1.0; 200 re-confirms deep saturation). The far
+        // tail below ≈ −710 is OUT of scope by design — there the one-branch
+        // form underflows to exactly 0 while the two-branch form returns a
+        // subnormal, a bitwise gap no reachable arg ever approaches and no
+        // pin should claim to cover.
+        for &x in &[-26.0f64, 14.0, 0.0, 40.0, 200.0] {
+            let got = exact_sigmoid_f64(x);
+            let want = legacy(x);
+            if x >= 0.0 {
+                assert_eq!(got.to_bits(), want.to_bits(), "x={x} must be bit-identical");
+            } else {
+                let ulps = (got.to_bits() as i64 - want.to_bits() as i64).abs();
+                if ulps > max_ulps {
+                    max_ulps = ulps;
+                    max_ulps_at = x;
+                }
+            }
+        }
+        assert!(
+            max_ulps <= 3,
+            "delegation drifted {max_ulps} ULPs from the frozen legacy body at x={max_ulps_at}"
         );
     }
 }
