@@ -589,6 +589,7 @@ fn null_modelless<const N: usize>(
         gate_fit_selection: false,
         gate_distance_only: false,
         gate_fit_calibrated: true,
+        gate_rho: None,
         kn_route,
         drafter_fix: crate::engine::DrafterFix::Off,
         suite: &prepared.suite,

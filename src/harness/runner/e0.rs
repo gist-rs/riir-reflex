@@ -219,6 +219,7 @@ fn e0_suite(spec: &SuiteSpec, dir: &Path, kn_route: bool) -> Result<E0Suite, Str
         gate_fit_selection: false,
         gate_distance_only: false,
         gate_fit_calibrated: true,
+        gate_rho: None,
         // Issue 079: the route-binding posture rides the invocation, like
         // every modelless engine build.
         kn_route,

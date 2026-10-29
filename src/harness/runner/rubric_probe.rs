@@ -131,6 +131,7 @@ fn rubric_suite<const N: usize>(
         gate_fit_selection: false,
         gate_distance_only: false,
         gate_fit_calibrated: true,
+        gate_rho: None,
         kn_route: false,
         drafter_fix: crate::engine::DrafterFix::Off,
         suite: &prepared.suite,

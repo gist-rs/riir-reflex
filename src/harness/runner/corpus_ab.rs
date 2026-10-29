@@ -280,6 +280,7 @@ fn corpus_ab_suite<const N: usize>(
             // with the pre-knob lane.
             gate_fit_selection: false,
             gate_distance_only: false,
+            gate_rho: None,
             // The published face's drafter lever (issue 079: PerByte,
             // `d3aeeae`) — engages only on the drafter-only path, inert on
             // this lane's by-name suites (massive); armed to keep the

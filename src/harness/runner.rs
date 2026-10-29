@@ -2589,6 +2589,15 @@ struct ModellessInput<'a> {
     /// never lose to the pre-calibration baseline. `--no-gate-fit-calibrated`
     /// restores the old posture for measurement.
     pub gate_fit_calibrated: bool,
+    /// Issue 044 lane (rethink plan 016): the fused-gate fit's target
+    /// abstain rate. `None` = the shipped ρ=30% percentile posture,
+    /// byte-identical for every existing caller; `Some(rho)` re-fits both
+    /// axes at that cal-slice quantile (the rate-targeted posture). The
+    /// polarity: rho is the TARGET ABSTAIN rate on the fit slice (the
+    /// rho-quantile threshold; the distance gate abstains when its
+    /// confidence falls below the threshold), so rho ↑ → escalation ↑ on
+    /// every population.
+    pub gate_rho: Option<f64>,
     /// Issue 079: the legacy `k == N` index-alignment route binding.
     /// `true` (the default) = the incumbent shipped behavior,
     /// byte-identical; `false` (`--no-kn-route`) = the content-bound
@@ -3523,8 +3532,10 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // `confs.len() < 16` arm, so the fallback semantics are
         // identical, and the percentile law itself is pinned bit-identical
         // to the runner's old `quantile` by the migration gate.
-        let rec =
-            recommend_fused_gate(&score_obs, &distance_obs, Posture::Percentile { rho: 0.30 });
+        // Issue 044 lane: the caller-choosable rate target (`gate_rho`) —
+        // `None` keeps this exact shipped posture.
+        let gate_rho = inp.gate_rho.unwrap_or(0.30);
+        let rec = recommend_fused_gate(&score_obs, &distance_obs, Posture::Percentile { rho: gate_rho });
         let (score_threshold, distance_threshold) =
             resolve_gate_thresholds(&rec, &default_cfg, inp.gate_distance_only);
         (score_threshold, distance_threshold, rec)
@@ -4693,6 +4704,12 @@ pub mod seat {
         /// needs the rate-axis posture.
         pub gate_fit_selection: bool,
         pub gate_distance_only: bool,
+        /// Issue 044 lane (rethink plan 016): the rate-targeted gate fit.
+        /// `None` = the shipped ρ=30%, byte-identical; `Some(rho)` re-fits
+        /// the gate at that cal-slice quantile. The rethink ESC instrument
+        /// sets it through [`EscGate::fit_with`]; `esc_knobs()` itself only
+        /// moves at arming.
+        pub gate_rho: Option<f64>,
         /// The drafter-only correction mode (issue 079's tuning axis — the
         /// seat half of the harness `--drafter-fix` flag). DEFAULT `Off` =
         /// the shipped scores, byte-identical for every existing caller.
@@ -4751,6 +4768,7 @@ pub mod seat {
             gate_fit_selection: knobs.gate_fit_selection,
             gate_distance_only: knobs.gate_distance_only,
             gate_fit_calibrated: true,
+            gate_rho: knobs.gate_rho,
             // Issue 079: the seat keeps the engine's INCUMBENT route law
             // (`kn_route: true` — the index-anchored arm, `4ad25df`; the
             // arena's selection surface is the instinct manifest, not a
