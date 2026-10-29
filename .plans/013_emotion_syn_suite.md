@@ -1,6 +1,8 @@
 # Plan 013 — `emotion_syn`: the first-party synthetic emotion suite (the ESC re-source, step 1)
 
 **Status:** IN EXECUTION — filed 2026-10-27. T1–T3 landed; **T4 DONE 2026-10-28** (generation completed 10-27 13:18–13:24; verified before T5: all 60 page digests match the manifest, 4800/1200 rows at exactly 800/200 per label, 0 within-split dupes, 0 cross-split overlap, 0 rows outside 5–45 words, no partial pages); **T5 DONE 2026-10-28** ([Bench 168](../.benchmarks/168_emotion_syn_baseline/RESULTS.md): A0 0.3125 @ 1.88× chance, G1 PASS, determinism ✓ — the specialist floor); **T1b follow-ups DONE** ([Bench 169](../.benchmarks/169_sst5_syn_baseline/RESULTS.md): sst5_syn A0 0.3117, G1 PASS; sst5_syn licence row); **T7 DONE** (the tracked manifest record §16/§17); T6 (riir-train re-fit hand-off, its own lane) remains — the reflex side of plan 013 is COMPLETE.
+**Claimed:** zed-amo-t6-emotionfit, 1793298175, expires 2026-10-31T18:22:55+00:00
+(scope: T6 — the riir-train re-fit of emotion_syn, bag + encoder classes, + the suite's own ESC GOAT pre-registration under amendment A3 in riir-rethink; sst5_syn follows in the same lane after emotion's GOAT)
 **Lease closed:** zed-amo-013-t5a0 (claimed 1793147800, expires 2026-10-29T21:00:00Z) — T4 verification + T5 landed 2026-10-28 (`ed0ffd6` claim; the bench record is the landing); session zed-amo-013-t5a0
 **Lease closed:** zed-amo-013-sst5syn (claimed 1793151000, expires 2026-10-29T22:00:00Z) — the T1b follow-ups (sst5_syn A0 Bench 169 + licence row) + T7 (the tracked manifest record §16/§17) landed 2026-10-28; session zed-amo-013-sst5syn
 
