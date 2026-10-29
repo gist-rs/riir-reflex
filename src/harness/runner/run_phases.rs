@@ -678,6 +678,9 @@ fn run_modelless_suite(
         8 => dispatch!(8),
         10 => dispatch!(10), // Plan 010: s1mb_score (the presented level-key union)
         15 => dispatch!(15), // Plan 010: s1mb_score headroom (a wider pull widens the union)
+        56 => dispatch!(56), // i043: massive_intent_en's deciding front (the stratified REST
+                             // covers 56/59 labels — the R1 read exhausted three rare
+                             // labels; the dispatch is COUNT-keyed, the 59 arm misses it)
         59 => dispatch!(59),
         77 => dispatch!(77),
         842 => dispatch!(842), // Plan 010: s1mb_choice (the option-key union — the massive by-name posture at breadth)
