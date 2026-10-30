@@ -1,6 +1,6 @@
 # Issue 103 — serve slow-drip lane-hold: per-read timeout is not a request deadline
 
-**Status:** OPEN — robustness defect, verified 2026-10-30 (distill session zed-m3-impeccable-distill / riir-refine Research 356; independently confirmed by the verdict reviewer)
+**Status:** FIXED 2026-10-30 (zed-m3-batch316; the fix rides the corpus rule landing — riir-refine batch 316 `4d1fdb2e` encodes the general law this issue verified at home)
 
 ## Finding
 
@@ -33,3 +33,22 @@ Platform caveat carried in their fix (measured, triage D3 BLOCKER): **on Windows
 
 - riir-refine `.research/356_impeccable_design_detector_distill.md` (the distill verdict; the corpus rule candidate `per-read-timeout-vs-request-deadline` will encode the general law)
 - riir-instinct issue 024 (the same defect in the instinct serve edge)
+
+## Resolution (2026-10-30)
+
+`src/serve.rs` gained `RequestDeadlineGuard` (`arm` / `arm_with` / `end` + Drop-disarm): the
+request read runs under a TOTAL wall-clock deadline (`REQUEST_DEADLINE` = 10 s) enforced on BOTH
+axes — the socket read timeout set to the full deadline (the always-works axis; the Windows
+parked-recv quirk) + a 50 ms-poll watchdog thread that calls `shutdown(Both)` at expiry (the
+trickle backstop). `handle_conn` arms before the head read and `end`s after the head parses
+(the coarse per-read `READ_TIMEOUT` is restored for the bounded body reads); Drop disarms on
+the error paths. Regression gates (`request_deadline_tests`, 2 tests): a real loopback
+slow-drip peer (1 byte per 60 ms then silence) is released AT the deadline, and a fast
+legitimate request completes undisturbed. Gates: clippy -D 0, lib 489/489.
+
+The `http_mini.rs:96` site is adjudicated OUT OF SCOPE: it is the CLIENT half of the clef/
+openthai lanes dialing operator-run loopback forwarders — the callers pass their own bounded
+timeouts, the peers are not hostile, and a bare `TcpStream::connect` on a loopback host
+resolves to a single address (the connect-walk rule's own anti-regime). The corpus law:
+riir-refine `per-read-timeout-vs-request-deadline` (batch 316). Sibling fix: riir-instinct
+issue 024 (`c2f909b`), the same guard shape.
