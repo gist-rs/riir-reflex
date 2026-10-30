@@ -12,18 +12,11 @@ BOUNDARY.md wins.
   game runtime, NOT code healing)? NO → another repo; file there.
 - Default build stays ONE foreign code-level dep (`katgpt-core`); `serde_json`
   is the HTTP/JSON edge only. Read BOUNDARY.md before any dep/crate/module.
-- **The laya lane is SUBSTRATE-SIDE** (Issue 008 T4, 2026-09-24): the lane +
-  its deps (`tokenizers`/`sha2`/`gemm`/`libm`, + macOS target-scoped
-  `metal`/`objc2`) live in `../riir-infer`'s `riir-infer-laya` crate; reflex
-  consumes it via the `src/laya/mod.rs` `pub use` shim behind the SAME
-  `laya-riir` / `laya-riir-metal` feature names (public API unchanged) and
-  keeps the CONSUMER-side G5 parity gate + frozen fixture captures. The dep is
-  non-optional (the ungated Python-JSON writer moved with the lane) but
-  compiles to just that writer until a forwarding feature lights the lane. Any
-  lane dep bump re-runs G5 at both postures before a number is published.
-  Third, opt-in posture: `laya-riir-cubecl` (riir-infer Bench 006: 5–8×
-  slower than Metal, beats CPU on short sequences) — never in
-  `RELEASE_FEATURES`.
+- **The laya lane is SUBSTRATE-SIDE** (Issue 008 T4): the lane + its deps live in
+  `../riir-infer`'s `riir-infer-laya`; reflex consumes it via the `src/laya/mod.rs` shim behind the SAME
+  `laya-riir` / `laya-riir-metal` features and keeps the CONSUMER-side G5 parity gate + frozen fixtures. Any lane
+  dep bump re-runs G5 at both postures before a number is published. `laya-riir-cubecl` (riir-infer Bench 006) is
+  opt-in, never in `RELEASE_FEATURES`.
 - **No candle anywhere** (`.issues/006`, owner directive). **No Python
   anywhere** in the shipped binary (owner directive) — Python appears only as
   measurement-lane subprocess oracles.
@@ -42,10 +35,8 @@ modellessly — hashed-feature embedding → `pick_domain` corpus routing →
 `CorpusDistanceGate`). The confidence readout dispatch is INHERITED from
 katgpt-rs Bench 817's verdict — never re-derived. One std-only binary,
 localhost HTTP edge, no daemon framework. Spawned by
-`../katgpt-rs/.proposals/014_katgpt_decision_engine_site.md`, executed by
-`../katgpt-rs/.plans/603_reflex_phase1_engine_harness.md`. Was Private forever
-per katgpt-rs Research 003 — opened public 2026-09-23 as a sanctioned
-exception (Research 003's dated amendment, owner directive 2026-09-22).
+`../katgpt-rs/.proposals/014_katgpt_decision_engine_site.md`. PUBLIC (a sanctioned exception to katgpt-rs
+Research 003, owner directive 2026-09-22).
 
 ## Head vessels (instinct Proposal 001 T4/T7 — the laws that bind THIS repo)
 
@@ -100,506 +91,193 @@ cargo clippy --all-targets --no-default-features -- -D warnings   # flag-OFF pos
 cargo test                                      # semantics gates
 cargo bench --bench decision_set_goat           # G2 latency + G4 alloc (release by construction)
 ./scripts/ci_feature_guard.sh                   # the whole local gate
-./scripts/deny_gate.sh                          # cargo-deny advisories gate (riir-refine plan 298 T2.4 fan-out): vulnerable CRATES at lockfile level, advisories-only scope — the deny.toml ignore list is a membership pin (reason + tracking ref per row); --scan is a workspace report-only sweep; a missing cargo-deny is a LOUD SKIP; standalone (not a guard layer — CI wiring is plan-298 T2.7, owner-gated)
+./scripts/deny_gate.sh                          # cargo-deny advisories gate (riir-refine plan 298 T2.4): membership-pinned ignore list; --scan = report-only; missing cargo-deny = LOUD SKIP; not a guard layer
 
-# The laya lane (weights resolve from LAYA_WEIGHTS_DIR, else LAYA_HOME, else
-# HF download with SHA-256 verification):
+# The laya lane (weights: LAYA_WEIGHTS_DIR, else LAYA_HOME, else HF download, SHA-256 verified):
 cargo test --release --features laya-riir --lib --test laya_riir_parity   # the lane's G5 gate (CPU posture)
-
 # Latency probe (the agent labels the posture):
 cargo run --release --features laya-riir --example laya_fixture_timing -- riir english 3
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --example laya_fixture_timing -- riir english 3
-# CUDA posture (4090; G5 + timing, typed 13.8 ms row p50):
-# LAYA_DEVICE=cuda cargo test --release --features laya-riir-cuda --test laya_riir_parity
-# LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --example laya_fixture_timing -- riir typed 5
-# Full harness at the CUDA posture (Bench 082: 15/15 PASSED, typed acc
-# byte-identical cross-host 0.7445 at 164 ms p50). ⚠ REFLEX_BENCH_HOST is
-# REQUIRED there (unset label REFUSES at row birth — the phantom-host sentinel):
+# CUDA posture (4090): LAYA_DEVICE=cuda + --features laya-riir-cuda on the same targets. ⚠ REFLEX_BENCH_HOST is
+# REQUIRED there (unset label REFUSES at row birth):
 # REFLEX_BENCH_HOST=4090-windows LAYA_DEVICE=cuda cargo run --release --features laya-riir-cuda --bin harness -- --out .benchmarks/<bench>_tables
 
 # The katgpt-rs Plan 603 T1.5 harness (datasets first):
 scripts/fetch_datasets.sh
 cargo run --release --bin harness                       # both-lane tables → .benchmarks/001_phase1_tables/
-
-# The public artifact fetch lane (riir-ai Plan 623 T6 / Issue 069): public-class
-# assets from hf://gist-rs/<repo>-artifacts into artifacts/cache/, BLAKE3 +
-# exact-size verified BEFORE use; protected rows refused; CHECK=1 = cache
-# verify only. No manifest = honest no-op (committed fixtures are the default):
+# Public artifact fetch (riir-ai Plan 623 T6 / Issue 069): BLAKE3 + exact-size verified BEFORE use; protected rows
+# refused; CHECK=1 = cache verify only; no manifest = honest no-op:
 scripts/fetch_artifacts.sh
 
-# Corpus-cap levers (Issue 013; Bench 004: ag_news default 64 CONFIRMED,
-# banking77 stays 40; banking77 selection TRANSFERS post-Issue-023 but was
-# declined on perf/sec):
+# Corpus-cap / accuracy-lever / NLI pair-feature probes (Issue 013, Issue 044, Issue 047 — Benches 003–005, 069, 073;
+# all REFUTED or closed measured-negative; kept for re-runs):
 cargo run --release --bin harness -- --skip-laya --suites banking77,ag_news --cal-select-cap
-
-# Accuracy-lever probes (Issue 013, all REFUTED — Bench 003/004/005; re-read
-# post-Issue-023 confirms: banking77 net 0, massive too spread):
 cargo run --release --bin harness -- --skip-laya --pair-head-ab --out /tmp/pairhead_ab
-
-# NLI pair-feature head A/B (Issue 044 T3, xnli-shaped suites only): the
-# blend's +5.67 pt FAILED the G1 floor; the G1-constrained reopen (Bench 069)
-# was UNSATISFIABLE; Issue 047 / Bench 073 closed xnli measured-negative on
-# the fresh validation slice — the gap stands ACCEPTED (raw max-prob AUROC
-# 0.6542 is the honest confidence surface there):
 cargo run --release --bin harness -- --skip-laya --nli-feature-ab --out /tmp/nli_feature_ab
-
-# Issue 047 M1 validation-reopen lane (CLOSED, Bench 073; reads
-# xnli_en_val ONLY — never the spent test split):
 cargo run --release --bin harness -- --skip-laya --head-select --nb-select --ridge-select \
   --nli-m1 --suites xnli_en_val --datasets-dir .raw/datasets_t20k \
   --out .benchmarks/073_nli_m1_validation
 
-# Option-permutation spread probe (Issue 077 / Bench 128): every probed lane
-# answers each choice question under K deterministic option orderings through
-# its own decide path; gate median ≤ 2 pt; the modelless control holds
-# ties-only flips + the L1 fp envelope (a control red refuses the run).
-# Comparison lanes ride --drex / --d1 / --agentjev / --jeva (servers up, loud
-# refusals); --clef-local rides the seated in-process ANE arm (riir-infer plan 619 T3.3,
-# feature clef-ane — the HTTP arm is never wired into the probe: uncapped
-# hosted spend; bench 153: order-invariant by construction, 0.00 pt / 0 flips);
-# laya rides its feature + G5 parity FIRST (`--test laya_riir_parity`).
+# Option-permutation spread probe (Issue 077 / Bench 128): K deterministic option orderings per lane; gate median
+# ≤ 2 pt; a modelless-control red refuses the run. --clef-local rides the in-process ANE arm (never the hosted HTTP arm).
 cargo run --release --bin harness -- --perm-probe --out .benchmarks/<N>_perm_spread/<posture>
 cargo run --release --bin harness -- --perm-probe --drex --agentjev --suites typed_decisions --out <out>
 
-# The clef comparison lanes (plan 011 hosted + riir-infer plan 619 local): `--clef`
-# runs Cloudflare's decision model over the operator-run loopback forwarder
-# (CLEF_* env contract in src/lanes/clef.rs; spend ceiling CLEF_SMOKE_MAX_CASES);
-# `--clef-local` (feature `clef-ane`, macOS) runs clef-text-0.6b IN-PROCESS on
-# the Neural Engine through riir-infer-clef — bit-exact vs the official
-# FluidUse runtime (riir-infer T2.2), the same decide surface and warmup law.
-# Board read: reflex bench 152; perm-probe: bench 153 (order-invariant by
-# construction). The student-vs-teacher caveat stands (0.6b student of
-# clef-flash); comparison lanes never read as product rows.
-
-# Clef headful confidence-candidate probe (Issue 094 T3, Bench 158: the
-# candidate RECORDED NEGATIVE — fails both floors on 8/9, the banking77
-# letter-PASS disqualified by its inverted AUROC 0.365; lens depth DEFERRED
-# on the ANE posture — one output, a CPU forward port is the unblock).
-# Report-only, macOS + feature `clef-ane`: the local lane's last-position
-# vocabulary entropy (riir-infer `0f876b8`, same-decode — no second ANE
-# forward) against BOTH floors (the Drex split-half conformal shape + the
-# modal census priced both ways via `census_with_pairs`). Case-level signal
-# (one entropy per case); load-invariant accuracy columns, ms =
-# characterization only (quote the preflight line beside any latency).
+# Clef lanes (plan 011 hosted `--clef` via the loopback forwarder, spend ceiling CLEF_SMOKE_MAX_CASES; riir-infer
+# plan 619 `--clef-local`, feature clef-ane, macOS). Comparison lanes never read as product rows.
+# Clef confidence-candidate probe (Issue 094 T3, Bench 158 — RECORDED NEGATIVE; report-only):
 cargo run --release --features clef-ane --bin harness -- --clef-conf-probe \
   --clef-conf-max-cases 100 --out .benchmarks/<N>_clef_conf_probe
 
-# Null/K-stability probe (Issue 090 A1–A3, Bench 147): decoy augmentation
-# (graded K-appended decoys, originals keep positions) through the deployed
-# decide path; A2 = within-regime preference flips (zero beyond exact ties;
-# cross-regime flips = the k ≤ N by-name route-arming law, disclosed), A3 =
-# paired-noul bit-identity + the confidence shape, A1 = the abstention drift
-# curve + the Report-the-Floor gate (deployed calibrated conf vs the
-# conformal-naive floor). Control reds refuse the run (exit 1, record on disk).
-# The Issue-092 2-feature candidate leg (σ(a·maxp + b·ent + c) vs the floor,
-# fit on the same cal slice) rides every modelless cell REPORT-ONLY — measured
-# NEGATIVE (Bench 151: 1/6, the cal slice is not a ranking-training signal); it
-# never gates the run and never arms anything.
-cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe
-
-# Rubric-covariance + route-agreement probe (Issue 090 C1, Bench 149): the
-# Σq·v score-readout algebra pinned at three surfaces (engine-raw / the
-# serve edge's f64 L1 / the round6 wire rendering — each self-consistent);
-# I1 scale + I2 shift identities, I3 value-blind argmax (the round6 near-tie
-# collision class), I4 Σq residual vs the wire budget; route agreement
-# (context vs state-alone vs option semantic routes) is characterization.
-# Identity reds refuse the run (exit 1, record on disk).
-cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe
-
-# Gate-drift capacity diagnostic (Issue 093, Bench 154): CorpusDistanceGate
-# abstention populations vs corpus growth (suite concatenation 1x/2x/4x over
-# ag_news+emotion+sst5+xnli_en; off-corpus probes from banking77+massive,
-# held out from every family suite at every size). REPORT-ONLY — the T2
-# close condition FAILED (drift confirmed, refit off-corpus false-accept
-# 48.7→77.0% at 1x/2x/4x); the issue stays open carrying the record.
-# --gate-drift-off <n> / --gate-drift-in <n> size the probe budgets
-# (defaults 200/source, 100/suite). No gate, no exit-code coupling.
-cargo run --release --bin harness -- --gate-drift-probe --out .benchmarks/<N>_gate_drift
-
-# Set-refine paired A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in feature
-# `set_refine`; Bench 150): the engine seam knob `set_refine_gamma` (default
-# 0.0 = byte-identity) refines the state embedding by the option set's
-# sigmoid-gated directions before scoring. MEASURED NEGATIVE at the GOAT —
-# G1 FAIL −12.3..−14.0 pt on the wide by-name suites, monotone in γ
-# (structural: unit-centroid keys pull the state toward the corpus mean);
-# G2/G3/G4 pass; the lane stays opt-in with the record. Re-open = a different
-# key family, never a γ/τ retune.
+# Report-only probes — control/identity reds refuse the run (exit 1, record on disk):
+cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe        # Issue 090 A1–A3, Bench 147
+cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe    # Issue 090 C1, Bench 149
+cargo run --release --bin harness -- --gate-drift-probe --out .benchmarks/<N>_gate_drift  # Issue 093, Bench 154
+# Set-refine A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in `set_refine`, Bench 150 — MEASURED NEGATIVE, stays opt-in;
+# re-open = a different key family, never a γ/τ retune):
 cargo run --release --features set_refine --bin harness -- --set-refine-ab --out .benchmarks/150_set_refine_ab_goat
 
-# Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN
-# else PATH — build: (cd ../riir-neuron-db && cargo build --release -p neuron-db-cli)):
+# Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN else PATH):
 NDB_BIN=../riir-neuron-db/target/release/ndb \
   cargo run --release --features corpus_db --bin harness -- \
   --runs-kv --save-corpus emotion,sst5 [--kv-dir .harness/ndb-data]
 cargo test --features corpus_db --lib corpus_db -- --nocapture  # golden round-trip SKIPs loud without NDB_BIN
-
-# Near-duplicate leak index (Issue 024, opt-in `slice_leak`; G1 runs
-# scripts/slice_leak_probe.py LIVE — Rust counts must match; UNSEEN without
-# .raw/datasets, SLICE_LEAK_REQUIRE_DATA=1 makes that a failure):
+# Near-duplicate leak index (Issue 024, opt-in `slice_leak`; G1 runs scripts/slice_leak_probe.py LIVE;
+# SLICE_LEAK_REQUIRE_DATA=1 makes missing .raw/datasets a failure):
 cargo test --release --features slice_leak --test slice_leak_oracle -- --nocapture
-
 # E0 evidence density (riir-instinct Issue 005 T1, opt-in `nb_scope`; report-only):
 cargo run --release --features nb_scope --bin harness -- --e0 \
   --out .benchmarks/053_e0_evidence_density
-
-# Residual-stability depth probe (Issue 094 T2, opt-in `twt_profile`;
-# report-only, no serving-path change): per question the serving pick + one
-# encoder_forward_capture through riir-infer Issue 1106's StabilityTracker.
-# Reads: the substrate's SUFFIX stabilization depth + the consumer-side
-# WINDOWED-TROUGH depth (the English checkpoint's residual stream
-# re-accelerates in the tail — trough l2 ≈ 4–20 mid-depth, 90–130 final —
-# so the suffix law is structurally None here; the trough is the usable
-# candidate). Band defaults pin the measured scale (cos 0.995 / l2 25 /
-# window 2); AUROC(trough→correct) + ECE(trough) vs the T1 modal floor.
+# Residual-stability depth probe (Issue 094 T2, opt-in `twt_profile`; report-only):
 cargo run --release --features twt_profile --bin harness -- --depth-probe \
   --depth-max-cases 100 --out .benchmarks/depth_probe_n100
-
-# Distill teacher pass (riir-train Issue 576 T3, opt-in `laya-riir`;
-# student = riir-train examples/instinct_arm_b, Bench 609):
+# Distill teacher pass (riir-train Issue 576 T3, opt-in `laya-riir`):
 cargo run --release --features laya-riir-metal --bin harness -- --distill \
   --datasets-dir .raw/datasets_t20k --distill-out .raw/distill_teacher
 
-# StartLux comparison lane (Issue 095 — closed, HISTORY.md 2026-10-24 — fed riir-train 635 T3; the 4090
-# boot: llama-server b11549 -ngl 99 Q4_K_M on :8081 + STARTLUX_LLAMACPP_BIDIR=server
-# startlux-decide serve --backend llamacpp --port 8090; CC BY-NC 4.0 —
-# DECLARED-NC RESTRICTED, adoption fail-closed):
+# StartLux comparison lane (Issue 095, closed; CC BY-NC 4.0 — DECLARED-NC RESTRICTED, adoption fail-closed):
 cargo run --release --bin harness -- --skip-laya --startlux
-
-# mammoth/elephant comparison lane (rethink Issue 032 T10 / Research 012,
-# `--mammoth` / `--elephant`): Base Labs' mammoth-1 — the JDI 0.4.1 board-#1
-# public print 75.34 (MIT — the first permissively-licensed board-#1; no NC
-# posture) — or elephant-1 (72.24, MIT, 9B) on Baseten Model APIs, reached
-# ONLY through the operator-run loopback TLS forwarder (the clef A0 law; the
-# hop is part of the row's latency claim). The HOSTED `--mammoth` lane stays
-# MEASUREMENT-ONLY — API outputs never enter a capture artifact (teacher
-# lineage stays self-hosted, riir-train 640); the SELF-HOSTED capture arm is
-# `--distill-teacher mammoth` over the operator rig's local OneJev serve
-# (riir-train 640 T3b, the elephant arm's twin). **THE STANDING TEACHER POINTER** (owner
-# GOAT-or-defer law, rethink decision-index-beat law 9): mammoth-1 is the
-# board's #1 AND highest OPEN-weights entrant (still #1 at the 2026-10-26
-# read, 75.34 of 229) — the default Step-4 teacher candidate for every
-# decision-index lane until a newer board displaces it; licence (MIT) and
-# the contamination read (grammar-not-answers) still gate, board rank alone
-# never qualifies. Re-fetch the Baseten ToS + Model-APIs policy
-# before the run (the free week ended 2026-10-27 23:59 PT; the key is an
-# OWNER act):
+# mammoth/elephant lane (rethink Issue 032 T10 / Research 012): hosted API reached ONLY through the operator-run
+# loopback TLS forwarder; hosted outputs are MEASUREMENT-ONLY (never a capture artifact). THE STANDING TEACHER
+# POINTER: mammoth-1 (MIT, board #1 + highest open-weights) is the default Step-4 teacher candidate until a newer
+# board displaces it — licence + contamination still gate. API key + ToS re-fetch are OWNER acts.
 MAMMOTH_SERVE_URL=http://127.0.0.1:8793 MAMMOTH_API_TOKEN=... \
   cargo run --release --bin harness -- --mammoth --suites typed_decisions --skip-laya
-
-# The LOCAL postures (032 T10.2, the LOCAL-FIRST law — Research 012): both
-# checkpoints self-host on amo (MPS bf16, OneJev@81ce62f + serve.patch,
-# qev venv) through OUR reference servers — mammoth via
-# `.raw/mammoth-local/serve_mammoth.py` (:8793, the 27B), elephant via the
-# COMMITTED `scripts/elephant_server.py` (:8096, the 9B; ELEPHANT_FORK_MODE
-# default sequential — the auto-selected batched fork runs the qwen3_5 GDN
-# reference fallback pathologically slow on MPS, answers byte-identical
-# between postures; MPS hygiene after every decide). Same lane, no creds
-# gate, the spend ceiling stays (a typo'd non-local URL must hit a ceiling):
-# `ELEPHANT_ALLOW_UNCAPPED=1 cargo run --release --bin harness -- --elephant
-# --skip-laya --suites sst5`. A LOCAL row is a DIFFERENT posture from the
-# API row, never pooled. Panel rigs (gitignored operator rigs + watchdog):
-# `.raw/mammoth-local/` + `.raw/elephant-local/` (the mammoth twins);
-# records: reflex Benches 162 (mammoth 12/12) + 164 (elephant 12/12 — adds
-# ZERO routed lift, rethink bench 074; the panel outputs committed `de24d2c`;
-# the capture leg's Metal crash is 164 §6, re-running as the 640-T3 recapture).
-
-# The T2.5 modelless teacher router (riir-train Issue 629 T2.5; offline — no
-# GPU, no test row): sigmoid-gated per-suite blend over CAPTURED RIDT columns
-# (T=0.01, never softmax; per-row gold-pin join verification; emits the routed
-# RIDT artifact + passthrough byte-copy; the verdict is T4's frozen read):
+# LOCAL postures (the LOCAL-FIRST law): mammoth via `.raw/mammoth-local/serve_mammoth.py` (:8793), elephant via
+# `scripts/elephant_server.py` (:8096, ELEPHANT_FORK_MODE default sequential); a LOCAL row is never pooled with API:
+# ELEPHANT_ALLOW_UNCAPPED=1 cargo run --release --bin harness -- --elephant --skip-laya --suites sst5
+# Modelless teacher router (riir-train Issue 629 T2.5; sigmoid-gated per-suite blend over captured RIDT, never softmax):
 cargo run --release --bin harness -- --teacher-router \
   .raw/distill_teacher_d3,.raw/distill_teacher_pplx_v2,.raw/distill_teacher_clef \
   --router-out .raw/distill_router
 
-# CLM comparison lane (Issue 019, opt-in `clm-lane`; prose law byte-pinned to
-# sha `cca045ff` via scripts/clm_goldens.py; Bench 059 = the T-Rex re-run):
+# CLM lane (Issue 019, opt-in `clm-lane`; prose law byte-pinned via scripts/clm_goldens.py):
 cargo test --features clm-lane --lib lanes::
-
-# GLiNER lane (Issue 029, `--gliner`, no feature gate; scripts/gliner_lane.py
-# subprocess oracle; env GLINER_PYTHON / GLINER_PY_DEVICE / GLINER_MODEL):
+# GLiNER lane (Issue 029; scripts/gliner_lane.py subprocess oracle; GLINER_PYTHON / GLINER_PY_DEVICE / GLINER_MODEL):
 GLINER_PYTHON=.raw/gliner-env/Scripts/python.exe \
   cargo run --release --bin harness -- --gliner --suites banking77 --skip-laya
-
-# AgentJev lane (Issue 025 / .issues/027, `--agentjev`; their jev_service @
-# a965ca8f over HTTP; typed_decisions gold-label 0.7715 vs our 0.7445):
+# AgentJev lane (Issue 025):
 AGENTJEV_SERVE_URL=http://127.0.0.1:8149 \
   cargo run --release --bin harness -- --agentjev --suites typed_decisions --skip-laya
-
-# Jev-Mem backend lane (Issue 081; reflex AS the System-One backend — the
-# inverse of every comparison lane: THEIR SDK calls US). The serve's
-# `/v1/systemone` route speaks the TypeSafe wire; their pipeline plugs in
-# with TYPESAFE_BASE_URL + a dummy key (zero patches). The E2E probe:
-# their venv (uv venv .raw/jevmem-env; uv pip install typesafe-sdk networkx
-# numpy tqdm) + their checkout at .raw/jev-mem @ 7ab0c73c + `reflex` serving:
+# Jev-Mem backend lane (Issue 081; reflex AS the System-One backend via `/v1/systemone`, TYPESAFE_BASE_URL):
 .raw/jevmem-env/bin/python scripts/jevmem_demo_e2e.py   # seam + determinism strip
-
-# PAW lanes (Issue 033, `--paw` hosted / `--paw-local`; one program per
-# QUESTION SHAPE — scripts/paw_specs/<suite>[.<qid>].txt; per-shape resolver
-# is paw::resolve_shapes, BOTH lanes). Board tier = PAW_COMPILER=paw-ft-bs48-20260530
-# + PAW_COMPILE_ASYNC=1 (NOT optional). Local setup:
-#   uv venv .raw/paw-env
-#   PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin \
-#     uv pip install --python .raw/paw-env/bin/python programasweights==0.4.10   # mask sccache (0.13.0 breaks the build)
-#   .raw/paw-env/bin/python scripts/paw_preload.py   # 594 MB base + bundles (detached, resumable)
+# PAW lanes (Issue 033; one program per QUESTION SHAPE in scripts/paw_specs/; board tier needs
+# PAW_COMPILER=paw-ft-bs48-20260530 + PAW_COMPILE_ASYNC=1; preload via scripts/paw_preload.py,
+# programasweights==0.4.10 installed with sccache masked from PATH):
 PAW_LOCAL_PYTHON=.raw/paw-env/Scripts/python.exe \
   cargo run --release --bin harness -- --paw-local --skip-laya
-
-# Cascade lane (Issue 038 T4′ / Bench 061; needs laya-riir, mutually exclusive
-# with --skip-laya). Verdict: shipped fused gate NEGATIVE (issue 042); the
-# COMBINED posture (Bench 066: --gate-fit-selection --gate-distance-only,
-# margin 0.16 — Bench 063, 10/10 PASS) passes the issue's full T4′
-# acceptance. Lever 4 `--cascade-worthiness-lcb` (Bench 070) is OPT-IN; the
-# combined-posture LCB leg is a PROVABLE no-op (Bench 071).
-# `--gate-fit-calibrated` is the DEFAULT posture since Issue 056 (katgpt-rs
-# Issues 909/910/911 Platt-solver repairs; `--no-gate-fit-calibrated` restores
-# fit-on-raw). `--mc-ab` (Issue 055, Bench 092) is the recorded NEGATIVE.
+# Cascade lane (Issue 038 T4′; needs laya-riir; COMBINED posture Bench 066 passes T4′). `--gate-fit-calibrated` is
+# the DEFAULT since Issue 056 (`--no-gate-fit-calibrated` restores fit-on-raw); `--mc-ab` (Issue 055) is NEGATIVE:
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal --bin harness -- \
   --datasets-dir .raw/datasets_t20k --cascade --cascade-worthiness --cascade-worthiness-margin 0.16 \
   --nb-select --oc-select --ridge-select --gate-fit-selection --gate-distance-only \
   --out .benchmarks/066_gate_rate_axis_levers/both
-
-# cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS EXAMPLE — never in
-# the default run; scripts/cua_s1_lane.py subprocess; coreml reads
-# 24,359/24,370 == their published result):
+# cua-s1-forms CoreML arm (Issue 035 / Bench 048, macOS example; scripts/cua_s1_lane.py subprocess):
 scripts/bench_preflight.sh
 LAYA_DEVICE=metal cargo run --release --features laya-riir-metal \
   --example cua_s1_forms_arena -- --lanes coreml,modelless,laya --n-laya 2437
-
-# openthai comparison lane (Bench 074 lineage, `--openthai`; fp32 numerics
-# pinned via OPENTHAI_SYSTEMONE_DTYPE — their client default is bf16;
-# Benches 084/085/086 = 4090 + M3 full fill, option-count scaling law
-# 1.2×→17.2×):
+# openthai lane (fp32 pinned via OPENTHAI_SYSTEMONE_DTYPE; their client default is bf16):
 OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
   cargo run --release --bin harness -- --openthai --skip-laya
-
-# Drex DLM comparison lane (Issue 073, `--drex`; CC BY-NC weights =
-# measurement only): their serve.py on DREX_SERVE_URL (default 127.0.0.1:8000;
-# the llama.cpp edlm fork's 8097 equally valid — the reply's model field
-# discloses which). Serve: .raw/drex-env (torch cu124 + transformers 5.19)
-# + .raw/drex-model; the owned cells: gold-label accuracy per primitive +
-# the ECE/Brier of their confidence fields (T4 readout_brier).
-# ⛔ FAMILY DEFERRED (owner GOAT-or-defer law, rethink decision-index-beat
-# law 9, 2026-10-27): the existing `--drex` lane stays for re-runs of its
-# owned cells, but NO new Drex work — no `--drex-max` hosted lane, no v2.0
-# inference lane, no capture. Two independent grounds: (1) the license gate
-# (Issue 085: v1.5/v2.0 RAIL-M §2(c) competitor clause, written permission
-# reopens; Drex Max is CLOSED-weights — hosted only); (2) the board rank —
-# NOT GOAT at the 2026-10-26 read (229 entrants): Max v1 67.52 (~rank 16),
-# v2.0 61.25 (~rank 46), v1.5 58.08, with 12+ OPEN-weights entrants above
-# Max. The teacher pointer stays on the board's highest open entrant (the
-# mammoth/elephant lane above). Re-read the live board before ever
-# revisiting — editions move.
+# Drex DLM lane (Issue 073; CC BY-NC = measurement only; their serve.py on DREX_SERVE_URL). ⛔ FAMILY DEFERRED
+# (rethink decision-index-beat law 9): re-runs of owned cells only — no new Drex lanes/captures (Issue 085 license
+# gate + not GOAT on the board). Re-read the live board before revisiting.
 DREX_SERVE_URL=http://127.0.0.1:8000 \
   cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
-
-# LiquidAI d1 comparison lane (Issue 078, `--d1`; license other/lfm1.0 =
-# measurement only): .raw/d1_server.py (their in-repo D1Model behind a
-# stdlib listener, port 8078) on D1_SERVE_URL; fp16 · calibration=None ·
-# WINDOWS-SPLIT posture (their one-pass tree needs flash kernels no Windows
-# torch wheel compiles — verified through 2.11+cu128). Board cells: bench 129
-# (typed 0.6510 / xnli 0.8167 / massive 0.9067; ECE 0.037–0.051 raw;
-# perm-probe RED ×3/6).
+# LiquidAI d1 lane (Issue 078; measurement only; .raw/d1_server.py on :8078, WINDOWS-SPLIT posture):
 D1_SERVE_URL=http://127.0.0.1:8078 \
   cargo run --release --bin harness -- --d1 --suites typed_decisions --skip-laya
-
-# Jeva comparison lane (Issue 090 B1, feeding riir-train 632 T2): the first
-# decision-native PAPER model on our split — LIQIIIII/Jeva-4B (arXiv:2610.18773;
-# Qwen3.5-4B backbone + 13.37M decision head). Weights license UNDECLARED →
-# MEASUREMENT + TEACHER-CAPTURE posture, adoption FAIL-CLOSED (632 T0). OUR
-# reference stdlib server over their in-repo jeva.Jeva; the venv needs their
-# repo + torch/transformers (uv venv .raw/jeva-env; uv pip install -e .raw/jeva
-# — repo cloned at the pin). Noul reads their CONDITIONAL q_true (the paper's
-# A3 readout); --perm-probe/--null-probe accept the lane (their 0.00% order-
-# flip bar is the B2 0-flip floor's target; arm the coverage gate server-side
-# with JEVA_ALLOW_NULL=1 for the A1 posture). The distill seam knows
-# --distill-teacher jeva (the B2 capture rider — RIDT carries the license note):
+# Jeva lane (Issue 090 B1, riir-train 632 T2; license UNDECLARED → measurement + teacher-capture, adoption
+# FAIL-CLOSED; macOS serve: JEVA_DEVICE=mps .raw/jeva-env/bin/python scripts/jeva_server.py, Bench 148):
 JEVA_SERVE_URL=http://127.0.0.1:8095 \
   cargo run --release --bin harness -- --jeva --suites typed_decisions --skip-laya
-# MEASURED 2026-10-16 (Bench 148): the full 9-suite board + perm (0 flips / 255
-# slots) + null-probe (A2 0 flips; A1 their-gate drift +2.6..+12.5 pt) at
-# reflex a3cd05c. macOS serve (the M3 lane — the CUDA default declined):
-#   HF_HOME=$PWD/.raw/jeva-hf JEVA_DEVICE=mps JEVA_PORT=8095 \
-#     .raw/jeva-env/bin/python scripts/jeva_server.py
-# (bf16 config dtype disclosed via /health; the qwen3_5 GDN layers run
-# transformers' reference PyTorch fallback — fla/triton unavailable on macOS;
-# ~0.3–4.1 s/case warm-cache. Bare-label suites ride their SEQUENCE arm —
-# the lane's first live wire fix, Bench 148 §findings.)
 
-# Corpus-synthesis lane (riir-train plan 426 T5, `8426cef`): sealed SYNT v2
-# artifact + blake3 sidecar, openthai agreement VETO. --synth-plan is
-# REPORT-ONLY; --synth-corpus writes; --corpus-ab is the V5 gate (paired LB95,
-# one frozen test read). Issue 064 ascent leg: --synth-density-pilot (report)
-# + --synth-density-gate <p50|p75|p90>; Bench 120/121/122 verdict: UNGATED
-# beats every gate strength — the seated corpus stays the ungated artifact.
-# Rescue pre-filter (riir-refine Issue 156 T4, OPT-IN): --synth-rescue-prefilter
-# — the FlyBy b0 leg (arXiv:2609.34327): the LOCAL modelless engine answers
-# each candidate at the forced pick BEFORE the teacher forward; a
-# no-tool-solved candidate (V>0, execution-reachable) is rejected without
-# spending the veto call. AUGMENT, never replace — the veto stays the
-# acceptance authority, the filter can only narrow; artifact meta carries
-# `rescue_rule` (additive, version stays 2).
-# EVERY --corpus-ab pass computes the echo gates (abstention-entropy KL ≤ 0.05;
-# OOD word-dropout ladder, gate rung .20): a clean V5 PASS with a negative
-# gate-rung LB95 reads ECHO = the lane dies.
-# Probe-delta certification (katgpt-rs Plan 621 T5.1, OPT-IN feature
-# `probe_delta_ab`): `--corpus-ab <artifact> --probe-delta-ab` adds the FlyBy
-# paired counterfactual ΔV record (arXiv:2609.34327) beside the V5 verdict —
-# katgpt-core `state_probe` over the DISCORDANT pairs: classify(ε = 0.5) =
-# MOVES VALUE / NO VALUE / UNDETERMINED (the sign test), the adaptive prefix
-# walk discloses `settled_at_n` + every flip with its interval width. The
-# certification of record is the FULL frozen read; AUGMENTS, never replaces
-# (the V5 paired-LB95 gate law is unchanged). Real first read 2026-10-11:
-# massive_intent_en 11W/1L → MOVES VALUE, settled @ n=128, agreeing with the
-# V5 PASS. Exclusive early-exit modes:
+# Corpus-synthesis lane (riir-train plan 426 T5): --synth-plan REPORT-ONLY, --synth-corpus writes, --corpus-ab is the
+# V5 gate (paired LB95, one frozen test read) + the echo gates on EVERY pass (ECHO = the lane dies). Seated corpus
+# stays UNGATED (Benches 120–122). Opt-in riders: --synth-rescue-prefilter (riir-refine Issue 156 T4, AUGMENT never
+# replace the veto) and --probe-delta-ab (katgpt-rs Plan 621 T5.1, feature `probe_delta_ab`). Exclusive early-exit modes:
 cargo run --release --bin harness -- --synth-plan --help
 cargo run --release --bin harness -- --corpus-ab --help
 ```
 
-- Default features = `["modelless"]`; `--no-default-features` is the tested
-  flag-OFF posture.
-- **Repo-birth gate discipline (T1.1e):** every `#![cfg]`-gated target carries
-  its `required-features` row in the SAME commit (`[[bin]]`, `[[test]]
-  engine_gates`, `[[bench]] decision_set_goat` pin `modelless`; the laya
-  parity `[[test]]` row pins `laya-riir`). A whole-file-gated target without
-  its row prints `ok. 0 passed`, exit 0, forever.
-- **G5 parity LANDED 2026-09-22** — 88/88 forwards, top-1 agreement 1.0 per
-  checkpoint, drift ≤ 3.1e-6 vs the 1e-3 gate (both profiles). The gate runs
-  before ANY published laya number; a failed gate marks the lane PROVISIONAL
-  everywhere. Port traps: candle's `Tensor::gelu()` is the TANH approximation
-  (reference is erf — `gelu_erf()`); the sdpa sliding-window mask radius is
-  `local_attention // 2` — either wrong = length-correlated drift 4 orders
-  over the gate.
+- Default features = `["modelless"]`; `--no-default-features` is the tested flag-OFF posture.
+- **Repo-birth gate discipline (T1.1e):** every `#![cfg]`-gated target carries its `required-features` row in the
+  SAME commit. A whole-file-gated target without its row prints `ok. 0 passed`, exit 0, forever.
+- **G5 parity** runs before ANY published laya number; a failed gate marks the lane PROVISIONAL everywhere. Port
+  traps: candle's `Tensor::gelu()` is TANH (reference is erf — `gelu_erf()`); the sdpa sliding-window radius is
+  `local_attention // 2`.
 
-## Phase 2 status (katgpt-rs Plan 606) — LANDED 2026-09-22
+## Release + serve surface (katgpt-rs Plan 606 Phase 2; release records in HISTORY.md)
 
-- **Build stamp** (`src/build_stamp.rs` + `build.rs`): `--version` prints the
-  COMPILED feature set + `release set: STALE — missing …` + the rebuild
-  command when incomplete. `RELEASE_FEATURES = modelless+laya-riir` since the
-  candle-free cut.
-- **Bin name `reflex` (2026-09-23)**: serve bin renamed `riir-reflex` →
-  `reflex` (owner ask); package/crate name unchanged (`brew install
-  riir-reflex` / scoop keep the formula name). ALL dist-side follow-ups
-  DISCHARGED in v0.2.2 (`367766c`+`932a2a3` + tap `d60e40d` + bucket `75d2878`
-  + dist `ba750f4`) — archives carry `reflex`; installers accept both
-  spellings.
-- **v0.2.2 (2026-09-23)**: fitted Tetris head (decoded katgpt-rs Bench-881
-  arm, λ=1, head digest `00aa6221…c6e`, boot-fit from `assets/game_heads/`)
-  + Metal-default laya on darwin (`LAYA_DEVICE=cpu` opts out; G5 green both
-  postures; interleaved p50 78.1 vs 176.8 ms = 2.26×).
-- **v0.2.3 (2026-09-24)**: THREE-BOARD release (issue 011 closed) — lanes at
-  katgpt-rs Bench 880's lossless decoded arm (λ 0.01, 84/100, digest prefix
-  `7d3f1d8e`) + flappy at katgpt-rs Bench 882's v3 decoded arm (λ 1, 96/100,
-  FULL digest `c93d36dc…e3c5`). Joined-state protocol: the sentence sequence
-  rides `state` one per line (`noul` carries no options by wire law). Carries
-  the Metal BK64+xwide lane (`a51ea42`) and the Issue-015 fix (`a3215da`).
-- **v0.2.4 (2026-10-03)**: Issue 063 first-corpus lane (`RIIR_REFLEX_CORPUS`,
-  `/healthz` corpus disclosure) + Issue 062 wire id fix; game heads MINT-ONLY
-  (boot-fit retired). Gates 9/9, G2 p99 44 µs, leak scan ×5.
-- **CORS seam** (`src/serve.rs`): `RIIR_REFLEX_ALLOWED_ORIGIN` allow-list,
-  default CLOSED; `serve_listener_with` is the test seam.
-- **Release pipeline**: `[profile.dist]` (strip + fat LTO),
-  `scripts/build-release.sh` (dist build + SHA256SUMS + licenses),
-  `scripts/binary_leak_scan.sh`, `scripts/install_copy_parity.py`. Cross
-  targets via `cargo zigbuild` from the M3; dist surface = **gist-rs/reflex**
-  (NEVER this source repo — the v0.2.3 wrong-repo lesson). v0.1.1 live on
-  gist-rs/reflex: macOS aarch64+x86_64, linux musl ×2, windows gnu.
-- **Arena site** (gist-rs/reflex-site) live at <https://reflex.riir.ai>
-  (custom domain, dashboard-attached — deliberately not in `wrangler.toml`);
-  `/bench/` rendered from `data/bench.json` via `scripts/publish_bench.py`
-  (sanitizes machine-local meta).
+- **Build stamp** (`src/build_stamp.rs` + `build.rs`): `--version` prints the COMPILED feature set + `release set:
+  STALE — missing …` + the rebuild command. `RELEASE_FEATURES = modelless+laya-riir`.
+- **Bin name `reflex`**; package/crate name stays `riir-reflex` (brew/scoop formula name); installers accept both.
+- Game heads are MINT-ONLY (boot-fit retired); joined-state protocol: the sentence sequence rides `state` one per
+  line (`noul` carries no options by wire law).
+- **CORS seam** (`src/serve.rs`): `RIIR_REFLEX_ALLOWED_ORIGIN` allow-list, default CLOSED; `serve_listener_with` is
+  the test seam.
+- **Release pipeline**: `[profile.dist]` (strip + fat LTO), `scripts/build-release.sh` (dist build + SHA256SUMS +
+  licenses), `scripts/binary_leak_scan.sh`, `scripts/install_copy_parity.py`; cross targets via `cargo zigbuild`.
+  Dist surface = **gist-rs/reflex** — NEVER this source repo.
+- **Arena site** (gist-rs/reflex-site) at <https://reflex.riir.ai> (custom domain dashboard-attached, deliberately not
+  in `wrangler.toml`); `/bench/` renders from `data/bench.json` via `scripts/publish_bench.py`.
 
-## Phase 1 status (katgpt-rs Plan 603) — COMPLETE 2026-09-22
+## Harness (katgpt-rs Plan 603 Phase 1)
 
-- **T1.5 harness**: 9 dataset suites + decision-point families over
-  byte-identical questions (`src/harness/`, bin `harness`, dispatch-only CI
-  lane `.github/workflows/harness_tables.yml`). ⛔ The six Issue-004 families
-  are RETIRED (owner call, 2026-10-02): home-made synthetic evals the
-  modelless engine reads AT CHANCE on honest wide populations; records in git
-  history + `.benchmarks/`. `semantic_defects` (Issue 061, 102 cases) STAYS;
-  gates: `tests/harness_families_gates.rs` + `tests/harness_seat_gates.rs` +
-  `tests/fixture_fleet_hygiene.rs`. The Issue-004 T7 option-rank blend stands
-  on the dataset lane (banking77 0.040 → 0.446, ag_news 0.258 → 0.510).
-  Datasets: HF datasets-server via `scripts/fetch_datasets.sh` (blake3-digested
-  in `.docs/02_protocols/dataset_manifest.md`; banking77 via `mteb/banking77`).
-  Measured lessons: fused-gate birth thresholds do NOT transfer (fit per suite
-  at cal ρ=30); the cal slice must not sit inside its own reference corpora;
-  ECE bins are left-open so zero-confidence rows read n/a, never perfect.
-- **T1.8 docs closure**: this file, README, the katgpt-rs `decision_wire`
-  catalog note, `.docs/02_protocols/dataset_manifest.md` banking77 resolution.
-  `structured_reads` root promotion correctly NOT pulled (re-arm trigger armed).
+- 9 dataset suites + decision-point families over byte-identical questions (`src/harness/`, bin `harness`,
+  dispatch-only CI lane `.github/workflows/harness_tables.yml`). The six Issue-004 synthetic families are RETIRED
+  (owner call 2026-10-02); `semantic_defects` (Issue 061) stays, gated by `tests/harness_families_gates.rs` +
+  `tests/harness_seat_gates.rs` + `tests/fixture_fleet_hygiene.rs`.
+- Datasets: HF datasets-server via `scripts/fetch_datasets.sh` (blake3-digested in
+  `.docs/02_protocols/dataset_manifest.md`).
+- Laws: fused-gate thresholds do NOT transfer (fit per suite at cal ρ=30); the cal slice must not sit inside its own
+  reference corpora; ECE bins are left-open (zero-confidence rows read n/a, never perfect).
 
-## The candle lane — REMOVED 2026-09-22 (`.issues/006`, owner directive "no candle at all cost")
+## No candle (`.issues/006`, owner directive "no candle at all cost")
 
-Deleted: `laya`/`laya-metal`/`candle-metal` features, `candle-core` dep,
-`src/laya/{agent,encoder,head}.rs`, `tests/laya_parity.rs`. The frozen
-captures in `tests/fixtures/` ARE the reference; the riir lane's G5 gate
-replays against them. Tokenizers v1 reopen trigger (recorded in HISTORY.md):
-1.0.0 STABLE — the pinned GPT-2-family vocabs lack 14 ByteLevel byte atoms
-that v1 validates up front (0.22 tolerates lazily). `libm` stays pinned on
-numerics grounds; `gemm`/`metal`/`objc2` float freely with a G5 re-run on
-bump. FROZEN record: torch MPS 25–31 ms vs candle-Metal 37–46 ms
-english/typed (1.3–1.5×) — kernel-maturity gap.
+The candle lane is deleted; the frozen captures in `tests/fixtures/` ARE the reference the riir lane's G5 gate
+replays. `libm` stays pinned on numerics grounds; `gemm`/`metal`/`objc2` float freely with a G5 re-run on bump.
+Tokenizers v1 reopen trigger: recorded in HISTORY.md.
 
-## The laya-riir lane (owner directive, 2026-09-22) — LANDED at `e601295`
+## The laya-riir lane — the ONE laya backend (`--features laya-riir`, landed `e601295`)
 
-The riir-OWNED forward (`--features laya-riir`) — the ONE laya backend: model
-math on our flat-`Vec<f32>` tensor code, owns the laya substrate outright.
-CPU lane at candle parity (~156.8 ms row p50 post-threading) — the win is
-deployment (prod path builds candle-free). Two bit-parity lessons any future
-port must carry:
-1. **candle's CPU reduction is SIMD-STRIDED** (NEON `vec_sum`: STEP=32, EPR=4,
-   ARR=8, pairwise tree reduce). A sequential scalar sum drifts 1e-2-class
-   through 22–28 layers; the mirror lives in `riir/ops.rs::candle_vec_sum`
-   (scalar f32, same adds, same order, bit-identical).
-2. **The gelu kernel must BE candle's** — `libm::erff`, not a correct
-   approximation (the A&S f64 path measured ~1000× over the gate).
+Riir-owned forward on flat `Vec<f32>` tensors (substrate in riir-infer). Bit-parity laws any future port carries:
+1. **candle's CPU reduction is SIMD-STRIDED** (NEON `vec_sum`: STEP=32, EPR=4, ARR=8, pairwise tree) — mirrored in
+   `riir/ops.rs::candle_vec_sum`; a sequential sum drifts 1e-2-class.
+2. **The gelu kernel must BE candle's** — `libm::erff`, not a correct approximation (~1000× over the gate otherwise).
 
-**Metal ladder** (`laya-riir-metal`, `LAYA_DEVICE=metal` honored; each rung
-G5-gated):
-- v1 (Issue 005): 14 MSL kernels, per-op CBs, lazy-flush — naive baseline
-  79.0/78.7/38.5 row p50 vs torch MPS 25.7/25.5/16.2; the gate caught 4 real
-  defects (stale weight-cache serving, sync-count eviction, untracked
-  hazards — Tracked is EXPLICIT on macOS — layer-0 stale host copy).
-- Pass 1 (2026-09-24): pass-scoped CB (commit at the 3 host reads), all-heads
-  batched attention, simdgroup GEMM, row-parallel softmax/LN →
-  **28.3/28.3/12.2** (beats MPS on multilingual, matches candle).
-- Pass 2 `4ef290c`: narrow/wide sgemm split by `m`; trap: a staging stride
-  must EXCEED the staged tile's row width (overlap corrupts half the output);
-  fused flash-attn built+measured+REVERTED (real seqs need BQ≥32; the
-  `Backend::attention_forward` seam STAYS — the one op-order home).
-- Pass 3 `a51ea42`: BK 32→64 + xwide `sgemm_xwide` (m≥256 && n≥2048) —
-  ag_news 34→29 ms BEATS the python oracle; traps: the xwide n-floor is
-  MEASURED (staging intensity only pays under over-subscription); compare
-  only within position-balanced swapped pairs.
-- Pass 4: fused `flash_attn` (BQ=32, window-predicated key ranges,
-  two-pass normalize) — banking77 75–76 vs python 70 (gap 1.2× → ~1.07×);
-  traps: scores-tile live-frag bound, per-row window predicate lives in row
-  threads, `l_reg` published before drain. Kill-switch `LAYA_METAL_FLASH=0`.
-- Measured NEGATIVE, on record so nobody re-tries blind: wide BK=48 (barriers
-  not the binding constraint), both Wᵀ-staging repairs (uncoalesced element
-  form stays), per-op commit+wait (19× slower than lazy).
-- **GLU trap**: the fused Wi output is `[rows, 2I]` — the activation MUST be
-  written to its own contiguous buffer (`riir/ops.rs::glu_gelu_gate`;
-  measured 223× divergence otherwise).
-- **typed-trio + T12** (riir-infer `be46033`/`40d15dd`): the encoder is 90.1%
-  of case GPU (not the head); T12 deferred head reads PROMOTED default-on
-  2026-09-26 (typed 5-q median 0.984, 24/24 wins) — kill-switch
-  `LAYA_HEAD_DEFER=0`. Split-K epilogue folds default-on (riir-infer
-  `53334f9`) — kill-switches `LAYA_METAL_FOLD_RES=0` / `LAYA_METAL_FOLD_GLU=0`;
-  the narrow (non-split) sgemm stays UN-fused.
-- **T13/T13b (Issue 020 CLOSED, Bench 050, riir-infer `b0de034`+`5e18da4`)**:
-  unsplit batch-1 GEMMs dispatch Apple's `MPSMatrixMultiplication`
-  (bit-identical, 0.575–0.741× whole forward); paired A/B **9/9 p50 AND 9/9
-  p99 wins** vs torch MPS. Kill-switches `LAYA_METAL_MPS=0` /
-  `LAYA_METAL_MPS_SPLIT=0`. Lesson: five refutations among OUR kernels said
-  nothing about the vendor's — price the library call before a rewrite.
-- **Threading posture** (Bench 001 addenda 3–4): `min(available_parallelism, 8)`
-  rayon workers (measured optimum on the 12P+4E M3; `RAYON_NUM_THREADS`
-  overrides), tiny per-head gemms `Parallelism::None` under 8 MFLOP, GLU on a
-  condvar-parked pool — quiet-box e2e −9.6% median row p50; numerics never
-  move with worker count (the gate's own assertion).
+**Metal** (`laya-riir-metal`, `LAYA_DEVICE=metal`; every rung G5-gated; ladder records in HISTORY.md / riir-infer):
+- Traps: Tracked hazards are EXPLICIT on macOS; a staging stride must EXCEED the staged tile's row width; the fused
+  GLU output `[rows, 2I]` must be written to its own contiguous buffer (`riir/ops.rs::glu_gelu_gate`; 223× otherwise);
+  the `Backend::attention_forward` seam is the one op-order home; compare only within position-balanced swapped pairs.
+- Measured NEGATIVE (do not re-try blind): wide BK=48, both Wᵀ-staging repairs, per-op commit+wait (19× slower).
+- Kill-switches: `LAYA_METAL_FLASH=0`, `LAYA_HEAD_DEFER=0`, `LAYA_METAL_FOLD_RES=0` / `LAYA_METAL_FOLD_GLU=0`,
+  `LAYA_METAL_MPS=0` / `LAYA_METAL_MPS_SPLIT=0` (Issue 020, Bench 050). Lesson: price the vendor library call before a
+  kernel rewrite.
+- **Threading**: `min(available_parallelism, 8)` rayon workers (`RAYON_NUM_THREADS` overrides); tiny per-head gemms
+  `Parallelism::None` under 8 MFLOP; numerics never move with worker count (the gate's own assertion).
 
-## Formatting — rustfmt defaults, gated (Issue 099, closed 2026-10-27)
+## Formatting — rustfmt defaults, gated (Issue 099)
 
 Format touched `.rs` with `rustfmt --edition 2024 <file>` before committing.
 ⛔ **Never `cargo fmt --all` here** — it formats the path-dep siblings too
