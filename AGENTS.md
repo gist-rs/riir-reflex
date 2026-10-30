@@ -136,6 +136,11 @@ cargo run --release --bin harness -- --gate-drift-probe --out .benchmarks/<N>_ga
 # Set-refine A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in `set_refine`, Bench 150 — MEASURED NEGATIVE, stays opt-in;
 # re-open = a different key family, never a γ/τ retune):
 cargo run --release --features set_refine --bin harness -- --set-refine-ab --out .benchmarks/150_set_refine_ab_goat
+# Label-perm probe (riir-train 657 R8 — seeded Sattolo label-STRING rename over the suite's option-key alphabet;
+# options+gold ride σ; the DEFAULT arm relabels corpus+domains too — the invariance arm; --label-perm-keep-corpus
+# is the by-name-binding control (renamed keys on the identity corpus → drafter-only). NOT Bench 119 (formatting-flip).
+# REPORT-ONLY — no exit-code gate; the paired delta IS the measurement (per-suite/per-seed rows, 3 seeds):
+cargo run --release --bin harness -- --label-perm --suites banking77,ag_news,xnli_en,emotion --out .benchmarks/172_label_perm/<posture>
 
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN else PATH):
 NDB_BIN=../riir-neuron-db/target/release/ndb \

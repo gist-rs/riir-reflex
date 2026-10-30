@@ -143,6 +143,15 @@ pub use perm_probe::{
     PermProbeOptions, PermProbeOutput, PermSuiteReport, render_perm_probe_markdown, run_perm_probe,
 };
 
+// riir-train 657 R8 — the label-PERMUTATION accuracy probe (lane-agnostic
+// over the `ChoiceOracle` seam; the pure core is `crate::harness::label_perm`;
+// pairs through the `robust_ab` degradation statistic).
+mod label_perm;
+pub use label_perm::{
+    DEFAULT_LABEL_PERM_MAX_CASES, LabelPermLaneRow, LabelPermOptions, LabelPermOutput,
+    LabelPermSeedMap, LabelPermSuiteReport, render_label_perm_markdown, run_label_perm_probe,
+};
+
 // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe: the
 // pure core (`harness::null_stability`) + this runner half behind the
 // `NullOracle` seam (modelless control + opt-in comparison cells).

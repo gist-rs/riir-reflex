@@ -23,6 +23,10 @@
 //!                                      [--set-refine-tau F] (needs --features
 //!                                       set_refine; absent build → the flag
 //!                                       refuses loud naming the rebuild)
+//!                                      [--label-perm] [--label-perm-max-cases N]
+//!                                      [--label-perm-keep-corpus] (exclusive
+//!                                       early-exit probe; report-only;
+//!                                       riir-train 657 R8 — label-STRING σ)
 //!                                      [--runs-kv] [--kv-dir DIR] [--save-corpus a,b]
 //!                              [--clm] [--gliner] [--agentjev] [--openthai] [--drex]
 //!                                      [--d1] [--pplx] [--d3] [--jeva] [--startlux] [--mammoth] [--elephant] [--opendecider] [--paw] [--paw-local]
@@ -311,6 +315,12 @@ fn harness_main() {
     let mut perm_probe = false;
     let mut perm_k = 0usize;
     let mut perm_max_cases = 0usize;
+    // riir-train 657 R8 — the label-PERMUTATION accuracy probe (exclusive
+    // early-exit mode; REPORT-ONLY — no exit-code gate, the delta IS the
+    // measurement).
+    let mut label_perm = false;
+    let mut label_perm_max_cases = 0usize;
+    let mut label_perm_keep_corpus = false;
     // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe
     // (exclusive early-exit mode; the comparison lanes reuse
     // --drex/--d1/--agentjev).
@@ -546,6 +556,15 @@ fn harness_main() {
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--perm-max-cases needs a number"));
             }
+            "--label-perm" => label_perm = true,
+            "--label-perm-max-cases" => {
+                i += 1;
+                label_perm_max_cases =
+                    args.get(i).and_then(|v| v.parse().ok()).unwrap_or_else(|| {
+                        die("--label-perm-max-cases needs a number (0 = full slice)")
+                    });
+            }
+            "--label-perm-keep-corpus" => label_perm_keep_corpus = true,
             "--null-probe" => null_probe = true,
             #[cfg(feature = "twt_profile")]
             "--depth-probe" => depth_probe = true,
@@ -1018,6 +1037,57 @@ fn harness_main() {
         );
         return;
     }
+    // riir-train 657 R8 — the label-PERMUTATION accuracy probe: an exclusive
+    // early-exit REPORT-ONLY mode. σ is a seeded Sattolo derangement over the
+    // suite's option-key alphabet (3 seeds/suite); options+gold follow σ. The
+    // DEFAULT modelless arm relabels corpus+domains+keys together (the
+    // invariance arm); --label-perm-keep-corpus runs the by-name-binding
+    // control (renamed keys on the identity corpus → drafter-only, disclosed,
+    // never a gate). The laya lane (feature `laya-riir`, honors --skip-laya)
+    // renames keys with descriptions intact. NOT Bench 119 (formatting-flip).
+    if label_perm {
+        let lopts = runner::LabelPermOptions {
+            max_cases: label_perm_max_cases,
+            keep_corpus: label_perm_keep_corpus,
+        };
+        println!(
+            "harness --label-perm: datasets {} · suites {:?} · ≤{} case(s)/suite \
+             (0 = full slice) · 3 seeds/suite · posture: {}",
+            opts.datasets_dir.display(),
+            opts.suites,
+            lopts.max_cases,
+            if lopts.keep_corpus {
+                "modelless_keep_corpus (by-name-binding control)"
+            } else {
+                "modelless (full-consistent relabel)"
+            },
+        );
+        let out = match runner::run_label_perm_probe(&opts, &lopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("label_perm.json");
+        let md_path = out_dir.join("LABEL_PERM.md");
+        let json = serde_json::to_string_pretty(&out).expect("label-perm serialize");
+        let md = runner::render_label_perm_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --label-perm: DONE — {} suite(s) · wrote {} + {}",
+            out.suites.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe:
     // exclusive early-exit mode. The modelless CONTROL reds the run
     // (exit 1) on an A2 preference flip (beyond an exact reference tie),
@@ -1393,9 +1463,10 @@ fn harness_main() {
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 14] = [
+        let modes: [(&str, bool); 15] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
+            ("--label-perm", label_perm),
             ("--null-probe", null_probe),
             ("--depth-probe", depth_probe),
             ("--clef-conf-probe", clef_conf_probe),

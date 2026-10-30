@@ -239,10 +239,12 @@ struct SharedLane {
 }
 
 /// The modelless CONTROL oracle: the deployed engine's own decide path
-/// (`engine_request` → `decide_with` → `answer_probs_pick`).
-struct ModellessOracle<'e, const N: usize> {
-    engine: &'e mut DecisionEngine<N, EMBED_DIM>,
-    sc: Scratch<EMBED_DIM>,
+/// (`engine_request` → `decide_with` → `answer_probs_pick`). `pub(super)`
+/// fields: the label-perm probe (657 R8) reuses the SAME production decide
+/// path for both of its arms — never a parallel rendering.
+pub(super) struct ModellessOracle<'e, const N: usize> {
+    pub(super) engine: &'e mut DecisionEngine<N, EMBED_DIM>,
+    pub(super) sc: Scratch<EMBED_DIM>,
 }
 
 impl<const N: usize> ChoiceOracle for ModellessOracle<'_, N> {
@@ -384,9 +386,10 @@ impl ChoiceOracle for ClefOracle {
 
 /// The laya oracle — the pooled-state cross-marker attention path, the
 /// lane the d1 research's item 4 names as the interesting subject.
+/// `pub(super)`: reused by the label-perm probe's laya arm (657 R8).
 #[cfg(feature = "laya-riir")]
-struct LayaOracle {
-    agent: crate::laya::riir::RiirAgent,
+pub(super) struct LayaOracle {
+    pub(super) agent: crate::laya::riir::RiirAgent,
 }
 
 #[cfg(feature = "laya-riir")]

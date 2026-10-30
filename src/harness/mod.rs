@@ -27,6 +27,12 @@ pub mod item_dump;
 // gate, and the canary. Ungated + pure; the lanes live in the runner half
 // (`runner/perm_probe.rs`) behind the `ChoiceOracle` seam.
 pub mod permutation;
+// riir-train 657 R8 — the label-PERMUTATION accuracy probe (pure core): the
+// seeded Sattolo derangement over a suite's option-key alphabet, the
+// key-renaming case builders, and the corpus relabel half. Ungated + pure;
+// the lanes live in the runner half (`runner/label_perm.rs`) behind the
+// same `ChoiceOracle` seam.
+pub mod label_perm;
 // Issue 090 A1–A3 — the decoy-augmentation / null-stability probe (pure
 // core): graded decoy pool/sampler, augmentation + paired-noul builders,
 // per-arm record math, and the A1/A2/A3 verdicts. Ungated + pure; the
