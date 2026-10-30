@@ -5,6 +5,12 @@ is removed from `.issues/`; its record lands here, hash-pinned). A removed
 file's full life: `git log --follow -- .issues/<file>`. Open work lives in
 `.issues/` and `.plans/`, never here.
 
+## 2026-10-30 — Issue 103 CLOSED: serve request read under a TOTAL deadline (`RequestDeadlineGuard`)
+
+**Status: Resolved. Fix `d947fa5` (HEAD at close; the general law = riir-refine batch 316 `per-read-timeout-vs-request-deadline`, corpus `4d1fdb2e`; sibling fix riir-instinct issue 024 `c2f909b`). Issue file removed this date — its full life: `git log --follow -- .issues/103_serve_slow_drip_lane_hold.md`.**
+
+`serve.rs` set ONLY a per-read timeout (10 s) before reading the request — a slow-drip/silent peer pins a worker slot forever (the per-read-timeout-vs-request-deadline class, distilled from pbakaus/impeccable @ `02523aec`). Fix: `RequestDeadlineGuard` (`arm`/`arm_with`/`end` + Drop-disarm) — the request read runs under a TOTAL wall-clock deadline (`REQUEST_DEADLINE` 10 s) on BOTH axes: socket read timeout = the full deadline (the always-works axis; the Windows parked-recv quirk) + a 50 ms-poll watchdog thread calling `shutdown(Both)` at expiry (the trickle backstop); coarse `READ_TIMEOUT` restored after the head parses; Drop disarms on error paths. Regression gates (`request_deadline_tests`): a real loopback slow-drip peer released AT the deadline, a fast request undisturbed. Gates: clippy -D 0, lib 489/489. `http_mini.rs:96` adjudicated out of scope — the CLIENT half of the clef/openthai lanes dialing operator-run loopback forwarders (callers pass bounded timeouts, peers not hostile, single-address loopback resolution = the connect-walk rule's own anti-regime).
+
 ## 2026-10-28 — Issue 102 CLOSED: robust_ab inline f64 sigmoid delegates `exact_sigmoid_f64` — the router.rs copy-gate class, site 2
 
 **Status: Resolved. Landings: claim `597dc0e` + fix `b1fc3fe` (delegation + frozen-legacy pin; one file, `src/harness/runner/robust_ab.rs`). Same-day filing → same-day fix (the train-648 pattern).**
