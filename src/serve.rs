@@ -78,7 +78,9 @@ impl RequestDeadlineGuard {
     fn arm_with(deadline: Duration, stream: &TcpStream) -> std::io::Result<Self> {
         let done = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let Ok(watch_stream) = stream.try_clone() else {
-            return Err(std::io::Error::other("deadline watchdog: cannot clone stream"));
+            return Err(std::io::Error::other(
+                "deadline watchdog: cannot clone stream",
+            ));
         };
         let watch_done = done.clone();
         std::thread::Builder::new()
@@ -108,8 +110,7 @@ impl RequestDeadlineGuard {
 
     /// Disarm the watchdog and restore the coarse per-read backstop.
     fn end(self, stream: &TcpStream) {
-        self.done
-            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.done.store(true, std::sync::atomic::Ordering::SeqCst);
         let _ = stream.set_read_timeout(Some(READ_TIMEOUT));
     }
 }
@@ -117,8 +118,7 @@ impl RequestDeadlineGuard {
 impl Drop for RequestDeadlineGuard {
     fn drop(&mut self) {
         // Error paths that skip `end` still disarm the watchdog.
-        self.done
-            .store(true, std::sync::atomic::Ordering::SeqCst);
+        self.done.store(true, std::sync::atomic::Ordering::SeqCst);
     }
 }
 
@@ -1654,8 +1654,7 @@ mod request_deadline_tests {
         });
 
         let deadline = Duration::from_millis(400);
-        let guard = RequestDeadlineGuard::arm_with(deadline, &server)
-            .expect("arm the deadline");
+        let guard = RequestDeadlineGuard::arm_with(deadline, &server).expect("arm the deadline");
         server
             .set_read_timeout(Some(deadline + Duration::from_secs(30)))
             .unwrap(); // generous per-read window: the drip answers it
@@ -1703,7 +1702,9 @@ mod request_deadline_tests {
             .write_all(b"POST /decide HTTP/1.1\r\nHost: x\r\nContent-Length: 2\r\n\r\n{}")
             .unwrap();
         let mut reader = BufReader::new(server.try_clone().unwrap());
-        let req = read_request(&mut reader).unwrap().expect("the request parses");
+        let req = read_request(&mut reader)
+            .unwrap()
+            .expect("the request parses");
         assert_eq!(req.method, "POST");
         assert_eq!(req.path, "/decide");
         let mut body = vec![0u8; 2];
