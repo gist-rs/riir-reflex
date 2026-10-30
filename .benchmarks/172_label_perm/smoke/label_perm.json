@@ -1,0 +1,197 @@
+{
+  "meta": {
+    "date_utc": "2026-10-30T19:13:34Z",
+    "git_sha": "56fa2a7",
+    "host": "m3",
+    "datasets_dir": "/Users/kat/git/riir-reflex/.raw/datasets",
+    "posture": "modelless",
+    "max_cases": 8,
+    "keep_corpus": false,
+    "seed": 106364929,
+    "rename_rule": "Sattolo derangement over the suite's option-key alphabet (every label moves); option ORDER preserved, criteria keys replaced in place, descriptions intact; gold rides by position (idx unchanged, string renamed through σ); per-suite base = seed ^ FNV-1a(suite), seeds base+0/+1/+2",
+    "corpus_rule": "full-consistent relabel: train docs + engine domains + question keys through the SAME σ (the invariance arm; expected ≈ 0 delta — a large delta IS the finding)",
+    "spec_of_record": "riir-train .issues/657 R8 — label-STRING bijection probe (options+gold follow σ). NOT Bench 119 (formatting-flip): Bench 119's axis is formatting churn of the state text; this axis is the label identity itself.",
+    "laya_device": null,
+    "box_start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 22.17,
+      "swap_used_mb": 870.0,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 22.17 > 6 — a sibling job is on the box"
+      ]
+    },
+    "box_end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 21.67,
+      "swap_used_mb": 870.0,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 21.67 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "suites": [
+    {
+      "suite": "emotion",
+      "n_slots": 8,
+      "alphabet": [
+        "sadness",
+        "joy",
+        "love",
+        "anger",
+        "fear",
+        "surprise"
+      ],
+      "permutations": [
+        {
+          "seed_index": 0,
+          "seed": 13937457469386845027,
+          "mapping": [
+            [
+              "anger",
+              "surprise"
+            ],
+            [
+              "fear",
+              "love"
+            ],
+            [
+              "joy",
+              "anger"
+            ],
+            [
+              "love",
+              "joy"
+            ],
+            [
+              "sadness",
+              "fear"
+            ],
+            [
+              "surprise",
+              "sadness"
+            ]
+          ]
+        },
+        {
+          "seed_index": 1,
+          "seed": 13937457469386845028,
+          "mapping": [
+            [
+              "anger",
+              "fear"
+            ],
+            [
+              "fear",
+              "surprise"
+            ],
+            [
+              "joy",
+              "anger"
+            ],
+            [
+              "love",
+              "sadness"
+            ],
+            [
+              "sadness",
+              "joy"
+            ],
+            [
+              "surprise",
+              "love"
+            ]
+          ]
+        },
+        {
+          "seed_index": 2,
+          "seed": 13937457469386845029,
+          "mapping": [
+            [
+              "anger",
+              "surprise"
+            ],
+            [
+              "fear",
+              "anger"
+            ],
+            [
+              "joy",
+              "love"
+            ],
+            [
+              "love",
+              "fear"
+            ],
+            [
+              "sadness",
+              "joy"
+            ],
+            [
+              "surprise",
+              "sadness"
+            ]
+          ]
+        }
+      ],
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 0,
+          "n": 8,
+          "n_identity": 8,
+          "n_perm": 8,
+          "acc_identity": 0.25,
+          "acc_perm": 0.125,
+          "delta": -0.125,
+          "delta_lb95": -0.5691002139157333,
+          "delta_ub95": 0.31910021391573323,
+          "flipped_to_wrong": 2,
+          "flipped_to_right": 1
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 1,
+          "n": 8,
+          "n_identity": 8,
+          "n_perm": 8,
+          "acc_identity": 0.25,
+          "acc_perm": 0.625,
+          "delta": 0.375,
+          "delta_lb95": -0.2598425001525969,
+          "delta_ub95": 1.009842500152597,
+          "flipped_to_wrong": 2,
+          "flipped_to_right": 5
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 2,
+          "n": 8,
+          "n_identity": 8,
+          "n_perm": 8,
+          "acc_identity": 0.25,
+          "acc_perm": 0.625,
+          "delta": 0.375,
+          "delta_lb95": -0.2598425001525969,
+          "delta_ub95": 1.009842500152597,
+          "flipped_to_wrong": 2,
+          "flipped_to_right": 5
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-36f3eb1067bed96a) · cal 200 (fnv1a64-f2ec48ed7070889c) · pool 15799 (fnv1a64-8ef2b2af400721fd) · OK"
+    }
+  ]
+}

@@ -1,0 +1,1694 @@
+{
+  "meta": {
+    "date_utc": "2026-10-30T19:19:55Z",
+    "git_sha": "56fa2a7",
+    "host": "m3",
+    "datasets_dir": "/Users/kat/git/riir-reflex/.raw/datasets",
+    "posture": "modelless",
+    "max_cases": 200,
+    "keep_corpus": false,
+    "seed": 106364929,
+    "rename_rule": "Sattolo derangement over the suite's option-key alphabet (every label moves); option ORDER preserved, criteria keys replaced in place, descriptions intact; gold rides by position (idx unchanged, string renamed through σ); per-suite base = seed ^ FNV-1a(suite), seeds base+0/+1/+2",
+    "corpus_rule": "full-consistent relabel: train docs + engine domains + question keys through the SAME σ (the invariance arm; expected ≈ 0 delta — a large delta IS the finding)",
+    "spec_of_record": "riir-train .issues/657 R8 — label-STRING bijection probe (options+gold follow σ). NOT Bench 119 (formatting-flip): Bench 119's axis is formatting churn of the state text; this axis is the label identity itself.",
+    "laya_device": "Metal",
+    "box_start": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 32.63,
+      "swap_used_mb": 870.0,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 32.63 > 6 — a sibling job is on the box"
+      ]
+    },
+    "box_end": {
+      "power": "AC Power",
+      "power_mode": "high",
+      "load_1m": 19.58,
+      "swap_used_mb": 870.0,
+      "load_source": "loadavg1m",
+      "gpu_util_pct": null,
+      "gpu_mem_mib": null,
+      "latency_quotable": false,
+      "refusals": [
+        "load 19.58 > 6 — a sibling job is on the box"
+      ]
+    }
+  },
+  "suites": [
+    {
+      "suite": "ag_news",
+      "n_slots": 200,
+      "alphabet": [
+        "world",
+        "sports",
+        "business",
+        "sci_tech"
+      ],
+      "permutations": [
+        {
+          "seed_index": 0,
+          "seed": 2598376186243902372,
+          "mapping": [
+            [
+              "business",
+              "sports"
+            ],
+            [
+              "sci_tech",
+              "world"
+            ],
+            [
+              "sports",
+              "sci_tech"
+            ],
+            [
+              "world",
+              "business"
+            ]
+          ]
+        },
+        {
+          "seed_index": 1,
+          "seed": 2598376186243902373,
+          "mapping": [
+            [
+              "business",
+              "sci_tech"
+            ],
+            [
+              "sci_tech",
+              "world"
+            ],
+            [
+              "sports",
+              "business"
+            ],
+            [
+              "world",
+              "sports"
+            ]
+          ]
+        },
+        {
+          "seed_index": 2,
+          "seed": 2598376186243902374,
+          "mapping": [
+            [
+              "business",
+              "sports"
+            ],
+            [
+              "sci_tech",
+              "business"
+            ],
+            [
+              "sports",
+              "world"
+            ],
+            [
+              "world",
+              "sci_tech"
+            ]
+          ]
+        }
+      ],
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 0,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.415,
+          "acc_perm": 0.335,
+          "delta": -0.08,
+          "delta_lb95": -0.1626200895423135,
+          "delta_ub95": 0.0026200895423135057,
+          "flipped_to_wrong": 44,
+          "flipped_to_right": 28
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 1,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.415,
+          "acc_perm": 0.345,
+          "delta": -0.07,
+          "delta_lb95": -0.14153760510894675,
+          "delta_ub95": 0.0015376051089467518,
+          "flipped_to_wrong": 34,
+          "flipped_to_right": 20
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 2,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.415,
+          "acc_perm": 0.465,
+          "delta": 0.05,
+          "delta_lb95": -0.025783213691337542,
+          "delta_ub95": 0.12578321369133755,
+          "flipped_to_wrong": 25,
+          "flipped_to_right": 35
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 0,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.965,
+          "acc_perm": 0.035,
+          "delta": -0.93,
+          "delta_lb95": -0.9680758407424078,
+          "delta_ub95": -0.8919241592575923,
+          "flipped_to_wrong": 187,
+          "flipped_to_right": 1
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 1,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.965,
+          "acc_perm": 0.065,
+          "delta": -0.9,
+          "delta_lb95": -0.9500957876442572,
+          "delta_ub95": -0.8499042123557429,
+          "flipped_to_wrong": 184,
+          "flipped_to_right": 4
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 2,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.965,
+          "acc_perm": 0.03,
+          "delta": -0.935,
+          "delta_lb95": -0.9692524796446775,
+          "delta_ub95": -0.9007475203553226,
+          "flipped_to_wrong": 187,
+          "flipped_to_right": 0
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-238133933bb8d6fc) · cal 200 (fnv1a64-96c58e69e7c6048e) · pool 19800 (fnv1a64-996876e41929dc33) · OK"
+    },
+    {
+      "suite": "emotion",
+      "n_slots": 200,
+      "alphabet": [
+        "sadness",
+        "joy",
+        "love",
+        "anger",
+        "fear",
+        "surprise"
+      ],
+      "permutations": [
+        {
+          "seed_index": 0,
+          "seed": 13937457469386845027,
+          "mapping": [
+            [
+              "anger",
+              "surprise"
+            ],
+            [
+              "fear",
+              "love"
+            ],
+            [
+              "joy",
+              "anger"
+            ],
+            [
+              "love",
+              "joy"
+            ],
+            [
+              "sadness",
+              "fear"
+            ],
+            [
+              "surprise",
+              "sadness"
+            ]
+          ]
+        },
+        {
+          "seed_index": 1,
+          "seed": 13937457469386845028,
+          "mapping": [
+            [
+              "anger",
+              "fear"
+            ],
+            [
+              "fear",
+              "surprise"
+            ],
+            [
+              "joy",
+              "anger"
+            ],
+            [
+              "love",
+              "sadness"
+            ],
+            [
+              "sadness",
+              "joy"
+            ],
+            [
+              "surprise",
+              "love"
+            ]
+          ]
+        },
+        {
+          "seed_index": 2,
+          "seed": 13937457469386845029,
+          "mapping": [
+            [
+              "anger",
+              "surprise"
+            ],
+            [
+              "fear",
+              "anger"
+            ],
+            [
+              "joy",
+              "love"
+            ],
+            [
+              "love",
+              "fear"
+            ],
+            [
+              "sadness",
+              "joy"
+            ],
+            [
+              "surprise",
+              "sadness"
+            ]
+          ]
+        }
+      ],
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 0,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.305,
+          "acc_perm": 0.165,
+          "delta": -0.14,
+          "delta_lb95": -0.22456000931811315,
+          "delta_ub95": -0.05543999068188689,
+          "flipped_to_wrong": 53,
+          "flipped_to_right": 25
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 1,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.305,
+          "acc_perm": 0.26,
+          "delta": -0.045,
+          "delta_lb95": -0.1492495257451586,
+          "delta_ub95": 0.05924952574515861,
+          "flipped_to_wrong": 61,
+          "flipped_to_right": 52
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 2,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.305,
+          "acc_perm": 0.285,
+          "delta": -0.02,
+          "delta_lb95": -0.12393657130322971,
+          "delta_ub95": 0.0839365713032297,
+          "flipped_to_wrong": 58,
+          "flipped_to_right": 54
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 0,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.57,
+          "acc_perm": 0.06,
+          "delta": -0.51,
+          "delta_lb95": -0.5945029166039424,
+          "delta_ub95": -0.4254970833960576,
+          "flipped_to_wrong": 114,
+          "flipped_to_right": 12
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 1,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.57,
+          "acc_perm": 0.095,
+          "delta": -0.475,
+          "delta_lb95": -0.5660432830964752,
+          "delta_ub95": -0.3839567169035248,
+          "flipped_to_wrong": 113,
+          "flipped_to_right": 18
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 2,
+          "n": 200,
+          "n_identity": 200,
+          "n_perm": 200,
+          "acc_identity": 0.57,
+          "acc_perm": 0.11,
+          "delta": -0.46,
+          "delta_lb95": -0.5509398564296052,
+          "delta_ub95": -0.36906014357039485,
+          "flipped_to_wrong": 110,
+          "flipped_to_right": 18
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 400 (fnv1a64-36f3eb1067bed96a) · cal 200 (fnv1a64-f2ec48ed7070889c) · pool 15799 (fnv1a64-8ef2b2af400721fd) · OK"
+    },
+    {
+      "suite": "xnli_en",
+      "n_slots": 150,
+      "alphabet": [
+        "entailment",
+        "neutral",
+        "contradiction"
+      ],
+      "permutations": [
+        {
+          "seed_index": 0,
+          "seed": 2101709149152538535,
+          "mapping": [
+            [
+              "contradiction",
+              "neutral"
+            ],
+            [
+              "entailment",
+              "contradiction"
+            ],
+            [
+              "neutral",
+              "entailment"
+            ]
+          ]
+        },
+        {
+          "seed_index": 1,
+          "seed": 2101709149152538536,
+          "mapping": [
+            [
+              "contradiction",
+              "entailment"
+            ],
+            [
+              "entailment",
+              "neutral"
+            ],
+            [
+              "neutral",
+              "contradiction"
+            ]
+          ]
+        },
+        {
+          "seed_index": 2,
+          "seed": 2101709149152538537,
+          "mapping": [
+            [
+              "contradiction",
+              "entailment"
+            ],
+            [
+              "entailment",
+              "neutral"
+            ],
+            [
+              "neutral",
+              "contradiction"
+            ]
+          ]
+        }
+      ],
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 0,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.3933333333333333,
+          "acc_perm": 0.4066666666666667,
+          "delta": 0.013333333333333334,
+          "delta_lb95": -0.1039104722505872,
+          "delta_ub95": 0.13057713891725387,
+          "flipped_to_wrong": 39,
+          "flipped_to_right": 41
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 1,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.3933333333333333,
+          "acc_perm": 0.32,
+          "delta": -0.07333333333333333,
+          "delta_lb95": -0.18472837363463485,
+          "delta_ub95": 0.038061706967968165,
+          "flipped_to_wrong": 42,
+          "flipped_to_right": 31
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 2,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.3933333333333333,
+          "acc_perm": 0.32,
+          "delta": -0.07333333333333333,
+          "delta_lb95": -0.18472837363463485,
+          "delta_ub95": 0.038061706967968165,
+          "flipped_to_wrong": 42,
+          "flipped_to_right": 31
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 0,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.84,
+          "acc_perm": 0.05333333333333334,
+          "delta": -0.7866666666666666,
+          "delta_lb95": -0.8707917140326716,
+          "delta_ub95": -0.7025416193006616,
+          "flipped_to_wrong": 126,
+          "flipped_to_right": 8
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 1,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.84,
+          "acc_perm": 0.10666666666666667,
+          "delta": -0.7333333333333333,
+          "delta_lb95": -0.8360085414384705,
+          "delta_ub95": -0.6306581252281961,
+          "flipped_to_wrong": 126,
+          "flipped_to_right": 16
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 2,
+          "n": 150,
+          "n_identity": 150,
+          "n_perm": 150,
+          "acc_identity": 0.84,
+          "acc_perm": 0.10666666666666667,
+          "delta": -0.7333333333333333,
+          "delta_lb95": -0.8360085414384705,
+          "delta_ub95": -0.6306581252281961,
+          "flipped_to_wrong": 126,
+          "flipped_to_right": 16
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 300 (fnv1a64-614262484399affa) · cal 200 (fnv1a64-b8126a40673cc7c6) · pool 19800 (fnv1a64-f3f8f200eba61985) · OK"
+    },
+    {
+      "suite": "banking77",
+      "n_slots": 167,
+      "alphabet": [
+        "Refund not showing up",
+        "activate my card",
+        "age limit",
+        "apple pay or google pay",
+        "atm support",
+        "automatic top up",
+        "balance not updated after bank transfer",
+        "balance not updated after cheque or cash deposit",
+        "beneficiary not allowed",
+        "cancel transfer",
+        "card about to expire",
+        "card acceptance",
+        "card arrival",
+        "card delivery estimate",
+        "card linking",
+        "card not working",
+        "card payment fee charged",
+        "card payment not recognised",
+        "card payment wrong exchange rate",
+        "card swallowed",
+        "cash withdrawal charge",
+        "cash withdrawal not recognised",
+        "change pin",
+        "compromised card",
+        "contactless not working",
+        "country support",
+        "declined card payment",
+        "declined cash withdrawal",
+        "declined transfer",
+        "direct debit payment not recognised",
+        "disposable card limits",
+        "edit personal details",
+        "exchange charge",
+        "exchange rate",
+        "exchange via app",
+        "extra charge on statement",
+        "failed transfer",
+        "fiat currency support",
+        "get disposable virtual card",
+        "get physical card",
+        "getting spare card",
+        "getting virtual card",
+        "lost or stolen card",
+        "lost or stolen phone",
+        "order physical card",
+        "passcode forgotten",
+        "pending card payment",
+        "pending cash withdrawal",
+        "pending top up",
+        "pending transfer",
+        "pin blocked",
+        "receiving money",
+        "request refund",
+        "reverted card payment?",
+        "supported cards and currencies",
+        "terminate account",
+        "top up by bank transfer charge",
+        "top up by card charge",
+        "top up by cash or cheque",
+        "top up failed",
+        "top up limits",
+        "top up reverted",
+        "topping up by card",
+        "transaction charged twice",
+        "transfer fee charged",
+        "transfer into account",
+        "transfer not received by recipient",
+        "transfer timing",
+        "unable to verify identity",
+        "verify my identity",
+        "verify source of funds",
+        "verify top up",
+        "virtual card not working",
+        "visa or mastercard",
+        "why verify identity",
+        "wrong amount of cash received",
+        "wrong exchange rate for cash withdrawal"
+      ],
+      "permutations": [
+        {
+          "seed_index": 0,
+          "seed": 9166036937205858926,
+          "mapping": [
+            [
+              "Refund not showing up",
+              "get physical card"
+            ],
+            [
+              "activate my card",
+              "balance not updated after bank transfer"
+            ],
+            [
+              "age limit",
+              "supported cards and currencies"
+            ],
+            [
+              "apple pay or google pay",
+              "direct debit payment not recognised"
+            ],
+            [
+              "atm support",
+              "apple pay or google pay"
+            ],
+            [
+              "automatic top up",
+              "card delivery estimate"
+            ],
+            [
+              "balance not updated after bank transfer",
+              "top up limits"
+            ],
+            [
+              "balance not updated after cheque or cash deposit",
+              "top up by bank transfer charge"
+            ],
+            [
+              "beneficiary not allowed",
+              "edit personal details"
+            ],
+            [
+              "cancel transfer",
+              "cash withdrawal not recognised"
+            ],
+            [
+              "card about to expire",
+              "declined cash withdrawal"
+            ],
+            [
+              "card acceptance",
+              "pending transfer"
+            ],
+            [
+              "card arrival",
+              "card payment fee charged"
+            ],
+            [
+              "card delivery estimate",
+              "unable to verify identity"
+            ],
+            [
+              "card linking",
+              "passcode forgotten"
+            ],
+            [
+              "card not working",
+              "failed transfer"
+            ],
+            [
+              "card payment fee charged",
+              "declined card payment"
+            ],
+            [
+              "card payment not recognised",
+              "verify top up"
+            ],
+            [
+              "card payment wrong exchange rate",
+              "card acceptance"
+            ],
+            [
+              "card swallowed",
+              "change pin"
+            ],
+            [
+              "cash withdrawal charge",
+              "top up reverted"
+            ],
+            [
+              "cash withdrawal not recognised",
+              "exchange rate"
+            ],
+            [
+              "change pin",
+              "transfer into account"
+            ],
+            [
+              "compromised card",
+              "extra charge on statement"
+            ],
+            [
+              "contactless not working",
+              "terminate account"
+            ],
+            [
+              "country support",
+              "Refund not showing up"
+            ],
+            [
+              "declined card payment",
+              "pending card payment"
+            ],
+            [
+              "declined cash withdrawal",
+              "card not working"
+            ],
+            [
+              "declined transfer",
+              "top up failed"
+            ],
+            [
+              "direct debit payment not recognised",
+              "contactless not working"
+            ],
+            [
+              "disposable card limits",
+              "cancel transfer"
+            ],
+            [
+              "edit personal details",
+              "transaction charged twice"
+            ],
+            [
+              "exchange charge",
+              "wrong exchange rate for cash withdrawal"
+            ],
+            [
+              "exchange rate",
+              "request refund"
+            ],
+            [
+              "exchange via app",
+              "visa or mastercard"
+            ],
+            [
+              "extra charge on statement",
+              "lost or stolen phone"
+            ],
+            [
+              "failed transfer",
+              "getting virtual card"
+            ],
+            [
+              "fiat currency support",
+              "why verify identity"
+            ],
+            [
+              "get disposable virtual card",
+              "order physical card"
+            ],
+            [
+              "get physical card",
+              "wrong amount of cash received"
+            ],
+            [
+              "getting spare card",
+              "exchange via app"
+            ],
+            [
+              "getting virtual card",
+              "topping up by card"
+            ],
+            [
+              "lost or stolen card",
+              "verify source of funds"
+            ],
+            [
+              "lost or stolen phone",
+              "activate my card"
+            ],
+            [
+              "order physical card",
+              "card linking"
+            ],
+            [
+              "passcode forgotten",
+              "compromised card"
+            ],
+            [
+              "pending card payment",
+              "card about to expire"
+            ],
+            [
+              "pending cash withdrawal",
+              "receiving money"
+            ],
+            [
+              "pending top up",
+              "beneficiary not allowed"
+            ],
+            [
+              "pending transfer",
+              "exchange charge"
+            ],
+            [
+              "pin blocked",
+              "transfer fee charged"
+            ],
+            [
+              "receiving money",
+              "country support"
+            ],
+            [
+              "request refund",
+              "pending top up"
+            ],
+            [
+              "reverted card payment?",
+              "transfer not received by recipient"
+            ],
+            [
+              "supported cards and currencies",
+              "atm support"
+            ],
+            [
+              "terminate account",
+              "verify my identity"
+            ],
+            [
+              "top up by bank transfer charge",
+              "pin blocked"
+            ],
+            [
+              "top up by card charge",
+              "card payment not recognised"
+            ],
+            [
+              "top up by cash or cheque",
+              "age limit"
+            ],
+            [
+              "top up failed",
+              "card payment wrong exchange rate"
+            ],
+            [
+              "top up limits",
+              "cash withdrawal charge"
+            ],
+            [
+              "top up reverted",
+              "top up by card charge"
+            ],
+            [
+              "topping up by card",
+              "automatic top up"
+            ],
+            [
+              "transaction charged twice",
+              "lost or stolen card"
+            ],
+            [
+              "transfer fee charged",
+              "virtual card not working"
+            ],
+            [
+              "transfer into account",
+              "declined transfer"
+            ],
+            [
+              "transfer not received by recipient",
+              "disposable card limits"
+            ],
+            [
+              "transfer timing",
+              "pending cash withdrawal"
+            ],
+            [
+              "unable to verify identity",
+              "top up by cash or cheque"
+            ],
+            [
+              "verify my identity",
+              "balance not updated after cheque or cash deposit"
+            ],
+            [
+              "verify source of funds",
+              "getting spare card"
+            ],
+            [
+              "verify top up",
+              "reverted card payment?"
+            ],
+            [
+              "virtual card not working",
+              "get disposable virtual card"
+            ],
+            [
+              "visa or mastercard",
+              "card swallowed"
+            ],
+            [
+              "why verify identity",
+              "card arrival"
+            ],
+            [
+              "wrong amount of cash received",
+              "fiat currency support"
+            ],
+            [
+              "wrong exchange rate for cash withdrawal",
+              "transfer timing"
+            ]
+          ]
+        },
+        {
+          "seed_index": 1,
+          "seed": 9166036937205858927,
+          "mapping": [
+            [
+              "Refund not showing up",
+              "change pin"
+            ],
+            [
+              "activate my card",
+              "getting virtual card"
+            ],
+            [
+              "age limit",
+              "direct debit payment not recognised"
+            ],
+            [
+              "apple pay or google pay",
+              "exchange via app"
+            ],
+            [
+              "atm support",
+              "declined cash withdrawal"
+            ],
+            [
+              "automatic top up",
+              "wrong exchange rate for cash withdrawal"
+            ],
+            [
+              "balance not updated after bank transfer",
+              "Refund not showing up"
+            ],
+            [
+              "balance not updated after cheque or cash deposit",
+              "pending top up"
+            ],
+            [
+              "beneficiary not allowed",
+              "edit personal details"
+            ],
+            [
+              "cancel transfer",
+              "verify my identity"
+            ],
+            [
+              "card about to expire",
+              "declined transfer"
+            ],
+            [
+              "card acceptance",
+              "transfer into account"
+            ],
+            [
+              "card arrival",
+              "atm support"
+            ],
+            [
+              "card delivery estimate",
+              "apple pay or google pay"
+            ],
+            [
+              "card linking",
+              "top up by card charge"
+            ],
+            [
+              "card not working",
+              "top up failed"
+            ],
+            [
+              "card payment fee charged",
+              "card swallowed"
+            ],
+            [
+              "card payment not recognised",
+              "pending cash withdrawal"
+            ],
+            [
+              "card payment wrong exchange rate",
+              "supported cards and currencies"
+            ],
+            [
+              "card swallowed",
+              "fiat currency support"
+            ],
+            [
+              "cash withdrawal charge",
+              "top up by bank transfer charge"
+            ],
+            [
+              "cash withdrawal not recognised",
+              "verify top up"
+            ],
+            [
+              "change pin",
+              "transfer timing"
+            ],
+            [
+              "compromised card",
+              "pending card payment"
+            ],
+            [
+              "contactless not working",
+              "beneficiary not allowed"
+            ],
+            [
+              "country support",
+              "receiving money"
+            ],
+            [
+              "declined card payment",
+              "country support"
+            ],
+            [
+              "declined cash withdrawal",
+              "card delivery estimate"
+            ],
+            [
+              "declined transfer",
+              "transfer not received by recipient"
+            ],
+            [
+              "direct debit payment not recognised",
+              "verify source of funds"
+            ],
+            [
+              "disposable card limits",
+              "contactless not working"
+            ],
+            [
+              "edit personal details",
+              "reverted card payment?"
+            ],
+            [
+              "exchange charge",
+              "card linking"
+            ],
+            [
+              "exchange rate",
+              "topping up by card"
+            ],
+            [
+              "exchange via app",
+              "balance not updated after bank transfer"
+            ],
+            [
+              "extra charge on statement",
+              "getting spare card"
+            ],
+            [
+              "failed transfer",
+              "cash withdrawal charge"
+            ],
+            [
+              "fiat currency support",
+              "compromised card"
+            ],
+            [
+              "get disposable virtual card",
+              "wrong amount of cash received"
+            ],
+            [
+              "get physical card",
+              "terminate account"
+            ],
+            [
+              "getting spare card",
+              "exchange charge"
+            ],
+            [
+              "getting virtual card",
+              "automatic top up"
+            ],
+            [
+              "lost or stolen card",
+              "card acceptance"
+            ],
+            [
+              "lost or stolen phone",
+              "exchange rate"
+            ],
+            [
+              "order physical card",
+              "cancel transfer"
+            ],
+            [
+              "passcode forgotten",
+              "pending transfer"
+            ],
+            [
+              "pending card payment",
+              "visa or mastercard"
+            ],
+            [
+              "pending cash withdrawal",
+              "request refund"
+            ],
+            [
+              "pending top up",
+              "lost or stolen card"
+            ],
+            [
+              "pending transfer",
+              "virtual card not working"
+            ],
+            [
+              "pin blocked",
+              "card about to expire"
+            ],
+            [
+              "receiving money",
+              "top up reverted"
+            ],
+            [
+              "request refund",
+              "why verify identity"
+            ],
+            [
+              "reverted card payment?",
+              "card arrival"
+            ],
+            [
+              "supported cards and currencies",
+              "get physical card"
+            ],
+            [
+              "terminate account",
+              "top up limits"
+            ],
+            [
+              "top up by bank transfer charge",
+              "card not working"
+            ],
+            [
+              "top up by card charge",
+              "cash withdrawal not recognised"
+            ],
+            [
+              "top up by cash or cheque",
+              "declined card payment"
+            ],
+            [
+              "top up failed",
+              "transfer fee charged"
+            ],
+            [
+              "top up limits",
+              "balance not updated after cheque or cash deposit"
+            ],
+            [
+              "top up reverted",
+              "card payment wrong exchange rate"
+            ],
+            [
+              "topping up by card",
+              "card payment fee charged"
+            ],
+            [
+              "transaction charged twice",
+              "failed transfer"
+            ],
+            [
+              "transfer fee charged",
+              "extra charge on statement"
+            ],
+            [
+              "transfer into account",
+              "card payment not recognised"
+            ],
+            [
+              "transfer not received by recipient",
+              "disposable card limits"
+            ],
+            [
+              "transfer timing",
+              "age limit"
+            ],
+            [
+              "unable to verify identity",
+              "pin blocked"
+            ],
+            [
+              "verify my identity",
+              "get disposable virtual card"
+            ],
+            [
+              "verify source of funds",
+              "transaction charged twice"
+            ],
+            [
+              "verify top up",
+              "passcode forgotten"
+            ],
+            [
+              "virtual card not working",
+              "activate my card"
+            ],
+            [
+              "visa or mastercard",
+              "order physical card"
+            ],
+            [
+              "why verify identity",
+              "unable to verify identity"
+            ],
+            [
+              "wrong amount of cash received",
+              "top up by cash or cheque"
+            ],
+            [
+              "wrong exchange rate for cash withdrawal",
+              "lost or stolen phone"
+            ]
+          ]
+        },
+        {
+          "seed_index": 2,
+          "seed": 9166036937205858928,
+          "mapping": [
+            [
+              "Refund not showing up",
+              "automatic top up"
+            ],
+            [
+              "activate my card",
+              "verify top up"
+            ],
+            [
+              "age limit",
+              "card swallowed"
+            ],
+            [
+              "apple pay or google pay",
+              "wrong exchange rate for cash withdrawal"
+            ],
+            [
+              "atm support",
+              "failed transfer"
+            ],
+            [
+              "automatic top up",
+              "pending cash withdrawal"
+            ],
+            [
+              "balance not updated after bank transfer",
+              "balance not updated after cheque or cash deposit"
+            ],
+            [
+              "balance not updated after cheque or cash deposit",
+              "direct debit payment not recognised"
+            ],
+            [
+              "beneficiary not allowed",
+              "topping up by card"
+            ],
+            [
+              "cancel transfer",
+              "top up by bank transfer charge"
+            ],
+            [
+              "card about to expire",
+              "card delivery estimate"
+            ],
+            [
+              "card acceptance",
+              "reverted card payment?"
+            ],
+            [
+              "card arrival",
+              "cancel transfer"
+            ],
+            [
+              "card delivery estimate",
+              "virtual card not working"
+            ],
+            [
+              "card linking",
+              "top up by cash or cheque"
+            ],
+            [
+              "card not working",
+              "compromised card"
+            ],
+            [
+              "card payment fee charged",
+              "getting spare card"
+            ],
+            [
+              "card payment not recognised",
+              "transaction charged twice"
+            ],
+            [
+              "card payment wrong exchange rate",
+              "card about to expire"
+            ],
+            [
+              "card swallowed",
+              "top up by card charge"
+            ],
+            [
+              "cash withdrawal charge",
+              "card not working"
+            ],
+            [
+              "cash withdrawal not recognised",
+              "get disposable virtual card"
+            ],
+            [
+              "change pin",
+              "activate my card"
+            ],
+            [
+              "compromised card",
+              "balance not updated after bank transfer"
+            ],
+            [
+              "contactless not working",
+              "extra charge on statement"
+            ],
+            [
+              "country support",
+              "card acceptance"
+            ],
+            [
+              "declined card payment",
+              "contactless not working"
+            ],
+            [
+              "declined cash withdrawal",
+              "pending top up"
+            ],
+            [
+              "declined transfer",
+              "exchange charge"
+            ],
+            [
+              "direct debit payment not recognised",
+              "verify my identity"
+            ],
+            [
+              "disposable card limits",
+              "card payment wrong exchange rate"
+            ],
+            [
+              "edit personal details",
+              "top up failed"
+            ],
+            [
+              "exchange charge",
+              "transfer fee charged"
+            ],
+            [
+              "exchange rate",
+              "getting virtual card"
+            ],
+            [
+              "exchange via app",
+              "card payment fee charged"
+            ],
+            [
+              "extra charge on statement",
+              "get physical card"
+            ],
+            [
+              "failed transfer",
+              "country support"
+            ],
+            [
+              "fiat currency support",
+              "top up limits"
+            ],
+            [
+              "get disposable virtual card",
+              "atm support"
+            ],
+            [
+              "get physical card",
+              "cash withdrawal not recognised"
+            ],
+            [
+              "getting spare card",
+              "lost or stolen card"
+            ],
+            [
+              "getting virtual card",
+              "lost or stolen phone"
+            ],
+            [
+              "lost or stolen card",
+              "disposable card limits"
+            ],
+            [
+              "lost or stolen phone",
+              "card payment not recognised"
+            ],
+            [
+              "order physical card",
+              "fiat currency support"
+            ],
+            [
+              "passcode forgotten",
+              "transfer into account"
+            ],
+            [
+              "pending card payment",
+              "change pin"
+            ],
+            [
+              "pending cash withdrawal",
+              "declined transfer"
+            ],
+            [
+              "pending top up",
+              "order physical card"
+            ],
+            [
+              "pending transfer",
+              "pending card payment"
+            ],
+            [
+              "pin blocked",
+              "beneficiary not allowed"
+            ],
+            [
+              "receiving money",
+              "terminate account"
+            ],
+            [
+              "request refund",
+              "transfer not received by recipient"
+            ],
+            [
+              "reverted card payment?",
+              "apple pay or google pay"
+            ],
+            [
+              "supported cards and currencies",
+              "edit personal details"
+            ],
+            [
+              "terminate account",
+              "unable to verify identity"
+            ],
+            [
+              "top up by bank transfer charge",
+              "request refund"
+            ],
+            [
+              "top up by card charge",
+              "pending transfer"
+            ],
+            [
+              "top up by cash or cheque",
+              "why verify identity"
+            ],
+            [
+              "top up failed",
+              "Refund not showing up"
+            ],
+            [
+              "top up limits",
+              "card linking"
+            ],
+            [
+              "top up reverted",
+              "age limit"
+            ],
+            [
+              "topping up by card",
+              "receiving money"
+            ],
+            [
+              "transaction charged twice",
+              "verify source of funds"
+            ],
+            [
+              "transfer fee charged",
+              "passcode forgotten"
+            ],
+            [
+              "transfer into account",
+              "transfer timing"
+            ],
+            [
+              "transfer not received by recipient",
+              "wrong amount of cash received"
+            ],
+            [
+              "transfer timing",
+              "exchange via app"
+            ],
+            [
+              "unable to verify identity",
+              "top up reverted"
+            ],
+            [
+              "verify my identity",
+              "pin blocked"
+            ],
+            [
+              "verify source of funds",
+              "visa or mastercard"
+            ],
+            [
+              "verify top up",
+              "declined card payment"
+            ],
+            [
+              "virtual card not working",
+              "cash withdrawal charge"
+            ],
+            [
+              "visa or mastercard",
+              "declined cash withdrawal"
+            ],
+            [
+              "why verify identity",
+              "card arrival"
+            ],
+            [
+              "wrong amount of cash received",
+              "supported cards and currencies"
+            ],
+            [
+              "wrong exchange rate for cash withdrawal",
+              "exchange rate"
+            ]
+          ]
+        }
+      ],
+      "lanes": [
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 0,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.40119760479041916,
+          "acc_perm": 0.23353293413173654,
+          "delta": -0.16766467065868262,
+          "delta_lb95": -0.2552088988643535,
+          "delta_ub95": -0.08012044245301178,
+          "flipped_to_wrong": 44,
+          "flipped_to_right": 16
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 1,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.40119760479041916,
+          "acc_perm": 0.2934131736526946,
+          "delta": -0.10778443113772455,
+          "delta_lb95": -0.1927211292884074,
+          "delta_ub95": -0.022847732987041708,
+          "flipped_to_wrong": 36,
+          "flipped_to_right": 18
+        },
+        {
+          "lane": "modelless",
+          "model": "full-consistent σ (corpus+domains+keys)",
+          "seed_index": 2,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.40119760479041916,
+          "acc_perm": 0.20958083832335328,
+          "delta": -0.19161676646706588,
+          "delta_lb95": -0.2763970072928256,
+          "delta_ub95": -0.10683652564130613,
+          "flipped_to_wrong": 45,
+          "flipped_to_right": 13
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 0,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.4251497005988024,
+          "acc_perm": 0.005988023952095809,
+          "delta": -0.41916167664670656,
+          "delta_lb95": -0.4960477198960973,
+          "delta_ub95": -0.3422756333973158,
+          "flipped_to_wrong": 71,
+          "flipped_to_right": 1
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 1,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.4251497005988024,
+          "acc_perm": 0.005988023952095809,
+          "delta": -0.41916167664670656,
+          "delta_lb95": -0.4942237304814645,
+          "delta_ub95": -0.3440996228119486,
+          "flipped_to_wrong": 70,
+          "flipped_to_right": 0
+        },
+        {
+          "lane": "laya/english",
+          "model": "laya/english (keys renamed through σ; descriptions intact)",
+          "seed_index": 2,
+          "n": 167,
+          "n_identity": 167,
+          "n_perm": 167,
+          "acc_identity": 0.4251497005988024,
+          "acc_perm": 0.011976047904191617,
+          "delta": -0.41317365269461076,
+          "delta_lb95": -0.4880807795244996,
+          "delta_ub95": -0.33826652586472195,
+          "flipped_to_wrong": 69,
+          "flipped_to_right": 0
+        }
+      ],
+      "skipped": [],
+      "slice_summary": "slice-integrity: test 500 (fnv1a64-cb0b5cbcb0cdfcce) · cal 200 (fnv1a64-8f14f68a2e55799f) · pool 9793 (fnv1a64-14a38d138e218d1b) · OK"
+    }
+  ]
+}
