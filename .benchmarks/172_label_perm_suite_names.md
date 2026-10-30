@@ -37,7 +37,8 @@ Key deltas (Δ = acc@σ − acc@id; range over seeds 0–2; full tables + JSON i
 
 ## Provenance
 
-- date 2026-10-30T19:13–19:20Z · binary sha `56fa2a7` · host m3 (M3 Max, AC power, Metal exclusive — no other GPU compute consumer; CPU loaded by sibling cargo builds — accuracy is load-invariant, no latency figures claimed)
+- date 2026-10-30T19:13–19:20Z · binary sha `56fa2a7` · host m3 (M3 Max, AC power)
+- ⛔ **PROVENANCE CORRECTION (2026-10-30T19:26Z, post-run):** the box was NOT quiet — i1117 (pid 19526, `flashmemory_decode_gate`, the 128K Bonsai decode-gate latency benchmark, ~21 GB RSS, started Fri 01:42) was in flight throughout; an in-flight mail warning never reached the executing turn. CPU arms add load ≈19:11–19:16Z; the laya-metal arm is direct Metal GPU contention ≈19:16–19:20Z (feature build ≈19:05–19:14Z). **The accuracy figures are load-invariant and STAND** (deterministic Metal/CPU math; contention moves wall-clock, not values; slice-integrity rows all OK); **no latency figures are claimed** — but any i1117 latency analysis must quarantine samples in the 2026-10-30T19:05–19:21Z window (Bench-649 class); the affected lane has been notified. The original "Metal exclusive" line below was written from an incomplete box-state read.
 - Vehicle: `--label-perm` harness arm (landed `56fa2a7`: pure `src/harness/label_perm.rs` + runner `src/harness/runner/label_perm.rs`; tests 14/14 at default + laya-riir-metal postures; clippy `-D warnings` both postures)
 - Slices pinned by fnv1a64 slice-integrity rows in each posture dir (test/cal/pool), seeds per-suite recorded in `label_perm.json`.
 - Executor session: zed-m3-r8run (claim `9a97a154` in riir-train, lease folded on completion).
