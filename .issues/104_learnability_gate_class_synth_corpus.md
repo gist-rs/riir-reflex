@@ -1,5 +1,17 @@
 # Issue 104: Learnability-gate class for the synth-corpus lane (baseline-margin filter)
 **Status:** Open — poc/measurement task; cheap frozen read, honest null is a live outcome; source: katgpt-rs `.research/640_RT_J_Relational_Context_Recipe.md` (arXiv:2610.17867 RT-J, NeurIPS 2026).
+**Claimed:** zed-m3-i104, 1793366565, expires 2026-11-01T13:22:45Z
+
+## Pre-registration (set BEFORE any read; the claim push is the arbiter)
+
+- Corpus of record: the sealed UNGATED artifact `.raw/corpus_synth/massive_intent_en_synth.jsonl` (2,048 rows, blake3 `8fe10f8fabde6471…`). Gated variants are FILTERS of it (read-only derivation; no teacher calls).
+- Trivial-solver margins (closed-form, no tuning): prior-frequency (gold's corpus prior / max prior), lexical-overlap (gold-token coverage − best other-label coverage, clamped ≥ 0), longest-option (gold is the unique-longest label). Combined `trivial_margin = max` of the three.
+- Rungs = drop rows with `trivial_margin ≥ quantile(margins, q)` for q ∈ {0.50, 0.75, 0.90} (the density-gate p50/p75/p90 shape; drop the too-easy POLE, keep the rest).
+- **PRIMARY rung: p75** (the middle rung; Bench 122's dose-response precedent). p50/p90 are dose-response disclosure only — no gate claim.
+- V5 gate law unchanged, per gated read: paired LB95 (synth − gold) > 0 ∧ acc_synth > acc_gold; echo gates recomputed both sides (abstention KL ≤ 0.05; OOD gate rung p=0.20 LB95 ≥ 0 → transfer-ok).
+- CLASS verdict (the issue's question): the gated corpus must lift MORE than the ungated one on the SAME frozen rows — paired LB95 (gated-synth − ungated-synth) > 0 at the primary rung. Honest null: no rung beats ungated ⇒ the learnability gate class records NEGATIVE for this suite (ungated stays seated), same posture as Benches 120–122 for the density gates.
+- T1 report-first law stands: if the margin histograms show no too-easy pole, the class closes vacuous with that measurement.
+- Report-only sidecar: per-row margin + tier table ships with the record even on a NEGATIVE, so a future lane can reuse difficulty tiers without gating.
 
 ## Why
 
