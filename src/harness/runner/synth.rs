@@ -243,6 +243,15 @@ pub struct SynthArtifactMeta {
     /// [`Self::density_rule`].
     #[serde(default)]
     pub rescue_rule: Option<String>,
+    /// Issue 104 — the learnability-gate disclosure: `None` = no
+    /// trivial-solver filtering (the shipped posture); `Some(rule)` = the
+    /// artifact was DERIVED from a sealed artifact by dropping the
+    /// too-easy pole (rows a trivial solver already aces) at the named
+    /// margin threshold. Additive + `serde(default)` — version stays 2
+    /// (the ROWS' semantics are unchanged; the field says how the set was
+    /// filtered, the way `density_rule` already does).
+    #[serde(default)]
+    pub learnability_rule: Option<String>,
 }
 
 // ── the veto shape ───────────────────────────────────────────────────────
@@ -1320,6 +1329,7 @@ fn synth_one(spec: &SuiteSpec, dir: &Path, sopts: &SynthOptions) -> Result<Synth
         pool_rows: prepared.train.len(),
         density_rule: density_rule.clone(),
         rescue_rule: rescue_rule.clone(),
+        learnability_rule: None,
     };
     let (path, seal_hex) = write_artifact(
         sopts.out_dir.as_path(),
@@ -1789,6 +1799,7 @@ mod tests {
             pool_rows: 4,
             density_rule: None,
             rescue_rule: None,
+            learnability_rule: None,
         };
         let (path, _hex) =
             write_artifact(&dir, "fixture", &meta, &per_label, &accepted).expect("write");
@@ -1997,6 +2008,7 @@ mod tests {
             pool_rows: 4,
             density_rule: None,
             rescue_rule: Some("flyby-b0-local-veto-augment-v1".into()),
+            learnability_rule: None,
         };
         let (path, _hex) =
             write_artifact(&dir, "fixture_r", &meta, &per_label, &accepted).expect("write");

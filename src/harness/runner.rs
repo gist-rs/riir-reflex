@@ -125,6 +125,15 @@ pub use synth::{
 mod corpus_ab;
 pub use corpus_ab::{CorpusAbOutput, render_corpus_ab_markdown, run_corpus_ab};
 
+// Issue 104 — the learnability-gate class: trivial-solver margins over a
+// sealed synth artifact (T1 report) + gated-artifact derivation (T2),
+// feeding the corpus-ab lane for the frozen paired read (T3).
+mod learnability;
+pub use learnability::{
+    LearnabilityOutput, LearnabilityQuantile, MarginBucket, MarginRow, RungSummary, SolverBlock,
+    Tiers, render_learnability_markdown, run_learnability_gate,
+};
+
 // Issue 077 — the option-PERMUTATION spread probe (lane-agnostic over the
 // `ChoiceOracle` seam; the pure core is `crate::harness::permutation`).
 mod perm_probe;
@@ -3535,7 +3544,11 @@ fn fit_posture_inner<const N: usize>(inp: &ModellessInput<'_>) -> Result<FittedP
         // Issue 044 lane: the caller-choosable rate target (`gate_rho`) —
         // `None` keeps this exact shipped posture.
         let gate_rho = inp.gate_rho.unwrap_or(0.30);
-        let rec = recommend_fused_gate(&score_obs, &distance_obs, Posture::Percentile { rho: gate_rho });
+        let rec = recommend_fused_gate(
+            &score_obs,
+            &distance_obs,
+            Posture::Percentile { rho: gate_rho },
+        );
         let (score_threshold, distance_threshold) =
             resolve_gate_thresholds(&rec, &default_cfg, inp.gate_distance_only);
         (score_threshold, distance_threshold, rec)

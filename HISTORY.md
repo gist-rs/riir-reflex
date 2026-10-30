@@ -2,6 +2,10 @@
 
 Compacted 2026-10-30: every `##` heading kept verbatim, one compact entry per record (≤2 short lines); the full pre-compaction text is in git history (pre-compaction HEAD f7032899cf74). Operational rules live in `AGENTS.md`.
 
+## 2026-10-30 — Issue 104 CLOSED (recorded negative): the learnability-gate class — the too-easy pole IS where the lift lives
+
+**Status: Resolved-negative. Bench 171; landings: claim+pre-registration `3596fca`; the lane (`learnability.rs` + `examples/learnability_gate.rs` + additive `synth_ok_cases`/`learnability_rule` disclosures), bench record, and issue close land in THIS commit. Gate class verdict NEGATIVE at every rung (paired gated−ungated LB95 −0.0159 at the pre-registered p75 primary; p50 V5 FAIL outright; 0 gated-only wins at any dose) — ungated artifact stays seated, same posture as Benches 120–122. Tiers survive report-only.**
+
 ## 2026-10-30 — Issue 103 CLOSED: serve request read under a TOTAL deadline (`RequestDeadlineGuard`)
 
 **Status: Resolved. Fix `d947fa5` (HEAD at close; the general law = riir-refine batch 316 `per-read-timeout-vs-request-deadline`,

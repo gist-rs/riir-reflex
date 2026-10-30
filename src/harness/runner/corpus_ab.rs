@@ -58,6 +58,11 @@ pub struct CorpusAbSuite {
     pub flips: Vec<CorpusAbFlip>,
     pub b_only_cases: Vec<String>,
     pub a_only_cases: Vec<String>,
+    /// Issue 104 additive disclosure: the case IDs where the SYNTH arm (B)
+    /// was CORRECT — pairs two corpus-ab reads synth-arm-vs-synth-arm (the
+    /// learnability gate class) without a third binary. Pure disclosure;
+    /// no gate reads it.
+    pub synth_ok_cases: Vec<String>,
     pub lat_p50_gold_us: u64,
     pub lat_p99_gold_us: u64,
     pub lat_p50_synth_us: u64,
@@ -357,12 +362,16 @@ fn corpus_ab_suite<const N: usize>(
     let mut ok_b = Vec::with_capacity(prepared.suite.cases.len());
     let mut b_only_cases = Vec::new();
     let mut a_only_cases = Vec::new();
+    let mut synth_ok_cases = Vec::with_capacity(prepared.suite.cases.len());
     let mut per_label: BTreeMap<String, Flip> = BTreeMap::new();
     for (ci, case) in prepared.suite.cases.iter().enumerate() {
         let a = eval_a.picks[ci][0] == case.gold[0].idx;
         let b = eval_b.picks[ci][0] == case.gold[0].idx;
         ok_a.push(a);
         ok_b.push(b);
+        if b {
+            synth_ok_cases.push(case.id.clone());
+        }
         let gold_label = gold_label_of_case(case);
         match (b, a) {
             (true, false) => {
@@ -551,6 +560,7 @@ fn corpus_ab_suite<const N: usize>(
         flips,
         b_only_cases,
         a_only_cases,
+        synth_ok_cases,
         lat_p50_gold_us: p50a,
         lat_p99_gold_us: p99a,
         lat_p50_synth_us: p50b,
