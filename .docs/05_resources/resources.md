@@ -37,7 +37,7 @@ where it was not. The open teaching lane lives at
 ## Where it runs
 
 - **Browser (wasm):** the arena head and playground on
-  [reflex.gist.rs](https://reflex.gist.rs) — decisions run in the visitor's
+  [reflex.riir.ai](https://reflex.riir.ai) — decisions run in the visitor's
   own browser.
 - **Mac, PC, Linux:** release binaries — one static native binary per
   platform, installable by script, homebrew or scoop.

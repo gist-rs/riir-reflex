@@ -88,7 +88,7 @@ python3 scripts/docs_shape_gate.py
 echo "== [10/11] site-mirror parity (.docs/ ↔ ../reflex-site, sync_mirror.py --check)"
 if [ ! -f "../reflex-site/scripts/sync_mirror.py" ]; then
   echo "⚠ SKIPPED — ../reflex-site not checked out (or sync_mirror.py not landed there yet), so this layer verified NOTHING."
-  echo "  (the site mirror at reflex.gist.rs serves .docs/03_decision_flow/decision_flow.svg + .docs/04_agent_skill/SKILL.md;"
+  echo "  (the site mirror at reflex.riir.ai serves .docs/03_decision_flow/decision_flow.svg + .docs/04_agent_skill/SKILL.md;"
   echo "   the sibling checkout arms this layer)"
   SKIPPED="${SKIPPED:+$SKIPPED, }site-mirror parity (no ../reflex-site sibling checkout)"
 else

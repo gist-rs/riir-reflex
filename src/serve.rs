@@ -45,7 +45,7 @@ const MAX_BODY: usize = 4 * 1024 * 1024;
 const READ_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// The browser-facing CORS allow-list: `RIIR_REFLEX_ALLOWED_ORIGIN` (comma-
-/// separated origins, e.g. `https://reflex.gist.rs`). Default EMPTY — no
+/// separated origins, e.g. `https://reflex.riir.ai`). Default EMPTY — no
 /// `Access-Control-Allow-Origin` header is ever emitted, so no web page can
 /// reach the engine cross-origin (the drive-by posture stays closed; the
 /// arena playground prints the exact launch command that opens it).

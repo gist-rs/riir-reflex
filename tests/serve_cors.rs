@@ -57,7 +57,7 @@ fn roundtrip(addr: &str, raw: &str) -> String {
     buf
 }
 
-const ARENA: &str = "https://reflex.gist.rs";
+const ARENA: &str = "https://reflex.riir.ai";
 const EVIL: &str = "https://evil.example";
 
 #[test]
@@ -123,7 +123,7 @@ fn listed_origin_gets_acao_echo_on_post_decide() {
         ),
     );
     assert!(
-        resp.contains("Access-Control-Allow-Origin: https://reflex.gist.rs"),
+        resp.contains("Access-Control-Allow-Origin: https://reflex.riir.ai"),
         "got: {resp}"
     );
     assert!(resp.contains("Vary: Origin"), "got: {resp}");

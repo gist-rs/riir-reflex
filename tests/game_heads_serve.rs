@@ -289,7 +289,7 @@ fn a_fixture_question_is_answered_from_the_head() {
     assert_public_reason(resp.routing.reason.as_deref().unwrap_or(""));
 }
 
-/// The routing reason is public wire text (reflex.gist.rs renders it
+/// The routing reason is public wire text (reflex.riir.ai renders it
 /// verbatim): it must never carry an internal record id — `Bench N`,
 /// `Plan N`, `Issue N`, `Proposal N` (riir-reflex Issue 062).
 fn assert_public_reason(reason: &str) {

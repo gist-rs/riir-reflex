@@ -503,7 +503,7 @@ cargo run --release --bin harness -- --corpus-ab --help
   targets via `cargo zigbuild` from the M3; dist surface = **gist-rs/reflex**
   (NEVER this source repo — the v0.2.3 wrong-repo lesson). v0.1.1 live on
   gist-rs/reflex: macOS aarch64+x86_64, linux musl ×2, windows gnu.
-- **Arena site** (gist-rs/reflex-site) live at <https://reflex.gist.rs>
+- **Arena site** (gist-rs/reflex-site) live at <https://reflex.riir.ai>
   (custom domain, dashboard-attached — deliberately not in `wrangler.toml`);
   `/bench/` rendered from `data/bench.json` via `scripts/publish_bench.py`
   (sanitizes machine-local meta).
@@ -651,7 +651,7 @@ reference): numbered folders (`01_orientation` · `02_protocols` ·
 `scripts/docs_shape_gate.py` (layer 8 of `scripts/ci_feature_guard.sh`).
 
 **Site mirror law.** `.docs/03_decision_flow/decision_flow.svg` and
-`.docs/04_agent_skill/SKILL.md` are published on reflex.gist.rs through
+`.docs/04_agent_skill/SKILL.md` are published on reflex.riir.ai through
 MIRRORS in `../reflex-site`. The `.docs/` copies are the **source of truth**;
 after editing either, run `python3 ../reflex-site/scripts/sync_mirror.py`,
 then commit **both** repos. The guard's mirror layer (layer 9,

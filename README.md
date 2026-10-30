@@ -119,7 +119,7 @@ Run it (bare invocation = serve, loopback 7331):
 
 ```sh
 reflex                            # closed posture — no browser page can reach it
-RIIR_REFLEX_ALLOWED_ORIGIN=https://reflex.gist.rs reflex
+RIIR_REFLEX_ALLOWED_ORIGIN=https://reflex.riir.ai reflex
                                   # opens the engine to exactly the arena playground
 reflex --version                  # build stamp: version + compiled feature set
 ```
@@ -173,7 +173,7 @@ forward at a time). Every non-ready state answers FAIL-CLOSED (`503` naming
 silent modelless fallback, because a silently-served wrong lane would poison
 the arena's per-lane claims. Responses carry `routing.lane: "laya"` + the
 applied temperature in `calibration`. This is what powers the live games at
-[reflex.gist.rs/arena](https://reflex.gist.rs/arena/).
+[reflex.riir.ai/arena](https://reflex.riir.ai/arena/).
 
 The device is the build's own posture: Metal on macOS metal builds (v0.2.2
 — the measured ~2× per-forward gain), CUDA on non-macOS builds compiled
@@ -498,7 +498,7 @@ research-sake): xnli_en **0.8967** vs their card 89.0, massive_intent_en
 accuracy-only, the run's own box check having judged the start state unfit
 (the Issue-021 wall). Full board + provenance:
 [`074_openthai_thai_board.md`](.benchmarks/074_openthai_thai_board.md);
-the live surface renders all of it: <https://reflex.gist.rs/bench/>.
+the live surface renders all of it: <https://reflex.riir.ai/bench/>.
 
 **Same-box latency, all-Metal three-way (M3, the G5 fixture corpus, same-session interleaved — Bench 001 addendum 4; riir column re-measured 2026-09-24 after the narrow-BK64 + xwide pass `a51ea42`):**
 

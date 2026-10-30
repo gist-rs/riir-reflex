@@ -11,7 +11,7 @@ Two renders exist:
 - **The hero SVG** — `decision_flow.svg` (+ the 390 px card list `decision_flow_m.svg`,
   + the step-through `decision_flow.walk.json`), rendered from the
   ` ```gfflow ` block below (short labels: it must read at
-  landing-page scale on `reflex.gist.rs`). The family flow-figure shape:
+  landing-page scale on `reflex.riir.ai`). The family flow-figure shape:
   numbered steps in path order (branch alternatives share a number with
   letters), grouped into swimlanes — the reference figure is the Reflex ↔
   Reflexer relation flow (design guide §8, riir-ai Plan 620).
@@ -201,7 +201,7 @@ flowchart TB
 The SVGs are rendered from the ` ```gfflow ` block above by reflex-site's
 `scripts/render_flows.py`, which writes BOTH mirrors in one run — this
 directory's `decision_flow.svg` + `decision_flow_m.svg` and
-`reflex-site/assets/decision_flow.svg` + `_m`. Palette: the gist.rs web
+`reflex-site/assets/decision_flow.svg` + `_m`. Palette: the riir.ai web
 family tokens (riir-ai `.docs/13_web_family/family.css`, adopted
 2026-10-03), the Reflex orange lane accents, transparent-safe `--bg-2`
 figure ground; the root `<svg>` carries `data-gfflow="1"`, `role="img"`,

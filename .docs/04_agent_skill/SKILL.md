@@ -24,12 +24,12 @@ Claude Code reads `.claude/skills/` natively; Zed reads `.agents/skills/`.
 ```sh
 # Claude Code
 mkdir -p .claude/skills/reflex-integration
-curl -fsSL https://reflex.gist.rs/skills/reflex-integration/SKILL.md \
+curl -fsSL https://reflex.riir.ai/skills/reflex-integration/SKILL.md \
   -o .claude/skills/reflex-integration/SKILL.md
 
 # Zed (and any agent that accepts a markdown instruction file)
 mkdir -p .agents/skills/reflex-integration
-curl -fsSL https://reflex.gist.rs/skills/reflex-integration/SKILL.md \
+curl -fsSL https://reflex.riir.ai/skills/reflex-integration/SKILL.md \
   -o .agents/skills/reflex-integration/SKILL.md
 ```
 
@@ -274,7 +274,7 @@ refit → better-calibrated confidences → your §6 threshold keeps its meaning
    parsed but a question breaks a rule (empty prompt, `noul` with options,
    `< 2` options on choice/score, duplicate ids) — measured against 0.2.3.
    Every error body is `{"error": "…"}`; the full table, captured live, is at
-   <https://reflex.gist.rs/docs/api/#errors>.
+   <https://reflex.riir.ai/docs/api/#errors>.
 
 ## 10. Measured basis (do not cite unmeasured)
 
@@ -292,7 +292,7 @@ Calibration honesty (G1, readout ECE vs the conformal-naive floor): PASS on
 typed_decisions, emotion, sst5; **FAIL on ag_news** (calibrated 0.380 vs floor
 0.251). Some suites fail the calibration floor — measure YOUR task and publish
 the loss, don't average it away. The arena publishes every number above with
-its losses at <https://reflex.gist.rs/#bench>.
+its losses at <https://reflex.riir.ai/#bench>.
 
 refit floor 64 observations · thin-support floor 16 · ρ = 0.30 arena posture —
 all engine constants, all cited in their sections above.
@@ -303,5 +303,5 @@ This skill carries the version stamps at the top. The curl one-liner for THIS
 file is re-verified on every release-matrix cut (fetch what we claim to fetch —
 the v0.1.0 nested-archive lesson). If `reflex --version` reports a newer
 engine than the stamp above, re-check the measured table at
-<https://reflex.gist.rs/#bench> — numbers there regenerate from harness runs;
+<https://reflex.riir.ai/#bench> — numbers there regenerate from harness runs;
 the ones here are the snapshot the skill was tested against.
