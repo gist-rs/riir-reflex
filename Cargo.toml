@@ -484,6 +484,14 @@ required-features = ["laya-riir-metal"]
 name = "gaussianity_probe"
 required-features = ["gaussianity_probe"]
 
+# Issue 104 — the learnability-gate class lane (T1 report + T2 gated
+# artifacts). Imports `harness::runner`, which is cfg'd on the default
+# `modelless` feature, so without this row a `--no-default-features`
+# clippy --all-targets dies on E0432 (the laya_fixture_timing law).
+[[example]]
+name = "learnability_gate"
+required-features = ["modelless"]
+
 # The laya parity test is GEMM-bound inside the substrate lane's `gemm`
 # calls; the local code is only orchestration. Optimizing DEPENDENCIES in
 # the dev profile keeps a plain `cargo test --features laya-riir` within
