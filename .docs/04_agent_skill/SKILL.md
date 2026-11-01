@@ -12,10 +12,11 @@ error. The default lane is modelless (µs-tier, bit-deterministic, zero weights,
 no network). Everything below is the HTTP wire only — that is the public
 surface; the Rust crate is private and never required.
 
-Skill version 2 · 2026-10-03 · tested against the `reflex` binary 0.2.3 (the
-release binary is named `reflex` since 0.2.2; the package/formula is still
-`riir-reflex`) · wire examples re-captured live against 0.2.3 installed from
-the Homebrew tap (byte-identical to the 0.1.1 capture).
+Skill version 2 · 2026-10-03 · matches release 0.2.4 (2026-10-03) — live
+captures were made against 0.2.3 (the release binary is named `reflex` since
+0.2.2; the package/formula is still `riir-reflex`) · wire examples re-captured
+live against 0.2.3 installed from the Homebrew tap (byte-identical to the
+0.1.1 capture).
 
 ## Install this skill for your agent
 
@@ -56,7 +57,7 @@ hide an incomplete one:
 
 ```console
 $ reflex --version
-reflex 0.2.3
+reflex 0.2.4
 compiled features: default laya-riir laya-riir-metal modelless
 ```
 
