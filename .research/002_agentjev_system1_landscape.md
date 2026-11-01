@@ -164,3 +164,17 @@ cited as published, ours as measured, protocol differences flagged.
 > experience_graph + this lane's ecosystem), backend-lane issue
 > `.issues/081` — the Jev decision-model landscape now has its first
 > memory-system consumer.
+
+---
+
+> **PASS-Redirects (synthesis):** Shoham, David, Akrabi, Bilgory, Levy,
+> Marreed, Zeltyn, Shlomov [arXiv:2610.38620 "Think Before You Act: Decision
+> Gate for LLM Agents"] — JevAct, the runtime-gate consumer this landscape
+> anticipated: a policy-compiled write/hand-off gate over a prefill-only
+> decision model (Kev — open Jev-type, Qwen3.8-27B fine-tune, used without
+> further training) with bounded revision and temporary feedback; distilled
+> at `.research/013_JevAct_Decision_Gate_Agent_Runtime.md` — its placebo-arm
+> evaluation law (random flags at the gate's rate matched the full gate for
+> one agent) and judge-agreement replay (Kev-9B ≈ Kev-27B on 97.0% of
+> replayed states) are the two adoptions; the PreToolUse hook row above is
+> this pattern's already-noted client shape.
