@@ -169,7 +169,13 @@ def handle_decide(body):
         "model": f"mammoth-1@{os.path.basename(os.path.normpath(MODEL_PATH))}",
         "answers": answers,
         "usage": resp.usage.model_dump(),
-        "latency_ms": latency_ms,
+        # The serve-meta timing lives UNDER the `qev` key — the harness's
+        # determinism_view strips exactly that key (the 10-24 sst5 lesson:
+        # a top-level clock field reads as answer instability on every
+        # suite, determinism_ok false on the timing artifact alone).
+        # Measured for real on bmo 2026-11-02: all 12 suites det=False
+        # until this moved under `qev`.
+        "qev": {"latency_ms": latency_ms},
     }
 
 
