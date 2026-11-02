@@ -3,7 +3,7 @@
 **Status:** RECORD — instrument landed in this commit (the CV column), first read over the
 box-resident columns. Feeds riir-train [Issue 640](../../riir-train/.issues/640_4090_mammoth_teacher_capture_lane.md)
 T4's CROSS-VALIDATION gate (verdict round 1) and rethink
-[Issue 032](../../riir-rethink/.issues/032_subq_snap_beat_lane.md) T10.4/T3.5.
+`Issue 032` T10.4/T3.5.
 
 ## What landed
 
