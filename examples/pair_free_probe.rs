@@ -52,10 +52,12 @@ struct Row {
 }
 
 /// Load the suite's train shards (the datasets_t20k JSON format) up to
-/// `n` rows. xnli has no `text` field — refused loud (not a probe suite).
+/// `n` rows, taken ROUND-ROBIN across all shards — shards are label-ordered
+/// (train-000 carries the first labels), so a head-only slice collapses the
+/// class census (measured: banking77 head-1000 read 7 of 77 classes).
+/// xnli has no `text` field — refused loud (not a probe suite).
 fn load_rows(suite: &str, n: usize) -> Vec<Row> {
     let dir = std::path::Path::new("../riir-reflex/.raw/datasets_t20k").join(suite);
-    let mut rows = Vec::new();
     let mut shards: Vec<_> = std::fs::read_dir(&dir)
         .unwrap_or_else(|e| panic!("suite dir {suite}: {e}"))
         .filter_map(|e| e.ok())
@@ -68,10 +70,12 @@ fn load_rows(suite: &str, n: usize) -> Vec<Row> {
         })
         .collect();
     shards.sort();
-    for shard in shards {
+    let mut per_shard: Vec<Vec<Row>> = Vec::new();
+    for shard in &shards {
         let doc: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(&shard).expect("read shard"))
+            serde_json::from_str(&std::fs::read_to_string(shard).expect("read shard"))
                 .expect("parse shard");
+        let mut rows = Vec::new();
         for r in doc["rows"].as_array().expect("rows array") {
             let row = &r["row"];
             let text = row["text"].as_str().expect("text field").to_string();
@@ -81,9 +85,32 @@ fn load_rows(suite: &str, n: usize) -> Vec<Row> {
                 other => panic!("unexpected label shape: {other}"),
             };
             rows.push(Row { text, label });
+        }
+        if !rows.is_empty() {
+            per_shard.push(rows);
+        }
+    }
+    // round-robin across shards until n (label-diverse by construction)
+    let mut rows = Vec::with_capacity(n);
+    let mut cursors = vec![0usize; per_shard.len()];
+    while rows.len() < n {
+        let mut advanced = false;
+        for (s, shard_rows) in per_shard.iter().enumerate() {
             if rows.len() >= n {
-                return rows;
+                break;
             }
+            let cur = &mut cursors[s];
+            if *cur < shard_rows.len() {
+                rows.push(Row {
+                    text: shard_rows[*cur].text.clone(),
+                    label: shard_rows[*cur].label.clone(),
+                });
+                *cur += 1;
+                advanced = true;
+            }
+        }
+        if !advanced {
+            break;
         }
     }
     rows
