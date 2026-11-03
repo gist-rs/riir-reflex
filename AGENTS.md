@@ -9,7 +9,7 @@ does-not-own / crate allowlist / drift ledger); on any conflict with prose,
 BOUNDARY.md wins.
 
 - **Domain test:** decision-engine serving + comparison + contribution (NOT
-  game runtime, NOT code healing)? NO → another repo; file there.
+  game runtime, NOT code fixing)? NO → another repo; file there.
 - Default build stays ONE foreign code-level dep (`katgpt-core`); `serde_json`
   is the HTTP/JSON edge only. Read BOUNDARY.md before any dep/crate/module.
 - **The laya lane is SUBSTRATE-SIDE** (Issue 008 T4): the lane + its deps live in
@@ -294,9 +294,9 @@ stable and its rejection exits 1, which the gate refuses as NO VERDICT).
 Drift is pinned by MEMBERSHIP on `scripts/fmt_pending_expected.txt` — EMPTY
 since `747c8ea`; format new drift, never add a row.
 
-## Lint healing — `cargo refine` before manual fixes
+## Lint fixing — `cargo refine` before manual fixes
 
-Mechanical clippy findings are fixed by the riir-refine healer FIRST, manual
+Mechanical clippy findings are fixed by the riir-refine rulewright FIRST, manual
 second (`cargo refine --fix --write --verify <paths>`; feature-gated code
 needs `--verify-args "--features <set>"`). Documented divergence classes stay
 manual — see the `cargo-refine` skill. The bench-target guard (`bench-guard:`)
