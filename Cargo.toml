@@ -175,6 +175,13 @@ laya-riir = ["riir-infer-laya/laya-riir", "dep:blake3"]
 # parity must be green at THIS posture before any riir-Metal number is
 # published.
 laya-riir-metal = ["laya-riir", "riir-infer-laya/laya-riir-metal"]
+# Issue 105 (riir-train Issue 663 T2): the pair-free transport probe example —
+# laya hidden states vs the modelless hashed-bag embedder through
+# katgpt-core/leakage_probe (the Sinkhorn↔Procrustes chain) + the in-example
+# paired arm (PCA + Procrustes + FOSCTTM). leakage_probe joins katgpt-core's
+# cfg-any linalg gate, so the paired arm's symmetric_eig rides the same
+# feature — one feature, both halves.
+pair_free_probe = ["laya-riir", "katgpt-core/leakage_probe"]
 # The Issue 094 T2 depth-probe lane (riir-infer Issue 1106's consumer): the
 # headless residual-stability probe — per question, `RiirAgent::encoder_
 # forward_capture` streams the residual stream through the substrate's
@@ -491,6 +498,14 @@ required-features = ["gaussianity_probe"]
 [[example]]
 name = "learnability_gate"
 required-features = ["modelless"]
+
+# Issue 105 (riir-train Issue 663 T2) — the pair-free transport probe lane.
+# Opens with `#![cfg(feature = "pair_free_probe")]`, so without this row a
+# default-features `clippy --all-targets` compiles it to an empty crate and
+# dies on E0601 (the laya_fixture_timing law).
+[[example]]
+name = "pair_free_probe"
+required-features = ["pair_free_probe"]
 
 # The laya parity test is GEMM-bound inside the substrate lane's `gemm`
 # calls; the local code is only orchestration. Optimizing DEPENDENCIES in
