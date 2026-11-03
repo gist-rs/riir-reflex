@@ -1,6 +1,6 @@
 # Issue 105: pair-free probe example — laya ↔ modelless hashed-bag transport (riir-train Issue 663 T2)
 
-**Status:** Open — the code lane for riir-train [Issue 663 T2](../../riir-train/.issues/663_good_view_recipe_applicability_gate.md)
+**Status:** LANDED — example shipped `43fea6b`+`61cd062`; results recorded in riir-train [Bench 691](../../riir-train/.benchmarks/691_pair_free_probe_t2.md) (verdict `low` on all three suites; GL(k)/nuisance mechanism recorded). Closed as done; the ρ rider stays with katgpt-rs Issue 978.
 **Date:** 2026-11-03
 **Source:** arXiv:2610.39302 (JEPA-PRH) via katgpt-rs Research 646
 **Consumes:** `katgpt-core/leakage_probe` (Issue 736 — the pair-free Sinkhorn↔Procrustes transport chain, Bench 495 posture) + `riir_reflex::embed` (the modelless hashed-bag embedder) + the laya lane (`encode_question` hidden states, Metal).
