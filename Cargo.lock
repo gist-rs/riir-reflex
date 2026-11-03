@@ -2343,7 +2343,6 @@ dependencies = [
  "blake3",
  "bytemuck",
  "fastrand",
- "half",
  "katgpt-core",
  "katgpt-percepta",
  "katgpt-speculative",
