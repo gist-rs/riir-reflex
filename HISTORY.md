@@ -10,7 +10,7 @@ Compacted 2026-10-30: every `##` heading kept verbatim, one compact entry per re
 
 ## 2026-11-03 — Issue 105 CLOSED: pair-free probe example — laya ↔ modelless hashed-bag transport (riir-train Issue 663 T2)
 
-**Status: Resolved. Example shipped `43fea6b` + `61cd062` (round-robin shard sampling in `load_rows` — the head-only slice had collapsed the class census); results recorded in riir-train [Bench 691](../../riir-train/.benchmarks/691_pair_free_probe_t2.md) (verdict `low` on all three suites; the GL(k)/nuisance mechanism recorded); close `95fcea9`; the ρ rider stays with katgpt-rs Issue 978. Source: arXiv:2610.39302 (JEPA-PRH) via katgpt-rs Research 646; consumes `katgpt-core/leakage_probe` + `riir_reflex::embed` + the laya lane.** (`95fcea9`)
+**Status: Resolved. Example shipped `43fea6b` + `61cd062` (round-robin shard sampling in `load_rows` — the head-only slice had collapsed the class census); results recorded in riir-train [Bench 691](../riir-train/.benchmarks/691_pair_free_probe_t2.md) (verdict `low` on all three suites; the GL(k)/nuisance mechanism recorded); close `95fcea9`; the ρ rider stays with katgpt-rs Issue 978. Source: arXiv:2610.39302 (JEPA-PRH) via katgpt-rs Research 646; consumes `katgpt-core/leakage_probe` + `riir_reflex::embed` + the laya lane.** (`95fcea9`)
 
 ## 2026-10-30 — Issue 104 CLOSED (recorded negative): the learnability-gate class — the too-easy pole IS where the lift lives
 

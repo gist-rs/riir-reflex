@@ -1,7 +1,7 @@
 # Bench 173 — Issue 107: reflex routing-state probe + pinned-path replay PoC — NEGATIVE (no signal beyond the argmax; no pin headroom)
 
 **Date:** 2026-11-04
-**Issue:** reflex [Issue 107](../.issues/107_routing_state_probe_and_pinned_path_poc.md) (Research 014 / arXiv:2611.03526, the Library-of-Layers distill).
+**Issue:** reflex `Issue 107` (Research 014 / arXiv:2611.03526, the Library-of-Layers distill).
 **Instrument:** `harness --routing-state-probe` (`src/harness/runner/routing_state_probe.rs` + the read-only `DecisionEngine::routing_directions()` accessor in `src/engine.rs`); report + GATE on the witnesses (a witness-red lane refuses the run).
 **Verdict: NEGATIVE — T1 AGREE-WITH-MI on the LOW-MI trio + banking77 UNDERREAD (fit capacity, not absent signal); T2 no headroom anywhere; T3 NOT TRIGGERED; T2.3 held (the seam stays production-disarmed).**
 
