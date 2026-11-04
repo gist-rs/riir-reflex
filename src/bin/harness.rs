@@ -355,6 +355,10 @@ fn harness_main() {
     // (exclusive early-exit mode; RED refuses the run).
     let mut router_stats = false;
     let mut router_stats_max_cases = 0usize;
+    // Issue 107 — the routing-state probe + pinned-path replay PoC
+    // (exclusive early-exit mode; witness RED refuses the run).
+    let mut routing_state_probe = false;
+    let mut routing_state_probe_max_cases = 0usize;
     // Issue 093 — the CorpusDistanceGate drift diagnostic (exclusive
     // early-exit mode; REPORT-ONLY — the issue's own no-lever-without-a-
     // measured-curve law).
@@ -626,6 +630,16 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--router-stats-max-cases needs a number"));
+            }
+            // Issue 107 — the routing-state probe + pinned-path replay PoC
+            // (exclusive early-exit mode; REPORT + GATE on the witnesses).
+            "--routing-state-probe" => routing_state_probe = true,
+            "--routing-state-probe-max-cases" => {
+                i += 1;
+                routing_state_probe_max_cases = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--routing-state-probe-max-cases needs a number"));
             }
             // Issue 093 — the gate-drift diagnostic (exclusive early-exit
             // mode; report-only: no control reds, no exit-code coupling).
@@ -1395,6 +1409,59 @@ fn harness_main() {
         }
         println!(
             "harness --router-stats: DONE — {} suite(s), 0 RED; wrote {} + {}",
+            out.suites.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
+    // Issue 107 — the routing-state probe + pinned-path replay PoC:
+    // exclusive early-exit mode, REPORT + GATE (a witness-red lane refuses
+    // the run — the instrument-blind class, never a quiet pass).
+    if routing_state_probe {
+        let popts = runner::RoutingStateProbeOptions {
+            max_cases: if routing_state_probe_max_cases == 0 {
+                runner::DEFAULT_ROUTING_STATE_PROBE_MAX_CASES
+            } else {
+                routing_state_probe_max_cases
+            },
+        };
+        println!(
+            "harness --routing-state-probe: datasets {} · suites {:?} · ≤{} case(s)/suite · \
+             lane: modelless (Research 014 / arXiv:2611.03526 PoC — T1 probe + T2 report-only pins)",
+            opts.datasets_dir.display(),
+            opts.suites,
+            popts.max_cases,
+        );
+        let out = match runner::run_routing_state_probe(&opts, &popts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("routing_state_probe.json");
+        let md_path = out_dir.join("ROUTING_STATE_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("routing state probe serialize");
+        let md = runner::render_routing_state_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        if !out.lane_probe_live {
+            die(
+                "--routing-state-probe: the lane is RED — every suite's score-vector arm \
+                 degenerate or a witness failed. Either the routing-state re-derivation \
+                 is not what the router computes (the per-slot consistency gate names it) \
+                 or the capture is not deterministic; both refuse the run. The record is \
+                 on disk.",
+            );
+        }
+        println!(
+            "harness --routing-state-probe: DONE — {} suite(s), 0 RED; wrote {} + {}",
             out.suites.len(),
             json_path.display(),
             md_path.display()

@@ -1,0 +1,514 @@
+{
+  "meta": {
+    "date_utc": "2026-11-04T04:38:40Z",
+    "git_sha": "b8ec0eb",
+    "host": "amo",
+    "datasets_dir": "/Users/katopz/git/riir-reflex/.raw/datasets",
+    "max_cases": 300,
+    "gate_lambda": 10.0,
+    "lambda_grid": [
+      0.001,
+      0.01,
+      0.1,
+      1.0,
+      10.0,
+      100.0
+    ],
+    "tail_support_floor": 10,
+    "noninferior_delta": 0.01,
+    "measurement_posture": "deployed engine build (fit_posture_inner + build_engine_with, selection levers pinned off, cal-slice observe calibration); routing-state features re-derived at the routing site (dot(embed, direction), the pick_domain fold) via the read-only routing_directions accessor; ridge OVR closed-form (katgpt-core ridge_solve_direct_f32, bias column, λ grid, gates at the pre-nominated λ = 10.0); pins replay through the Scratch::forced_domain seam (report-only; production paths disarm it)"
+  },
+  "suites": [
+    {
+      "suite": "ag_news",
+      "n_fit": 200,
+      "n_eval": 200,
+      "n_domains": 4,
+      "mi_bits": 0.15059792741063874,
+      "label_entropy_bits": 1.9685869217157508,
+      "routed_forced_acc": 0.365,
+      "two_sigma": 0.068084506313845,
+      "arms": [
+        {
+          "arm": "score_vector",
+          "acc": 0.36,
+          "macro_auroc": 0.5880333695157154,
+          "n_included": 4,
+          "n_excluded": 0,
+          "excluded_examples": [],
+          "degenerate": false
+        },
+        {
+          "arm": "one_hot",
+          "acc": 0.365,
+          "macro_auroc": 0.5947143813873201,
+          "n_included": 4,
+          "n_excluded": 0,
+          "excluded_examples": [],
+          "degenerate": false
+        }
+      ],
+      "lambda_grid_rows": [
+        {
+          "lambda": 0.001,
+          "acc": 0.455,
+          "macro_auroc": 0.6898798629414836,
+          "n_included": 4
+        },
+        {
+          "lambda": 0.01,
+          "acc": 0.45,
+          "macro_auroc": 0.6890985661730746,
+          "n_included": 4
+        },
+        {
+          "lambda": 0.1,
+          "acc": 0.46,
+          "macro_auroc": 0.6857555299674472,
+          "n_included": 4
+        },
+        {
+          "lambda": 1.0,
+          "acc": 0.4,
+          "macro_auroc": 0.6549374582579248,
+          "n_included": 4
+        },
+        {
+          "lambda": 10.0,
+          "acc": 0.36,
+          "macro_auroc": 0.5880333695157154,
+          "n_included": 4
+        },
+        {
+          "lambda": 100.0,
+          "acc": 0.33,
+          "macro_auroc": 0.49950644687935936,
+          "n_included": 4
+        }
+      ],
+      "verdict": "AgreeWithMi",
+      "verdict_note": "LOW-MI (0.1506 bits): macro AUROC 0.5880 ≤ 0.70 — no hidden signal; the MI picture holds",
+      "pins": [
+        {
+          "kind": "suite_constant",
+          "n_slots": 200,
+          "n_paired": 100,
+          "acc_live": 0.4,
+          "acc_pinned": 0.4,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.405,
+          "abstain_pinned": 0.46,
+          "fallback_count": 0,
+          "ceiling_note": "class-blind constant pin — every case forced to one domain (a named baseline shape, not a result)"
+        },
+        {
+          "kind": "predicted_class",
+          "n_slots": 200,
+          "n_paired": 109,
+          "acc_live": 0.4036697247706422,
+          "acc_pinned": 0.4036697247706422,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.405,
+          "abstain_pinned": 0.415,
+          "fallback_count": 0,
+          "ceiling_note": "ceiling = T1 probe accuracy (0.3600) — the pin replays what the probe predicts, never beyond it"
+        },
+        {
+          "kind": "gold_oracle",
+          "n_slots": 200,
+          "n_paired": 104,
+          "acc_live": 0.4326923076923077,
+          "acc_pinned": 0.4326923076923077,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.405,
+          "abstain_pinned": 0.445,
+          "fallback_count": 0,
+          "ceiling_note": "ORACLE CEILING ONLY — the key IS the gold label (leakage-bound); bounds what a perfect classifier-keyed pin could achieve, never a non-inferiority result"
+        }
+      ],
+      "mode_path_digest": "deaab4c27e9c387fd999ee3522a6dad923f60c861a4a637cbd0808b03709fc7b",
+      "reextract_digest_match": true,
+      "capture_witness_ok": true,
+      "suite_modal_domain": 2
+    },
+    {
+      "suite": "emotion",
+      "n_fit": 200,
+      "n_eval": 200,
+      "n_domains": 6,
+      "mi_bits": 0.11970155422777393,
+      "label_entropy_bits": 2.299307967116735,
+      "routed_forced_acc": 0.145,
+      "two_sigma": 0.0497945780180935,
+      "arms": [
+        {
+          "arm": "score_vector",
+          "acc": 0.195,
+          "macro_auroc": 0.4955438465415688,
+          "n_included": 5,
+          "n_excluded": 1,
+          "excluded_examples": [
+            "surprise(6/194)"
+          ],
+          "degenerate": false
+        },
+        {
+          "arm": "one_hot",
+          "acc": 0.165,
+          "macro_auroc": 0.5303845408229867,
+          "n_included": 5,
+          "n_excluded": 1,
+          "excluded_examples": [
+            "surprise(6/194)"
+          ],
+          "degenerate": false
+        }
+      ],
+      "lambda_grid_rows": [
+        {
+          "lambda": 0.001,
+          "acc": 0.19,
+          "macro_auroc": 0.5257025235207741,
+          "n_included": 5
+        },
+        {
+          "lambda": 0.01,
+          "acc": 0.19,
+          "macro_auroc": 0.531553854963509,
+          "n_included": 5
+        },
+        {
+          "lambda": 0.1,
+          "acc": 0.195,
+          "macro_auroc": 0.5477342152076276,
+          "n_included": 5
+        },
+        {
+          "lambda": 1.0,
+          "acc": 0.22,
+          "macro_auroc": 0.5484355361202284,
+          "n_included": 5
+        },
+        {
+          "lambda": 10.0,
+          "acc": 0.195,
+          "macro_auroc": 0.4955438465415688,
+          "n_included": 5
+        },
+        {
+          "lambda": 100.0,
+          "acc": 0.135,
+          "macro_auroc": 0.5025816597023207,
+          "n_included": 5
+        }
+      ],
+      "verdict": "AgreeWithMi",
+      "verdict_note": "LOW-MI (0.1197 bits): macro AUROC 0.4955 ≤ 0.70 — no hidden signal; the MI picture holds",
+      "pins": [
+        {
+          "kind": "suite_constant",
+          "n_slots": 200,
+          "n_paired": 132,
+          "acc_live": 0.32575757575757575,
+          "acc_pinned": 0.3181818181818182,
+          "delta": -0.007575757575757569,
+          "lb95": -0.022424242424242395,
+          "noninferior": false,
+          "abstain_live": 0.325,
+          "abstain_pinned": 0.305,
+          "fallback_count": 0,
+          "ceiling_note": "class-blind constant pin — every case forced to one domain (a named baseline shape, not a result)"
+        },
+        {
+          "kind": "predicted_class",
+          "n_slots": 200,
+          "n_paired": 132,
+          "acc_live": 0.32575757575757575,
+          "acc_pinned": 0.3181818181818182,
+          "delta": -0.007575757575757569,
+          "lb95": -0.022424242424242395,
+          "noninferior": false,
+          "abstain_live": 0.325,
+          "abstain_pinned": 0.305,
+          "fallback_count": 0,
+          "ceiling_note": "ceiling = T1 probe accuracy (0.1950) — the pin replays what the probe predicts, never beyond it"
+        },
+        {
+          "kind": "gold_oracle",
+          "n_slots": 200,
+          "n_paired": 132,
+          "acc_live": 0.32575757575757575,
+          "acc_pinned": 0.3181818181818182,
+          "delta": -0.007575757575757569,
+          "lb95": -0.022424242424242395,
+          "noninferior": false,
+          "abstain_live": 0.325,
+          "abstain_pinned": 0.305,
+          "fallback_count": 0,
+          "ceiling_note": "ORACLE CEILING ONLY — the key IS the gold label (leakage-bound); bounds what a perfect classifier-keyed pin could achieve, never a non-inferiority result"
+        }
+      ],
+      "mode_path_digest": "597e2138723877c7f7c4149ddbf4c2754dc4be256939c4010d406b162d8f4de4",
+      "reextract_digest_match": true,
+      "capture_witness_ok": true,
+      "suite_modal_domain": 2
+    },
+    {
+      "suite": "sst5",
+      "n_fit": 200,
+      "n_eval": 300,
+      "n_domains": 5,
+      "mi_bits": 0.06769962421824108,
+      "label_entropy_bits": 2.2605809393498815,
+      "routed_forced_acc": 0.21333333333333335,
+      "two_sigma": 0.04730359002897803,
+      "arms": [
+        {
+          "arm": "score_vector",
+          "acc": 0.23333333333333334,
+          "macro_auroc": 0.5186912418775524,
+          "n_included": 5,
+          "n_excluded": 0,
+          "excluded_examples": [],
+          "degenerate": false
+        },
+        {
+          "arm": "one_hot",
+          "acc": 0.22666666666666666,
+          "macro_auroc": 0.4999154187018515,
+          "n_included": 5,
+          "n_excluded": 0,
+          "excluded_examples": [],
+          "degenerate": false
+        }
+      ],
+      "lambda_grid_rows": [
+        {
+          "lambda": 0.001,
+          "acc": 0.22666666666666666,
+          "macro_auroc": 0.5267063432132755,
+          "n_included": 5
+        },
+        {
+          "lambda": 0.01,
+          "acc": 0.23,
+          "macro_auroc": 0.5266996061061489,
+          "n_included": 5
+        },
+        {
+          "lambda": 0.1,
+          "acc": 0.23666666666666666,
+          "macro_auroc": 0.5253896438274713,
+          "n_included": 5
+        },
+        {
+          "lambda": 1.0,
+          "acc": 0.23666666666666666,
+          "macro_auroc": 0.5225169826099567,
+          "n_included": 5
+        },
+        {
+          "lambda": 10.0,
+          "acc": 0.23333333333333334,
+          "macro_auroc": 0.5186912418775524,
+          "n_included": 5
+        },
+        {
+          "lambda": 100.0,
+          "acc": 0.22666666666666666,
+          "macro_auroc": 0.49926837815881137,
+          "n_included": 5
+        }
+      ],
+      "verdict": "AgreeWithMi",
+      "verdict_note": "LOW-MI (0.0677 bits): macro AUROC 0.5187 ≤ 0.70 — no hidden signal; the MI picture holds",
+      "pins": [
+        {
+          "kind": "suite_constant",
+          "n_slots": 300,
+          "n_paired": 176,
+          "acc_live": 0.1590909090909091,
+          "acc_pinned": 0.1590909090909091,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.36333333333333334,
+          "abstain_pinned": 0.37666666666666665,
+          "fallback_count": 0,
+          "ceiling_note": "class-blind constant pin — every case forced to one domain (a named baseline shape, not a result)"
+        },
+        {
+          "kind": "predicted_class",
+          "n_slots": 300,
+          "n_paired": 175,
+          "acc_live": 0.15428571428571428,
+          "acc_pinned": 0.15428571428571428,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.36333333333333334,
+          "abstain_pinned": 0.38333333333333336,
+          "fallback_count": 1,
+          "ceiling_note": "ceiling = T1 probe accuracy (0.2333) — the pin replays what the probe predicts, never beyond it"
+        },
+        {
+          "kind": "gold_oracle",
+          "n_slots": 300,
+          "n_paired": 176,
+          "acc_live": 0.1590909090909091,
+          "acc_pinned": 0.1590909090909091,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.36333333333333334,
+          "abstain_pinned": 0.37666666666666665,
+          "fallback_count": 0,
+          "ceiling_note": "ORACLE CEILING ONLY — the key IS the gold label (leakage-bound); bounds what a perfect classifier-keyed pin could achieve, never a non-inferiority result"
+        }
+      ],
+      "mode_path_digest": "d1aa9adb84c5ccb6f6ebe8bf4d816b02f191e2c17e28679065aa650bb838ce5f",
+      "reextract_digest_match": true,
+      "capture_witness_ok": true,
+      "suite_modal_domain": 3
+    },
+    {
+      "suite": "banking77",
+      "n_fit": 200,
+      "n_eval": 250,
+      "n_domains": 77,
+      "mi_bits": 4.894714479385604,
+      "label_entropy_bits": 6.254650384160174,
+      "routed_forced_acc": 0.512,
+      "two_sigma": 0.06322733586036976,
+      "arms": [
+        {
+          "arm": "score_vector",
+          "acc": 0.192,
+          "macro_auroc": null,
+          "n_included": 0,
+          "n_excluded": 77,
+          "excluded_examples": [
+            "Refund not showing up(3/247)",
+            "activate my card(3/247)",
+            "age limit(4/246)",
+            "apple pay or google pay(3/247)",
+            "atm support(4/246)",
+            "automatic top up(4/246)"
+          ],
+          "degenerate": false
+        },
+        {
+          "arm": "one_hot",
+          "acc": 0.38,
+          "macro_auroc": null,
+          "n_included": 0,
+          "n_excluded": 77,
+          "excluded_examples": [
+            "Refund not showing up(3/247)",
+            "activate my card(3/247)",
+            "age limit(4/246)",
+            "apple pay or google pay(3/247)",
+            "atm support(4/246)",
+            "automatic top up(4/246)"
+          ],
+          "degenerate": false
+        }
+      ],
+      "lambda_grid_rows": [
+        {
+          "lambda": 0.001,
+          "acc": 0.316,
+          "macro_auroc": null,
+          "n_included": 0
+        },
+        {
+          "lambda": 0.01,
+          "acc": 0.348,
+          "macro_auroc": null,
+          "n_included": 0
+        },
+        {
+          "lambda": 0.1,
+          "acc": 0.34,
+          "macro_auroc": null,
+          "n_included": 0
+        },
+        {
+          "lambda": 1.0,
+          "acc": 0.248,
+          "macro_auroc": null,
+          "n_included": 0
+        },
+        {
+          "lambda": 10.0,
+          "acc": 0.192,
+          "macro_auroc": null,
+          "n_included": 0
+        },
+        {
+          "lambda": 100.0,
+          "acc": 0.1,
+          "macro_auroc": null,
+          "n_included": 0
+        }
+      ],
+      "verdict": "Underread",
+      "verdict_note": "HIGH-MI (4.8947 bits): probe acc -0.3200 BELOW the 2σ band (±0.0632) — the linear probe underreads the lookup at this fit size (fit-slice capacity, not absent signal)",
+      "pins": [
+        {
+          "kind": "suite_constant",
+          "n_slots": 250,
+          "n_paired": 6,
+          "acc_live": 0.3333333333333333,
+          "acc_pinned": 0.3333333333333333,
+          "delta": 0.0,
+          "lb95": 0.0,
+          "noninferior": true,
+          "abstain_live": 0.528,
+          "abstain_pinned": 0.968,
+          "fallback_count": 0,
+          "ceiling_note": "class-blind constant pin — every case forced to one domain (a named baseline shape, not a result)"
+        },
+        {
+          "kind": "predicted_class",
+          "n_slots": 250,
+          "n_paired": 58,
+          "acc_live": 0.5862068965517241,
+          "acc_pinned": 0.6379310344827587,
+          "delta": 0.051724137931034586,
+          "lb95": -0.005771198830271211,
+          "noninferior": true,
+          "abstain_live": 0.528,
+          "abstain_pinned": 0.744,
+          "fallback_count": 0,
+          "ceiling_note": "ceiling = T1 probe accuracy (0.1920) — the pin replays what the probe predicts, never beyond it"
+        },
+        {
+          "kind": "gold_oracle",
+          "n_slots": 250,
+          "n_paired": 66,
+          "acc_live": 0.6212121212121212,
+          "acc_pinned": 0.6363636363636364,
+          "delta": 0.015151515151515138,
+          "lb95": -0.014545454545454535,
+          "noninferior": false,
+          "abstain_live": 0.528,
+          "abstain_pinned": 0.704,
+          "fallback_count": 0,
+          "ceiling_note": "ORACLE CEILING ONLY — the key IS the gold label (leakage-bound); bounds what a perfect classifier-keyed pin could achieve, never a non-inferiority result"
+        }
+      ],
+      "mode_path_digest": "28baaed38e0da277741eea6c65cbfd211d76c36c805675c3b0bf86bb47fb4922",
+      "reextract_digest_match": true,
+      "capture_witness_ok": true,
+      "suite_modal_domain": 52
+    }
+  ],
+  "lane_probe_live": true
+}

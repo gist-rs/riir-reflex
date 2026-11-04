@@ -141,6 +141,10 @@ cargo run --release --features set_refine --bin harness -- --set-refine-ab --out
 # is the by-name-binding control (renamed keys on the identity corpus → drafter-only). NOT Bench 119 (formatting-flip).
 # REPORT-ONLY — no exit-code gate; the paired delta IS the measurement (per-suite/per-seed rows, 3 seeds):
 cargo run --release --bin harness -- --label-perm --suites banking77,ag_news,xnli_en,emotion --out .benchmarks/172_label_perm/<posture>
+# Routing-state probe + pinned-path replay (Issue 107, Bench 173 — NEGATIVE: the supervised probe finds no signal
+# beyond the routed argmax; the oracle pin itself is non-inferiority-FAILED on banking77. Witness-red refuses the
+# run; T2.3 = the forced_domain seam stays production-disarmed):
+cargo run --release --bin harness -- --routing-state-probe --out .benchmarks/<N>_routing_state_probe
 
 # Harness Warm-tier store (Issue 007 P1, opt-in `corpus_db`; ndb from NDB_BIN else PATH):
 NDB_BIN=../riir-neuron-db/target/release/ndb \

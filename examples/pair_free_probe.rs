@@ -33,9 +33,9 @@
 //! ```
 #![allow(clippy::needless_range_loop)]
 
-use katgpt_core::leakage_probe::{probe, LeakProbeConfig};
-use katgpt_core::linalg::{symmetric_eig, SymmetricEigScratch};
-use riir_reflex::embed::{Embedder, EMBED_DIM};
+use katgpt_core::leakage_probe::{LeakProbeConfig, probe};
+use katgpt_core::linalg::{SymmetricEigScratch, symmetric_eig};
+use riir_reflex::embed::{EMBED_DIM, Embedder};
 use riir_reflex::laya::config::Checkpoint;
 use riir_reflex::laya::riir::RiirAgent;
 use riir_reflex::laya::weights::weights_root;
@@ -170,7 +170,11 @@ fn pca_top(
     let mut cov = vec![0.0f64; dim * dim];
     let mut cen = vec![0.0f64; dim];
     for row in 0..n {
-        for (col, (c, v)) in cen.iter_mut().zip(&data[row * dim..row * dim + dim]).enumerate() {
+        for (col, (c, v)) in cen
+            .iter_mut()
+            .zip(&data[row * dim..row * dim + dim])
+            .enumerate()
+        {
             *c = f64::from(*v) - mean[col];
         }
         for i in 0..dim {
@@ -229,7 +233,13 @@ fn project_whiten(
 
 /// Orthogonal Procrustes: R = argmin ‖X − Y·R‖_F over row-major `n×p`
 /// f64 buffers (the polar factor via eig of MᵀM, M = XᵀY).
-fn procrustes_r(x: &[f64], y: &[f64], n: usize, p: usize, scratch: &mut SymmetricEigScratch) -> Vec<f64> {
+fn procrustes_r(
+    x: &[f64],
+    y: &[f64],
+    n: usize,
+    p: usize,
+    scratch: &mut SymmetricEigScratch,
+) -> Vec<f64> {
     let mut m = vec![0.0f64; p * p];
     for row in 0..n {
         let xr = &x[row * p..row * p + p];
@@ -290,7 +300,11 @@ fn foscttm(x: &[f64], y: &[f64], m: usize, p: usize) -> f64 {
     let mut total = 0.0f64;
     let mut norms_y = vec![0.0f64; m];
     for j in 0..m {
-        norms_y[j] = y[j * p..j * p + p].iter().map(|v| v * v).sum::<f64>().sqrt();
+        norms_y[j] = y[j * p..j * p + p]
+            .iter()
+            .map(|v| v * v)
+            .sum::<f64>()
+            .sqrt();
     }
     for i in 0..m {
         let xr = &x[i * p..i * p + p];
@@ -299,7 +313,11 @@ fn foscttm(x: &[f64], y: &[f64], m: usize, p: usize) -> f64 {
         let mut sim_true = None;
         let mut sims = Vec::with_capacity(m);
         for j in 0..m {
-            let dot: f64 = xr.iter().zip(&y[j * p..j * p + p]).map(|(a, b)| a * b).sum();
+            let dot: f64 = xr
+                .iter()
+                .zip(&y[j * p..j * p + p])
+                .map(|(a, b)| a * b)
+                .sum();
             let denom = nx * norms_y[j];
             let sim = if denom > 1e-12 { dot / denom } else { 0.0 };
             if j == i {
@@ -362,7 +380,10 @@ fn main() {
     let embedder = Embedder;
     let mut mdl = vec![0.0f32; m * EMBED_DIM];
     for (r, row) in rows.iter().enumerate() {
-        embedder.embed_into(row.text.as_bytes(), &mut mdl[r * EMBED_DIM..(r + 1) * EMBED_DIM]);
+        embedder.embed_into(
+            row.text.as_bytes(),
+            &mut mdl[r * EMBED_DIM..(r + 1) * EMBED_DIM],
+        );
     }
 
     // ── space A: frozen laya final hidden states, mean-pooled ─────────────
@@ -392,10 +413,8 @@ fn main() {
 
     // ── the pair-free chain (leakage_probe transport) ─────────────────────
     let cfg = LeakProbeConfig::default();
-    let report = probe(
-        &laya, &labels, d_laya, &mdl, &labels, EMBED_DIM, &cfg,
-    )
-    .unwrap_or_else(|e| panic!("leakage probe: {e}"));
+    let report = probe(&laya, &labels, d_laya, &mdl, &labels, EMBED_DIM, &cfg)
+        .unwrap_or_else(|e| panic!("leakage probe: {e}"));
 
     // ── the paired arm ────────────────────────────────────────────────────
     let eval = m - anchors;
@@ -423,7 +442,10 @@ fn main() {
     // residual mean cos: paired, held-out, under R
     let mut resid = 0.0f64;
     for row in 0..eval {
-        let (xr, yrr) = (&xl64[row * pca_k..row * pca_k + pca_k], &yr[row * pca_k..row * pca_k + pca_k]);
+        let (xr, yrr) = (
+            &xl64[row * pca_k..row * pca_k + pca_k],
+            &yr[row * pca_k..row * pca_k + pca_k],
+        );
         let (mut dot, mut nx, mut ny) = (0.0f64, 0.0f64, 0.0f64);
         for t in 0..pca_k {
             dot += xr[t] * yrr[t];

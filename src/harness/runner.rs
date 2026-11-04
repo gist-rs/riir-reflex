@@ -201,6 +201,18 @@ pub use router_stats_probe::{
     render_router_stats_markdown, run_router_stats_probe,
 };
 
+// Issue 107 — the routing-state probe + pinned-path replay PoC (Research
+// 014 / arXiv:2611.03526): T1 supervised probe over routing-state features
+// (score-vector arm MANDATORY via `routing_directions` + `Scratch.q`), T2
+// report-only mode-path pins through the forced_domain seam. NO promotion
+// anywhere (T2.3) — a worthwhile replay posture files a NEW issue.
+mod routing_state_probe;
+pub use routing_state_probe::{
+    DEFAULT_ROUTING_STATE_PROBE_MAX_CASES, DEFAULT_ROUTING_STATE_PROBE_SUITES, ProbeVerdict,
+    RoutingProbeMeta, RoutingProbeSuite, RoutingStateProbeOptions, RoutingStateProbeOutput,
+    render_routing_state_probe_markdown, run_routing_state_probe,
+};
+
 mod density_pilot;
 mod echo_gates;
 pub use density_pilot::{

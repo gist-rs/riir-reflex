@@ -2101,6 +2101,22 @@ impl<const N: usize, const D: usize> DecisionEngine<N, D> {
         self.experts.iter().map(|e| e.name()).collect()
     }
 
+    /// Issue 107 T1 (routing-state probe): read-only access to the
+    /// routing directions the decide path's `pick_domain` scores against.
+    /// The probe lane re-derives the router's pre-argmax score vector as
+    /// `dot(embed(ctx), dir)` — the SAME sequential f32 fold
+    /// `pick_domain` runs — so the supervised probe measures what ships
+    /// without a parallel derivation that could drift from the build path.
+    /// Read-only instrumentation, exactly the [`Self::gate`] posture: no
+    /// engine state touched, no allocation, no production caller.
+    pub fn routing_directions(&self) -> [[f32; D]; N] {
+        let mut dirs = [[0.0f32; D]; N];
+        for (o, e) in dirs.iter_mut().zip(self.experts.iter()) {
+            *o = e.direction;
+        }
+        dirs
+    }
+
     /// Issue 090 C1 (route-agreement probe): the SEMANTIC route of an
     /// arbitrary text under this engine's routing table — the same
     /// unit-centroid argmax (`pick_domain`) the decide path uses, over
