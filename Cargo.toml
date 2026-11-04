@@ -73,6 +73,12 @@ modelless = [
     "katgpt-core/template_decode",
     "dep:blake3",
 ]
+# Issue 106 (katgpt-rs Issue 978 T5 consumer lane) — the ρ-per-suite + ρ-gated
+# cross-lane Procrustes probe. Forwards katgpt-core `nuisance_fraction`
+# (arXiv:2610.39302 Thm 3 ρ + alignment_floor) and `basis_split` (the public
+# ZCA whitener builder) — no new dep edge: katgpt-core is already the ONE
+# foreign code-level dep. Measurement-only; never in RELEASE_FEATURES.
+rho_probe = ["katgpt-core/nuisance_fraction", "katgpt-core/basis_split"]
 # Issue 038 T1/T3: per-label naive-Bayes count tables (katgpt-core
 # `contrastive_scope`, GOAT-passed at katgpt-rs Bench 669 — frozen counts,
 # log2-odds, BLAKE3-committed). PROMOTED default-on at Bench 051 (G1–G4
@@ -428,6 +434,16 @@ required-features = ["modelless"]
 [[example]]
 name = "route_scale_probe"
 required-features = ["modelless"]
+
+# Issue 106 (katgpt-rs Issue 978 T5 consumer lane) — the ρ-per-suite + ρ-gated
+# cross-lane Procrustes probe (REPORT-ONLY; the pre-registered savings arm:
+# the Thm-3 floor must refuse ≥ 1 cross-lane transport, adjudicated correct
+# out-of-band). Needs the laya lane for the encoder space (the file opens
+# with `#![cfg(all(feature = "laya-riir", feature = "rho_probe"))]` — without
+# the row a default-features `clippy --all-targets` dies E0601).
+[[example]]
+name = "rho_suite_probe"
+required-features = ["modelless", "laya-riir", "rho_probe"]
 
 # Issue 081 T2b: the corpus-distance gate probe for memory-control corpora
 # (measures where real requests sit vs the gate midpoint — the corpus-authoring
