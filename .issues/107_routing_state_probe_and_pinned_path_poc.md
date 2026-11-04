@@ -1,7 +1,7 @@
 # Issue 107: routing-state probe + pinned-path replay PoC (Research 014 / arXiv:2611.03526)
 
 **Status:** OPEN — PoC with pre-registered gates; T1 is diagnostic-first (completes Bench 167's MI finding with a supervised bound), T2 is report-only pin replay; NO serving-path change anywhere in this issue
-**Lease:** none needed — fresh filing (Research 014 same session)
+**Claimed:** zed-amo-i107probe, 1793764382, expires 2026-11-06T03:53:02Z
 
 **Distill:** [Research 014](../.research/014_Library_of_Layers_Routing_State_Probe_Pin.md) (LoL, arXiv:2611.03526) — the two closed-form runtime halves of a trained router (supervised probe over routing state; mode-path extraction + forcing), transferred to reflex's `pick_domain` engine. Published prior art occupies the probe-as-side-channel class ([arXiv:2610.07774](https://arxiv.org/abs/2610.07774) — router-logit safety detector read at prefill); this issue claims NO novelty — it measures whether the mechanism carries signal on OUR routing features and whether the pin half is worth a seam. **Internal prior negative carried:** reflex [Bench 157](../.benchmarks/157_depth_probe_n100.md) recorded depth-as-CONFIDENCE NEGATIVE (residual-stream stability → correctness ≈ chance on 6/9 suites) — a DIFFERENT feature source (residual stream, not routing state); this issue is not a Bench 157 re-run, but any probe result here must be read against that negative.
 
