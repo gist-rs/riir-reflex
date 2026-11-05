@@ -1,0 +1,3654 @@
+{
+  "meta": {
+    "date_utc": "2026-11-05T17:36:53Z",
+    "git_sha": "ceb9840",
+    "host": "shikuwa",
+    "contract_version": "CEILING_CONTRACT_V1",
+    "suite": "sst5",
+    "judge_model": "bonsai",
+    "judge_url_host": "127.0.0.1:8082",
+    "sample_n_requested": 400,
+    "sample_n_actual": 600,
+    "flipped_controls": 40,
+    "seed": 18713711870216,
+    "score_threshold": 0.20488091,
+    "distance_threshold": 0.41663086,
+    "rho": 0.3,
+    "posture_note": "lane half = the deployed three-engine calibration posture (raw → cal pairs → Issue-056 calibrated-scale thresholds → fitted engine via observe, thresholds in cfg); judge half = the contract's seat ladder over loopback; the frozen read runs ONCE per contract version."
+  },
+  "validity": {
+    "flipped_total": 40,
+    "flipped_caught": 40,
+    "flipped_catch_recall": 1.0,
+    "supported_total": 40,
+    "supported_correct": 11,
+    "supported_catch_rate": 0.275,
+    "bar": 0.85,
+    "pass": true
+  },
+  "census": {
+    "correct_supported": 9,
+    "correct_not_supported": 15,
+    "correct_unclear": 0,
+    "wrong_supported": 76,
+    "wrong_not_supported": 35,
+    "wrong_unclear": 0,
+    "abstained": 349,
+    "unknown": 116
+  },
+  "report": {
+    "n_support_denominator": 135,
+    "gold_support": 0.6296296296296297,
+    "wilson_lo": 0.5456382930784012,
+    "wilson_hi": 0.7064477933255429,
+    "ci_half_width": 0.08040475012357085,
+    "kish_deff": 1.1031550068587106,
+    "coverage_ceiling": 0.41833333333333333,
+    "raw_lane_accuracy": 0.08666666666666667,
+    "supported_subset_accuracy": 0.10588235294117647,
+    "supported_subset_n": 85,
+    "correct_not_supported": 15
+  },
+  "items": [
+    {
+      "case_id": "sst5:0",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:1",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:2",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:3",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:4",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:5",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:6",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:7",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:8",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:9",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:10",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:11",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:12",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:13",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:14",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:15",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:16",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:17",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:18",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:19",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:20",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:21",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:22",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:23",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:24",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:25",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:26",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:27",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:28",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:29",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:30",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:31",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:32",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:33",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:34",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:35",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:36",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:37",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:38",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:39",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:40",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:41",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:42",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:43",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:44",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:45",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:46",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:47",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:48",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:49",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:50",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:51",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:52",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:53",
+      "gold_label": "very negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:54",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:55",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:56",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:57",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:58",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:59",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:60",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:61",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:62",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:63",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:64",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:65",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:66",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:67",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:68",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:69",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:70",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:71",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:72",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:73",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:74",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:75",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:76",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:77",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:78",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:79",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:80",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:81",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:82",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:83",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:84",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:85",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:86",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:87",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:88",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:89",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:90",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:91",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:92",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:93",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:94",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:95",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:96",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:97",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:98",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:99",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:100",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:101",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:102",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:103",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:104",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:105",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:106",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:107",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:108",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:109",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:110",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:111",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:112",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:113",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:114",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:115",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:116",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:117",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:118",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:119",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:120",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:121",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:122",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:123",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:124",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:125",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:126",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:127",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:128",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:129",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:130",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:131",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:132",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:133",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:134",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:135",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:136",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:137",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:138",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:139",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:140",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:141",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:142",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:143",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:144",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:145",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:146",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:147",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:148",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:149",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:150",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:151",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:152",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:153",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:154",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:155",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:156",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:157",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:158",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:159",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:160",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:161",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:162",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:163",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:164",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:165",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:166",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:167",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:168",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:169",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:170",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:171",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:172",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:173",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:174",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:175",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:176",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:177",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:178",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:179",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:180",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:181",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:182",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:183",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:184",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:185",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:186",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:187",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:188",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:189",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:190",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:191",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:192",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:193",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:194",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:195",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:196",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:197",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:198",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:199",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:200",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:201",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:202",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:203",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:204",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:205",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:206",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:207",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:208",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:209",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:210",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:211",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:212",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:213",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:214",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:215",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:216",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:217",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:218",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:219",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:220",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:221",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:222",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:223",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:224",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:225",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:226",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:227",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:228",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:229",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:230",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:231",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:232",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:233",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:234",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:235",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:236",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:237",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:238",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:239",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:240",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:241",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:242",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:243",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:244",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:245",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:246",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:247",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:248",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:249",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:250",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:251",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:252",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:253",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:254",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:255",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:256",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:257",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:258",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:259",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:260",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:261",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:262",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:263",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:264",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:265",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:266",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:267",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:268",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:269",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:270",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:271",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:272",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:273",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:274",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:275",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:276",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:277",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:278",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:279",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:280",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:281",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:282",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:283",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:284",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:285",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:286",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:287",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:288",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:289",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:290",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:291",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:292",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:293",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:294",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:295",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:296",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:297",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:298",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:299",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:300",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:301",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:302",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:303",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:304",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:305",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:306",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:307",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:308",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:309",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:310",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:311",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:312",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:313",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:314",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:315",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:316",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:317",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:318",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:319",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:320",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:321",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:322",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:323",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:324",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:325",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:326",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:327",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:328",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:329",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:330",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:331",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:332",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:333",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:334",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:335",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:336",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:337",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:338",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:339",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:340",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:341",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:342",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:343",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:344",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:345",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:346",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:347",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:348",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:349",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:350",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:351",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:352",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:353",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:354",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:355",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:356",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:357",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:358",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:359",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:360",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:361",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:362",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:363",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:364",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:365",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:366",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:367",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:368",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:369",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:370",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:371",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:372",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:373",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:374",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:375",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:376",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:377",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:378",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:379",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:380",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:381",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:382",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:383",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:384",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:385",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:386",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:387",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:388",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:389",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:390",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:391",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:392",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:393",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:394",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:395",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:396",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:397",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:398",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:399",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:400",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:401",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:402",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:403",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:404",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:405",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:406",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:407",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:408",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:409",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:410",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:411",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:412",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:413",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:414",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:415",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:416",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:417",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:418",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:419",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:420",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:421",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:422",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:423",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:424",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:425",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:426",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:427",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:428",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:429",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:430",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:431",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:432",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:433",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:434",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:435",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:436",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:437",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:438",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:439",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:440",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:441",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:442",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:443",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:444",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:445",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:446",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:447",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:448",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:449",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:450",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:451",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:452",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:453",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:454",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:455",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:456",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:457",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:458",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:459",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:460",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:461",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:462",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:463",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:464",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:465",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:466",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:467",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:468",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:469",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:470",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:471",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:472",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:473",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:474",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:475",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:476",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:477",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:478",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:479",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:480",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:481",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:482",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:483",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:484",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:485",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:486",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:487",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:488",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:489",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:490",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:491",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:492",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:493",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:494",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:495",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:496",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:497",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:498",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:499",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:500",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:501",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:502",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:503",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:504",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:505",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:506",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:507",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:508",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:509",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:510",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:511",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:512",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:513",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:514",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:515",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:516",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:517",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:518",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:519",
+      "gold_label": "very positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:520",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:521",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:522",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:523",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:524",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:525",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:526",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:527",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:528",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:529",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:530",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:531",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:532",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:533",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:534",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:535",
+      "gold_label": "positive",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:536",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:537",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:538",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:539",
+      "gold_label": "negative",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:540",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:541",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:542",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:543",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:544",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:545",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:546",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:547",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:548",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:549",
+      "gold_label": "very negative",
+      "lane": "correct",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:550",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:551",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:552",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:553",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:554",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:555",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:556",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:557",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:558",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:559",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:560",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:561",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:562",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:563",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:564",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:565",
+      "gold_label": "neutral",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:566",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:567",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:568",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:569",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:570",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:571",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:572",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:573",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:574",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:575",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:576",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:577",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:578",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:579",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:580",
+      "gold_label": "very positive",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:581",
+      "gold_label": "very negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:582",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:583",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:584",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:585",
+      "gold_label": "neutral",
+      "lane": "correct",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:586",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:587",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:588",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:589",
+      "gold_label": "negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:590",
+      "gold_label": "neutral",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:591",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "not_supported"
+    },
+    {
+      "case_id": "sst5:592",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:593",
+      "gold_label": "negative",
+      "lane": "wrong",
+      "support": "unknown"
+    },
+    {
+      "case_id": "sst5:594",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:595",
+      "gold_label": "very negative",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:596",
+      "gold_label": "positive",
+      "lane": "wrong",
+      "support": "supported"
+    },
+    {
+      "case_id": "sst5:597",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:598",
+      "gold_label": "very positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    },
+    {
+      "case_id": "sst5:599",
+      "gold_label": "positive",
+      "lane": "abstained",
+      "support": "unsupported_scope"
+    }
+  ]
+}

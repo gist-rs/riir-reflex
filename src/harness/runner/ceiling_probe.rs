@@ -730,10 +730,14 @@ pub fn run_ceiling_probe(
         fixture_of(case)?;
     }
 
-    // ── the stratified sample (the front is label-stratified; the stride
-    //    keeps proportionality) ──
-    let sample: Vec<usize> =
-        super::perm_probe::stride_indices(n_cases, popts.sample_n.min(n_cases));
+    // ── the sample: the WHOLE front ──
+    //    `stride_indices` is a MAX-cases capper ("all when they fit, else
+    //    every ceil(n/max)-th"); the contract floor is a MINIMUM (n ≥ 400
+    //    half-width ≤ 0.05), so the probe reads every case the front holds
+    //    — passing the floor AS the cap under-sampled (600 front @ 400
+    //    floor ⇒ stride 2 ⇒ 300 < floor, the first-cell refusal). The
+    //    front is label-stratified, so whole-front keeps proportionality.
+    let sample: Vec<usize> = super::perm_probe::stride_indices(n_cases, n_cases);
     let sample_n = sample.len();
     if sample_n < MIN_SAMPLE_N {
         return Err(format!(
