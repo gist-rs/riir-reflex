@@ -133,6 +133,7 @@ cargo run --release --features clef-ane --bin harness -- --clef-conf-probe \
 cargo run --release --bin harness -- --null-probe --out .benchmarks/<N>_null_probe        # Issue 090 A1–A3, Bench 147
 cargo run --release --bin harness -- --rubric-probe --out .benchmarks/<N>_rubric_probe    # Issue 090 C1, Bench 149
 cargo run --release --bin harness -- --gate-drift-probe --out .benchmarks/<N>_gate_drift  # Issue 093, Bench 154
+cargo run --release --bin harness -- --gate-stability --out .benchmarks/<N>_gate_stability # Issue 109, Bench 174 (bootstrap t* + held-out flatness; first cell all-STABLE)
 # Set-refine A/B (Issue 090 C2 / katgpt-rs Plan 627, opt-in `set_refine`, Bench 150 — MEASURED NEGATIVE, stays opt-in;
 # re-open = a different key family, never a γ/τ retune):
 cargo run --release --features set_refine --bin harness -- --set-refine-ab --out .benchmarks/150_set_refine_ab_goat

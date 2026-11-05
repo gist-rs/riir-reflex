@@ -226,6 +226,13 @@ pub use gate_drift::{
     render_gate_drift_markdown, run_gate_drift,
 };
 
+// Issue 109 — the gate-fit threshold-stability audit (report-only).
+mod gate_stability;
+pub use gate_stability::{
+    DEFAULT_MAX_EVAL_PER_SUITE, GATE_STABILITY_ITERS, GATE_STABILITY_SEED, GATE_STABILITY_SUITES,
+    GateStabilityOptions, GateStabilityOutput, render_gate_stability_markdown, run_gate_stability,
+};
+
 // Issue 098 T1: the comparison-lane bodies carved out of this file - the
 // laya/CLM/jsonl-oracle/GLiNER/Bekko/AgentJev/clef lanes in `lanes_wire`,
 // the hosted HTTP lanes + the TeacherWireLane family in `lanes_hosted`.

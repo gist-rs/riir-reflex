@@ -2,6 +2,10 @@
 
 Compacted 2026-10-30: every `##` heading kept verbatim, one compact entry per record (≤2 short lines); the full pre-compaction text is in git history (pre-compaction HEAD f7032899cf74). Operational rules live in `AGENTS.md`.
 
+## 2026-11-05 — Issue 109 CLOSED (landed): the gate-fit threshold-stability audit — all 8 board suites STABLE (Bench 174)
+
+**109.** The bootstrap-t\* + held-out-flatness audit over the deterministic calibration pass (Research 015 §2.2): `--gate-stability` report-only arm (B = 200 seeded SplitMix64 resamples, held-out = the stratified eval front through the SAME engine + calibrator, bars t\* SD ≤ 0.05 / vacuity max(10, 5%·n) / knife-edge ≥2× at ±0.02). First cell: all 16 axes (8 suites × score/distance) STABLE — max SD 0.0197 (banking77 distance), zero vacuous resamples, zero knife edges; the saturation support cliffs (pass→0 at t\*+0.02 on four score axes) adjudicated `seam_support_cliff_at_zero_not_flagged` (quantization, not fragility — SD ≤ 0.1×10⁻³ there). Byte-identity proven across two runs (only date_utc differs). 10 in-module unit tests; clippy −D green. Bench 174; issue file removed per the noise-reduction rule (git history is the durable record).
+
 ## 2026-11-04 — Issues 106 + 107 CLOSED NEGATIVE + REMOVED: the supervised-readout class on reflex features is 0-for-2 (Bench 172 pair + Bench 173)
 
 **106.** The ρ-suite embedding Procrustes lane (katgpt-rs Issue 978 T5 consumer): verdict-reproduction half MATCH (ρ_diff(struct4)=0.4657 < 0.5 ⇒ NOT-ARMED = Bench 115's recorded refusal); savings arm FAIL (both ledger halves at/below the 5 ms resolution bound — the d=8 transport too cheap to gate). First run's "floor violated 46–74%" retracted as the in-sample overfit artifact (round-1 verdict caught it; the independent-noise null reproduced the numbers); the corrected split-half held-out + seeded-permutation protocol showed the Thm-3 bound HELD in all 4 estimable arms, gains ≤9.5% of identity. Commits `186a634` → revised `61a65d0`, lease folded `74643fb`; Bench 172; session zed-b860ef72@amo. Issue file removed per the noise-reduction rule (git history is the durable record).

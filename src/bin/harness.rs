@@ -365,6 +365,11 @@ fn harness_main() {
     let mut gate_drift_probe = false;
     let mut gate_drift_off = 0usize;
     let mut gate_drift_in = 0usize;
+    // Issue 109 — the gate-fit threshold-stability audit.
+    let mut gate_stability_probe = false;
+    let mut gate_stability_iters = 0usize;
+    let mut gate_stability_rho = 0.0f64;
+    let mut gate_stability_eval = 0usize;
     // Issue 086 T1 — the presentation-subspace certificate modifier.
     let mut basis_split = false;
     let mut distill = false;
@@ -657,6 +662,30 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--gate-drift-in needs a number"));
+            }
+            // Issue 109 — the gate-stability audit (exclusive early-exit
+            // mode; report-only: no exit-code coupling, no auto-retune).
+            "--gate-stability" => gate_stability_probe = true,
+            "--gate-stability-iters" => {
+                i += 1;
+                gate_stability_iters = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--gate-stability-iters needs a number"));
+            }
+            "--gate-stability-rho" => {
+                i += 1;
+                gate_stability_rho = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--gate-stability-rho needs a number"));
+            }
+            "--gate-stability-eval" => {
+                i += 1;
+                gate_stability_eval = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--gate-stability-eval needs a number"));
             }
             "--null-k" => {
                 i += 1;
@@ -1527,10 +1556,76 @@ fn harness_main() {
         }
         return;
     }
+    // Issue 109 — the gate-fit threshold-stability audit: exclusive
+    // early-exit mode. REPORT-ONLY by the issue's own law: bootstrap t*
+    // + held-out flatness per suite; no exit-code coupling, no
+    // auto-retune (a re-fit decision is a separate measured act).
+    if gate_stability_probe {
+        let defaults = runner::GateStabilityOptions::default();
+        let gopts = runner::GateStabilityOptions {
+            iters: if gate_stability_iters == 0 {
+                defaults.iters
+            } else {
+                gate_stability_iters
+            },
+            rho: if gate_stability_rho == 0.0 {
+                defaults.rho
+            } else {
+                gate_stability_rho
+            },
+            max_eval_per_suite: if gate_stability_eval == 0 {
+                defaults.max_eval_per_suite
+            } else {
+                gate_stability_eval
+            },
+            ..defaults
+        };
+        let suite_names: Vec<&str> = if opts.suites.is_empty() {
+            runner::GATE_STABILITY_SUITES.to_vec()
+        } else {
+            opts.suites.iter().map(String::as_str).collect()
+        };
+        println!(
+            "harness --gate-stability: datasets {} · suites {:?} · iters {} · seed {} · \
+             rho {:.2} · eval {}/suite · lane: modelless (report-only)",
+            opts.datasets_dir.display(),
+            suite_names,
+            gopts.iters,
+            gopts.seed,
+            gopts.rho,
+            gopts.max_eval_per_suite,
+        );
+        let out = match runner::run_gate_stability(&opts, gopts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("gate_stability.json");
+        let md_path = out_dir.join("GATE_STABILITY.md");
+        let json = serde_json::to_string_pretty(&out).expect("gate stability serialize");
+        let md = runner::render_gate_stability_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --gate-stability: DONE — {} suite(s) audited; \
+             population floor printed in the report — wrote {} + {}",
+            out.suites.len(),
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 15] = [
+        let modes: [(&str, bool); 16] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--label-perm", label_perm),
@@ -1539,6 +1634,7 @@ fn harness_main() {
             ("--clef-conf-probe", clef_conf_probe),
             ("--rubric-probe", rubric_probe),
             ("--gate-drift-probe", gate_drift_probe),
+            ("--gate-stability", gate_stability_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

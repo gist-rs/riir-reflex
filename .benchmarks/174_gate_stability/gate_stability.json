@@ -1,0 +1,1282 @@
+{
+  "meta": {
+    "date_utc": "2026-11-05T16:14:30Z",
+    "git_sha": "42361c1",
+    "host": "shikuwa",
+    "datasets_dir": "E:\\git\\riir-reflex\\.raw/datasets",
+    "suites": [
+      "massive_intent_en",
+      "banking77",
+      "typed_decisions",
+      "prompt_injections",
+      "sst5",
+      "ag_news",
+      "xnli_en",
+      "emotion"
+    ],
+    "iters": 200,
+    "seed": 18713711869961,
+    "rho": 0.3,
+    "offsets": [
+      0.02,
+      0.05,
+      0.1
+    ],
+    "tstar_sd_bar": 0.05,
+    "knife_edge_drop": 2.0,
+    "vacuity_floor_abs": 10,
+    "vacuity_floor_rel": 0.05,
+    "gate_fit_calibrated": true,
+    "posture_note": "default harness posture (levers off, kn_route on, calibrated gate fit per Issue 056) — the calibration pass re-run verbatim; bootstrap = SplitMix64 resamples with replacement, bounded index r % n (method pinned, report instrument); held-out curve on the stratified eval front through the SAME engine + calibrator. Cells are byte-identical across runs; the meta's provenance lines are disclosure, not cells."
+  },
+  "suites": [
+    {
+      "suite": "massive_intent_en",
+      "labels": 59,
+      "corpus_rows": 11314,
+      "eval_n": 150,
+      "score": {
+        "axis": "score",
+        "t_star": 0.23724583,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.2371922366321087,
+          "sd": 0.01328850230917149,
+          "p05": 0.22209895,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.2596423,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.21025564,
+          "max": 0.28720134
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.23724583,
+            "accuracy": 0.6319444444444444,
+            "pass_rate": 0.96,
+            "n_pass": 144,
+            "n": 150
+          },
+          {
+            "t": 0.21724583,
+            "accuracy": 0.6326530612244898,
+            "pass_rate": 0.98,
+            "n_pass": 147,
+            "n": 150
+          },
+          {
+            "t": 0.18724583,
+            "accuracy": 0.6351351351351351,
+            "pass_rate": 0.9866666666666667,
+            "n_pass": 148,
+            "n": 150
+          },
+          {
+            "t": 0.13724583,
+            "accuracy": 0.6375838926174496,
+            "pass_rate": 0.9933333333333333,
+            "n_pass": 149,
+            "n": 150
+          },
+          {
+            "t": 0.33724582,
+            "accuracy": 0.6793893129770993,
+            "pass_rate": 0.8733333333333333,
+            "n_pass": 131,
+            "n": 150
+          },
+          {
+            "t": 0.28724584,
+            "accuracy": 0.6791044776119403,
+            "pass_rate": 0.8933333333333333,
+            "n_pass": 134,
+            "n": 150
+          },
+          {
+            "t": 0.25724584,
+            "accuracy": 0.6408450704225352,
+            "pass_rate": 0.9466666666666667,
+            "n_pass": 142,
+            "n": 150
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.5259382,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.5307048338651658,
+          "sd": 0.010490614228565225,
+          "p05": 0.5167072,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.55310935,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.495488,
+          "max": 0.559468
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.5259382,
+            "accuracy": 0.6288659793814433,
+            "pass_rate": 0.6466666666666666,
+            "n_pass": 97,
+            "n": 150
+          },
+          {
+            "t": 0.50593823,
+            "accuracy": 0.6074766355140186,
+            "pass_rate": 0.7133333333333334,
+            "n_pass": 107,
+            "n": 150
+          },
+          {
+            "t": 0.4759382,
+            "accuracy": 0.624,
+            "pass_rate": 0.8333333333333334,
+            "n_pass": 125,
+            "n": 150
+          },
+          {
+            "t": 0.42593822,
+            "accuracy": 0.6231884057971014,
+            "pass_rate": 0.92,
+            "n_pass": 138,
+            "n": 150
+          },
+          {
+            "t": 0.62593824,
+            "accuracy": 0.6515151515151515,
+            "pass_rate": 0.44,
+            "n_pass": 66,
+            "n": 150
+          },
+          {
+            "t": 0.5759382,
+            "accuracy": 0.625,
+            "pass_rate": 0.5333333333333333,
+            "n_pass": 80,
+            "n": 150
+          },
+          {
+            "t": 0.5459382,
+            "accuracy": 0.6344086021505376,
+            "pass_rate": 0.62,
+            "n_pass": 93,
+            "n": 150
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "banking77",
+      "labels": 77,
+      "corpus_rows": 9793,
+      "eval_n": 167,
+      "score": {
+        "axis": "score",
+        "t_star": 0.3176532,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.3177968554198742,
+          "sd": 0.0042989635997459094,
+          "p05": 0.30977136,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.32495418,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.30591762,
+          "max": 0.33023652
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.3176532,
+            "accuracy": 0.43410852713178294,
+            "pass_rate": 0.7724550898203593,
+            "n_pass": 129,
+            "n": 167
+          },
+          {
+            "t": 0.2976532,
+            "accuracy": 0.4189189189189189,
+            "pass_rate": 0.8862275449101796,
+            "n_pass": 148,
+            "n": 167
+          },
+          {
+            "t": 0.2676532,
+            "accuracy": 0.39759036144578314,
+            "pass_rate": 0.9940119760479041,
+            "n_pass": 166,
+            "n": 167
+          },
+          {
+            "t": 0.21765321,
+            "accuracy": 0.40119760479041916,
+            "pass_rate": 1.0,
+            "n_pass": 167,
+            "n": 167
+          },
+          {
+            "t": 0.4176532,
+            "accuracy": 0.45614035087719296,
+            "pass_rate": 0.3413173652694611,
+            "n_pass": 57,
+            "n": 167
+          },
+          {
+            "t": 0.36765322,
+            "accuracy": 0.4523809523809524,
+            "pass_rate": 0.5029940119760479,
+            "n_pass": 84,
+            "n": 167
+          },
+          {
+            "t": 0.33765322,
+            "accuracy": 0.42201834862385323,
+            "pass_rate": 0.6526946107784432,
+            "n_pass": 109,
+            "n": 167
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.55494976,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.5515290424227715,
+          "sd": 0.019726150473737717,
+          "p05": 0.5073511,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.58173734,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.4820902,
+          "max": 0.5915497
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.55494976,
+            "accuracy": 0.48598130841121495,
+            "pass_rate": 0.6407185628742516,
+            "n_pass": 107,
+            "n": 167
+          },
+          {
+            "t": 0.5349498,
+            "accuracy": 0.46551724137931033,
+            "pass_rate": 0.6946107784431138,
+            "n_pass": 116,
+            "n": 167
+          },
+          {
+            "t": 0.50494975,
+            "accuracy": 0.4596774193548387,
+            "pass_rate": 0.7425149700598802,
+            "n_pass": 124,
+            "n": 167
+          },
+          {
+            "t": 0.45494977,
+            "accuracy": 0.44029850746268656,
+            "pass_rate": 0.8023952095808383,
+            "n_pass": 134,
+            "n": 167
+          },
+          {
+            "t": 0.6549498,
+            "accuracy": 0.4810126582278481,
+            "pass_rate": 0.47305389221556887,
+            "n_pass": 79,
+            "n": 167
+          },
+          {
+            "t": 0.6049498,
+            "accuracy": 0.48,
+            "pass_rate": 0.5988023952095808,
+            "n_pass": 100,
+            "n": 167
+          },
+          {
+            "t": 0.57494974,
+            "accuracy": 0.4811320754716981,
+            "pass_rate": 0.6347305389221557,
+            "n_pass": 106,
+            "n": 167
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "typed_decisions",
+      "labels": 4,
+      "corpus_rows": 1100,
+      "eval_n": 200,
+      "score": {
+        "axis": "score",
+        "t_star": 0.3102674,
+        "cal_n": 100,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.310248084962368,
+          "sd": 0.00005070704519793415,
+          "p05": 0.3101126,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.3102674,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.3100488,
+          "max": 0.3102674
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.3102674,
+            "accuracy": 0.3,
+            "pass_rate": 0.75,
+            "n_pass": 150,
+            "n": 200
+          },
+          {
+            "t": 0.29026738,
+            "accuracy": 0.225,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.26026738,
+            "accuracy": 0.225,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.2102674,
+            "accuracy": 0.225,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.41026738,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          },
+          {
+            "t": 0.3602674,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          },
+          {
+            "t": 0.3302674,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.91222644,
+        "cal_n": 100,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.9100454613566399,
+          "sd": 0.012787298700491563,
+          "p05": 0.88850176,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.9272844,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.8778971,
+          "max": 0.92972744
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.91222644,
+            "accuracy": 0.18620689655172415,
+            "pass_rate": 0.725,
+            "n_pass": 145,
+            "n": 200
+          },
+          {
+            "t": 0.89222646,
+            "accuracy": 0.18787878787878787,
+            "pass_rate": 0.825,
+            "n_pass": 165,
+            "n": 200
+          },
+          {
+            "t": 0.8622264,
+            "accuracy": 0.2185792349726776,
+            "pass_rate": 0.915,
+            "n_pass": 183,
+            "n": 200
+          },
+          {
+            "t": 0.8122264,
+            "accuracy": 0.22959183673469388,
+            "pass_rate": 0.98,
+            "n_pass": 196,
+            "n": 200
+          },
+          {
+            "t": 1.0122265,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          },
+          {
+            "t": 0.96222645,
+            "accuracy": 0.4583333333333333,
+            "pass_rate": 0.12,
+            "n_pass": 24,
+            "n": 200
+          },
+          {
+            "t": 0.9322264,
+            "accuracy": 0.17543859649122806,
+            "pass_rate": 0.57,
+            "n_pass": 114,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "prompt_injections",
+      "labels": 2,
+      "corpus_rows": 446,
+      "eval_n": 116,
+      "score": {
+        "axis": "score",
+        "t_star": 0.50998205,
+        "cal_n": 100,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.5099820494651794,
+          "sd": 0.0,
+          "p05": 0.50998205,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.50998205,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.50998205,
+          "max": 0.50998205
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.50998205,
+            "accuracy": 0.4827586206896552,
+            "pass_rate": 1.0,
+            "n_pass": 116,
+            "n": 116
+          },
+          {
+            "t": 0.48998204,
+            "accuracy": 0.4827586206896552,
+            "pass_rate": 1.0,
+            "n_pass": 116,
+            "n": 116
+          },
+          {
+            "t": 0.45998204,
+            "accuracy": 0.4827586206896552,
+            "pass_rate": 1.0,
+            "n_pass": 116,
+            "n": 116
+          },
+          {
+            "t": 0.40998206,
+            "accuracy": 0.4827586206896552,
+            "pass_rate": 1.0,
+            "n_pass": 116,
+            "n": 116
+          },
+          {
+            "t": 0.6099821,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 116
+          },
+          {
+            "t": 0.55998206,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 116
+          },
+          {
+            "t": 0.52998203,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 116
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.46189553,
+        "cal_n": 100,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.4647006896138191,
+          "sd": 0.01783107847495049,
+          "p05": 0.44350967,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.49565697,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.43130475,
+          "max": 0.51754034
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.46189553,
+            "accuracy": 0.4507042253521127,
+            "pass_rate": 0.6120689655172413,
+            "n_pass": 71,
+            "n": 116
+          },
+          {
+            "t": 0.4418955,
+            "accuracy": 0.4805194805194805,
+            "pass_rate": 0.6637931034482759,
+            "n_pass": 77,
+            "n": 116
+          },
+          {
+            "t": 0.4118955,
+            "accuracy": 0.4942528735632184,
+            "pass_rate": 0.75,
+            "n_pass": 87,
+            "n": 116
+          },
+          {
+            "t": 0.36189553,
+            "accuracy": 0.5,
+            "pass_rate": 0.8620689655172413,
+            "n_pass": 100,
+            "n": 116
+          },
+          {
+            "t": 0.56189555,
+            "accuracy": 0.38461538461538464,
+            "pass_rate": 0.33620689655172414,
+            "n_pass": 39,
+            "n": 116
+          },
+          {
+            "t": 0.51189554,
+            "accuracy": 0.391304347826087,
+            "pass_rate": 0.39655172413793105,
+            "n_pass": 46,
+            "n": 116
+          },
+          {
+            "t": 0.48189554,
+            "accuracy": 0.4166666666666667,
+            "pass_rate": 0.5172413793103449,
+            "n_pass": 60,
+            "n": 116
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "sst5",
+      "labels": 5,
+      "corpus_rows": 8333,
+      "eval_n": 200,
+      "score": {
+        "axis": "score",
+        "t_star": 0.20488091,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.20420631572604178,
+          "sd": 0.004585492022476107,
+          "p05": 0.19516952,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.21031314,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.18998954,
+          "max": 0.21700078
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.20488091,
+            "accuracy": 0.20437956204379562,
+            "pass_rate": 0.685,
+            "n_pass": 137,
+            "n": 200
+          },
+          {
+            "t": 0.18488091,
+            "accuracy": 0.2,
+            "pass_rate": 0.8,
+            "n_pass": 160,
+            "n": 200
+          },
+          {
+            "t": 0.15488091,
+            "accuracy": 0.21,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.10488091,
+            "accuracy": 0.21,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.30488092,
+            "accuracy": 0.1724137931034483,
+            "pass_rate": 0.145,
+            "n_pass": 29,
+            "n": 200
+          },
+          {
+            "t": 0.2548809,
+            "accuracy": 0.20833333333333334,
+            "pass_rate": 0.36,
+            "n_pass": 72,
+            "n": 200
+          },
+          {
+            "t": 0.2248809,
+            "accuracy": 0.2413793103448276,
+            "pass_rate": 0.58,
+            "n_pass": 116,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.41663086,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.41712659686803816,
+          "sd": 0.007629827531758968,
+          "p05": 0.40479863,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.42953986,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.3875572,
+          "max": 0.4410398
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.41663086,
+            "accuracy": 0.2318840579710145,
+            "pass_rate": 0.69,
+            "n_pass": 138,
+            "n": 200
+          },
+          {
+            "t": 0.39663085,
+            "accuracy": 0.21568627450980393,
+            "pass_rate": 0.765,
+            "n_pass": 153,
+            "n": 200
+          },
+          {
+            "t": 0.36663085,
+            "accuracy": 0.20710059171597633,
+            "pass_rate": 0.845,
+            "n_pass": 169,
+            "n": 200
+          },
+          {
+            "t": 0.31663087,
+            "accuracy": 0.22282608695652173,
+            "pass_rate": 0.92,
+            "n_pass": 184,
+            "n": 200
+          },
+          {
+            "t": 0.5166309,
+            "accuracy": 0.1951219512195122,
+            "pass_rate": 0.41,
+            "n_pass": 82,
+            "n": 200
+          },
+          {
+            "t": 0.46663088,
+            "accuracy": 0.2037037037037037,
+            "pass_rate": 0.54,
+            "n_pass": 108,
+            "n": 200
+          },
+          {
+            "t": 0.43663087,
+            "accuracy": 0.21951219512195122,
+            "pass_rate": 0.615,
+            "n_pass": 123,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "ag_news",
+      "labels": 4,
+      "corpus_rows": 19800,
+      "eval_n": 200,
+      "score": {
+        "axis": "score",
+        "t_star": 0.43972817,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.43972817063331604,
+          "sd": 0.0,
+          "p05": 0.43972817,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.43972817,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.43972817,
+          "max": 0.43972817
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.43972817,
+            "accuracy": 0.415,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.41972816,
+            "accuracy": 0.415,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.38972816,
+            "accuracy": 0.415,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.33972818,
+            "accuracy": 0.415,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.53972816,
+            "accuracy": 0.53125,
+            "pass_rate": 0.16,
+            "n_pass": 32,
+            "n": 200
+          },
+          {
+            "t": 0.48972818,
+            "accuracy": 0.4430379746835443,
+            "pass_rate": 0.395,
+            "n_pass": 79,
+            "n": 200
+          },
+          {
+            "t": 0.45972818,
+            "accuracy": 0.4392523364485981,
+            "pass_rate": 0.535,
+            "n_pass": 107,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.41053298,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.4131106358766556,
+          "sd": 0.011779161358104067,
+          "p05": 0.39491802,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.43057746,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.3536441,
+          "max": 0.43870202
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.41053298,
+            "accuracy": 0.3865546218487395,
+            "pass_rate": 0.595,
+            "n_pass": 119,
+            "n": 200
+          },
+          {
+            "t": 0.39053297,
+            "accuracy": 0.4244604316546763,
+            "pass_rate": 0.695,
+            "n_pass": 139,
+            "n": 200
+          },
+          {
+            "t": 0.36053297,
+            "accuracy": 0.4394904458598726,
+            "pass_rate": 0.785,
+            "n_pass": 157,
+            "n": 200
+          },
+          {
+            "t": 0.310533,
+            "accuracy": 0.430939226519337,
+            "pass_rate": 0.905,
+            "n_pass": 181,
+            "n": 200
+          },
+          {
+            "t": 0.510533,
+            "accuracy": 0.463768115942029,
+            "pass_rate": 0.345,
+            "n_pass": 69,
+            "n": 200
+          },
+          {
+            "t": 0.460533,
+            "accuracy": 0.4421052631578947,
+            "pass_rate": 0.475,
+            "n_pass": 95,
+            "n": 200
+          },
+          {
+            "t": 0.430533,
+            "accuracy": 0.4,
+            "pass_rate": 0.55,
+            "n_pass": 110,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "xnli_en",
+      "labels": 3,
+      "corpus_rows": 19800,
+      "eval_n": 150,
+      "score": {
+        "axis": "score",
+        "t_star": 0.29985744,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.2995610791444778,
+          "sd": 0.0019106785333518684,
+          "p05": 0.29659835,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.30203918,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.29659835,
+          "max": 0.3071861
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.29985744,
+            "accuracy": 0.42424242424242425,
+            "pass_rate": 0.66,
+            "n_pass": 99,
+            "n": 150
+          },
+          {
+            "t": 0.27985743,
+            "accuracy": 0.3933333333333333,
+            "pass_rate": 1.0,
+            "n_pass": 150,
+            "n": 150
+          },
+          {
+            "t": 0.24985744,
+            "accuracy": 0.3933333333333333,
+            "pass_rate": 1.0,
+            "n_pass": 150,
+            "n": 150
+          },
+          {
+            "t": 0.19985744,
+            "accuracy": 0.3933333333333333,
+            "pass_rate": 1.0,
+            "n_pass": 150,
+            "n": 150
+          },
+          {
+            "t": 0.39985743,
+            "accuracy": 0.0,
+            "pass_rate": 0.02,
+            "n_pass": 3,
+            "n": 150
+          },
+          {
+            "t": 0.34985745,
+            "accuracy": 0.4090909090909091,
+            "pass_rate": 0.14666666666666667,
+            "n_pass": 22,
+            "n": 150
+          },
+          {
+            "t": 0.31985745,
+            "accuracy": 0.5925925925925926,
+            "pass_rate": 0.36,
+            "n_pass": 54,
+            "n": 150
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.51104105,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.507672446668148,
+          "sd": 0.018785857121202922,
+          "p05": 0.47749075,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.5337407,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.46693444,
+          "max": 0.56137586
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.51104105,
+            "accuracy": 0.3269230769230769,
+            "pass_rate": 0.6933333333333334,
+            "n_pass": 104,
+            "n": 150
+          },
+          {
+            "t": 0.49104103,
+            "accuracy": 0.336283185840708,
+            "pass_rate": 0.7533333333333333,
+            "n_pass": 113,
+            "n": 150
+          },
+          {
+            "t": 0.46104103,
+            "accuracy": 0.3360655737704918,
+            "pass_rate": 0.8133333333333334,
+            "n_pass": 122,
+            "n": 150
+          },
+          {
+            "t": 0.41104105,
+            "accuracy": 0.38405797101449274,
+            "pass_rate": 0.92,
+            "n_pass": 138,
+            "n": 150
+          },
+          {
+            "t": 0.61104107,
+            "accuracy": 0.3137254901960784,
+            "pass_rate": 0.34,
+            "n_pass": 51,
+            "n": 150
+          },
+          {
+            "t": 0.56104106,
+            "accuracy": 0.3493975903614458,
+            "pass_rate": 0.5533333333333333,
+            "n_pass": 83,
+            "n": 150
+          },
+          {
+            "t": 0.531041,
+            "accuracy": 0.3333333333333333,
+            "pass_rate": 0.64,
+            "n_pass": 96,
+            "n": 150
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    },
+    {
+      "suite": "emotion",
+      "labels": 6,
+      "corpus_rows": 15799,
+      "eval_n": 200,
+      "score": {
+        "axis": "score",
+        "t_star": 0.14525883,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.145258828997612,
+          "sd": 0.0,
+          "p05": 0.14525883,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.14525883,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.14525883,
+          "max": 0.14525883
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.14525883,
+            "accuracy": 0.305,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.12525883,
+            "accuracy": 0.305,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.09525883,
+            "accuracy": 0.305,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.045258828,
+            "accuracy": 0.305,
+            "pass_rate": 1.0,
+            "n_pass": 200,
+            "n": 200
+          },
+          {
+            "t": 0.24525884,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          },
+          {
+            "t": 0.19525883,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          },
+          {
+            "t": 0.16525882,
+            "accuracy": null,
+            "pass_rate": 0.0,
+            "n_pass": 0,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      },
+      "distance": {
+        "axis": "distance",
+        "t_star": 0.4265421,
+        "cal_n": 200,
+        "bootstrap": {
+          "n_resamples": 200,
+          "n_none": 0,
+          "mean": 0.4243634305894375,
+          "sd": 0.010811020750065155,
+          "p05": 0.4074194,
+          "p05_rank": 10,
+          "p05_support": 190,
+          "p95": 0.4403072,
+          "p95_rank": 190,
+          "p95_support": 10,
+          "min": 0.40099236,
+          "max": 0.45089164
+        },
+        "vacuous_resamples": 0,
+        "curve": [
+          {
+            "t": 0.4265421,
+            "accuracy": 0.32592592592592595,
+            "pass_rate": 0.675,
+            "n_pass": 135,
+            "n": 200
+          },
+          {
+            "t": 0.4065421,
+            "accuracy": 0.3103448275862069,
+            "pass_rate": 0.725,
+            "n_pass": 145,
+            "n": 200
+          },
+          {
+            "t": 0.3765421,
+            "accuracy": 0.3253012048192771,
+            "pass_rate": 0.83,
+            "n_pass": 166,
+            "n": 200
+          },
+          {
+            "t": 0.3265421,
+            "accuracy": 0.31016042780748665,
+            "pass_rate": 0.935,
+            "n_pass": 187,
+            "n": 200
+          },
+          {
+            "t": 0.5265421,
+            "accuracy": 0.2987012987012987,
+            "pass_rate": 0.385,
+            "n_pass": 77,
+            "n": 200
+          },
+          {
+            "t": 0.47654212,
+            "accuracy": 0.3333333333333333,
+            "pass_rate": 0.51,
+            "n_pass": 102,
+            "n": 200
+          },
+          {
+            "t": 0.4465421,
+            "accuracy": 0.3333333333333333,
+            "pass_rate": 0.615,
+            "n_pass": 123,
+            "n": 200
+          }
+        ],
+        "knife_edge": false,
+        "knife_edge_metric": null,
+        "stable": true,
+        "reasons": []
+      }
+    }
+  ]
+}
