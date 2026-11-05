@@ -1,7 +1,7 @@
 # Bench 159 — teacher-router LOO cross-validation: instrument + first real read (2026-10-24)
 
 **Status:** RECORD — instrument landed in this commit (the CV column), first read over the
-box-resident columns. Feeds riir-train [Issue 640](../../riir-train/.issues/640_4090_mammoth_teacher_capture_lane.md)
+box-resident columns. Feeds riir-train `Issue 640`
 T4's CROSS-VALIDATION gate (verdict round 1) and rethink
 `Issue 032` T10.4/T3.5.
 
