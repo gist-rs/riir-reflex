@@ -188,6 +188,25 @@ pub struct ValidityGate {
     pub supported_catch_rate: f64,
     pub bar: f64,
     pub pass: bool,
+    /// The supported-half controls' full reading split (issue 108 seat-ops
+    /// follow-up): `supported_correct` answers `supported`-with-verified-
+    /// quote; `supported_readings.not_supported` = the judge genuinely
+    /// REJECTED true gold (the ceiling's own signal — gold not defensible
+    /// as typed); `unclear` = the judge abstained; `unknown` = quote-
+    /// verification failures + malformed verdicts (the FORMAT cost — the
+    /// part that says the SEAT is sloppy, not the gold wrong). The first
+    /// cell read 11/40 supported with no split — the two failure classes
+    /// were indistinguishable, which is exactly the disclosure gap this
+    /// field closes for the next cell.
+    pub supported_readings: ControlReadingSplit,
+}
+
+/// The control supported-halves' reading split.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Default)]
+pub struct ControlReadingSplit {
+    pub not_supported: usize,
+    pub unclear: usize,
+    pub unknown: usize,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -802,6 +821,7 @@ pub fn run_ceiling_probe(
     let mut flipped_caught = 0usize;
     let mut supported_total = 0usize;
     let mut supported_correct = 0usize;
+    let mut ctrl_split = ControlReadingSplit::default();
     for &pos in &control_positions {
         let (context, options, gold) = &fixtures[pos];
         let flip = far_flip(
@@ -841,6 +861,12 @@ pub fn run_ceiling_probe(
         if reading == "supported" {
             supported_correct += 1;
         }
+        match reading {
+            "not_supported" => ctrl_split.not_supported += 1,
+            "unclear" => ctrl_split.unclear += 1,
+            "unknown" => ctrl_split.unknown += 1,
+            _ => {}
+        }
     }
     let flipped_catch_recall = flipped_caught as f64 / flipped_total.max(1) as f64;
     let supported_catch_rate = supported_correct as f64 / supported_total.max(1) as f64;
@@ -853,6 +879,7 @@ pub fn run_ceiling_probe(
         supported_catch_rate,
         bar: CONTROL_CATCH_BAR,
         pass: flipped_catch_recall >= CONTROL_CATCH_BAR,
+        supported_readings: ctrl_split,
     };
     if !validity.pass {
         return Err(format!(
@@ -1018,6 +1045,11 @@ pub fn render_ceiling_probe_markdown(out: &CeilingProbeOutput) -> String {
         v.supported_correct,
         v.supported_total,
         pct(v.supported_catch_rate),
+    ));
+    let s = &v.supported_readings;
+    md.push_str(&format!(
+        "  - supported-half split: not_supported {} (the judge rejecting true gold — the ceiling's own signal) · unclear {} · unknown {} (quote/format failures — the SEAT cost, never folded into gold quality)\n",
+        s.not_supported, s.unclear, s.unknown,
     ));
     let c = &out.census;
     md.push_str(&format!(
@@ -1260,6 +1292,11 @@ mod tests {
             supported_total: 40,
             supported_correct: 36,
             supported_catch_rate: 0.9,
+            supported_readings: ControlReadingSplit {
+                not_supported: 2,
+                unclear: 1,
+                unknown: 1,
+            },
             bar: CONTROL_CATCH_BAR,
             pass: true,
         };
