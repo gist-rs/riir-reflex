@@ -1,7 +1,6 @@
 # Issue 108 — Gold-support ceiling probe for harness suites (+ the adjudication contract)
 
-**Status:** OPEN — Gain (reflex Research 015 §2.1; ungoat discipline: no plan until a proof path exists)
-**Claimed:** zed-4090-idle-gs108, epoch 1793895876, expires 2026-11-07T23:24:36Z
+**Status:** OPEN — Gain (reflex Research 015 §2.1; ungoat discipline: no plan until a proof path exists). **Progress 2026-11-05 (session zed-4090-idle-gs108):** the adjudication contract of record LANDED — `.docs/02_protocols/ceiling_adjudication_contract.md` (`CEILING_CONTRACT_V1`: judge seat ladder PRIMARY Bonsai-27B PQ2_0 via loopback llama-server (the league fork build 838, proven on-box; NOT a scored entrant — no-self-judging holds; Qwen3-8B fallback; hosted seats = owner acts), twin-control validity gate bar 0.85, verbatim-quote law, fate census, two-ceilings law, seam registry) + the `--ceiling-probe` report-only arm (`src/harness/runner/ceiling_probe.rs`: contract-machine projection consts, judge client over the house std-only http_mini, quote verification, twin controls, three-engine lane half at the deployed Issue-056 posture, Wilson + Kish deff, 10 unit tests, clippy −D). **The first cell is BLOCKED on box RAM** (the sibling lane's verification runs hold ~24/31.8 GiB and growing; a Bonsai llama-server load thrashed + died silently at 7-9 GiB host free — the 635 T2 thrash class). Bring-up recipe recorded: boot the judge server (llama-server on :8082, full offload, VRAM 16.7 GiB free — the LOADER needs host RAM headroom), then `CEILING_JUDGE_URL=http://127.0.0.1:8082 harness --ceiling-probe --suite sst5`. The validity gate runs first IN the run; a Bonsai format-failure is a recorded negative, never a lowered bar.
 
 ## Problem
 

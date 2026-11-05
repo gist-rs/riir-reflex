@@ -233,6 +233,14 @@ pub use gate_stability::{
     GateStabilityOptions, GateStabilityOutput, render_gate_stability_markdown, run_gate_stability,
 };
 
+// Issue 108 — the gold-support ceiling probe (report-only, judge seat).
+mod ceiling_probe;
+pub use ceiling_probe::{
+    CONTRACT_VERSION, CONTROL_CATCH_BAR, CROSS_FAMILY_KAPPA_BAR, CeilingProbeOptions,
+    CeilingProbeOutput, DEFAULT_FLIPPED_CONTROLS, JUDGE_MODEL_ENV, JUDGE_URL_ENV, MIN_SAMPLE_N,
+    render_ceiling_probe_markdown, run_ceiling_probe,
+};
+
 // Issue 098 T1: the comparison-lane bodies carved out of this file - the
 // laya/CLM/jsonl-oracle/GLiNER/Bekko/AgentJev/clef lanes in `lanes_wire`,
 // the hosted HTTP lanes + the TeacherWireLane family in `lanes_hosted`.

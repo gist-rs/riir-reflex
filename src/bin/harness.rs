@@ -370,6 +370,11 @@ fn harness_main() {
     let mut gate_stability_iters = 0usize;
     let mut gate_stability_rho = 0.0f64;
     let mut gate_stability_eval = 0usize;
+    // Issue 108 — the gold-support ceiling probe.
+    let mut ceiling_probe = false;
+    let mut ceiling_suite: Option<String> = None;
+    let mut ceiling_sample_n = 0usize;
+    let mut ceiling_controls = 0usize;
     // Issue 086 T1 — the presentation-subspace certificate modifier.
     let mut basis_split = false;
     let mut distill = false;
@@ -686,6 +691,32 @@ fn harness_main() {
                     .get(i)
                     .and_then(|v| v.parse().ok())
                     .unwrap_or_else(|| die("--gate-stability-eval needs a number"));
+            }
+            // Issue 108 — the gold-support ceiling probe (exclusive
+            // early-exit mode; report-only: the judge-validity gate runs
+            // first and a failing judge refuses the run).
+            "--ceiling-probe" => ceiling_probe = true,
+            "--ceiling-suite" => {
+                i += 1;
+                ceiling_suite = Some(
+                    args.get(i)
+                        .unwrap_or_else(|| die("--ceiling-suite needs a suite name"))
+                        .to_string(),
+                );
+            }
+            "--ceiling-sample-n" => {
+                i += 1;
+                ceiling_sample_n = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--ceiling-sample-n needs a number"));
+            }
+            "--ceiling-controls" => {
+                i += 1;
+                ceiling_controls = args
+                    .get(i)
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or_else(|| die("--ceiling-controls needs a number"));
             }
             "--null-k" => {
                 i += 1;
@@ -1622,10 +1653,64 @@ fn harness_main() {
         );
         return;
     }
+    // Issue 108 — the gold-support ceiling probe: exclusive early-exit
+    // mode. REPORT-ONLY under the written adjudication contract
+    // (CEILING_CONTRACT_V1): the judge-validity gate runs FIRST and a
+    // failing judge refuses the run (never price gold below the bar).
+    if ceiling_probe {
+        let defaults = runner::CeilingProbeOptions::default();
+        let popts = runner::CeilingProbeOptions {
+            suite: ceiling_suite.unwrap_or(defaults.suite.clone()),
+            sample_n: if ceiling_sample_n == 0 {
+                defaults.sample_n
+            } else {
+                ceiling_sample_n
+            },
+            flipped_controls: if ceiling_controls == 0 {
+                defaults.flipped_controls
+            } else {
+                ceiling_controls
+            },
+            ..defaults
+        };
+        println!(
+            "harness --ceiling-probe: suite {} · sample {} · controls {} · judge {} · \
+             contract {} · lane: modelless (report-only; CEILING_JUDGE_URL arms the seat)",
+            popts.suite,
+            popts.sample_n,
+            popts.flipped_controls,
+            popts.judge_model,
+            runner::CONTRACT_VERSION,
+        );
+        let out = match runner::run_ceiling_probe(&opts, popts) {
+            Ok(r) => r,
+            Err(e) => die(&e),
+        };
+        if let Err(e) = std::fs::create_dir_all(&out_dir) {
+            die(&format!("create {}: {e}", out_dir.display()));
+        }
+        let json_path = out_dir.join("ceiling_probe.json");
+        let md_path = out_dir.join("CEILING_PROBE.md");
+        let json = serde_json::to_string_pretty(&out).expect("ceiling probe serialize");
+        let md = runner::render_ceiling_probe_markdown(&out);
+        if let Err(e) = std::fs::write(&json_path, json) {
+            die(&format!("write {}: {e}", json_path.display()));
+        }
+        if let Err(e) = std::fs::write(&md_path, &md) {
+            die(&format!("write {}: {e}", md_path.display()));
+        }
+        print!("{md}");
+        println!(
+            "harness --ceiling-probe: DONE — wrote {} + {}",
+            json_path.display(),
+            md_path.display()
+        );
+        return;
+    }
     {
         // The exclusive early-exit modes (one per run — the e0/distill law
         // generalized as the family grew).
-        let modes: [(&str, bool); 16] = [
+        let modes: [(&str, bool); 17] = [
             ("--e0", e0),
             ("--perm-probe", perm_probe),
             ("--label-perm", label_perm),
@@ -1635,6 +1720,7 @@ fn harness_main() {
             ("--rubric-probe", rubric_probe),
             ("--gate-drift-probe", gate_drift_probe),
             ("--gate-stability", gate_stability_probe),
+            ("--ceiling-probe", ceiling_probe),
             ("--distill", distill),
             ("--ensemble-gate", ensemble_gate),
             ("--synth-corpus", synth_corpus),

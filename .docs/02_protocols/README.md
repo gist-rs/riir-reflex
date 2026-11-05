@@ -8,3 +8,4 @@
 | `thai_posture.md` | Plan 003 Phase 1: every lane's Thai-input behavior — the modelless zero-vector abstain pinned as contract (`tests/thai_posture_pins.rs`) |
 | `corpus_synthesis.md` | The projection-ascent corpus-synthesis lane: span-transplant proposer → density-first acceptance → sealed SYNT v2 artifact → corpus-ab V5 + echo gates (runbook + the md/svg flow) |
 | `memory_control_pack.md` | Issue 081's funnel artifact: the memory-control decision pack structure, the `/v1/systemone` wire mapping, the zero-fork integration recipe, the measured LoCoMo posture (Benches 133/134) + the corpus lever |
+| `ceiling_adjudication_contract.md` | Issue 108's adjudication contract of record (`CEILING_CONTRACT_V1`): judge seat ladder, as-typed law, verbatim-quote verification, validity gate bar 0.85, fate census, two-ceilings law, seam registry — the `--ceiling-probe` arm refuses to start without it |
