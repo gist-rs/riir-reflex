@@ -1,6 +1,7 @@
 # Issue 109 — Gate-fit threshold-stability audit (bootstrap t* + held-out flatness)
 
 **Status:** OPEN — Gain (reflex Research 015 §2.2; offline, rides the deterministic calibration pass — per-case observations are in-memory today, no persistence path exists yet)
+**Claimed:** zed-4090-idle-walk24sibling, epoch 1793893997, expires 2026-11-07T22:46:37Z
 
 ## Problem
 
