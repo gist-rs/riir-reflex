@@ -1,6 +1,7 @@
 # Issue 108 — Gold-support ceiling probe for harness suites (+ the adjudication contract)
 
 **Status:** OPEN — Gain (reflex Research 015 §2.1; ungoat discipline: no plan until a proof path exists)
+**Claimed:** zed-4090-idle-gs108, epoch 1793895876, expires 2026-11-07T23:24:36Z
 
 ## Problem
 
