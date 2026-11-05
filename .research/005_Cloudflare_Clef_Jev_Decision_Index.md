@@ -217,3 +217,5 @@ Phase D (deferred): local Clef serving in riir-infer (prefill-league workload) +
 riir-train — D2 LANDED 2026-10-02: riir-train `.research/464_Clef_PostTraining_Recipe_vs_Typed_Head.md`
 (riir-train `115e5690`, verdict-pinged; ADD≡MIX under Adam, λ=1 replacement the honest maximum,
 pick-level-Brier gate).
+
+> **PASS-Redirects (synthesis):** OntoSmith (Dongbum Lee, github.com/Dongbumlee/ontosmith @ `1412da4d`, MIT) — a production application of the board's namesake judge (`typesafe/jev-1.13` pinned judged-write gate, five decision_wire-shaped gates, $0.0006683/pair) — ecosystem intel + measurement-methodology extractions (gold-support ceiling probe, threshold-stability audit) at `.research/015_OntoSmith_Jev_JudgedWrite_KG_Distill.md` (reflex Issues 108 + 109); no lane work owed (decision-index-beat law 9).

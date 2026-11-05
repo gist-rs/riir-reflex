@@ -178,3 +178,5 @@ cited as published, ours as measured, protocol differences flagged.
 > one agent) and judge-agreement replay (Kev-9B ≈ Kev-27B on 97.0% of
 > replayed states) are the two adoptions; the PreToolUse hook row above is
 > this pattern's already-noted client shape.
+
+> **PASS-Redirects (synthesis):** OntoSmith (Dongbum Lee, github.com/Dongbumlee/ontosmith @ `1412da4d`, MIT, PyPI v0.1.6) — the jev-1.13 ecosystem's first recorded production application (judged-write KG builder); its measurement-methodology extractions (gold-support ceiling probe + adjudication contract, threshold-stability audit) distilled at `.research/015_OntoSmith_Jev_JudgedWrite_KG_Distill.md` (reflex Issues 108 + 109); no lane work owed (decision-index-beat law 9).
