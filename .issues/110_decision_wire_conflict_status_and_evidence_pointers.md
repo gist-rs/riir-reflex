@@ -1,0 +1,22 @@
+# Issue 110 — decision_wire: typed CONFLICT status + per-answer corpus-evidence pointers
+
+**Status:** open — adoption distill from XERJ Query-1 (`.research/016_XERJ_Query1_Pointer_Program_Serving.md`); poc/proof task, nothing wired; any wire change must ride the v1 contract's additive-only freeze
+
+## Why
+
+The engine's fused abstain is cause-typed **internally only**: `AbstainCause { Answered, ScoreGate, DistanceGate, GrammarInvalid, DensityGate }` (Issue 060's closed taxonomy, `src/engine.rs` L840–847), while the wire discloses every abstain as `outcome: null` (`to_response`, `src/engine.rs` L2015–2016). No arm distinguishes *"no evidence grounds an answer"* from *"two independent readings disagree while both look answerable"*. XERJ Query-1 ships exactly that distinction as a first-class status (ANSWER / UNKNOWN / CONFLICT; a CONFLICT trace names both disagreeing records) and its head-to-head argues the typed refusal is load-bearing: 1 wrong of 160 against 9–15 for reader pipelines that must answer or guess (self-reported; caveats in the note). Published prior art agrees the distinction matters (ConfQA, Conflict-Aware RAG, ConflictingQA, ConflictBank) — this is an **adoption** of an external + published pattern, not a novelty claim.
+
+Second gap: a served pick discloses probabilities + confidence + a coarse `routing.reason` string (per-domain hit counts, `src/engine.rs` L2218–2222) but never **names the corpus entries behind the pick**. XERJ's "the trace is the product" — every answer carries the record ids it was computed from — is the same disclosure discipline the fixer already ships per edit.
+
+## Tasks
+
+- [ ] **T1. Measure the premise BEFORE wiring** — the near-tie reading is TAUTOLOGICAL and measures nothing new: the top-2 options of one scored question always carry different labels, so "top-2 within epsilon with disagreeing labels" is exactly the `ScoreGate` subset itself. The witness must be two INDEPENDENT readers disagreeing — pick and pin ONE before measuring: (a) the drafter's argmax differs from the fitted-head readout's argmax while both clear the score threshold (drafter: `experts[di].drafter.score_into`, `src/engine.rs` L1887; fitted heads: `nb_scale`/`ridge_scale` blend terms, `src/engine.rs` L1838–1839 + `set_blend_scales` L1178–1182), or (b) the top-k nearest corpus references split across labels while the `DistanceGate` passes. Then measure the share of the witness set NOT already classified ScoreGate/DistanceGate/DensityGate — that residual is the only band a CONFLICT arm could serve. A negligible residual closes this issue with the numbers. This task is the falsification arm for the whole issue.
+- [ ] **T2. Decide the wire shape — the T0 decision point, recorded HERE before implementing:** (a) a new additive `Outcome` variant (breaking for old readers unless they tolerate unknown variants — check the katgpt-core `decision_wire` serde posture first), or (b) keep `outcome: null` and add a typed `refusal: "conflict"` side-channel field. The v1 contract is frozen additive-only (contract record: `.docs/03_decision_flow/wire_contract_v1.md`); a variant addition is additive only if every consumer handles it.
+- [ ] **T3. Per-answer `evidence`** — corpus-entry ids (+ distances) behind the pick, request opt-in with a byte cap (bounded k), additive response field; flag-off byte-identical.
+- [ ] **T4. Gates** — wire-contract tests extended; feature-off byte-identity (G1-style); harness accuracy unchanged (disclosure only, never a scoring change); the contract record updated in the same landing.
+- [ ] **T5. Second consumer (only if T1 proves the band real)** — the public Ext-seat rerank contract (instinct: pick-or-abstain, options echoed exactly) carrying the same typed-conflict decline code. Instinct-side follow-up, separate issue there; do not widen this issue to it.
+
+## Provenance
+
+- Source distill: `.research/016_XERJ_Query1_Pointer_Program_Serving.md` (§3 rows 1–2, §4 signal-diffs)
+- Verified in-tree this session: `AbstainCause` arms (`src/engine.rs` L840–847); abstain → `outcome: None` (`src/engine.rs` L2015–2016); `routing_reason` per-domain counts (`src/engine.rs` L2218–2222); drafter hot scorer (`src/engine.rs` L1887); fitted-head blend terms (`src/engine.rs` L1838–1839); grep "conflict" over `src/` → slice-leak counter only; contract record `.docs/03_decision_flow/wire_contract_v1.md` exists on disk. Citation-gate note: riir-ai carries its own `.issues/1182` — always cite this issue as "riir-reflex issue 110", never a bare number across repos.
