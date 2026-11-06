@@ -303,8 +303,9 @@ since `747c8ea`; format new drift, never add a row.
 ## Lint fixing — `cargo refine` before manual fixes
 
 Mechanical clippy findings are fixed by the riir-refine rulewright FIRST, manual
-second (`cargo refine --fix --write --verify <paths>`; feature-gated code
-needs `--verify-args "--features <set>"`). Documented divergence classes stay
+second (`cargo refine fix <paths>` — bare `cargo refine` IS the dry run;
+`--no-verify` opts out of the compile gate; feature-gated code
+needs `--verify-args "--features <set>"`; riir-refine issue 210). Documented divergence classes stay
 manual — see the `cargo-refine` skill. The bench-target guard (`bench-guard:`)
 declines perf edits under `benches/` — a bench file's numbers ARE its artifact.
 
