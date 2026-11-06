@@ -1,8 +1,11 @@
 # The gold-support ceiling adjudication contract
 
-**Contract version:** `CEILING_CONTRACT_V1` (the stamp the `--ceiling-probe`
+**Contract version:** `CEILING_CONTRACT_V2` (the stamp the `--ceiling-probe`
 arm refuses to start without; changes land here first, by pre-registered
-discipline — never mid-run, the OntoSmith meta-rule).
+discipline — never mid-run, the OntoSmith meta-rule). V1 stands as the
+stamp of the two frozen V1 cells (`.benchmarks/108_ceiling_first_cell/`,
+`.benchmarks/108_ceiling_cross_family/`); V2 = V1 + the §V2 amendment
+below, committed BEFORE any V2 judge call.
 
 **Status:** the Issue-108 contract of record. The probe arm
 (`--ceiling-probe`) reads this document's pinned constants
@@ -161,13 +164,65 @@ the gold's own claim.
 A first-pass disagreement class not settled here lands as a NEW named row
 before any re-price — measured, not guessed.
 
+## V2 amendment (2026-11-06 — the LOCALIZE-derived rulings, pre-registered)
+
+**Why:** the V1 cross-family recheck FAILED its bar (κ 0.6387 < 0.70,
+`.benchmarks/108_ceiling_cross_family/KAPPA.md`); the LOCALIZE cell
+(`LOCALIZE.md` there) named the disagreement mass: 12/22 grade-threshold
+(very-X vs X — both seats polarity-correct, on OPPOSITE sides of the grade
+line by pole), 4 ambiguous neutrals, 4 Qwen3-8B errors (2 strict, 2
+lenient), 3 Bonsai seat-starved re-reads. The contract's arc is
+localize → rulings → re-judge → re-price; these are the rulings.
+
+**Delegated-owner verdict (recorded per the owner's standing delegation):**
+the rulings below are ACCEPTED as the V2 edit; the κ bar **does NOT move**
+(0.70 stays — moving a bar after reading a miss is the forbidden shape;
+the precedent is OntoSmith's own 95% line held through their re-price);
+the seat ladder stays (Bonsai PRIMARY — owner-preferred; Qwen3-8B FALLBACK
++ cross-family seat). The S-B-STRICT / S-B-LENIENT items are SEAT errors —
+no ruling can fix a seat error, and none is attempted (no ruling is
+written to move a specific item).
+
+New seam rows (in the prompt the seat reads — a ruling the seat never sees
+cannot change its reading):
+
+| code | ruling |
+|---|---|
+| `seam_ordinal_grade_contradiction_required` | ordered intensity scales: judge polarity first; an intensity grade (very-X or plain X) is `supported` when the text's polarity matches and the text carries NO explicit marker of a different same-side intensity (a hedge/mild wording against very-X; an explicit superlative/intensifier against plain X) — never rejected merely because intensity is unstated. Resolves S-GRADE-THRESHOLD to one shared line instead of two seat-private ones. |
+| `seam_ordinal_middle_mixed_supported` | a middle (neutral) label is `supported` when the text is mixed, descriptive, or only weakly polar; `not_supported` only when one polarity clearly dominates. Resolves S-AMBIGUOUS-NEUTRAL. |
+| `seam_seat_starved_unknown` | seat-ops: `max_tokens` 256 → **1024** (a reasoning-channel seat starved `content` at finish=length on ~14% of re-reads); every item records the seat's `finish_reason`; an empty-content reply at finish=length stays `unknown` in every denominator and is DISCLOSED as `unknown_seat_starved` (the seat cost, never gold quality). |
+
+Both new rows apply only where the options form an ordered scale (the
+prompt says so conditionally) — a nominal suite (intents) reads as V1.
+
+**Direction disclosure (before the run):** both ordinal rulings resolve the
+boundary toward `supported`, so V2's ĝ is expected to rise vs V1 on both
+seats. That is the rulings' stated semantics (as-typed on a graded scale =
+polarity-consistent and uncontradicted), not a lane credit — the
+ceiling-adjusted score is still the per-item JOIN, never a division.
+
+**The V2 re-judge cell (pre-registered):** BOTH seats re-judge the same
+sst5 posture as the V1 cells (whole 600-item front, 40 twin controls,
+default seed, the lane half unchanged — bit-exactness of the lane half
+across boxes is the precondition and is re-asserted from the thresholds).
+Validity gate first per seat (bar 0.85, unchanged). Re-price = κ
+three-category over the both-adjudicated set via the committed
+`ceiling_kappa.py` (decisive-only beside it). **Bar: κ ≥ 0.70.** PASS →
+the V2 ĝ of the PRIMARY seat is the ceiling of record, the fallback's ĝ
+beside it. FAIL → recorded negative: the local seat ladder cannot price
+sst5 gold at the pre-registered agreement; the only remaining rung is a
+HOSTED seat (an owner act, §judge seat); both V2 ĝs stand as
+judge-conditioned readings only. Diagnostic beside (never the bar): the
+V2 readings on the 22 V1-disagreement items.
+
 ## Machine-projection constants (the arm reads these; ONE commit with this doc)
 
 ```text
-CONTRACT_VERSION     = CEILING_CONTRACT_V1
+CONTRACT_VERSION     = CEILING_CONTRACT_V2
 CONTROL_CATCH_BAR    = 0.85
 MIN_SAMPLE_N         = 400
 CROSS_FAMILY_KAPPA_BAR = 0.70
+JUDGE_MAX_TOKENS     = 1024   (V2; V1 = 256)
 ```
 
 ## Prior art (cited per the issue's hard law)

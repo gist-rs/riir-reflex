@@ -6,7 +6,8 @@
 //! typed. This arm machine-adjudicates a stratified sample of the suite's
 //! gold under the WRITTEN adjudication contract
 //! (`.docs/02_protocols/ceiling_adjudication_contract.md`,
-//! `CEILING_CONTRACT_V1`) and reports:
+//! `CEILING_CONTRACT_V2` — V1 + the LOCALIZE-derived seam rulings) and
+//! reports:
 //!
 //! 1. **Gold-support ceiling** ĝ with Wilson 95% CI (as-typed support),
 //!    with the stratified design effect (deff) beside it.
@@ -70,7 +71,7 @@ use std::time::Duration;
 // ── the contract's machine projection (ONE commit with the doc) ──
 
 /// The contract of record this arm enforces.
-pub const CONTRACT_VERSION: &str = "CEILING_CONTRACT_V1";
+pub const CONTRACT_VERSION: &str = "CEILING_CONTRACT_V2";
 
 /// The judge-validity bar (flipped-control catch recall).
 pub const CONTROL_CATCH_BAR: f64 = 0.85;
@@ -85,8 +86,16 @@ pub const CROSS_FAMILY_KAPPA_BAR: f64 = 0.70;
 /// supported half rides the same twins).
 pub const DEFAULT_FLIPPED_CONTROLS: usize = 40;
 
-/// Judge request timeout (generous: a local 27B readout).
-const JUDGE_TIMEOUT_MS: u64 = 120_000;
+/// The judge's completion budget (V2 seat-ops ruling
+/// `seam_seat_starved_unknown`): V1's 256 let a reasoning-channel seat
+/// (Bonsai PQ2_0) starve `content` at finish=length on ~14% of the sst5
+/// prompt family (LOCALIZE: 3/22 re-reads); 1024 gives the think channel
+/// room to close. A non-reasoning seat (Qwen3-8B `--reasoning off`) spends
+/// ~18 tokens either way — the budget is a ceiling, not a cost.
+pub const JUDGE_MAX_TOKENS: u32 = 1024;
+
+/// Judge request timeout (generous: a local 27B readout at the V2 budget).
+const JUDGE_TIMEOUT_MS: u64 = 300_000;
 
 /// Env: the judge endpoint (loopback HTTP, OpenAI-compatible
 /// `/v1/chat/completions`). Unset → the arm refuses loud.
@@ -129,6 +138,23 @@ pub struct JudgeVerdict {
     /// True when the quote passed verbatim verification (only meaningful
     /// for `supported`).
     pub quote_ok: bool,
+    /// The seat's `choices[0].finish_reason` (V2 seat-ops wire note — the
+    /// LOCALIZE instrument's one gap; `length` + empty content is the
+    /// starved-think class).
+    pub finish_reason: Option<String>,
+    /// True when the reply carried a non-empty `reasoning_content` field
+    /// (the seat thought on a separate channel).
+    pub reasoning_present: bool,
+}
+
+impl JudgeVerdict {
+    /// The V2 `seam_seat_starved_unknown` predicate: the seat returned NO
+    /// content because the completion budget ran out (the think channel
+    /// ate it). Still `unknown` in every denominator — this only SPLITS
+    /// the unknown disclosure (seat cost, never gold quality).
+    pub fn seat_starved(&self) -> bool {
+        self.verdict == "malformed" && self.finish_reason.as_deref() == Some("length")
+    }
 }
 
 /// One sampled gold item's complete record (the audit trail).
@@ -144,6 +170,9 @@ pub struct CeilingItem {
     /// "unclear" | "unknown" (unknown = malformed judge output or a
     /// quote-failed supported verdict — excluded from every denominator).
     pub support: &'static str,
+    /// The seat's finish reason for this item's adjudication (V2 wire
+    /// note; None for abstained items — the judge never ran).
+    pub finish_reason: Option<String>,
 }
 
 /// The closed fate census (exactly one fate per sampled item; `unclear`
@@ -158,6 +187,10 @@ pub struct FateCensus {
     pub wrong_unclear: usize,
     pub abstained: usize,
     pub unknown: usize,
+    /// V2 disclosure split — the subset of `unknown` that is the seat's
+    /// starved-think class (empty content at finish=length). Counted
+    /// INSIDE `unknown`, never a separate fate.
+    pub unknown_seat_starved: usize,
 }
 
 impl FateCensus {
@@ -281,7 +314,19 @@ fn judge_messages(context: &str, options: &[String], gold_label: &str) -> Vec<se
              Rules: a `supported` verdict MUST carry `quote` — an exact \
              verbatim substring of the text or the options that supports the \
              label as typed. `not_supported` and `unclear` need no quote \
-             (\"quote\": null). Never output anything except the JSON object."
+             (\"quote\": null).\n\
+             Ordered scales (the contract's V2 seam rulings): when the options \
+             form an ordered intensity scale (e.g. very negative < negative < \
+             neutral < positive < very positive), judge POLARITY first. (1) An \
+             intensity grade (\"very X\" or plain \"X\") is `supported` when the \
+             text's polarity matches it and the text carries NO explicit marker \
+             of a different intensity on the same side — a hedge or mild wording \
+             against a \"very\" grade, or an explicit superlative or intensifier \
+             against a plain grade. Do not reject a grade merely because the \
+             intensity is not stated outright. (2) A middle (neutral) label is \
+             `supported` when the text is mixed, descriptive, or only weakly \
+             polar; it is `not_supported` only when one polarity clearly \
+             dominates. Never output anything except the JSON object."
         }),
         json!({
             "role": "user",
@@ -310,7 +355,7 @@ fn judge_adjudicate(
         "model": model,
         "messages": judge_messages(context, options, gold_label),
         "temperature": 0.0_f64,
-        "max_tokens": 256,
+        "max_tokens": JUDGE_MAX_TOKENS,
         "stream": false,
     });
     let payload = serde_json::to_vec(&body).map_err(|e| e.to_string())?;
@@ -332,14 +377,27 @@ fn judge_adjudicate(
     }
     let parsed: serde_json::Value =
         serde_json::from_slice(&reply.2).map_err(|e| format!("judge reply unparsable: {e}"))?;
-    let content = parsed
+    let choice = parsed
         .get("choices")
         .and_then(|c| c.get(0))
-        .and_then(|c| c.get("message"))
+        .ok_or("judge reply carries no choices[0]")?;
+    let message = choice.get("message");
+    // A starved seat may send `content: null` — read as empty (malformed),
+    // never a hard error: the seat is UP, it just ran out of budget.
+    let content = message
         .and_then(|m| m.get("content"))
         .and_then(|c| c.as_str())
-        .ok_or("judge reply carries no choices[0].message.content")?;
-    Ok(parse_verdict(content))
+        .unwrap_or("");
+    let mut v = parse_verdict(content);
+    v.finish_reason = choice
+        .get("finish_reason")
+        .and_then(|f| f.as_str())
+        .map(str::to_string);
+    v.reasoning_present = message
+        .and_then(|m| m.get("reasoning_content"))
+        .and_then(|r| r.as_str())
+        .is_some_and(|r| !r.trim().is_empty());
+    Ok(v)
 }
 
 /// Lenient verdict extraction: the first `{` … last `}` span parsed as
@@ -349,6 +407,8 @@ fn parse_verdict(content: &str) -> JudgeVerdict {
         verdict: "malformed".to_string(),
         quote: None,
         quote_ok: false,
+        finish_reason: None,
+        reasoning_present: false,
     };
     let Some(start) = content.find('{') else {
         return malformed;
@@ -373,6 +433,8 @@ fn parse_verdict(content: &str) -> JudgeVerdict {
         verdict,
         quote,
         quote_ok: false,
+        finish_reason: None,
+        reasoning_present: false,
     }
 }
 
@@ -911,6 +973,7 @@ pub fn run_ceiling_probe(
                 gold_label: gold.clone(),
                 lane: lane_answer,
                 support: "unsupported_scope",
+                finish_reason: None,
             });
             continue;
         }
@@ -937,6 +1000,9 @@ pub fn run_ceiling_probe(
             (_, "unknown") => census.unknown += 1,
             _ => census.unknown += 1,
         }
+        if v.seat_starved() {
+            census.unknown_seat_starved += 1;
+        }
         if reading != "unknown" {
             *strata.entry(gold.clone()).or_default() += 1;
         }
@@ -951,6 +1017,7 @@ pub fn run_ceiling_probe(
             gold_label: gold.clone(),
             lane: lane_answer,
             support: reading,
+            finish_reason: v.finish_reason.clone(),
         });
     }
 
@@ -1002,8 +1069,9 @@ pub fn run_ceiling_probe(
             posture_note: "lane half = the deployed three-engine calibration \
              posture (raw → cal pairs → Issue-056 calibrated-scale thresholds \
              → fitted engine via observe, thresholds in cfg); judge half = \
-             the contract's seat ladder over loopback; the frozen read runs \
-             ONCE per contract version."
+             the contract's seat ladder over loopback (V2: ordered-scale seam \
+             rulings in the prompt, max_tokens 1024, finish_reason per item); \
+             the frozen read runs ONCE per contract version."
                 .to_string(),
         },
         validity,
@@ -1053,7 +1121,7 @@ pub fn render_ceiling_probe_markdown(out: &CeilingProbeOutput) -> String {
     ));
     let c = &out.census;
     md.push_str(&format!(
-        "- fate census (n = {}): correct supported {} · correct NOT-supported {} (shared-bias cell) · correct unclear {} · wrong supported {} · wrong not-supported {} · wrong unclear {} · abstained {} · unknown {}\n",
+        "- fate census (n = {}): correct supported {} · correct NOT-supported {} (shared-bias cell) · correct unclear {} · wrong supported {} · wrong not-supported {} · wrong unclear {} · abstained {} · unknown {} (of which seat-starved {} — empty content at finish=length, the seat cost)\n",
         c.support_denominator() + c.abstained + c.unknown,
         c.correct_supported,
         c.correct_not_supported,
@@ -1063,6 +1131,7 @@ pub fn render_ceiling_probe_markdown(out: &CeilingProbeOutput) -> String {
         c.wrong_unclear,
         c.abstained,
         c.unknown,
+        c.unknown_seat_starved,
     ));
     let r = &out.report;
     md.push_str(&format!(
@@ -1154,32 +1223,75 @@ mod tests {
             verdict: "supported".into(),
             quote: Some("great product".into()),
             quote_ok: false,
+            finish_reason: None,
+            reasoning_present: false,
         };
         assert_eq!(support_reading(&ok, context, &options), "supported");
         let quoteless = JudgeVerdict {
             verdict: "supported".into(),
             quote: None,
             quote_ok: false,
+            finish_reason: None,
+            reasoning_present: false,
         };
         assert_eq!(support_reading(&quoteless, context, &options), "unknown");
         let bad_quote = JudgeVerdict {
             verdict: "supported".into(),
             quote: Some("no such span".into()),
             quote_ok: false,
+            finish_reason: None,
+            reasoning_present: false,
         };
         assert_eq!(support_reading(&bad_quote, context, &options), "unknown");
         let unclear = JudgeVerdict {
             verdict: "unclear".into(),
             quote: None,
             quote_ok: false,
+            finish_reason: None,
+            reasoning_present: false,
         };
         assert_eq!(support_reading(&unclear, context, &options), "unclear");
         let no = JudgeVerdict {
             verdict: "not_supported".into(),
             quote: None,
             quote_ok: false,
+            finish_reason: None,
+            reasoning_present: false,
         };
         assert_eq!(support_reading(&no, context, &options), "not_supported");
+    }
+
+    #[test]
+    fn seat_starved_is_malformed_at_finish_length_only() {
+        // The V2 `seam_seat_starved_unknown` split: empty content at
+        // finish=length is the starved-think class; a malformed reply that
+        // STOPPED is the seat's format failure; a parsed verdict at length
+        // is never starved (it answered).
+        let mut v = parse_verdict("");
+        assert_eq!(v.verdict, "malformed");
+        v.finish_reason = Some("length".into());
+        assert!(v.seat_starved());
+        v.finish_reason = Some("stop".into());
+        assert!(!v.seat_starved());
+        let mut ok = parse_verdict("{\"verdict\": \"supported\", \"quote\": \"x\"}");
+        ok.finish_reason = Some("length".into());
+        assert!(!ok.seat_starved());
+    }
+
+    #[test]
+    fn v2_prompt_carries_the_ordered_scale_rulings_and_stays_blind() {
+        let opts = vec!["negative".to_string(), "positive".to_string()];
+        let m = judge_messages("some text", &opts, "positive");
+        let sys = m[0]["content"].as_str().unwrap();
+        assert!(sys.contains("ordered intensity scale"));
+        assert!(sys.contains("NO explicit marker"));
+        assert!(sys.contains("middle (neutral) label"));
+        // Blind law: no lane / provenance / strata vocabulary reaches the seat.
+        let all = format!("{sys}{}", m[1]["content"].as_str().unwrap());
+        for leak in ["lane", "stratum", "strata", "sst5", "score", "provenance"] {
+            assert!(!all.contains(leak), "prompt leaks {leak:?}");
+        }
+        assert_eq!(CONTRACT_VERSION, "CEILING_CONTRACT_V2");
     }
 
     #[test]
@@ -1261,6 +1373,7 @@ mod tests {
             wrong_unclear: 2,
             abstained: 40,
             unknown: 7,
+            unknown_seat_starved: 2,
         };
         assert_eq!(c.support_denominator(), 30);
         assert_eq!(c.supported_total(), 14);
@@ -1309,6 +1422,7 @@ mod tests {
             wrong_unclear: 4,
             abstained: 120,
             unknown: 28,
+            unknown_seat_starved: 3,
         };
         let (lo, hi) = wilson95(160, 252);
         let report = CeilingReport {
@@ -1334,6 +1448,7 @@ mod tests {
                 gold_label: "positive".into(),
                 lane: "correct",
                 support: "supported",
+                finish_reason: Some("stop".into()),
             }],
         };
         assert_eq!(
