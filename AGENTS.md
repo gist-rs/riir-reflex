@@ -213,6 +213,10 @@ OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
 # Drex DLM lane (Issue 073; CC BY-NC = measurement only; their serve.py on DREX_SERVE_URL). ⛔ FAMILY DEFERRED
 # (rethink decision-index-beat law 9): re-runs of owned cells only — no new Drex lanes/captures (Issue 085 license
 # gate + not GOAT on the board). Re-read the live board before revisiting.
+# 2026-11-06 re-read (arXiv:2611.07854 tech report + repo @ d2fd26cd): license UNCHANGED — all three RAIL-M files
+# byte-identical, §2(c) competitor clause live; board 2026-11-06: Max #28/274 (67.52), 27 open above, mammoth-1
+# 75.34 MIT still GOAT+teacher — defers stands. Max weights ARE on HF since 10-14 (the old "closed weights" note
+# was a board-lag misread). Training-recipe distill filed: riir-train issue 676 (recipe-from-paper only).
 DREX_SERVE_URL=http://127.0.0.1:8000 \
   cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
 # LiquidAI d1 lane (Issue 078; measurement only; .raw/d1_server.py on :8078, WINDOWS-SPLIT posture):
