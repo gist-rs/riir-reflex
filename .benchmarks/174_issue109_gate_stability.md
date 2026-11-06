@@ -62,3 +62,26 @@ this cell before citing the cliff as anything but quantization.
 - Tool commit: the arm landed in the same arc as this record; meta pins
   `git_sha` per run (see `gate_stability.json`).
 - Run-2 scratch `/tmp/gs_run2` removed after the identity check.
+
+## Addendum (2026-11-06) — cross-box reproduction (m3), read-only
+
+A second-box, dev-profile read of the SAME landed arm (`cargo run
+--release -p riir-reflex --bin harness -- --gate-stability`, m3 / macOS 27.2
+M3 Max, quiet box, datasets re-baseline a; run 2026-11-06):
+
+- **The verdict table reproduces EXACTLY**: all 8 suites STABLE; every
+  bootstrap SD identical to the digit at ×10⁻³ (banking77 distance 19.7
+  the max on both boxes; every score axis ≤ 13.3); zero vacuous
+  resamples; population floor 8 audited.
+- **t\* quantile positions drift at ~1e-6 on 2 of 8 suites** (xnli_en
+  score 0.29985520 vs 0.29985744; banking77 score 0.31765300 vs
+  0.31765320): dev-profile (m3) vs release (4090) f32 accumulation-order
+  noise in the quantile lookup itself — the resample distributions are
+  unaffected (the SDs are digit-identical), so the STABLE verdicts do not
+  move. Byte-identity across BOXES is therefore a same-profile claim
+  (the profile-is-part-of-the-claim law); cross-box/cross-profile reads
+  agree to ~1e-6, far inside every threshold gap this record reasons
+  about.
+- Read-only: no code touched, no re-pin — this addendum only prices the
+  cross-box half the original record's same-box byte-identity check
+  could not see.
