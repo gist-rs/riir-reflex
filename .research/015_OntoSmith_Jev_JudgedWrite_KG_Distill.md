@@ -1,6 +1,6 @@
 # Research 015: OntoSmith — the Jev judged-write KG builder (ecosystem distill + measurement-methodology extraction)
 
-**Status:** RECORD — external-repo distill, verdict **Gain**; actionable extractions filed (reflex Issue 108 — gold-support ceiling probe + adjudication contract · reflex Issue 109 — gate-fit threshold-stability audit). No lane work owed (decision-index-beat law 9).
+**Status:** RECORD — external-repo distill, verdict **Gain**; actionable extractions filed (reflex Issue 108 — gold-support ceiling probe + adjudication contract, CLOSED 2026-11-06 as a recorded NEGATIVE: probe + contract V2 shipped, sst5 ĝ ≈ 0.63–0.74 across seats but cross-family κ 0.6387 (V1) / 0.4496 (V2) never met the 0.70 bar — `.benchmarks/108_ceiling_v2_rejudge/` · reflex Issue 109 — gate-fit threshold-stability audit). No lane work owed (decision-index-beat law 9).
 **Date:** 2026-11-05
 **Source:** Dongbum Lee — **OntoSmith**, github.com/Dongbumlee/ontosmith @ `1412da4d740ae6b1519ee411b28a294922321e62` (2026-11-05 clone, MIT; clone read in `katgpt-rs/.raw/ontosmith/`, removed after commit). PyPI `ontosmith` v0.1.6. Docs: repo `docs/whitepaper.md` (the quality record), `docs/ADJUDICATION.md` (the adjudication contract), `docs/PACK_DESIGN.md`.
 **Related Research:** reflex 002 (AgentJev landscape — the typed-decision specialist family), reflex 005 (Clef + the Jev Decision Index — `jev-1.13.0` board rows, ECE 0.074), reflex 013 (JevAct), rethink 007 (Jeva)
@@ -103,6 +103,6 @@ Two parallel subagent searches (12+12 queries; arxiv/ACL/Semantic Scholar):
 
 ## 7. What was filed
 
-- `reflex/.issues/108_gold_support_ceiling_probe.md` — the ceiling probe + fate census + the adjudication contract doctrine (pre-registered bar, seam rulings with codes, cross-family recheck, dual κ, controls beside-not-inside; echo-gate: adjudication outputs never enter corpora/retrieval — grammar-not-answers applies to eval-side judgments too).
+- reflex Issue 108 (closed 2026-11-06, removed — record `.benchmarks/108_ceiling_v2_rejudge/`; text in git history) — the ceiling probe + fate census + the adjudication contract doctrine (pre-registered bar, seam rulings with codes, cross-family recheck, dual κ, controls beside-not-inside; echo-gate: adjudication outputs never enter corpora/retrieval — grammar-not-answers applies to eval-side judgments too).
 - `reflex/.issues/109_gate_threshold_stability_audit.md` — bootstrap t* spread + held-out F1 flatness on gate fits; knife-edge = finding; vacuity guard (n_accept floor).
 - PASS-Redirects lines on reflex Research 002 + 005 (the closest ecosystem cousins).

@@ -7,7 +7,7 @@ stamp of the two frozen V1 cells (`.benchmarks/108_ceiling_first_cell/`,
 `.benchmarks/108_ceiling_cross_family/`); V2 = V1 + the §V2 amendment
 below, committed BEFORE any V2 judge call.
 
-**Status:** the Issue-108 contract of record. The probe arm
+**Status:** the Issue-108 contract of record. **V2 cell LANDED 2026-11-06 — κ re-price FAIL (0.4496 < 0.70)**; per the V2 clause below this is the recorded negative: the local seat ladder cannot price sst5 gold at the bar, every ĝ is a seat-conditioned reading only, and the next rung (hosted seat or a third local family) needs a V3 edit first (`.benchmarks/108_ceiling_v2_rejudge/README.md`). Issue 108 closed. The probe arm
 (`--ceiling-probe`) reads this document's pinned constants
 (`CONTRACT_VERSION`, the judge-validity bar, the sampling floor) from code
 (`src/harness/runner/ceiling_probe.rs`) — the document is the source, the
