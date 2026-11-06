@@ -78,6 +78,15 @@ demonstrated format strain.
 process is localize → rulings → re-judge → re-price; this record OPENS that
 arc and hands it its first evidence:
 
+> **[2026-11-06 arc progress: the LOCALIZE step is DONE —
+> `LOCALIZE.md` in this directory.** Headline: 12/22 of the disagreement
+> mass is the benchmark's own grade-granularity seam (very-X vs X), 4 are
+> Qwen3-8B errors split both directions, 4 genuinely ambiguous, and 3
+> expose Bonsai PQ2_0's per-call instability (reasoning channel starves
+> content at max_tokens 256 on ~14% of re-reads — the first cell's 116
+> unknowns were this class, not gold noise). Both seats' quotes are in
+> hand; re-judge/re-price remain contract-edit (owner) steps.]
+
 1. **The two seats' ĝs agree within overlapping CIs** (0.6296 vs 0.6747;
    both [0.55, 0.73]-ish) — the substantive reading "sst5's headroom is
    capped by gold quality, roughly two-thirds supported" is STABLE across

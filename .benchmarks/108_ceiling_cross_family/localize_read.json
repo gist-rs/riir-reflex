@@ -1,0 +1,667 @@
+{
+ "note": "Issue 108 localize step \u2014 both seats re-read the 22 disagreement items with quotes; no re-price",
+ "probe_a": ".benchmarks/108_ceiling_first_cell/ceiling_probe.json",
+ "probe_b": ".benchmarks/108_ceiling_cross_family/ceiling_probe.json",
+ "disagreements": [
+  {
+   "case_id": "sst5:5",
+   "gold_label": "very negative",
+   "text": "we never really feel involved with the story , as all of its ideas remain just that : abstract ideas .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "we never really feel involved with the story , as all of its ideas remain just that : abstract ideas .",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:6",
+   "gold_label": "very positive",
+   "text": "this is one of polanski 's best films .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "one of polanski 's best films",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:54",
+   "gold_label": "neutral",
+   "text": "this is really just another genre picture .",
+   "lane_a": "correct",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "this is really just another genre picture",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:63",
+   "gold_label": "very negative",
+   "text": "... the sum of the parts equals largely a confused mediocrity .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "MALFORMED",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "MALFORMED",
+     "orig_reading": "not_supported",
+     "reproduced": false,
+     "raw": ""
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "the sum of the parts equals largely a confused mediocrity",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:117",
+   "gold_label": "positive",
+   "text": "an intelligent fiction about learning through cultural clash .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "intelligent fiction",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:145",
+   "gold_label": "neutral",
+   "text": "the crime matters less than the characters , although the filmmakers supply enough complications , close calls and double-crosses to satisfy us .",
+   "lane_a": "correct",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "the crime matters less than the characters",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:148",
+   "gold_label": "very positive",
+   "text": "the cast is uniformly excellent and relaxed .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "uniformly excellent",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:221",
+   "gold_label": "positive",
+   "text": "in adobo , ethnicity is not just the spice , but at the heart of more universal concerns .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "in adobo , ethnicity is not just the spice , but at the heart of more universal concerns .",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:233",
+   "gold_label": "very negative",
+   "text": "if high crimes were any more generic it would have a universal product code instead of a title .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "if high crimes were any more generic it would have a universal product code instead of a title",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:253",
+   "gold_label": "neutral",
+   "text": "ultimately , the message of trouble every day seems to be that all sexual desire disrupts life 's stasis .",
+   "lane_a": "correct",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "ultimately , the message of trouble every day seems to be that all sexual desire disrupts life 's stasis",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:270",
+   "gold_label": "very positive",
+   "text": "invincible is a wonderful movie .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "MALFORMED",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "MALFORMED",
+     "orig_reading": "supported",
+     "reproduced": false,
+     "raw": ""
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:282",
+   "gold_label": "positive",
+   "text": "this is the best american movie about troubled teens since 1998 's whatever .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "best",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:330",
+   "gold_label": "neutral",
+   "text": "often moving and explores the discomfort inherent in the contacts between the american ` hosts ' and their ` guests . '",
+   "lane_a": "correct",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "often moving and explores the discomfort inherent in the contacts between the american ` hosts ' and their ` guests . '",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:355",
+   "gold_label": "positive",
+   "text": "makmalbaf follows a resolutely realistic path in this uncompromising insight into the harsh existence of the kurdish refugees of iran 's borderlands .",
+   "lane_a": "correct",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "resolutely realistic path in this uncompromising insight into the harsh existence of the kurdish refugees of iran 's borderlands",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:388",
+   "gold_label": "very negative",
+   "text": "too silly to be frightening , too stolid to be funny , it projects the same lazy affability as its nominal star , david arquette .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "too silly to be frightening , too stolid to be funny , it projects the same lazy affability as its nominal star , david arquette .",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:424",
+   "gold_label": "positive",
+   "text": "good ol' urban legend stuff .",
+   "lane_a": "correct",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "good",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:443",
+   "gold_label": "very positive",
+   "text": "-lrb- howard -rrb- so good as leon barlow ... that he hardly seems to be acting .",
+   "lane_a": "wrong",
+   "orig_a": "supported",
+   "orig_b": "not_supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "supported",
+     "quote": "so good",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:471",
+   "gold_label": "very negative",
+   "text": "proves that a movie about goodness is not the same thing as a good movie .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "proves that a movie about goodness is not the same thing as a good movie",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:478",
+   "gold_label": "very negative",
+   "text": "a boring , formulaic mix of serial killers and stalk 'n' slash .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "a boring , formulaic mix of serial killers and stalk 'n' slash .",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:533",
+   "gold_label": "very negative",
+   "text": "if you 're looking for comedy to be served up , better look elsewhere .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "MALFORMED",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "MALFORMED",
+     "orig_reading": "not_supported",
+     "reproduced": false,
+     "raw": ""
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "if you 're looking for comedy to be served up , better look elsewhere .",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:537",
+   "gold_label": "neutral",
+   "text": "mocking kung fu pictures when they were a staple of exploitation theater programming was witty .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "mocking kung fu pictures when they were a staple of exploitation theater programming was witty",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  },
+  {
+   "case_id": "sst5:546",
+   "gold_label": "very negative",
+   "text": "shadyac shoots his film like an m. night shyamalan movie , and he frequently maintains the same snail 's pace ; he just forgot to add any genuine tension .",
+   "lane_a": "wrong",
+   "orig_a": "not_supported",
+   "orig_b": "supported",
+   "seats": {
+    "A": {
+     "model": "bonsai",
+     "verdict": "not_supported",
+     "quote": null,
+     "quote_verified": false,
+     "reading": "not_supported",
+     "orig_reading": "not_supported",
+     "reproduced": true,
+     "raw": null
+    },
+    "B": {
+     "model": "qwen3-8b",
+     "verdict": "supported",
+     "quote": "he just forgot to add any genuine tension",
+     "quote_verified": true,
+     "reading": "supported",
+     "orig_reading": "supported",
+     "reproduced": true,
+     "raw": null
+    }
+   }
+  }
+ ]
+}
