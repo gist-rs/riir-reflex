@@ -217,6 +217,9 @@ OPENTHAI_PYTHON=.raw/openthai-env/bin/python \
 # byte-identical, §2(c) competitor clause live; board 2026-11-06: Max #28/274 (67.52), 27 open above, mammoth-1
 # 75.34 MIT still GOAT+teacher — defers stands. Max weights ARE on HF since 10-14 (the old "closed weights" note
 # was a board-lag misread). Training-recipe distill filed: riir-train issue 676 (recipe-from-paper only).
+# (→ 2026-11-07: the "MIT" read above is SUPERSEDED — mammoth-1 licence UNSETTLED (board note: proprietary;
+# HF tag: license:mit; NO LICENSE file in tree) — eval proceeds, serving/distill blocked pending settlement;
+# see riir-rethink Research 019 finding 1.)
 DREX_SERVE_URL=http://127.0.0.1:8000 \
   cargo run --release --bin harness -- --drex --suites typed_decisions --skip-laya
 # LiquidAI d1 lane (Issue 078; measurement only; .raw/d1_server.py on :8078, WINDOWS-SPLIT posture):
