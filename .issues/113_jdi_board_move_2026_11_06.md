@@ -32,5 +32,6 @@ The move happened between the 2026-10-29 board and the 2026-11-06 board; the pin
 - [x] The read: rethink Research 019 (born-complete, edition + sha pinned).
 - [x] Re-pin via `watch_jdi.py --update` (the only writer) — commit lands with this issue.
 - [x] The tracked-entrants table recorded above verbatim from the watch output (the rows whose movement matters to our lanes; none of ours moved seat — JEV-27B r77, clef r90/r131/r129, GLiNER r260, Laya r261, CLM r267, Perplexity r17/r93).
+- [x] Infra note (verdict round 1 minor): 2026-11-07 is the SECOND consecutive bmo session needing the amo thunderbolt jump — `katopz@100.100.117.44` (Tailscale) timed out both days while the box itself answers on `192.168.10.2` via the bridge (tailscaled down, box up). Not silent-normal: if a third lane needs the jump, check bmo's tailscaled before queueing anything latency-sensitive.
 
 Standing watch discipline (unchanged): a CHANGED exit is a file-an-issue signal, never an auto-repin; `--update` is the only writer; offline boxes skip loud (exit 2), never a CI hazard.
